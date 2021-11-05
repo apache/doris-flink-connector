@@ -20,49 +20,55 @@ package org.apache.doris.flink.rest.models;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-@Deprecated
+import java.util.List;
+
+/**
+ * Be response model
+ **/
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class BackendRow {
+public class BackendV2 {
 
-    @JsonProperty(value = "HttpPort")
-    private String HttpPort;
+    @JsonProperty(value = "backends")
+    private List<BackendRowV2> backends;
 
-    @JsonProperty(value = "IP")
-    private String IP;
-
-    @JsonProperty(value = "Alive")
-    private Boolean Alive;
-
-    public String getHttpPort() {
-        return HttpPort;
+    public List<BackendRowV2> getBackends() {
+        return backends;
     }
 
-    public void setHttpPort(String httpPort) {
-        HttpPort = httpPort;
+    public void setBackends(List<BackendRowV2> backends) {
+        this.backends = backends;
     }
 
-    public String getIP() {
-        return IP;
-    }
+    public static class BackendRowV2 {
+        @JsonProperty("ip")
+        public String ip;
+        @JsonProperty("http_port")
+        public int httpPort;
+        @JsonProperty("is_alive")
+        public boolean isAlive;
 
-    public void setIP(String IP) {
-        this.IP = IP;
-    }
+        public String getIp() {
+            return ip;
+        }
 
-    public Boolean getAlive() {
-        return Alive;
-    }
+        public void setIp(String ip) {
+            this.ip = ip;
+        }
 
-    public void setAlive(Boolean alive) {
-        Alive = alive;
-    }
+        public int getHttpPort() {
+            return httpPort;
+        }
 
-    @Override
-    public String toString() {
-        return "BackendRow{" +
-                "HttpPort='" + HttpPort + '\'' +
-                ", IP='" + IP + '\'' +
-                ", Alive=" + Alive +
-                '}';
+        public void setHttpPort(int httpPort) {
+            this.httpPort = httpPort;
+        }
+
+        public boolean isAlive() {
+            return isAlive;
+        }
+
+        public void setAlive(boolean alive) {
+            isAlive = alive;
+        }
     }
 }
