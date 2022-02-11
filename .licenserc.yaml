@@ -1,0 +1,36 @@
+header:
+  license:
+    spdx-id: Apache-2.0
+    copyright-owner: Apache Software Foundation
+
+  paths-ignore:
+    - 'dist'
+    - 'licenses'
+    - '**/*.md'
+    - 'LICENSE'
+    - 'NOTICE'
+    - 'DISCLAIMER'
+    - '.clang-format'
+    - '.clang-format-ignore'
+    - '.gitattributes'
+    - '.gitignore'
+    - '.gitmodules'
+    - '.licenserc.yaml'
+    - '.rat-excludes'
+    - 'be/src/common/status.cpp'
+    - 'be/src/common/status.h'
+    - 'be/src/env/env.h'
+    - 'be/src/env/env_posix.cpp'
+    - '**/glibc-compatibility/**'
+    - '**/gutil/**'
+    - '**/test_data/**'
+    - '**/jmockit/**'
+    - '**/*.json'
+    - '**/*.dat'
+    - '**/*.svg'
+    - '**/*.md5'
+    - '**/*.patch'
+    - '**/*.log'
+    - 'custom_env.sh.tpl'
+
+  comment: on-failure

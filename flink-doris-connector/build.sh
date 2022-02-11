@@ -42,12 +42,9 @@ if [ $# -ne 2 ]; then
 fi
 
 ROOT=$(dirname "$0")
-ROOT=$(
-    cd "$ROOT"
-    pwd
-)
+ROOT=$(cd "$ROOT"; pwd)
 
-export DORIS_HOME=${ROOT}/../../
+export DORIS_HOME=${ROOT}/../
 
 . "${DORIS_HOME}"/env.sh
 
@@ -56,19 +53,8 @@ if [[ -f ${DORIS_HOME}/custom_env.sh ]]; then
     . "${DORIS_HOME}"/custom_env.sh
 fi
 
-# check maven
-MVN_CMD=mvn
-if [[ -n ${CUSTOM_MVN} ]]; then
-    MVN_CMD=${CUSTOM_MVN}
-fi
-
-if ! ${MVN_CMD} --version; then
-    echo "Error: mvn is not found"
-    exit 1
-fi
-export MVN_CMD
 rm -rf output/
-${MVN_CMD} clean package -Dscala.version=$2 -Dflink.version=$1
+${MVN_BIN} clean package -Dscala.version=$2 -Dflink.version=$1
 
 mkdir -p output/
 cp target/doris-flink-*.jar ./output/

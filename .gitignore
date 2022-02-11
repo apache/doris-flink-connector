@@ -1,0 +1,4 @@
+custom_env.sh
+flink-doris-connector/dependency-reduced-pom.xml
+flink-doris-connector/output/
+flink-doris-connector/target/
