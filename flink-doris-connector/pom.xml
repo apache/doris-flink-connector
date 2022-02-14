@@ -38,9 +38,9 @@ under the License.
         </license>
     </licenses>
     <scm>
-        <connection>scm:git:https://git@github.com/apache/incubator-doris.git</connection>
-        <developerConnection>scm:git:https://git@github.com/apache/incubator-doris.git</developerConnection>
-        <url>scm:git:https://git@github.com/apache/incubator-doris.git</url>
+        <connection>scm:git:https://git@github.com/apache/incubator-doris-flink-connector.git</connection>
+        <developerConnection>scm:git:https://git@github.com/apache/incubator-doris-flink-connector.git</developerConnection>
+        <url>scm:git:https://git@github.com/apache/incubator-doris-flink-connector.git</url>
         <tag>HEAD</tag>
     </scm>
     <issueManagement>
