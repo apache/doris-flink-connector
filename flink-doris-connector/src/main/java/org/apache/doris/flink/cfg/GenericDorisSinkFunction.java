@@ -53,7 +53,7 @@ public class GenericDorisSinkFunction<T> extends RichSinkFunction<T>
 
     @Override
     public void initializeState(FunctionInitializationContext context) throws Exception {
-
+        outputFormat.flush();
     }
 
     @Override
