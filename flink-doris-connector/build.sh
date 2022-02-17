@@ -25,26 +25,39 @@
 
 set -eo pipefail
 
-usage() {
-  echo "
-  Usage:
-    $0 flink_version scala_version
-  e.g.:
-    $0 1.11.6 2.12
-    $0 1.12.7 2.12
-    $0 1.13.5 2.12
-  "
-  exit 1
-}
-
-if [ $# -ne 2 ]; then
-    usage
-fi
-
 ROOT=$(dirname "$0")
 ROOT=$(cd "$ROOT"; pwd)
 
 export DORIS_HOME=${ROOT}/../
+
+usage() {
+  echo "
+  Usage:
+    $0 --flink version --scala version # specify flink and scala version
+    $0 --tag                           # this is a build from tag
+  e.g.:
+    $0 --flink 1.11.6 --scala 2.12
+    $0 --flink 1.12.7 --scala 2.12
+    $0 --flink 1.13.5 --scala 2.12
+    $0 --tag
+  "
+  exit 1
+}
+
+OPTS=$(getopt \
+  -n $0 \
+  -o '' \
+  -o 'h' \
+  -l 'flink:' \
+  -l 'scala:' \
+  -l 'tag' \
+  -- "$@")
+
+if [ $# == 0 ] ; then
+    usage
+fi
+
+eval set -- "$OPTS"
 
 . "${DORIS_HOME}"/env.sh
 
@@ -53,11 +66,26 @@ if [[ -f ${DORIS_HOME}/custom_env.sh ]]; then
     . "${DORIS_HOME}"/custom_env.sh
 fi
 
-rm -rf output/
-${MVN_BIN} clean package -Dscala.version=$2 -Dflink.version=$1
+BUILD_FROM_TAG=0
+FLINK_VERSION=0
+SCALA_VERSION=0
+while true; do
+    case "$1" in
+        --flink) FLINK_VERSION=$2 ; shift 2 ;;
+        --scala) SCALA_VERSION=$2 ; shift 2 ;;
+        --tag) BUILD_FROM_TAG=1 ; shift ;;
+        --) shift ;  break ;;
+        *) echo "Internal error" ; exit 1 ;;
+    esac
+done
 
-mkdir -p output/
-cp target/doris-flink-*.jar ./output/
+if [[ ${BUILD_FROM_TAG} -eq 1 ]]; then
+    rm -rf output/
+    ${MVN_BIN} clean package
+else
+    rm -rf output/
+    ${MVN_BIN} clean package -Dscala.version=${SCALA_VERSION} -Dflink.version=${FLINK_VERSION}
+fi
 
 echo "*****************************************"
 echo "Successfully build Flink-Doris-Connector"

@@ -48,13 +48,13 @@ jobs:
 
     - name: Build flink connector 1.11
       run: |
-        cd flink-doris-connector/ && /bin/bash build.sh 1.11.6 2.12
+        cd flink-doris-connector/ && /bin/bash build.sh --flink 1.11.6 --scala 2.12
 
     - name: Build flink connector 1.12
       run: |
-        cd flink-doris-connector/ && /bin/bash build.sh 1.12.7 2.12
+        cd flink-doris-connector/ && /bin/bash build.sh --flink 1.12.7 --scala 2.12
 
     - name: Build flink connector 1.13
       run: |
-        cd flink-doris-connector/ && /bin/bash build.sh 1.13.5 2.12
+        cd flink-doris-connector/ && /bin/bash build.sh --flink 1.13.5 --scala 2.12
 
