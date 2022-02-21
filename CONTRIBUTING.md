@@ -17,8 +17,8 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Contribute to Doris
+# Contribute to Doris and its surrounding projects
 
-Thank you very much for your interest in the Doris project. We welcome your suggestions, comments (including criticisms), comments and contributions to the Doris project.
+Thank you very much for your interest in the Doris and its surrounding projects. We welcome your suggestions, comments (including criticisms), comments and contributions to the Doris.
 
 For more information on how to contribute to Doris, please go to the Doris main repository [CONTRIBUTING](https://github.com/apache/incubator-doris/blob/master/CONTRIBUTING.md)
