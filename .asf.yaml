@@ -35,5 +35,8 @@ github:
       required_pull_request_reviews:
         dismiss_stale_reviews: true
         required_approving_review_count: 1
-  notifications:
-    pullrequests_status:  commits@doris.apache.org
+notifications:
+  issues:       commits@doris.apache.org
+  commits:      commits@doris.apache.org
+  pullrequests: commits@doris.apache.org
+ 
