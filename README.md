@@ -22,7 +22,11 @@ under the License.
 [![License](https://img.shields.io/badge/license-Apache%202-4EB1BA.svg)](https://www.apache.org/licenses/LICENSE-2.0.html)
 [![Join the Doris Community at Slack](https://img.shields.io/badge/chat-slack-brightgreen)](https://join.slack.com/t/apachedoriscommunity/shared_invite/zt-11jb8gesh-7IukzSrdea6mqoG0HB4gZg)
 
-### Flink Doris Connector
+## Flink Doris Connector
+
+Flink Doris Connector now support flink version from 0.11 to 0.14.
+
+If you wish to contribute or use a connector from flink 1.13 (and earlier), please use the [branch-for-flink-before-1.13](https://github.com/apache/incubator-doris-flink-connector/tree/branch-for-flink-before-1.13)
 
 More information about compilation and usage, please visit [Flink Doris Connector](http://doris.apache.org/extending-doris/flink-doris-connector.html)
 
