@@ -46,15 +46,7 @@ jobs:
         touch custom_env.sh
         echo 'export THRIFT_BIN=/usr/bin/thrift' >> custom_env.sh
 
-    - name: Build flink connector 1.11
+    - name: Build flink connector 1.14
       run: |
-        cd flink-doris-connector/ && /bin/bash build.sh --flink 1.11.6 --scala 2.12
-
-    - name: Build flink connector 1.12
-      run: |
-        cd flink-doris-connector/ && /bin/bash build.sh --flink 1.12.7 --scala 2.12
-
-    - name: Build flink connector 1.13
-      run: |
-        cd flink-doris-connector/ && /bin/bash build.sh --flink 1.13.5 --scala 2.12
+        cd flink-doris-connector/ && /bin/bash build.sh --flink 1.14.3 --scala 2.12
 

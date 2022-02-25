@@ -36,9 +36,7 @@ usage() {
     $0 --flink version --scala version # specify flink and scala version
     $0 --tag                           # this is a build from tag
   e.g.:
-    $0 --flink 1.11.6 --scala 2.12
-    $0 --flink 1.12.7 --scala 2.12
-    $0 --flink 1.13.5 --scala 2.12
+    $0 --flink 1.14.3 --scala 2.12
     $0 --tag
   "
   exit 1
