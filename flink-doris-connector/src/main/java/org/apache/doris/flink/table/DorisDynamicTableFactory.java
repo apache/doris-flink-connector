@@ -20,12 +20,15 @@ package org.apache.doris.flink.table;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
+import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.DynamicTableSinkFactory;
 import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.factories.FactoryUtil;
@@ -35,6 +38,7 @@ import org.apache.flink.table.utils.TableSchemaUtils;
 import java.time.Duration;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 
@@ -119,17 +123,31 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
             .defaultValue(DORIS_EXEC_MEM_LIMIT_DEFAULT)
             .withDescription("");
     // flink write config options
-    private static final ConfigOption<Integer> SINK_BUFFER_FLUSH_MAX_ROWS = ConfigOptions
-            .key("sink.batch.size")
+    private static final ConfigOption<Integer> SINK_CHECK_INTERVAL = ConfigOptions
+            .key("sink.check-interval")
             .intType()
-            .defaultValue(100)
-            .withDescription("the flush max size (includes all append, upsert and delete records), over this number" +
-                    " of records, will flush data. The default value is 100.");
+            .defaultValue(10000)
+            .withDescription("check exception with the interval while loading");
     private static final ConfigOption<Integer> SINK_MAX_RETRIES = ConfigOptions
             .key("sink.max-retries")
             .intType()
             .defaultValue(3)
             .withDescription("the max retry times if writing records to database failed.");
+    private static final ConfigOption<Integer> SINK_BUFFER_SIZE = ConfigOptions
+            .key("sink.buffer-size")
+            .intType()
+            .defaultValue(256 * 1024)
+            .withDescription("the buffer size to cache data for stream load.");
+    private static final ConfigOption<Integer> SINK_BUFFER_COUNT = ConfigOptions
+            .key("sink.buffer-count")
+            .intType()
+            .defaultValue(3)
+            .withDescription("the buffer count to cache data for stream load.");
+    private static final ConfigOption<String> SINK_LABEL_PREFIX = ConfigOptions
+            .key("sink.label-prefix")
+            .stringType()
+            .noDefaultValue()
+            .withDescription("the unique label prefix.");
     private static final ConfigOption<Duration> SINK_BUFFER_FLUSH_INTERVAL = ConfigOptions
             .key("sink.batch.interval")
             .durationType()
@@ -175,10 +193,13 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
         options.add(DORIS_BATCH_SIZE);
         options.add(DORIS_EXEC_MEM_LIMIT);
 
-        options.add(SINK_BUFFER_FLUSH_MAX_ROWS);
+        options.add(SINK_CHECK_INTERVAL);
         options.add(SINK_MAX_RETRIES);
         options.add(SINK_BUFFER_FLUSH_INTERVAL);
         options.add(SINK_ENABLE_DELETE);
+        options.add(SINK_LABEL_PREFIX);
+        options.add(SINK_BUFFER_SIZE);
+        options.add(SINK_BUFFER_COUNT);
         return options;
     }
 
@@ -230,11 +251,13 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
 
     private DorisExecutionOptions getDorisExecutionOptions(ReadableConfig readableConfig, Properties streamLoadProp) {
         final DorisExecutionOptions.Builder builder = DorisExecutionOptions.builder();
-        builder.setBatchSize(readableConfig.get(SINK_BUFFER_FLUSH_MAX_ROWS));
+        builder.setCheckInterval(readableConfig.get(SINK_CHECK_INTERVAL));
         builder.setMaxRetries(readableConfig.get(SINK_MAX_RETRIES));
-        builder.setBatchIntervalMs(readableConfig.get(SINK_BUFFER_FLUSH_INTERVAL).toMillis());
+        builder.setBufferSize(readableConfig.get(SINK_BUFFER_SIZE));
+        builder.setBufferCount(readableConfig.get(SINK_BUFFER_COUNT));
+        builder.setLabelPrefix(readableConfig.get(SINK_LABEL_PREFIX));
         builder.setStreamLoadProp(streamLoadProp);
-        builder.setEnableDelete(readableConfig.get(SINK_ENABLE_DELETE));
+        builder.setDeletable(readableConfig.get(SINK_ENABLE_DELETE));
         return builder.build();
     }
 
@@ -252,7 +275,10 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
 
     @Override
     public DynamicTableSink createDynamicTableSink(Context context) {
-        final FactoryUtil.TableFactoryHelper helper = FactoryUtil.createTableFactoryHelper(this, context);
+        final FactoryUtil.TableFactoryHelper helper =
+                FactoryUtil.createTableFactoryHelper(
+                        this, context);
+
         // validate all options
         helper.validateExcept(STREAM_LOAD_PROP_PREFIX);
 

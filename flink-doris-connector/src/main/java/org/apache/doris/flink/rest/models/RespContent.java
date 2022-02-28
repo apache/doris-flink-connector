@@ -25,13 +25,16 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 public class RespContent {
 
     @JsonProperty(value = "TxnId")
-    private int TxnId;
+    private long TxnId;
 
     @JsonProperty(value = "Label")
     private String Label;
 
     @JsonProperty(value = "Status")
     private String Status;
+
+    @JsonProperty(value = "TwoPhaseCommit")
+    private String TwoPhaseCommit;
 
     @JsonProperty(value = "ExistingJobStatus")
     private String ExistingJobStatus;
@@ -75,14 +78,25 @@ public class RespContent {
     @JsonProperty(value = "ErrorURL")
     private String ErrorURL;
 
+    public long getTxnId() {
+        return TxnId;
+    }
+
     public String getStatus() {
         return Status;
+    }
+
+    public String getTwoPhaseCommit() {
+        return TwoPhaseCommit;
     }
 
     public String getMessage() {
         return Message;
     }
 
+    public String getExistingJobStatus() {
+        return ExistingJobStatus;
+    }
     @Override
     public String toString() {
         ObjectMapper mapper = new ObjectMapper();
