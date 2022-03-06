@@ -14,8 +14,11 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.sink.writer;
 
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.util.Preconditions;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
@@ -25,13 +28,15 @@ import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.rest.models.RespContent;
 import org.apache.doris.flink.sink.DorisCommittable;
 import org.apache.doris.flink.sink.HttpUtil;
-import org.apache.flink.annotation.VisibleForTesting;
+
 import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
+
 import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
-import org.apache.flink.util.Preconditions;
+
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,9 +52,13 @@ import java.util.concurrent.TimeUnit;
 import static org.apache.doris.flink.sink.LoadStatus.PUBLISH_TIMEOUT;
 import static org.apache.doris.flink.sink.LoadStatus.SUCCESS;
 
+/**
+ * Doris Writer will load data to doris.
+ * @param <IN>
+ */
 public class DorisWriter<IN> implements SinkWriter<IN, DorisCommittable, DorisWriterState> {
     private static final Logger LOG = LoggerFactory.getLogger(DorisWriter.class);
-    private final static List<String> DORIS_SUCCESS_STATUS = new ArrayList<>(Arrays.asList(SUCCESS, PUBLISH_TIMEOUT));
+    private static final List<String> DORIS_SUCCESS_STATUS = new ArrayList<>(Arrays.asList(SUCCESS, PUBLISH_TIMEOUT));
     private final long lastCheckpointId;
     private DorisStreamLoad dorisStreamLoad;
     volatile boolean loading;
@@ -60,9 +69,10 @@ public class DorisWriter<IN> implements SinkWriter<IN, DorisCommittable, DorisWr
     private final int intervalTime;
     private final DorisWriterState dorisWriterState;
     private final DorisRecordSerializer<IN> serializer;
-    private transient final ScheduledExecutorService scheduledExecutorService;
+    private final transient ScheduledExecutorService scheduledExecutorService;
     private transient Thread executorThread;
     private transient volatile Exception loadException = null;
+
     public DorisWriter(Sink.InitContext initContext,
                        List<DorisWriterState> state,
                        DorisRecordSerializer<IN> serializer,
@@ -95,7 +105,7 @@ public class DorisWriter<IN> implements SinkWriter<IN, DorisCommittable, DorisWr
                     labelPrefix, new HttpUtil().getHttpClient());
             // TODO: we need check and abort all pending transaction.
             //  Discard transactions that may cause the job to fail.
-            dorisStreamLoad.abortPreCommit(labelPrefix,lastCheckpointId + 1);
+            dorisStreamLoad.abortPreCommit(labelPrefix, lastCheckpointId + 1);
         } catch (Exception e) {
             throw new DorisRuntimeException(e);
         }
@@ -139,9 +149,9 @@ public class DorisWriter<IN> implements SinkWriter<IN, DorisCommittable, DorisWr
         // the load future is done and checked in prepareCommit().
         // this will check error while loading.
         LOG.debug("start timer checker, interval {} ms", intervalTime);
-        if(dorisStreamLoad.getPendingLoadFuture() != null
+        if (dorisStreamLoad.getPendingLoadFuture() != null
                 && dorisStreamLoad.getPendingLoadFuture().isDone()) {
-            if(!loading) {
+            if (!loading) {
                 LOG.debug("not loading, skip timer checker");
                 return;
             }

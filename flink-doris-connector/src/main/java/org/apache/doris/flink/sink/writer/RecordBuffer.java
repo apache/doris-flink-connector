@@ -14,6 +14,7 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.sink.writer;
 
 import org.apache.flink.util.Preconditions;
@@ -26,6 +27,9 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingDeque;
 
+/**
+ * Channel of record stream and HTTP data stream.
+ */
 public class RecordBuffer {
     private static final Logger LOG = LoggerFactory.getLogger(RecordBuffer.class);
     BlockingQueue<ByteBuffer> writeQueue;
@@ -39,9 +43,9 @@ public class RecordBuffer {
         LOG.info("init RecordBuffer capacity {}, count {}", capacity, queueSize);
         Preconditions.checkState(capacity > 0);
         Preconditions.checkState(queueSize > 1);
-        writeQueue = new ArrayBlockingQueue<>(queueSize);
-        for(int index = 0; index < queueSize; index++) {
-            writeQueue.add(ByteBuffer.allocate(capacity));
+        this.writeQueue = new ArrayBlockingQueue<>(queueSize);
+        for (int index = 0; index < queueSize; index++) {
+            this.writeQueue.add(ByteBuffer.allocate(capacity));
         }
         readQueue = new LinkedBlockingDeque<>();
         this.bufferCapacity = capacity;
@@ -52,7 +56,7 @@ public class RecordBuffer {
         LOG.info("start buffer data, read queue size {}, write queue size {}", readQueue.size(), writeQueue.size());
         Preconditions.checkState(readQueue.size() == 0);
         Preconditions.checkState(writeQueue.size() == queueSize);
-        for(ByteBuffer byteBuffer: writeQueue) {
+        for (ByteBuffer byteBuffer: writeQueue) {
             Preconditions.checkState(byteBuffer.position() == 0);
             Preconditions.checkState(byteBuffer.remaining() == bufferCapacity);
         }
@@ -102,8 +106,8 @@ public class RecordBuffer {
         if (currentReadBuffer == null) {
             currentReadBuffer = readQueue.take();
         }
-        // Empty buffer as end flag
-        if(currentReadBuffer.limit() == 0) {
+        // add empty buffer as end flag
+        if (currentReadBuffer.limit() == 0) {
             recycleBuffer(currentReadBuffer);
             currentReadBuffer = null;
             Preconditions.checkState(readQueue.size() == 0);
@@ -112,7 +116,7 @@ public class RecordBuffer {
         int available = currentReadBuffer.remaining();
         int nRead = Math.min(available, buf.length);
         currentReadBuffer.get(buf, 0, nRead);
-        if(currentReadBuffer.remaining() == 0) {
+        if (currentReadBuffer.remaining() == 0) {
             recycleBuffer(currentReadBuffer);
             currentReadBuffer = null;
         }

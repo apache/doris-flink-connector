@@ -14,9 +14,13 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.sink.writer;
 
-import com.esotericsoftware.minlog.Log;
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.util.Preconditions;
+
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
@@ -27,9 +31,7 @@ import org.apache.doris.flink.exception.StreamLoadException;
 import org.apache.doris.flink.rest.models.RespContent;
 import org.apache.doris.flink.sink.HttpPutBuilder;
 import org.apache.doris.flink.sink.ResponseUtil;
-import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.concurrent.ExecutorThreadFactory;
+
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.entity.InputStreamEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -44,7 +46,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -60,7 +61,7 @@ import static org.apache.doris.flink.sink.writer.LoadConstants.JSON;
 import static org.apache.doris.flink.sink.writer.LoadConstants.LINE_DELIMITER_KEY;
 
 /**
- * DorisStreamLoad
+ * load data to doris.
  **/
 public class DorisStreamLoad implements Serializable {
     private static final Logger LOG = LoggerFactory.getLogger(DorisStreamLoad.class);
@@ -109,7 +110,7 @@ public class DorisStreamLoad implements Serializable {
                 new LinkedBlockingQueue<>(), new ExecutorThreadFactory("stream-load-upload"));
         this.recordStream = new RecordStream(executionOptions.getBufferSize(), executionOptions.getBufferCount());
         this.format = executionOptions.getStreamLoadProp().getProperty(FORMAT_KEY, CSV);
-        if(JSON.equals(format)) {
+        if (JSON.equals(format)) {
             lineDelimiter = ",".getBytes();
         } else {
             lineDelimiter = streamLoadProp.getProperty(LINE_DELIMITER_KEY, "\n").getBytes();
@@ -143,7 +144,7 @@ public class DorisStreamLoad implements Serializable {
     public void abortPreCommit(String labelSuffix, long chkID) throws Exception {
         long startChkID = chkID;
         LOG.info("abort for labelSuffix {}. start chkId {}.", labelSuffix, chkID);
-        while(true) {
+        while (true) {
             try {
                 String label = labelSuffix + "_" + startChkID;
                 HttpPutBuilder builder = new HttpPutBuilder();
@@ -158,14 +159,14 @@ public class DorisStreamLoad implements Serializable {
                 Preconditions.checkState("true".equals(respContent.getTwoPhaseCommit()));
                 if (LABEL_ALREADY_EXIST.equals(respContent.getStatus())) {
                     // label already exist and job finished
-                    if(JOB_EXIST_FINISHED.equals(respContent.getExistingJobStatus())) {
+                    if (JOB_EXIST_FINISHED.equals(respContent.getExistingJobStatus())) {
                         throw new DorisException("Load status is " + LABEL_ALREADY_EXIST + " and load job finished, " +
                                 "change you label prefix or restore from latest savepoint!");
 
                     }
                     // job not finished, abort.
                     Matcher matcher  = LABEL_EXIST_PATTERN.matcher(respContent.getMessage());
-                    if(matcher.find()) {
+                    if (matcher.find()) {
                         Preconditions.checkState(label.equals(matcher.group(1)));
                         long txnId = Long.parseLong(matcher.group(2));
                         LOG.info("abort {} for exist label {}", txnId, label);
@@ -179,7 +180,7 @@ public class DorisStreamLoad implements Serializable {
                     abortTransaction(respContent.getTxnId());
                     break;
                 }
-                startChkID ++;
+                startChkID++;
             } catch (Exception e) {
                 LOG.warn("failed to stream load data", e);
                 throw e;
@@ -194,7 +195,7 @@ public class DorisStreamLoad implements Serializable {
      * @throws IOException
      */
     public void writeRecord(byte[] record) throws IOException{
-        if(loadBatchFirstRecord) {
+        if (loadBatchFirstRecord) {
             loadBatchFirstRecord = false;
         } else {
             recordStream.write(lineDelimiter);
@@ -252,7 +253,7 @@ public class DorisStreamLoad implements Serializable {
                     .setEntity(entity)
                     .addProperties(streamLoadProp);
             pendingLoadFuture = executorService.submit(() -> {
-                Log.info("start execute load");
+                LOG.info("start execute load");
                 return httpClient.execute(putBuilder.build());
             });
         } catch (Exception e) {
@@ -260,7 +261,7 @@ public class DorisStreamLoad implements Serializable {
             LOG.warn(err, e);
             throw e;
         }
-        if(JSON.equals(format)) {
+        if (JSON.equals(format)) {
             recordStream.write(JSON_ARRAY_START);
         }
     }
@@ -276,15 +277,15 @@ public class DorisStreamLoad implements Serializable {
         CloseableHttpResponse response = httpClient.execute(builder.build());
 
         int statusCode = response.getStatusLine().getStatusCode();
-        if(statusCode != 200 || response.getEntity() == null) {
+        if (statusCode != 200 || response.getEntity() == null) {
             LOG.warn("abort transaction response: " + response.getStatusLine().toString());
             throw new DorisRuntimeException("Fail to abort transaction " + txnID + " with url " + abortUrlStr);
         }
 
         ObjectMapper mapper = new ObjectMapper();
         String loadResult = EntityUtils.toString(response.getEntity());
-        Map<String, String> res = mapper.readValue(loadResult, new TypeReference<HashMap<String,String>>(){});
-        if(FAIL.equals(res.get("status"))) {
+        Map<String, String> res = mapper.readValue(loadResult, new TypeReference<HashMap<String, String>>(){});
+        if (FAIL.equals(res.get("status"))) {
             if (ResponseUtil.isCommitted(res.get("msg"))) {
                 throw new DorisException("try abort committed transaction, " +
                         "do you recover from old savepoint?");
@@ -301,7 +302,7 @@ public class DorisStreamLoad implements Serializable {
                 throw new IOException("Closing httpClient failed.", e);
             }
         }
-        if(null != executorService) {
+        if (null != executorService) {
             executorService.shutdownNow();
         }
     }

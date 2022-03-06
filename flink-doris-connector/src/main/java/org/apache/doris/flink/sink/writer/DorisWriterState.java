@@ -14,10 +14,14 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.sink.writer;
 
 import java.util.Objects;
 
+/**
+ * hold state for DorisWriter.
+ */
 public class DorisWriterState {
     String labelPrefix;
     public DorisWriterState(String labelPrefix) {
@@ -30,8 +34,12 @@ public class DorisWriterState {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
         DorisWriterState that = (DorisWriterState) o;
         return Objects.equals(labelPrefix, that.labelPrefix);
     }

@@ -14,6 +14,7 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.sink;
 
 import java.util.Objects;
@@ -46,8 +47,12 @@ public class DorisCommittable {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
         DorisCommittable that = (DorisCommittable) o;
         return txnID == that.txnID &&
                 Objects.equals(hostPort, that.hostPort) &&

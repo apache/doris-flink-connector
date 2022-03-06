@@ -17,6 +17,9 @@
 
 package org.apache.doris.flink.exception;
 
+/**
+ * Doris runtime exception.
+ */
 public class DorisRuntimeException extends RuntimeException {
     public DorisRuntimeException() {
         super();

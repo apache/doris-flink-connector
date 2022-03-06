@@ -14,6 +14,7 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.sink;
 
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -22,7 +23,7 @@ import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.HttpClients;
 
 /**
- * HttpUtil
+ * util to build http client.
  */
 public class HttpUtil {
     private final HttpClientBuilder httpClientBuilder = HttpClients

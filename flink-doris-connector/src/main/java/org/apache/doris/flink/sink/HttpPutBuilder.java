@@ -14,15 +14,16 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.sink;
 
-import org.apache.commons.codec.binary.Base64;
 import org.apache.flink.util.Preconditions;
+
+import org.apache.commons.codec.binary.Base64;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHeaders;
 import org.apache.http.client.methods.HttpPut;
 import org.apache.http.entity.StringEntity;
-
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
@@ -50,7 +51,7 @@ public class HttpPutBuilder {
     }
 
     public HttpPutBuilder enable2PC() {
-        header.put("two_phase_commit","true");
+        header.put("two_phase_commit", "true");
         return this;
     }
 
@@ -67,12 +68,12 @@ public class HttpPutBuilder {
     }
 
     public HttpPutBuilder commit() {
-        header.put("txn_operation","commit");
+        header.put("txn_operation", "commit");
         return this;
     }
 
     public HttpPutBuilder abort() {
-        header.put("txn_operation","abort");
+        header.put("txn_operation", "abort");
         return this;
     }
 

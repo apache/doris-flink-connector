@@ -14,14 +14,15 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
-package org.apache.doris.flink.sink.writer;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+package org.apache.doris.flink.sink.writer;
 
 import java.io.IOException;
 import java.io.InputStream;
 
+/**
+ * Record Stream for writing record.
+ */
 public class RecordStream extends InputStream {
     private final RecordBuffer recordBuffer;
 

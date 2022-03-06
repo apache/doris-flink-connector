@@ -14,8 +14,12 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.sink.writer;
 
+/**
+ * Constants for load.
+ */
 public class LoadConstants {
     public static final String COLUMNS_KEY = "columns";
     public static final String FIELD_DELIMITER_KEY = "column_separator";

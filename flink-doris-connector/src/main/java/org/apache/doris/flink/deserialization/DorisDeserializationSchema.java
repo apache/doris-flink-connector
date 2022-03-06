@@ -20,6 +20,5 @@ import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 
 import java.io.Serializable;
 
-
 public interface DorisDeserializationSchema<T> extends Serializable, ResultTypeQueryable<T> {
 }

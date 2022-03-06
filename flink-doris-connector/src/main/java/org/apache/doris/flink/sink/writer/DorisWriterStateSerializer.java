@@ -14,6 +14,7 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.sink.writer;
 
 import org.apache.flink.core.io.SimpleVersionedSerializer;
@@ -24,6 +25,9 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 
+/**
+ * Serializer for DorisWriterState.
+ */
 public class DorisWriterStateSerializer implements SimpleVersionedSerializer<DorisWriterState> {
 
     @Override

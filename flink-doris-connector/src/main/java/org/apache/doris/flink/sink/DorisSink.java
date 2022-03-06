@@ -14,6 +14,7 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.sink;
 
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
@@ -22,9 +23,9 @@ import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.sink.committer.DorisCommitter;
 import org.apache.doris.flink.sink.writer.DorisRecordSerializer;
 import org.apache.doris.flink.sink.writer.DorisWriter;
+import org.apache.flink.api.connector.sink.Committer;
 import org.apache.doris.flink.sink.writer.DorisWriterState;
 import org.apache.doris.flink.sink.writer.DorisWriterStateSerializer;
-import org.apache.flink.api.connector.sink.Committer;
 import org.apache.flink.api.connector.sink.GlobalCommitter;
 import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.api.connector.sink.SinkWriter;
@@ -35,6 +36,11 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Load data into Doris based on 2PC.
+ * see {@link DorisWriter} and {@link DorisCommitter}.
+ * @param <IN> type of record.
+ */
 public class DorisSink<IN> implements Sink<IN, DorisCommittable, DorisWriterState, DorisCommittable> {
 
     private final DorisOptions dorisOptions;
@@ -88,6 +94,10 @@ public class DorisSink<IN> implements Sink<IN, DorisCommittable, DorisWriterStat
         return new Builder<>();
     }
 
+    /**
+     * build for DorisSink.
+     * @param <IN> record type.
+     */
     public static class Builder<IN> {
         private DorisOptions dorisOptions;
         private DorisReadOptions dorisReadOptions;

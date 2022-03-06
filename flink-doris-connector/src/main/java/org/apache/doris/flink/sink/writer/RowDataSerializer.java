@@ -14,12 +14,12 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.sink.writer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Preconditions;
 
@@ -51,11 +51,11 @@ public class RowDataSerializer implements DorisRecordSerializer<RowData> {
         this.type = type;
         this.fieldDelimiter = fieldDelimiter;
         this.enableDelete = enableDelete;
-        if(JSON.equals(type)) {
+        if (JSON.equals(type)) {
             objectMapper = new ObjectMapper();
         }
         this.fieldGetters = new RowData.FieldGetter[dataTypes.length];
-        for(int fieldIndex = 0; fieldIndex < dataTypes.length; fieldIndex++) {
+        for (int fieldIndex = 0; fieldIndex < dataTypes.length; fieldIndex++) {
             fieldGetters[fieldIndex] = createFieldGetter(dataTypes[fieldIndex].getLogicalType(), fieldIndex);
         }
     }
@@ -64,9 +64,9 @@ public class RowDataSerializer implements DorisRecordSerializer<RowData> {
     public byte[] serialize(RowData record) throws IOException{
         int maxIndex = Math.min(record.getArity(), fieldGetters.length);
         String valString;
-        if(JSON.equals(type)) {
+        if (JSON.equals(type)) {
             valString = buildJsonString(record, maxIndex);
-        } else if(CSV.equals(type)) {
+        } else if (CSV.equals(type)) {
             valString = buildCSVString(record, maxIndex);
         } else {
             throw new IllegalArgumentException("The type " + type + " is not supported!");
@@ -77,13 +77,13 @@ public class RowDataSerializer implements DorisRecordSerializer<RowData> {
     public String buildJsonString(RowData record, int maxIndex) throws IOException {
         int fieldIndex = 0;
         Map<String, String> valueMap = new HashMap<>();
-        while(fieldIndex < maxIndex) {
+        while (fieldIndex < maxIndex) {
             Object field = fieldGetters[fieldIndex].getFieldOrNull(record);
             String value = field != null ? field.toString() : null;
             valueMap.put(fieldNames[fieldIndex], value);
             fieldIndex++;
         }
-        if(enableDelete) {
+        if (enableDelete) {
             valueMap.put(DORIS_DELETE_SIGN, parseDeleteSign(record.getRowKind()));
         }
         return objectMapper.writeValueAsString(valueMap);
@@ -92,13 +92,13 @@ public class RowDataSerializer implements DorisRecordSerializer<RowData> {
     public String buildCSVString(RowData record, int maxIndex) throws IOException {
         int fieldIndex = 0;
         StringJoiner joiner = new StringJoiner(fieldDelimiter);
-        while(fieldIndex < maxIndex) {
+        while (fieldIndex < maxIndex) {
             Object field = fieldGetters[fieldIndex].getFieldOrNull(record);
             String value = field != null ? field.toString() : NULL_VALUE;
             joiner.add(value);
             fieldIndex++;
         }
-        if(enableDelete) {
+        if (enableDelete) {
             joiner.add(parseDeleteSign(record.getRowKind()));
         }
         return joiner.toString();
