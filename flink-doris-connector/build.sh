@@ -77,12 +77,20 @@ while true; do
     esac
 done
 
+# extract minor version:
+# eg: 1.14.3 -> 1.14
+FLINK_MINOR_VERSION=0
+if [ ${FLINK_VERSION} != 0 ]; then
+    FLINK_MINOR_VERSION=${FLINK_VERSION%.*}
+    echo "FLINK_MINOR_VERSION: ${FLINK_MINOR_VERSION}"
+fi
+
 if [[ ${BUILD_FROM_TAG} -eq 1 ]]; then
     rm -rf output/
     ${MVN_BIN} clean package
 else
     rm -rf output/
-    ${MVN_BIN} clean package -Dscala.version=${SCALA_VERSION} -Dflink.version=${FLINK_VERSION}
+    ${MVN_BIN} clean package -Dscala.version=${SCALA_VERSION} -Dflink.version=${FLINK_VERSION} -Dflink.minor.version=${FLINK_MINOR_VERSION}
 fi
 
 echo "*****************************************"
