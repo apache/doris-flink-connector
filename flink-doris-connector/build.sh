@@ -38,7 +38,7 @@ usage() {
   e.g.:
     $0 --flink 1.11.6 --scala 2.12
     $0 --flink 1.12.7 --scala 2.12
-    $0 --flink 1.13.5 --scala 2.12
+    $0 --flink 1.13.6 --scala 2.12
     $0 --tag
   "
   exit 1
@@ -79,12 +79,20 @@ while true; do
     esac
 done
 
+# extract minor version:
+# eg: 1.13.6 -> 1.13
+FLINK_MINOR_VERSION=0
+if [ ${FLINK_VERSION} != 0 ]; then
+    FLINK_MINOR_VERSION=${FLINK_VERSION%.*}
+    echo "FLINK_MINOR_VERSION: ${FLINK_MINOR_VERSION}"
+fi
+
 if [[ ${BUILD_FROM_TAG} -eq 1 ]]; then
     rm -rf output/
     ${MVN_BIN} clean package
 else
     rm -rf output/
-    ${MVN_BIN} clean package -Dscala.version=${SCALA_VERSION} -Dflink.version=${FLINK_VERSION}
+    ${MVN_BIN} clean package -Dscala.version=${SCALA_VERSION} -Dflink.version=${FLINK_VERSION} -Dflink.minor.version=${FLINK_MINOR_VERSION}
 fi
 
 echo "*****************************************"
