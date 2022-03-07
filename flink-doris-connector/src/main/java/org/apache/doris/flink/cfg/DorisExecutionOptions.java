@@ -31,7 +31,7 @@ public class DorisExecutionOptions implements Serializable {
     public static final Integer DEFAULT_BATCH_SIZE = 10000;
     public static final Integer DEFAULT_MAX_RETRY_TIMES = 1;
     private static final Long DEFAULT_INTERVAL_MILLIS = 10000L;
-    private static final Long DEFAULT_MAX_BATCH_BYTES = 1024 * 1024 * 10L;
+    public static final Long DEFAULT_MAX_BATCH_BYTES = 1024 * 1024 * 10L;
 
     private final Integer batchSize;
     private final Integer maxRetries;

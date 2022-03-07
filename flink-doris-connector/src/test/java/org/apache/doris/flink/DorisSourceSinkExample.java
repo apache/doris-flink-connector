@@ -56,6 +56,7 @@ public class DorisSourceSinkExample {
                         "  'username' = 'root',\n" +
                         "  'password' = '',\n" +
                         "  'sink.batch.size' = '3',\n" +
+                        "  'sink.batch.bytes' = '1',\n" +
                         "  'sink.max-retries' = '2'\n" +
                         ")");
 

@@ -141,6 +141,12 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
             .booleanType()
             .defaultValue(true)
             .withDescription("whether to enable the delete function");
+    private static final ConfigOption<Long> SINK_BUFFER_FLUSH_MAX_BYTES = ConfigOptions
+            .key("sink.batch.bytes")
+            .longType()
+            .defaultValue(DorisExecutionOptions.DEFAULT_MAX_BATCH_BYTES)
+            .withDescription("the flush max bytes (includes all append, upsert and delete records), over this number" +
+                    " in batch, will flush data. The default value is 10MB.");
 
     @Override
     public String factoryIdentifier() {
@@ -179,6 +185,7 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
         options.add(SINK_MAX_RETRIES);
         options.add(SINK_BUFFER_FLUSH_INTERVAL);
         options.add(SINK_ENABLE_DELETE);
+        options.add(SINK_BUFFER_FLUSH_MAX_BYTES);
         return options;
     }
 
@@ -235,6 +242,7 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
         builder.setBatchIntervalMs(readableConfig.get(SINK_BUFFER_FLUSH_INTERVAL).toMillis());
         builder.setStreamLoadProp(streamLoadProp);
         builder.setEnableDelete(readableConfig.get(SINK_ENABLE_DELETE));
+        builder.setMaxBatchBytes(readableConfig.get(SINK_BUFFER_FLUSH_MAX_BYTES));
         return builder.build();
     }
 
