@@ -62,9 +62,9 @@ under the License.
         </mailingList>
     </mailingLists>
     <properties>
-        <scala.version>${env.scala.version}</scala.version>
-        <flink.version>${env.flink.version}</flink.version>
-        <flink.minor.version>${env.flink.minor.version}</flink.minor.version>
+        <scala.version>2.12</scala.version>
+        <flink.version>1.12.7</flink.version>
+        <flink.minor.version>1.12</flink.minor.version>
         <libthrift.version>0.13.0</libthrift.version>
         <arrow.version>5.0.0</arrow.version>
         <maven-compiler-plugin.version>3.8.1</maven-compiler-plugin.version>
