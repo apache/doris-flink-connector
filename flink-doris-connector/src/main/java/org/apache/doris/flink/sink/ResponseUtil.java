@@ -14,11 +14,23 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
-package org.apache.doris.flink.deserialization;
 
-import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
+package org.apache.doris.flink.sink;
 
-import java.io.Serializable;
+import java.util.regex.Pattern;
 
-public interface DorisDeserializationSchema<T> extends Serializable, ResultTypeQueryable<T> {
+/**
+ * util for handle response.
+ */
+public class ResponseUtil {
+    public static final Pattern LABEL_EXIST_PATTERN =
+            Pattern.compile("errCode = 2, detailMessage = Label \\[(.*)\\] " +
+                    "has already been used, relate to txn \\[(\\d+)\\]");
+    public static final Pattern COMMITTED_PATTERN =
+            Pattern.compile("errCode = 2, detailMessage = transaction \\[(\\d+)\\] " +
+                    "is already \\b(COMMITTED|committed|VISIBLE|visible)\\b, not pre-committed.");
+
+    public static boolean isCommitted(String msg) {
+       return COMMITTED_PATTERN.matcher(msg).matches();
+    }
 }

@@ -14,11 +14,15 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
-package org.apache.doris.flink.deserialization;
 
-import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
+package org.apache.doris.flink.sink;
 
-import java.io.Serializable;
-
-public interface DorisDeserializationSchema<T> extends Serializable, ResultTypeQueryable<T> {
+/**
+ * enum of LoadStatus.
+ */
+public class LoadStatus {
+    public static final String SUCCESS = "Success";
+    public static final String PUBLISH_TIMEOUT = "Publish Timeout";
+    public static final String LABEL_ALREADY_EXIST = "Label Already Exists";
+    public static final String FAIL = "Fail";
 }

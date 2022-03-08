@@ -28,13 +28,15 @@ import java.util.Properties;
 public class DorisExecutionOptions implements Serializable {
 
     private static final long serialVersionUID = 1L;
-    public static final Integer DEFAULT_BATCH_SIZE = 10000;
-    public static final Integer DEFAULT_MAX_RETRY_TIMES = 1;
-    private static final Long DEFAULT_INTERVAL_MILLIS = 10000L;
-
-    private final Integer batchSize;
-    private final Integer maxRetries;
-    private final Long batchIntervalMs;
+    public static final int DEFAULT_CHECK_INTERVAL = 10000;
+    public static final int DEFAULT_MAX_RETRY_TIMES = 1;
+    private static final int DEFAULT_BUFFER_SIZE = 1024 * 1024;
+    private static final int DEFAULT_BUFFER_COUNT = 3;
+    private final int checkInterval;
+    private final int maxRetries;
+    private final int bufferSize;
+    private final int bufferCount;
+    private final String labelPrefix;
 
     /**
      * Properties for the StreamLoad.
@@ -44,11 +46,18 @@ public class DorisExecutionOptions implements Serializable {
     private final Boolean enableDelete;
 
 
-    public DorisExecutionOptions(Integer batchSize, Integer maxRetries, Long batchIntervalMs, Properties streamLoadProp, Boolean enableDelete) {
+    public DorisExecutionOptions(int checkInterval,
+                                 int maxRetries,
+                                 int bufferSize,
+                                 int bufferCount,
+                                 String labelPrefix,
+                                 Properties streamLoadProp, Boolean enableDelete) {
         Preconditions.checkArgument(maxRetries >= 0);
-        this.batchSize = batchSize;
+        this.checkInterval = checkInterval;
         this.maxRetries = maxRetries;
-        this.batchIntervalMs = batchIntervalMs;
+        this.bufferSize = bufferSize;
+        this.bufferCount = bufferCount;
+        this.labelPrefix = labelPrefix;
         this.streamLoadProp = streamLoadProp;
         this.enableDelete = enableDelete;
     }
@@ -58,29 +67,41 @@ public class DorisExecutionOptions implements Serializable {
     }
 
     public static DorisExecutionOptions defaults() {
-        Properties pro = new Properties();
-        pro.setProperty("format", "json");
-        pro.setProperty("strip_outer_array", "true");
-        return new Builder().setStreamLoadProp(pro).build();
+        Properties properties = new Properties();
+        properties.setProperty("format", "json");
+        properties.setProperty("strip_outer_array", "true");
+        return new Builder().setStreamLoadProp(properties).build();
     }
 
-    public Integer getBatchSize() {
-        return batchSize;
+    public Integer checkInterval() {
+        return checkInterval;
     }
 
     public Integer getMaxRetries() {
         return maxRetries;
     }
 
-    public Long getBatchIntervalMs() {
-        return batchIntervalMs;
+    public static long getSerialVersionUID() {
+        return serialVersionUID;
+    }
+
+    public int getBufferSize() {
+        return bufferSize;
+    }
+
+    public int getBufferCount() {
+        return bufferCount;
+    }
+
+    public String getLabelPrefix() {
+        return labelPrefix;
     }
 
     public Properties getStreamLoadProp() {
         return streamLoadProp;
     }
 
-    public Boolean getEnableDelete() {
+    public Boolean getDeletable() {
         return enableDelete;
     }
 
@@ -88,14 +109,16 @@ public class DorisExecutionOptions implements Serializable {
      * Builder of {@link DorisExecutionOptions}.
      */
     public static class Builder {
-        private Integer batchSize = DEFAULT_BATCH_SIZE;
-        private Integer maxRetries = DEFAULT_MAX_RETRY_TIMES;
-        private Long batchIntervalMs = DEFAULT_INTERVAL_MILLIS;
+        private int checkInterval = DEFAULT_CHECK_INTERVAL;
+        private int maxRetries = DEFAULT_MAX_RETRY_TIMES;
+        private int bufferSize = DEFAULT_BUFFER_SIZE;
+        private int bufferCount = DEFAULT_BUFFER_COUNT;
+        private String labelPrefix = "";
         private Properties streamLoadProp = new Properties();
-        private Boolean enableDelete = false;
+        private boolean enableDelete = false;
 
-        public Builder setBatchSize(Integer batchSize) {
-            this.batchSize = batchSize;
+        public Builder setCheckInterval(Integer checkInterval) {
+            this.checkInterval = checkInterval;
             return this;
         }
 
@@ -104,8 +127,18 @@ public class DorisExecutionOptions implements Serializable {
             return this;
         }
 
-        public Builder setBatchIntervalMs(Long batchIntervalMs) {
-            this.batchIntervalMs = batchIntervalMs;
+        public Builder setBufferSize(int bufferSize) {
+            this.bufferSize = bufferSize;
+            return this;
+        }
+
+        public Builder setBufferCount(int bufferCount) {
+            this.bufferCount = bufferCount;
+            return this;
+        }
+
+        public Builder setLabelPrefix(String labelPrefix) {
+            this.labelPrefix = labelPrefix;
             return this;
         }
 
@@ -114,13 +147,13 @@ public class DorisExecutionOptions implements Serializable {
             return this;
         }
 
-        public Builder setEnableDelete(Boolean enableDelete) {
+        public Builder setDeletable(Boolean enableDelete) {
             this.enableDelete = enableDelete;
             return this;
         }
 
         public DorisExecutionOptions build() {
-            return new DorisExecutionOptions(batchSize, maxRetries, batchIntervalMs, streamLoadProp, enableDelete);
+            return new DorisExecutionOptions(checkInterval, maxRetries, bufferSize, bufferCount, labelPrefix, streamLoadProp, enableDelete);
         }
     }
 

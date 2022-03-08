@@ -14,11 +14,28 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
-package org.apache.doris.flink.deserialization;
 
-import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
+package org.apache.doris.flink.sink;
 
-import java.io.Serializable;
+import org.junit.Assert;
+import org.junit.Test;
 
-public interface DorisDeserializationSchema<T> extends Serializable, ResultTypeQueryable<T> {
+import java.util.Properties;
+
+import static org.apache.doris.flink.sink.writer.LoadConstants.FIELD_DELIMITER_KEY;
+import static org.apache.doris.flink.sink.writer.LoadConstants.LINE_DELIMITER_KEY;
+
+/**
+ * test for EscapeHandler.
+ */
+public class TestEscapeHandler {
+    @Test
+    public void testHandle() {
+        Properties properties = new Properties();
+        properties.setProperty(FIELD_DELIMITER_KEY, "\\x09\\x09");
+        properties.setProperty(LINE_DELIMITER_KEY, "\\x0A\\x0A");
+        EscapeHandler.handleEscape(properties);
+        Assert.assertEquals("\t\t", properties.getProperty(FIELD_DELIMITER_KEY));
+        Assert.assertEquals("\n\n", properties.getProperty(LINE_DELIMITER_KEY));
+    }
 }

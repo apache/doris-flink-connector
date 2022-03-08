@@ -24,6 +24,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.io.IOUtils;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
+import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.apache.doris.flink.exception.IllegalArgumentException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.doris.flink.cfg.ConfigurationOptions;
@@ -84,6 +85,7 @@ public class RestService implements Serializable {
     private static final String API_PREFIX = "/api";
     private static final String SCHEMA = "_schema";
     private static final String QUERY_PLAN = "_query_plan";
+    private static final String UNIQUE_KEYS_TYPE = "UNIQUE_KEYS";
     @Deprecated
     private static final String BACKENDS = "/rest/v1/system?path=//backends";
     private static final String BACKENDS_V2 = "/api/backends?is_alive=true";
@@ -284,6 +286,14 @@ public class RestService implements Serializable {
         return backend.getIp() + ":" + backend.getHttpPort();
     }
 
+    public static String getBackend(DorisOptions options, DorisReadOptions readOptions, Logger logger) throws DorisRuntimeException {
+        try {
+            return randomBackend(options, readOptions, logger);
+        } catch (Exception e) {
+            throw new DorisRuntimeException("Failed to get backend via " + options.getFenodes(), e);
+        }
+    }
+
     /**
      * get Doris BE nodes to request.
      *
@@ -429,6 +439,14 @@ public class RestService implements Serializable {
         return parseSchema(response, logger);
     }
 
+    public static boolean isUniqueKeyType(DorisOptions options, DorisReadOptions readOptions, Logger logger)
+            throws DorisRuntimeException {
+        try {
+            return "UNIQUE_KEYS_TYPE".equals(getSchema(options, readOptions, logger).getKeysType());
+        } catch (Exception e) {
+            throw new DorisRuntimeException(e);
+        }
+    }
     /**
      * translate Doris FE response to inner {@link Schema} struct.
      *

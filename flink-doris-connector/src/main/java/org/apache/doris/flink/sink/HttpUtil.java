@@ -14,11 +14,29 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
-package org.apache.doris.flink.deserialization;
 
-import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
+package org.apache.doris.flink.sink;
 
-import java.io.Serializable;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.DefaultRedirectStrategy;
+import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.impl.client.HttpClients;
 
-public interface DorisDeserializationSchema<T> extends Serializable, ResultTypeQueryable<T> {
+/**
+ * util to build http client.
+ */
+public class HttpUtil {
+    private final HttpClientBuilder httpClientBuilder = HttpClients
+            .custom()
+            .setRedirectStrategy(new DefaultRedirectStrategy() {
+                @Override
+                protected boolean isRedirectable(String method) {
+                    return true;
+                }
+            });
+
+    public CloseableHttpClient getHttpClient() {
+        return httpClientBuilder.build();
+    }
+
 }

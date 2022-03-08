@@ -14,11 +14,23 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
-package org.apache.doris.flink.deserialization;
 
-import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
+package org.apache.doris.flink.sink.writer;
 
+import java.io.IOException;
 import java.io.Serializable;
 
-public interface DorisDeserializationSchema<T> extends Serializable, ResultTypeQueryable<T> {
+/**
+ * How to serialize the record to bytes.
+ * @param <T>
+ */
+public interface DorisRecordSerializer<T> extends Serializable {
+
+    /**
+     * define how to convert record into byte array.
+     * @param record
+     * @return byte array
+     * @throws IOException
+     */
+    byte[] serialize(T record) throws IOException;
 }

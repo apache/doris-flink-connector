@@ -19,19 +19,37 @@ package org.apache.doris.flink.table;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
+import org.apache.doris.flink.rest.RestService;
+import org.apache.doris.flink.sink.DorisSink;
+
+import org.apache.doris.flink.sink.writer.RowDataSerializer;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
-import org.apache.flink.table.connector.sink.OutputFormatProvider;
+import org.apache.flink.table.connector.sink.SinkProvider;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.types.RowKind;
-import org.apache.doris.flink.cfg.GenericDorisSinkFunction;
-import org.apache.flink.table.connector.sink.SinkFunctionProvider;
+
+import org.apache.flink.util.Preconditions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.Arrays;
+import java.util.Properties;
+import java.util.stream.Collectors;
+
+import static org.apache.doris.flink.sink.writer.LoadConstants.COLUMNS_KEY;
+import static org.apache.doris.flink.sink.writer.LoadConstants.CSV;
+import static org.apache.doris.flink.sink.writer.LoadConstants.DORIS_DELETE_SIGN;
+import static org.apache.doris.flink.sink.writer.LoadConstants.FIELD_DELIMITER_DEFAULT;
+import static org.apache.doris.flink.sink.writer.LoadConstants.FIELD_DELIMITER_KEY;
+import static org.apache.doris.flink.sink.writer.LoadConstants.FORMAT_KEY;
 
 /**
  * DorisDynamicTableSink
  **/
 public class DorisDynamicTableSink implements DynamicTableSink {
-
+    private static final Logger LOG = LoggerFactory.getLogger(DorisDynamicTableSink.class);
     private final DorisOptions options;
     private final DorisReadOptions readOptions;
     private final DorisExecutionOptions executionOptions;
@@ -58,16 +76,31 @@ public class DorisDynamicTableSink implements DynamicTableSink {
 
     @Override
     public SinkRuntimeProvider getSinkRuntimeProvider(Context context) {
-        DorisDynamicOutputFormat.Builder builder = DorisDynamicOutputFormat.builder()
-                .setFenodes(options.getFenodes())
-                .setUsername(options.getUsername())
-                .setPassword(options.getPassword())
-                .setTableIdentifier(options.getTableIdentifier())
-                .setReadOptions(readOptions)
-                .setExecutionOptions(executionOptions)
-                .setFieldDataTypes(tableSchema.getFieldDataTypes())
-                .setFieldNames(tableSchema.getFieldNames());
-        return SinkFunctionProvider.of(new GenericDorisSinkFunction(builder.build()));
+        Properties loadProperties = executionOptions.getStreamLoadProp();
+        boolean deletable = RestService.isUniqueKeyType(options, readOptions, LOG) && executionOptions.getDeletable();
+
+        if (!loadProperties.containsKey(COLUMNS_KEY)) {
+            String[] fieldNames = tableSchema.getFieldNames();
+            Preconditions.checkState(fieldNames != null && fieldNames.length > 0);
+            String columns = String.join(",", Arrays.stream(fieldNames).map(item -> String.format("`%s`", item.trim().replace("`", ""))).collect(Collectors.toList()));
+            if (deletable) {
+                columns = String.format("%s,%s", columns, DORIS_DELETE_SIGN);
+            }
+            loadProperties.put(COLUMNS_KEY, columns);
+        }
+
+        RowDataSerializer.Builder serializerBuilder = RowDataSerializer.builder();
+        serializerBuilder.setFieldNames(tableSchema.getFieldNames())
+                .setFieldType(tableSchema.getFieldDataTypes())
+                .setType(loadProperties.getProperty(FORMAT_KEY, CSV))
+                .enableDelete(deletable)
+                .setFieldDelimiter(loadProperties.getProperty(FIELD_DELIMITER_KEY, FIELD_DELIMITER_DEFAULT));
+        DorisSink.Builder<RowData> dorisSinkBuilder = DorisSink.builder();
+        dorisSinkBuilder.setDorisOptions(options)
+                .setDorisReadOptions(readOptions)
+                .setDorisExecutionOptions(executionOptions)
+                .setSerializer(serializerBuilder.build());
+        return SinkProvider.of(dorisSinkBuilder.build());
     }
 
     @Override

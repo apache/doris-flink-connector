@@ -14,11 +14,32 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
-package org.apache.doris.flink.deserialization;
 
-import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
+package org.apache.doris.flink.exception;
 
-import java.io.Serializable;
+/**
+ * Doris runtime exception.
+ */
+public class DorisRuntimeException extends RuntimeException {
+    public DorisRuntimeException() {
+        super();
+    }
 
-public interface DorisDeserializationSchema<T> extends Serializable, ResultTypeQueryable<T> {
+    public DorisRuntimeException(String message) {
+        super(message);
+    }
+
+    public DorisRuntimeException(String message, Throwable cause) {
+        super(message, cause);
+    }
+
+    public DorisRuntimeException(Throwable cause) {
+        super(cause);
+    }
+
+    protected DorisRuntimeException(String message, Throwable cause,
+                                    boolean enableSuppression,
+                                    boolean writableStackTrace) {
+        super(message, cause, enableSuppression, writableStackTrace);
+    }
 }
