@@ -26,15 +26,16 @@ import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.rest.models.Schema;
 import org.apache.flink.api.common.io.RichOutputFormat;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.types.RowKind;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -77,6 +78,7 @@ public class DorisDynamicOutputFormat<T> extends RichOutputFormat<T> {
     private final boolean jsonFormat;
     private final RowData.FieldGetter[] fieldGetters;
     private final List batch = new ArrayList<>();
+    private long batchBytes = 0L;
     private String fieldDelimiter;
     private String lineDelimiter;
     private DorisOptions options;
@@ -219,7 +221,8 @@ public class DorisDynamicOutputFormat<T> extends RichOutputFormat<T> {
     public synchronized void writeRecord(T row) throws IOException {
         checkFlushException();
         addBatch(row);
-        if (executionOptions.getBatchSize() > 0 && batch.size() >= executionOptions.getBatchSize()) {
+        if ((executionOptions.getBatchSize() > 0 && batch.size() >= executionOptions.getBatchSize())
+                || batchBytes >= executionOptions.getMaxBatchBytes()) {
             flush();
         }
     }
@@ -234,9 +237,14 @@ public class DorisDynamicOutputFormat<T> extends RichOutputFormat<T> {
                 if (jsonFormat) {
                     String data = field != null ? field.toString() : null;
                     valueMap.put(this.fieldNames[i], data);
+                    batchBytes += this.fieldNames[i].getBytes(StandardCharsets.UTF_8).length;
+                    if (data != null) {
+                        batchBytes += data.getBytes(StandardCharsets.UTF_8).length;
+                    }
                 } else {
                     String data = field != null ? field.toString() : NULL_VALUE;
                     value.add(data);
+                    batchBytes += data.getBytes(StandardCharsets.UTF_8).length;
                 }
             }
             // add doris delete sign
@@ -250,6 +258,7 @@ public class DorisDynamicOutputFormat<T> extends RichOutputFormat<T> {
             Object data = jsonFormat ? valueMap : value.toString();
             batch.add(data);
         } else if (row instanceof String) {
+            batchBytes += ((String) row).getBytes(StandardCharsets.UTF_8).length;
             batch.add(row);
         } else {
             throw new RuntimeException("The type of element should be 'RowData' or 'String' only.");
@@ -308,6 +317,7 @@ public class DorisDynamicOutputFormat<T> extends RichOutputFormat<T> {
             try {
                 dorisStreamLoad.load(result);
                 batch.clear();
+                batchBytes = 0;
                 break;
             } catch (StreamLoadException e) {
                 LOG.error("doris sink error, retry times = {}", i, e);
