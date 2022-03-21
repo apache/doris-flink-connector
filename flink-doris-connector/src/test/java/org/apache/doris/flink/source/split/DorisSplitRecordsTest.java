@@ -14,25 +14,25 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
-package org.apache.doris.flink.deserialization;
+package org.apache.doris.flink.source.split;
 
+import org.junit.Test;
 
-import org.apache.flink.api.common.typeinfo.TypeHint;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.util.Collector;
+import java.util.Collections;
 
-import java.util.List;
+import static org.junit.Assert.assertEquals;
 
-public class SimpleListDeserializationSchema implements DorisDeserializationSchema<List<?>> {
+/**
+ * Unit tests for the {@link DorisSplitRecords} class.
+ */
+public class DorisSplitRecordsTest {
 
-    @Override
-    public TypeInformation<List<?>> getProducedType() {
-        return TypeInformation.of(new TypeHint<List<?>>() {
-        });
+    @Test
+    public void testEmptySplits() {
+        final String split = "empty";
+        final DorisSplitRecords records = DorisSplitRecords.finishedSplit(split);
+
+        assertEquals(Collections.singleton(split), records.finishedSplits());
     }
 
-    @Override
-    public void deserialize(List<?> record, Collector<List<?>> out) throws Exception {
-        out.collect(record);
-    }
 }

@@ -16,23 +16,31 @@
 // under the License.
 package org.apache.doris.flink.deserialization;
 
-
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.util.Collector;
 
 import java.util.List;
 
-public class SimpleListDeserializationSchema implements DorisDeserializationSchema<List<?>> {
-
+/**
+ * A simple implementation of {@link DorisDeserializationSchema} which converts the received
+ * list record into {@link GenericRowData}.
+ */
+public class RowDataDeserializationSchema implements DorisDeserializationSchema<RowData> {
     @Override
-    public TypeInformation<List<?>> getProducedType() {
-        return TypeInformation.of(new TypeHint<List<?>>() {
+    public TypeInformation<RowData> getProducedType() {
+        return TypeInformation.of(new TypeHint<RowData>() {
         });
     }
 
     @Override
-    public void deserialize(List<?> record, Collector<List<?>> out) throws Exception {
-        out.collect(record);
+    public void deserialize(List<?> record, Collector<RowData> out) throws Exception {
+        GenericRowData rowData = new GenericRowData(record.size());
+        for (int i = 0; i < record.size(); i++) {
+            rowData.setField(i, record.get(i));
+        }
+        out.collect(rowData);
     }
 }

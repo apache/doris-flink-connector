@@ -675,7 +675,7 @@ public class RestService implements Serializable {
                         first, Math.min(beInfo.getValue().size(), first + tabletsSize)));
                 first = first + tabletsSize;
                 PartitionDefinition partitionDefinition =
-                        new PartitionDefinition(database, table, options,
+                        new PartitionDefinition(database, table,
                                 beInfo.getKey(), partitionTablets, opaquedQueryPlan);
                 logger.debug("Generate one PartitionDefinition '{}'.", partitionDefinition);
                 partitions.add(partitionDefinition);
