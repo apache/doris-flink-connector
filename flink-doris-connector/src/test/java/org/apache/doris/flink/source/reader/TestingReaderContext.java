@@ -49,8 +49,6 @@ public class TestingReaderContext implements SourceReaderContext {
         this.metrics = metricGroup;
     }
 
-    // ------------------------------------------------------------------------
-
     @Override
     public SourceReaderMetricGroup metricGroup() {
         return metrics;
@@ -85,8 +83,6 @@ public class TestingReaderContext implements SourceReaderContext {
     public UserCodeClassLoader getUserCodeClassLoader() {
         return SimpleUserCodeClassLoader.create(getClass().getClassLoader());
     }
-
-    // ------------------------------------------------------------------------
 
     public int getNumSplitRequests() {
         return numSplitRequests;
