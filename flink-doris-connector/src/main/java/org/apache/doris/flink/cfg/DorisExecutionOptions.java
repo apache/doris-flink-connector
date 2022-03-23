@@ -31,10 +31,12 @@ public class DorisExecutionOptions implements Serializable {
     public static final Integer DEFAULT_BATCH_SIZE = 10000;
     public static final Integer DEFAULT_MAX_RETRY_TIMES = 1;
     private static final Long DEFAULT_INTERVAL_MILLIS = 10000L;
+    public static final Long DEFAULT_MAX_BATCH_BYTES = 1024 * 1024 * 10L;
 
     private final Integer batchSize;
     private final Integer maxRetries;
     private final Long batchIntervalMs;
+    private final Long maxBatchBytes;
 
     /**
      * Properties for the StreamLoad.
@@ -44,13 +46,15 @@ public class DorisExecutionOptions implements Serializable {
     private final Boolean enableDelete;
 
 
-    public DorisExecutionOptions(Integer batchSize, Integer maxRetries, Long batchIntervalMs, Properties streamLoadProp, Boolean enableDelete) {
+    public DorisExecutionOptions(Integer batchSize, Integer maxRetries, Long batchIntervalMs, Properties streamLoadProp, Boolean enableDelete, Long maxBatchBytes) {
         Preconditions.checkArgument(maxRetries >= 0);
+        Preconditions.checkArgument(maxBatchBytes >= 0);
         this.batchSize = batchSize;
         this.maxRetries = maxRetries;
         this.batchIntervalMs = batchIntervalMs;
         this.streamLoadProp = streamLoadProp;
         this.enableDelete = enableDelete;
+        this.maxBatchBytes = maxBatchBytes;
     }
 
     public static Builder builder() {
@@ -84,6 +88,10 @@ public class DorisExecutionOptions implements Serializable {
         return enableDelete;
     }
 
+    public Long getMaxBatchBytes() {
+        return maxBatchBytes;
+    }
+
     /**
      * Builder of {@link DorisExecutionOptions}.
      */
@@ -93,6 +101,7 @@ public class DorisExecutionOptions implements Serializable {
         private Long batchIntervalMs = DEFAULT_INTERVAL_MILLIS;
         private Properties streamLoadProp = new Properties();
         private Boolean enableDelete = false;
+        private Long maxBatchBytes = DEFAULT_MAX_BATCH_BYTES;
 
         public Builder setBatchSize(Integer batchSize) {
             this.batchSize = batchSize;
@@ -119,8 +128,13 @@ public class DorisExecutionOptions implements Serializable {
             return this;
         }
 
+        public Builder setMaxBatchBytes(Long maxBatchBytes) {
+            this.maxBatchBytes = maxBatchBytes;
+            return this;
+        }
+
         public DorisExecutionOptions build() {
-            return new DorisExecutionOptions(batchSize, maxRetries, batchIntervalMs, streamLoadProp, enableDelete);
+            return new DorisExecutionOptions(batchSize, maxRetries, batchIntervalMs, streamLoadProp, enableDelete, maxBatchBytes);
         }
     }
 
