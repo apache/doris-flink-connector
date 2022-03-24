@@ -31,6 +31,7 @@ import javax.annotation.Nonnull;
 public class GenericDorisSinkFunction<T> extends RichSinkFunction<T>
         implements CheckpointedFunction {
 
+    private static final long serialVersionUID = 1L;
     private final DorisDynamicOutputFormat outputFormat;
 
     public GenericDorisSinkFunction(@Nonnull DorisDynamicOutputFormat outputFormat) {
