@@ -24,6 +24,7 @@ import org.apache.flink.core.io.InputSplit;
  **/
 public class DorisTableInputSplit implements InputSplit, java.io.Serializable {
 
+    private static final long serialVersionUID = 1L;
     /**
      * The number of the split.
      */

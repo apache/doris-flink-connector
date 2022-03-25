@@ -40,6 +40,7 @@ import java.util.List;
 
 public class DorisSourceFunction extends RichParallelSourceFunction<List<?>> implements ResultTypeQueryable<List<?>> {
 
+    private static final long serialVersionUID = 1L;
     private static final Logger logger = LoggerFactory.getLogger(DorisSourceFunction.class);
 
     private final DorisDeserializationSchema<List<?>> deserializer;

@@ -51,6 +51,7 @@ import java.util.UUID;
  **/
 public class DorisStreamLoad implements Serializable {
 
+    private static final long serialVersionUID = 1L;
     private static final Logger LOG = LoggerFactory.getLogger(DorisStreamLoad.class);
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 

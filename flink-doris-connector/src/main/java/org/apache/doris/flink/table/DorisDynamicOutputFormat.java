@@ -59,6 +59,7 @@ import static org.apache.flink.table.data.RowData.createFieldGetter;
  **/
 public class DorisDynamicOutputFormat<T> extends RichOutputFormat<T> {
 
+    private static final long serialVersionUID = 1L;
     private static final Logger LOG = LoggerFactory.getLogger(DorisDynamicOutputFormat.class);
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
