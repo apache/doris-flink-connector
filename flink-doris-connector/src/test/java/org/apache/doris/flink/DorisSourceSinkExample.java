@@ -55,8 +55,8 @@ public class DorisSourceSinkExample {
                         "  'table.identifier' = 'db.table',\n" +
                         "  'username' = 'root',\n" +
                         "  'password' = '',\n" +
-                        "  'sink.batch.size' = '3',\n" +
-                        "  'sink.max-retries' = '2'\n" +
+                        "  'sink.properties.format' = 'csv',\n" +
+                        "  'sink.label-prefix' = 'doris_csv_table'\n" +
                         ")");
 
         tEnv.executeSql("INSERT INTO doris_test_sink select name,age,price,sale from doris_test");

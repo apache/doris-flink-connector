@@ -106,7 +106,7 @@ public class TestDorisStreamLoad {
         properties.setProperty("line_delimiter", "\n");
         properties.setProperty("format", "json");
         executionOptions = OptionUtils.buildExecutionOptional(properties);
-        byte[] expectBuffer = "[{\"id\": 1},{\"id\": 2}]".getBytes(StandardCharsets.UTF_8);
+        byte[] expectBuffer = "{\"id\": 1}\n{\"id\": 2}".getBytes(StandardCharsets.UTF_8);
         CloseableHttpClient httpClient = mock(CloseableHttpClient.class);
         CloseableHttpResponse preCommitResponse = HttpTestUtil.getResponse(HttpTestUtil.PRE_COMMIT_RESPONSE, true);
         when(httpClient.execute(any())).thenReturn(preCommitResponse);

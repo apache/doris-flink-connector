@@ -126,10 +126,12 @@ public class DorisSink<IN> implements Sink<IN, DorisCommittable, DorisWriterStat
 
         public DorisSink<IN> build() {
             Preconditions.checkNotNull(dorisOptions);
-            Preconditions.checkNotNull(dorisReadOptions);
             Preconditions.checkNotNull(dorisExecutionOptions);
             Preconditions.checkNotNull(serializer);
             EscapeHandler.handleEscape(dorisExecutionOptions.getStreamLoadProp());
+            if(dorisReadOptions == null) {
+                dorisReadOptions = DorisReadOptions.builder().build();
+            }
             return new DorisSink<>(dorisOptions, dorisReadOptions, dorisExecutionOptions, serializer);
         }
     }

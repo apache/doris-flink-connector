@@ -16,6 +16,7 @@
 // under the License.
 package org.apache.doris.flink;
 
+import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -31,6 +32,7 @@ public class DorisSinkSQLExample {
     public static void main(String[] args) {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
         final StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
         List<Tuple2<String, Integer>> data = new ArrayList<>();
@@ -53,7 +55,7 @@ public class DorisSinkSQLExample {
                         "  'sink.buffer-count' = '4',\n" +
                         "  'sink.buffer-size' = '4086'," +
                         "  'sink.label-prefix' = 'doris_label',\n" +
-                        "  'sink.properties.strip_outer_array' = 'true'\n" +
+                        "  'sink.properties.read_json_by_line' = 'true'\n" +
                         ")");
         tEnv.executeSql("INSERT INTO doris_test_sink select name,age from doris_test");
     }
