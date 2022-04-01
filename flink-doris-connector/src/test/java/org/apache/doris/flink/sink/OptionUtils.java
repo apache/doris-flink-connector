@@ -60,6 +60,10 @@ public class OptionUtils {
     }
 
     public static DorisReadOptions buildDorisReadOptions() {
+        return dorisReadOptionsBuilder().build();
+    }
+
+    public static DorisReadOptions.Builder dorisReadOptionsBuilder() {
         DorisReadOptions.Builder builder = DorisReadOptions.builder();
         builder.setDeserializeArrowAsync(false)
                 .setDeserializeQueueSize(64)
@@ -70,7 +74,7 @@ public class OptionUtils {
                 .setRequestReadTimeoutMs(10000)
                 .setRequestRetries(3)
                 .setRequestTabletSize(1024 * 1024);
-        return builder.build();
+        return builder;
     }
 
     public static DorisOptions buildDorisOptions() {

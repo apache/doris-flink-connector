@@ -159,6 +159,12 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
             .defaultValue(true)
             .withDescription("whether to enable the delete function");
 
+    private static final ConfigOption<Boolean> SOURCE_USE_OLD_API = ConfigOptions
+            .key("source.use-old-api")
+            .booleanType()
+            .defaultValue(false)
+            .withDescription("Whether to read data using the new interface defined according to the FLIP-27 specification,default false");
+
     @Override
     public String factoryIdentifier() {
         return "doris"; // used for matching to `connector = '...'`
@@ -199,6 +205,8 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
         options.add(SINK_LABEL_PREFIX);
         options.add(SINK_BUFFER_SIZE);
         options.add(SINK_BUFFER_COUNT);
+
+        options.add(SOURCE_USE_OLD_API);
         return options;
     }
 
@@ -217,8 +225,7 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
         // create and return dynamic table source
         return new DorisDynamicTableSource(
                 getDorisOptions(helper.getOptions()),
-                getDorisReadOptions(helper.getOptions()),
-                physicalSchema);
+                getDorisReadOptions(helper.getOptions()));
     }
 
     private DorisOptions getDorisOptions(ReadableConfig readableConfig) {

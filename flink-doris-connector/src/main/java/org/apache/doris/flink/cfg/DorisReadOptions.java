@@ -37,10 +37,11 @@ public class DorisReadOptions implements Serializable {
     private Long execMemLimit;
     private Integer deserializeQueueSize;
     private Boolean deserializeArrowAsync;
+    private boolean useOldApi;
 
     public DorisReadOptions(String readFields, String filterQuery, Integer requestTabletSize, Integer requestConnectTimeoutMs, Integer requestReadTimeoutMs,
                             Integer requestQueryTimeoutS, Integer requestRetries, Integer requestBatchSize, Long execMemLimit,
-                            Integer deserializeQueueSize, Boolean deserializeArrowAsync) {
+                            Integer deserializeQueueSize, Boolean deserializeArrowAsync, boolean useOldApi) {
         this.readFields = readFields;
         this.filterQuery = filterQuery;
         this.requestTabletSize = requestTabletSize;
@@ -52,6 +53,7 @@ public class DorisReadOptions implements Serializable {
         this.execMemLimit = execMemLimit;
         this.deserializeQueueSize = deserializeQueueSize;
         this.deserializeArrowAsync = deserializeArrowAsync;
+        this.useOldApi = useOldApi;
     }
 
     public String getReadFields() {
@@ -98,12 +100,15 @@ public class DorisReadOptions implements Serializable {
         return deserializeArrowAsync;
     }
 
+    public boolean getUseOldApi() {
+        return useOldApi;
+    }
 
     public static Builder builder() {
         return new Builder();
     }
 
-    public static DorisReadOptions defaults(){
+    public static DorisReadOptions defaults() {
         return DorisReadOptions.builder().build();
     }
 
@@ -123,6 +128,7 @@ public class DorisReadOptions implements Serializable {
         private Long execMemLimit;
         private Integer deserializeQueueSize;
         private Boolean deserializeArrowAsync;
+        private Boolean useOldApi = false;
 
 
         public Builder setReadFields(String readFields) {
@@ -180,8 +186,13 @@ public class DorisReadOptions implements Serializable {
             return this;
         }
 
+        public Builder setUseOldApi(boolean useOldApi) {
+            this.useOldApi = useOldApi;
+            return this;
+        }
+
         public DorisReadOptions build() {
-            return new DorisReadOptions(readFields, filterQuery, requestTabletSize, requestConnectTimeoutMs, requestReadTimeoutMs, requestQueryTimeoutS, requestRetries, requestBatchSize, execMemLimit, deserializeQueueSize, deserializeArrowAsync);
+            return new DorisReadOptions(readFields, filterQuery, requestTabletSize, requestConnectTimeoutMs, requestReadTimeoutMs, requestQueryTimeoutS, requestRetries, requestBatchSize, execMemLimit, deserializeQueueSize, deserializeArrowAsync, useOldApi);
         }
 
     }

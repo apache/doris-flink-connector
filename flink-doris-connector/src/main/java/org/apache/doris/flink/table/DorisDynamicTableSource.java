@@ -52,14 +52,13 @@ import java.util.List;
  */
 public final class DorisDynamicTableSource implements ScanTableSource, LookupTableSource {
 
+    private static final Logger LOG = LoggerFactory.getLogger(DorisDynamicTableSource.class);
     private final DorisOptions options;
     private final DorisReadOptions readOptions;
-    private TableSchema physicalSchema;
 
-    public DorisDynamicTableSource(DorisOptions options, DorisReadOptions readOptions, TableSchema physicalSchema) {
+    public DorisDynamicTableSource(DorisOptions options, DorisReadOptions readOptions) {
         this.options = options;
         this.readOptions = readOptions;
-        this.physicalSchema = physicalSchema;
     }
 
     @Override
@@ -71,12 +70,30 @@ public final class DorisDynamicTableSource implements ScanTableSource, LookupTab
 
     @Override
     public ScanRuntimeProvider getScanRuntimeProvider(ScanContext runtimeProviderContext) {
-        DorisSource<RowData> build = DorisSourceBuilder.<RowData>builder()
-                .setDorisReadOptions(readOptions)
-                .setDorisOptions(options)
-                .setDeserializer(new RowDataDeserializationSchema())
-                .build();
-        return SourceProvider.of(build);
+        if (readOptions.getUseOldApi()) {
+            List<PartitionDefinition> dorisPartitions;
+            try {
+                dorisPartitions = RestService.findPartitions(options, readOptions, LOG);
+            } catch (DorisException e) {
+                throw new RuntimeException("Failed fetch doris partitions");
+            }
+            DorisRowDataInputFormat.Builder builder = DorisRowDataInputFormat.builder()
+                    .setFenodes(options.getFenodes())
+                    .setUsername(options.getUsername())
+                    .setPassword(options.getPassword())
+                    .setTableIdentifier(options.getTableIdentifier())
+                    .setPartitions(dorisPartitions)
+                    .setReadOptions(readOptions);
+            return InputFormatProvider.of(builder.build());
+        } else {
+            //Read data using the interface of the FLIP-27 specification
+            DorisSource<RowData> build = DorisSourceBuilder.<RowData>builder()
+                    .setDorisReadOptions(readOptions)
+                    .setDorisOptions(options)
+                    .setDeserializer(new RowDataDeserializationSchema())
+                    .build();
+            return SourceProvider.of(build);
+        }
     }
 
     @Override
@@ -86,7 +103,7 @@ public final class DorisDynamicTableSource implements ScanTableSource, LookupTab
 
     @Override
     public DynamicTableSource copy() {
-        return new DorisDynamicTableSource(options, readOptions, physicalSchema);
+        return new DorisDynamicTableSource(options, readOptions);
     }
 
     @Override
