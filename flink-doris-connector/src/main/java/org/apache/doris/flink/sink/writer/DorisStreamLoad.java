@@ -58,6 +58,7 @@ import static org.apache.doris.flink.sink.LoadStatus.LABEL_ALREADY_EXIST;
 import static org.apache.doris.flink.sink.writer.LoadConstants.CSV;
 import static org.apache.doris.flink.sink.writer.LoadConstants.FORMAT_KEY;
 import static org.apache.doris.flink.sink.writer.LoadConstants.JSON;
+import static org.apache.doris.flink.sink.writer.LoadConstants.LINE_DELIMITER_DEFAULT;
 import static org.apache.doris.flink.sink.writer.LoadConstants.LINE_DELIMITER_KEY;
 
 /**
@@ -70,8 +71,6 @@ public class DorisStreamLoad implements Serializable {
     private final byte[] lineDelimiter;
     private static final String LOAD_URL_PATTERN = "http://%s/api/%s/%s/_stream_load";
     private static final String ABORT_URL_PATTERN = "http://%s/api/%s/_stream_load_2pc";
-    private static final byte[] JSON_ARRAY_START = "[".getBytes(StandardCharsets.UTF_8);
-    private static final byte[] JSON_ARRAY_END = "]".getBytes(StandardCharsets.UTF_8);
     private static final String JOB_EXIST_FINISHED = "FINISHED";
 
     private String loadUrlStr;
@@ -86,7 +85,6 @@ public class DorisStreamLoad implements Serializable {
     private Future<CloseableHttpResponse> pendingLoadFuture;
     private final CloseableHttpClient httpClient;
     private final ExecutorService executorService;
-    private final String format;
     private boolean loadBatchFirstRecord;
 
     public DorisStreamLoad(String hostPort,
@@ -109,12 +107,7 @@ public class DorisStreamLoad implements Serializable {
                 0L, TimeUnit.MILLISECONDS,
                 new LinkedBlockingQueue<>(), new ExecutorThreadFactory("stream-load-upload"));
         this.recordStream = new RecordStream(executionOptions.getBufferSize(), executionOptions.getBufferCount());
-        this.format = executionOptions.getStreamLoadProp().getProperty(FORMAT_KEY, CSV);
-        if (JSON.equals(format)) {
-            lineDelimiter = ",".getBytes();
-        } else {
-            lineDelimiter = streamLoadProp.getProperty(LINE_DELIMITER_KEY, "\n").getBytes();
-        }
+        lineDelimiter = streamLoadProp.getProperty(LINE_DELIMITER_KEY, LINE_DELIMITER_DEFAULT).getBytes();
         loadBatchFirstRecord = true;
     }
 
@@ -219,9 +212,6 @@ public class DorisStreamLoad implements Serializable {
     }
 
     public RespContent stopLoad() throws IOException{
-        if (JSON.equals(format)) {
-            recordStream.write(JSON_ARRAY_END);
-        }
         recordStream.endInput();
         LOG.info("stream load stopped.");
         Preconditions.checkState(pendingLoadFuture != null);
@@ -260,9 +250,6 @@ public class DorisStreamLoad implements Serializable {
             String err = "failed to stream load data with label: " + label;
             LOG.warn(err, e);
             throw e;
-        }
-        if (JSON.equals(format)) {
-            recordStream.write(JSON_ARRAY_START);
         }
     }
 
