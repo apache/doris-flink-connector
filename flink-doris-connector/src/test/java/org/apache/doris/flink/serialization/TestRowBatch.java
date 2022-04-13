@@ -284,14 +284,17 @@ public class TestRowBatch {
 
         Assert.assertTrue(rowBatch.hasNext());
         List<Object> actualRow1 = rowBatch.next();
+        actualRow1.set(9, DecimalData.fromBigDecimal((BigDecimal) actualRow1.get(9), 4, 2));
         Assert.assertEquals(expectedRow1, actualRow1);
 
         Assert.assertTrue(rowBatch.hasNext());
         List<Object> actualRow2 = rowBatch.next();
+        actualRow2.set(9, DecimalData.fromBigDecimal((BigDecimal) actualRow2.get(9), 4, 2));
         Assert.assertEquals(expectedRow2, actualRow2);
 
         Assert.assertTrue(rowBatch.hasNext());
         List<Object> actualRow3 = rowBatch.next();
+        actualRow3.set(9, DecimalData.fromBigDecimal((BigDecimal) actualRow3.get(9), 4, 2));
         Assert.assertEquals(expectedRow3, actualRow3);
 
         Assert.assertFalse(rowBatch.hasNext());
@@ -420,16 +423,18 @@ public class TestRowBatch {
 
         Assert.assertTrue(rowBatch.hasNext());
         List<Object> actualRow0 = rowBatch.next();
-        Assert.assertEquals(DecimalData.fromBigDecimal(new BigDecimal(12.340000000), 11, 9), actualRow0.get(0));
+        Assert.assertEquals(DecimalData.fromBigDecimal(new BigDecimal(12.340000000), 11, 9),
+            DecimalData.fromBigDecimal((BigDecimal) actualRow0.get(0), 11, 9));
 
         Assert.assertTrue(rowBatch.hasNext());
         List<Object> actualRow1 = rowBatch.next();
-
-        Assert.assertEquals(DecimalData.fromBigDecimal(new BigDecimal(88.880000000), 11, 9),  actualRow1.get(0));
+        Assert.assertEquals(DecimalData.fromBigDecimal(new BigDecimal(88.880000000), 11, 9),
+            DecimalData.fromBigDecimal((BigDecimal) actualRow1.get(0), 11, 9));
 
         Assert.assertTrue(rowBatch.hasNext());
         List<Object> actualRow2 = rowBatch.next();
-        Assert.assertEquals(DecimalData.fromBigDecimal(new BigDecimal(10.000000000),11, 9), actualRow2.get(0));
+        Assert.assertEquals(DecimalData.fromBigDecimal(new BigDecimal(10.000000000), 11, 9),
+            DecimalData.fromBigDecimal((BigDecimal) actualRow2.get(0), 11, 9));
 
         Assert.assertFalse(rowBatch.hasNext());
         thrown.expect(NoSuchElementException.class);
