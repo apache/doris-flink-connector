@@ -243,7 +243,7 @@ public class RowBatch {
                                 continue;
                             }
                             BigDecimal value = decimalVector.getObject(rowIndex).stripTrailingZeros();
-                            addValueToRow(rowIndex, DecimalData.fromBigDecimal(value, value.precision(), value.scale()));
+                            addValueToRow(rowIndex, value);
                         }
                         break;
                     case "DATE":
