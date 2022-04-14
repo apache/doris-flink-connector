@@ -164,7 +164,7 @@ public class DorisRowDataInputFormat extends RichInputFormat<RowData, DorisTable
                 final int scala = decimalType.getScale();
                 return DecimalData.fromBigDecimal((BigDecimal) val, precision, scala);
             case VARCHAR:
-                return StringData.fromString(val.toString());
+                return StringData.fromString((String) val);
             default:
                 return val;
         }

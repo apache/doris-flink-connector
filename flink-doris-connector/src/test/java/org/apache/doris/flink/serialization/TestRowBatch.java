@@ -44,7 +44,6 @@ import org.apache.doris.thrift.TStatusCode;
 import org.apache.flink.calcite.shaded.com.google.common.collect.ImmutableList;
 import org.apache.flink.calcite.shaded.com.google.common.collect.Lists;
 import org.apache.flink.table.data.DecimalData;
-import org.apache.flink.table.data.StringData;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -248,10 +247,10 @@ public class TestRowBatch {
                 1L,
                 (float) 1.1,
                 (double) 1.1,
-                StringData.fromString("2008-08-08"),
-                StringData.fromString("2008-08-08 00:00:00"),
+                "2008-08-08",
+                "2008-08-08 00:00:00",
                 DecimalData.fromBigDecimal(new BigDecimal(12.34), 4, 2),
-                StringData.fromString("char1")
+                "char1"
         );
 
         List<Object> expectedRow2 = Arrays.asList(
@@ -262,10 +261,10 @@ public class TestRowBatch {
                 2L,
                 (float) 2.2,
                 (double) 2.2,
-                StringData.fromString("1900-08-08"),
-                StringData.fromString("1900-08-08 00:00:00"),
+                "1900-08-08",
+                "1900-08-08 00:00:00",
                 DecimalData.fromBigDecimal(new BigDecimal(88.88), 4, 2),
-                StringData.fromString("char2")
+                "char2"
         );
 
         List<Object> expectedRow3 = Arrays.asList(
@@ -276,10 +275,10 @@ public class TestRowBatch {
                 3L,
                 (float) 3.3,
                 (double) 3.3,
-                StringData.fromString("2100-08-08"),
-                StringData.fromString("2100-08-08 00:00:00"),
+                "2100-08-08",
+                "2100-08-08 00:00:00",
                 DecimalData.fromBigDecimal(new BigDecimal(10.22), 4, 2),
-                StringData.fromString("char3")
+                "char3"
         );
 
         Assert.assertTrue(rowBatch.hasNext());

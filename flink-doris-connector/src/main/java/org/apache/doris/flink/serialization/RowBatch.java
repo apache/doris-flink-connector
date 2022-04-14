@@ -35,7 +35,6 @@ import org.apache.arrow.vector.types.Types;
 import org.apache.doris.flink.exception.DorisException;
 import org.apache.doris.flink.rest.models.Schema;
 import org.apache.doris.thrift.TScanBatchResult;
-import org.apache.flink.table.data.StringData;
 import org.apache.flink.util.Preconditions;
 
 import java.io.ByteArrayInputStream;
@@ -259,7 +258,7 @@ public class RowBatch {
                                 continue;
                             }
                             String value = new String(varCharVector.get(rowIndex));
-                            addValueToRow(rowIndex, StringData.fromString(value));
+                            addValueToRow(rowIndex, value);
                         }
                         break;
                     default:
