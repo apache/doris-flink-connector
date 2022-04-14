@@ -37,8 +37,6 @@ import org.apache.doris.flink.exception.DorisException;
 import org.apache.doris.flink.rest.models.Schema;
 import org.apache.doris.thrift.TScanBatchResult;
 
-import org.apache.flink.table.data.DecimalData;
-import org.apache.flink.table.data.StringData;
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -261,7 +259,7 @@ public class RowBatch {
                                 continue;
                             }
                             String value = new String(varCharVector.get(rowIndex));
-                            addValueToRow(rowIndex, StringData.fromString(value));
+                            addValueToRow(rowIndex, value);
                         }
                         break;
                     default:
