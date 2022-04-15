@@ -44,7 +44,6 @@ import org.apache.doris.thrift.TStatusCode;
 import org.apache.flink.calcite.shaded.com.google.common.collect.ImmutableList;
 import org.apache.flink.calcite.shaded.com.google.common.collect.Lists;
 import org.apache.flink.table.data.DecimalData;
-import org.apache.flink.table.data.StringData;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -248,10 +247,10 @@ public class TestRowBatch {
                 1L,
                 (float) 1.1,
                 (double) 1.1,
-                StringData.fromString("2008-08-08"),
-                StringData.fromString("2008-08-08 00:00:00"),
+                "2008-08-08",
+                "2008-08-08 00:00:00",
                 DecimalData.fromBigDecimal(new BigDecimal(12.34), 4, 2),
-                StringData.fromString("char1")
+                "char1"
         );
 
         List<Object> expectedRow2 = Arrays.asList(
@@ -262,10 +261,10 @@ public class TestRowBatch {
                 2L,
                 (float) 2.2,
                 (double) 2.2,
-                StringData.fromString("1900-08-08"),
-                StringData.fromString("1900-08-08 00:00:00"),
+                "1900-08-08",
+                "1900-08-08 00:00:00",
                 DecimalData.fromBigDecimal(new BigDecimal(88.88), 4, 2),
-                StringData.fromString("char2")
+                "char2"
         );
 
         List<Object> expectedRow3 = Arrays.asList(
@@ -276,22 +275,25 @@ public class TestRowBatch {
                 3L,
                 (float) 3.3,
                 (double) 3.3,
-                StringData.fromString("2100-08-08"),
-                StringData.fromString("2100-08-08 00:00:00"),
+                "2100-08-08",
+                "2100-08-08 00:00:00",
                 DecimalData.fromBigDecimal(new BigDecimal(10.22), 4, 2),
-                StringData.fromString("char3")
+                "char3"
         );
 
         Assert.assertTrue(rowBatch.hasNext());
         List<Object> actualRow1 = rowBatch.next();
+        actualRow1.set(9, DecimalData.fromBigDecimal((BigDecimal) actualRow1.get(9), 4, 2));
         Assert.assertEquals(expectedRow1, actualRow1);
 
         Assert.assertTrue(rowBatch.hasNext());
         List<Object> actualRow2 = rowBatch.next();
+        actualRow2.set(9, DecimalData.fromBigDecimal((BigDecimal) actualRow2.get(9), 4, 2));
         Assert.assertEquals(expectedRow2, actualRow2);
 
         Assert.assertTrue(rowBatch.hasNext());
         List<Object> actualRow3 = rowBatch.next();
+        actualRow3.set(9, DecimalData.fromBigDecimal((BigDecimal) actualRow3.get(9), 4, 2));
         Assert.assertEquals(expectedRow3, actualRow3);
 
         Assert.assertFalse(rowBatch.hasNext());
@@ -420,16 +422,18 @@ public class TestRowBatch {
 
         Assert.assertTrue(rowBatch.hasNext());
         List<Object> actualRow0 = rowBatch.next();
-        Assert.assertEquals(DecimalData.fromBigDecimal(new BigDecimal(12.340000000), 11, 9), actualRow0.get(0));
+        Assert.assertEquals(DecimalData.fromBigDecimal(new BigDecimal(12.340000000), 11, 9),
+            DecimalData.fromBigDecimal((BigDecimal) actualRow0.get(0), 11, 9));
 
         Assert.assertTrue(rowBatch.hasNext());
         List<Object> actualRow1 = rowBatch.next();
-
-        Assert.assertEquals(DecimalData.fromBigDecimal(new BigDecimal(88.880000000), 11, 9),  actualRow1.get(0));
+        Assert.assertEquals(DecimalData.fromBigDecimal(new BigDecimal(88.880000000), 11, 9),
+            DecimalData.fromBigDecimal((BigDecimal) actualRow1.get(0), 11, 9));
 
         Assert.assertTrue(rowBatch.hasNext());
         List<Object> actualRow2 = rowBatch.next();
-        Assert.assertEquals(DecimalData.fromBigDecimal(new BigDecimal(10.000000000),11, 9), actualRow2.get(0));
+        Assert.assertEquals(DecimalData.fromBigDecimal(new BigDecimal(10.000000000), 11, 9),
+            DecimalData.fromBigDecimal((BigDecimal) actualRow2.get(0), 11, 9));
 
         Assert.assertFalse(rowBatch.hasNext());
         thrown.expect(NoSuchElementException.class);
