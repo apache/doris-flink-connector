@@ -33,6 +33,8 @@ import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.types.logical.RowType;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -80,7 +82,8 @@ public final class DorisDynamicTableSource implements ScanTableSource, LookupTab
                 .setPassword(options.getPassword())
                 .setTableIdentifier(options.getTableIdentifier())
                 .setPartitions(dorisPartitions)
-                .setReadOptions(readOptions);
+                .setReadOptions(readOptions)
+                .setRowType((RowType) physicalSchema.toRowDataType().getLogicalType());
         return InputFormatProvider.of(builder.build());
     }
 
