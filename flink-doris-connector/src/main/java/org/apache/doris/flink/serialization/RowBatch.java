@@ -18,27 +18,12 @@
 package org.apache.doris.flink.serialization;
 
 import org.apache.arrow.memory.RootAllocator;
-
-import org.apache.arrow.vector.BigIntVector;
-import org.apache.arrow.vector.BitVector;
-import org.apache.arrow.vector.DecimalVector;
-import org.apache.arrow.vector.FieldVector;
-import org.apache.arrow.vector.Float4Vector;
-import org.apache.arrow.vector.Float8Vector;
-import org.apache.arrow.vector.IntVector;
-import org.apache.arrow.vector.SmallIntVector;
-import org.apache.arrow.vector.TinyIntVector;
-import org.apache.arrow.vector.VarBinaryVector;
-import org.apache.arrow.vector.VarCharVector;
-import org.apache.arrow.vector.VectorSchemaRoot;
+import org.apache.arrow.vector.*;
 import org.apache.arrow.vector.ipc.ArrowStreamReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.doris.flink.exception.DorisException;
 import org.apache.doris.flink.rest.models.Schema;
 import org.apache.doris.thrift.TScanBatchResult;
-
-import org.apache.flink.table.data.DecimalData;
-import org.apache.flink.table.data.StringData;
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -243,7 +228,7 @@ public class RowBatch {
                                 continue;
                             }
                             BigDecimal value = decimalVector.getObject(rowIndex).stripTrailingZeros();
-                            addValueToRow(rowIndex, DecimalData.fromBigDecimal(value, value.precision(), value.scale()));
+                            addValueToRow(rowIndex, value);
                         }
                         break;
                     case "DATE":
@@ -261,7 +246,7 @@ public class RowBatch {
                                 continue;
                             }
                             String value = new String(varCharVector.get(rowIndex));
-                            addValueToRow(rowIndex, StringData.fromString(value));
+                            addValueToRow(rowIndex, value);
                         }
                         break;
                     default:

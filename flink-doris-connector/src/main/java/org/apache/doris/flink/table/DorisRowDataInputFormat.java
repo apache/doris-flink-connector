@@ -19,6 +19,7 @@ package org.apache.doris.flink.table;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.datastream.ScalaValueReader;
+import org.apache.doris.flink.deserialization.converter.DorisRowConverter;
 import org.apache.doris.flink.rest.PartitionDefinition;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.io.DefaultInputSplitAssigner;
@@ -29,12 +30,17 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplitAssigner;
-import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.RowType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.sql.PreparedStatement;
 import java.util.ArrayList;
 import java.util.List;
@@ -56,10 +62,16 @@ public class DorisRowDataInputFormat extends RichInputFormat<RowData, DorisTable
     private ScalaValueReader scalaValueReader;
     private transient boolean hasNext;
 
-    public DorisRowDataInputFormat(DorisOptions options, List<PartitionDefinition> dorisPartitions, DorisReadOptions readOptions) {
+    private final DorisRowConverter rowConverter;
+
+    public DorisRowDataInputFormat(DorisOptions options,
+                                   List<PartitionDefinition> dorisPartitions,
+                                   DorisReadOptions readOptions,
+                                   RowType rowType) {
         this.options = options;
         this.dorisPartitions = dorisPartitions;
         this.readOptions = readOptions;
+        this.rowConverter = new DorisRowConverter(rowType);
     }
 
     @Override
@@ -136,13 +148,24 @@ public class DorisRowDataInputFormat extends RichInputFormat<RowData, DorisTable
             return null;
         }
         List next = (List) scalaValueReader.next();
-        GenericRowData genericRowData = new GenericRowData(next.size());
-        for (int i = 0; i < next.size(); i++) {
-            genericRowData.setField(i, next.get(i));
-        }
+        RowData genericRowData = rowConverter.convert(next);
         //update hasNext after we've read the record
         hasNext = scalaValueReader.hasNext();
         return genericRowData;
+    }
+
+    private Object deserialize(LogicalType type, Object val) {
+        switch (type.getTypeRoot()) {
+            case DECIMAL:
+                final DecimalType decimalType = ((DecimalType) type);
+                final int precision = decimalType.getPrecision();
+                final int scala = decimalType.getScale();
+                return DecimalData.fromBigDecimal((BigDecimal) val, precision, scala);
+            case VARCHAR:
+                return StringData.fromString((String) val);
+            default:
+                return val;
+        }
     }
 
     @Override
@@ -182,6 +205,7 @@ public class DorisRowDataInputFormat extends RichInputFormat<RowData, DorisTable
         private DorisOptions.Builder optionsBuilder;
         private List<PartitionDefinition> partitions;
         private DorisReadOptions readOptions;
+        private RowType rowType;
 
 
         public Builder() {
@@ -218,9 +242,14 @@ public class DorisRowDataInputFormat extends RichInputFormat<RowData, DorisTable
             return this;
         }
 
+        public Builder setRowType(RowType rowType) {
+            this.rowType = rowType;
+            return this;
+        }
+
         public DorisRowDataInputFormat build() {
             return new DorisRowDataInputFormat(
-                    optionsBuilder.build(), partitions, readOptions
+                optionsBuilder.build(), partitions, readOptions, rowType
             );
         }
     }

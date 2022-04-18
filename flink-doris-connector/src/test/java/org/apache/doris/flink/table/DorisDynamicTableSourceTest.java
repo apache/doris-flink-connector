@@ -5,8 +5,10 @@ import org.apache.doris.flink.sink.OptionUtils;
 import org.apache.doris.flink.source.DorisSource;
 import org.apache.doris.flink.source.enumerator.PendingSplitsCheckpoint;
 import org.apache.doris.flink.source.split.DorisSourceSplit;
+import org.apache.doris.flink.utils.FactoryMocks;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.connector.source.Source;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.connector.source.InputFormatProvider;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.SourceProvider;
@@ -23,7 +25,7 @@ public class DorisDynamicTableSourceTest {
     public void testDorisUseNewApi() {
         DorisReadOptions.Builder builder = OptionUtils.dorisReadOptionsBuilder();
         builder.setUseOldApi(false);
-        final DorisDynamicTableSource actualDorisSource = new DorisDynamicTableSource(OptionUtils.buildDorisOptions(), builder.build());
+        final DorisDynamicTableSource actualDorisSource = new DorisDynamicTableSource(OptionUtils.buildDorisOptions(), builder.build(), TableSchema.fromResolvedSchema(FactoryMocks.SCHEMA));
         ScanTableSource.ScanRuntimeProvider provider =
                 actualDorisSource.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
         assertDorisSource(provider);
@@ -31,7 +33,7 @@ public class DorisDynamicTableSourceTest {
 
     @Test
     public void testDorisUseNewApiDefault() {
-        final DorisDynamicTableSource actualDorisSource = new DorisDynamicTableSource(OptionUtils.buildDorisOptions(), OptionUtils.buildDorisReadOptions());
+        final DorisDynamicTableSource actualDorisSource = new DorisDynamicTableSource(OptionUtils.buildDorisOptions(), OptionUtils.buildDorisReadOptions(), TableSchema.fromResolvedSchema(FactoryMocks.SCHEMA));
         ScanTableSource.ScanRuntimeProvider provider =
                 actualDorisSource.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
         assertDorisSource(provider);
@@ -41,7 +43,7 @@ public class DorisDynamicTableSourceTest {
     public void testDorisUseOldApi() {
         DorisReadOptions.Builder builder = OptionUtils.dorisReadOptionsBuilder();
         builder.setUseOldApi(true);
-        final DorisDynamicTableSource actualDorisSource = new DorisDynamicTableSource(OptionUtils.buildDorisOptions(), builder.build());
+        final DorisDynamicTableSource actualDorisSource = new DorisDynamicTableSource(OptionUtils.buildDorisOptions(), builder.build(), TableSchema.fromResolvedSchema(FactoryMocks.SCHEMA));
         ScanTableSource.ScanRuntimeProvider provider =
                 actualDorisSource.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
         assertDorisInputFormat(provider);

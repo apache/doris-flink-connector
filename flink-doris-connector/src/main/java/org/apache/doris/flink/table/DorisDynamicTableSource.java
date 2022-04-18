@@ -37,6 +37,8 @@ import org.apache.flink.table.connector.source.SourceProvider;
 import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.types.logical.RowType;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,10 +57,14 @@ public final class DorisDynamicTableSource implements ScanTableSource, LookupTab
     private static final Logger LOG = LoggerFactory.getLogger(DorisDynamicTableSource.class);
     private final DorisOptions options;
     private final DorisReadOptions readOptions;
+    private TableSchema physicalSchema;
 
-    public DorisDynamicTableSource(DorisOptions options, DorisReadOptions readOptions) {
+    public DorisDynamicTableSource(DorisOptions options,
+                                   DorisReadOptions readOptions,
+                                   TableSchema physicalSchema) {
         this.options = options;
         this.readOptions = readOptions;
+        this.physicalSchema = physicalSchema;
     }
 
     @Override
@@ -83,14 +89,15 @@ public final class DorisDynamicTableSource implements ScanTableSource, LookupTab
                     .setPassword(options.getPassword())
                     .setTableIdentifier(options.getTableIdentifier())
                     .setPartitions(dorisPartitions)
-                    .setReadOptions(readOptions);
+                    .setReadOptions(readOptions)
+                    .setRowType((RowType) physicalSchema.toRowDataType().getLogicalType());
             return InputFormatProvider.of(builder.build());
         } else {
             //Read data using the interface of the FLIP-27 specification
             DorisSource<RowData> build = DorisSourceBuilder.<RowData>builder()
                     .setDorisReadOptions(readOptions)
                     .setDorisOptions(options)
-                    .setDeserializer(new RowDataDeserializationSchema())
+                    .setDeserializer(new RowDataDeserializationSchema((RowType) physicalSchema.toRowDataType().getLogicalType()))
                     .build();
             return SourceProvider.of(build);
         }
@@ -103,7 +110,7 @@ public final class DorisDynamicTableSource implements ScanTableSource, LookupTab
 
     @Override
     public DynamicTableSource copy() {
-        return new DorisDynamicTableSource(options, readOptions);
+        return new DorisDynamicTableSource(options, readOptions, physicalSchema);
     }
 
     @Override

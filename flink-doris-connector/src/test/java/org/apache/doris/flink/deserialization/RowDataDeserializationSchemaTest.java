@@ -9,6 +9,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import static org.apache.doris.flink.utils.FactoryMocks.PHYSICAL_TYPE;
 import static org.junit.Assert.assertEquals;
 
 public class RowDataDeserializationSchemaTest {
@@ -17,7 +18,7 @@ public class RowDataDeserializationSchemaTest {
     public void deserializeTest() throws Exception {
         List<String> records = Arrays.asList("flink","doris");
         SimpleCollector collector = new SimpleCollector();
-        RowDataDeserializationSchema deserializationSchema = new RowDataDeserializationSchema();
+        RowDataDeserializationSchema deserializationSchema = new RowDataDeserializationSchema(PHYSICAL_TYPE);
         for(String record : records){
             deserializationSchema.deserialize(Arrays.asList(record),collector);
         }
