@@ -17,10 +17,6 @@
 
 package org.apache.doris.flink.sink.writer;
 
-import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.util.Preconditions;
-
-import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
@@ -31,7 +27,9 @@ import org.apache.doris.flink.exception.StreamLoadException;
 import org.apache.doris.flink.rest.models.RespContent;
 import org.apache.doris.flink.sink.HttpPutBuilder;
 import org.apache.doris.flink.sink.ResponseUtil;
-
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.entity.InputStreamEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -41,7 +39,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
@@ -53,11 +50,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 
 import static org.apache.doris.flink.sink.LoadStatus.FAIL;
-import static org.apache.doris.flink.sink.ResponseUtil.LABEL_EXIST_PATTERN;
 import static org.apache.doris.flink.sink.LoadStatus.LABEL_ALREADY_EXIST;
-import static org.apache.doris.flink.sink.writer.LoadConstants.CSV;
-import static org.apache.doris.flink.sink.writer.LoadConstants.FORMAT_KEY;
-import static org.apache.doris.flink.sink.writer.LoadConstants.JSON;
+import static org.apache.doris.flink.sink.ResponseUtil.LABEL_EXIST_PATTERN;
 import static org.apache.doris.flink.sink.writer.LoadConstants.LINE_DELIMITER_DEFAULT;
 import static org.apache.doris.flink.sink.writer.LoadConstants.LINE_DELIMITER_KEY;
 

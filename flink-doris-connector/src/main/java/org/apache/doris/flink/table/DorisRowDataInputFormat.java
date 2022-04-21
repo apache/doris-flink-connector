@@ -19,6 +19,7 @@ package org.apache.doris.flink.table;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.datastream.ScalaValueReader;
+import org.apache.doris.flink.deserialization.converter.DorisRowConverter;
 import org.apache.doris.flink.rest.PartitionDefinition;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.io.DefaultInputSplitAssigner;
@@ -30,21 +31,19 @@ import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.table.data.DecimalData;
-import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.PreparedStatement;
 import java.util.ArrayList;
 import java.util.List;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * InputFormat for {@link DorisDynamicTableSource}.
@@ -63,13 +62,16 @@ public class DorisRowDataInputFormat extends RichInputFormat<RowData, DorisTable
     private ScalaValueReader scalaValueReader;
     private transient boolean hasNext;
 
-    private RowType rowType;
+    private final DorisRowConverter rowConverter;
 
-    public DorisRowDataInputFormat(DorisOptions options, List<PartitionDefinition> dorisPartitions, DorisReadOptions readOptions, RowType rowType) {
+    public DorisRowDataInputFormat(DorisOptions options,
+                                   List<PartitionDefinition> dorisPartitions,
+                                   DorisReadOptions readOptions,
+                                   RowType rowType) {
         this.options = options;
         this.dorisPartitions = dorisPartitions;
         this.readOptions = readOptions;
-        this.rowType = rowType;
+        this.rowConverter = new DorisRowConverter(rowType);
     }
 
     @Override
@@ -146,11 +148,7 @@ public class DorisRowDataInputFormat extends RichInputFormat<RowData, DorisTable
             return null;
         }
         List next = (List) scalaValueReader.next();
-        GenericRowData genericRowData = new GenericRowData(rowType.getFieldCount());
-        for (int i = 0; i < next.size() && i < rowType.getFieldCount(); i++) {
-            Object value = deserialize(rowType.getTypeAt(i), next.get(i));
-            genericRowData.setField(i, value);
-        }
+        RowData genericRowData = rowConverter.convert(next);
         //update hasNext after we've read the record
         hasNext = scalaValueReader.hasNext();
         return genericRowData;

@@ -14,25 +14,20 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
-package org.apache.doris.flink.deserialization;
+package org.apache.doris.flink.source.split;
 
+/**
+ * State of the reader, essentially a mutable version of the {@link DorisSourceSplit}.
+ **/
+public class DorisSourceSplitState {
 
-import org.apache.flink.api.common.typeinfo.TypeHint;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.util.Collector;
+    private final DorisSourceSplit split;
 
-import java.util.List;
-
-public class SimpleListDeserializationSchema implements DorisDeserializationSchema<List<?>> {
-
-    @Override
-    public TypeInformation<List<?>> getProducedType() {
-        return TypeInformation.of(new TypeHint<List<?>>() {
-        });
+    public DorisSourceSplitState(DorisSourceSplit split) {
+        this.split = split;
     }
 
-    @Override
-    public void deserialize(List<?> record, Collector<List<?>> out) throws Exception {
-        out.collect(record);
+    public DorisSourceSplit toDorisSourceSplit() {
+        return split;
     }
 }

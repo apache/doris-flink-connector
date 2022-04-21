@@ -17,8 +17,6 @@
 
 package org.apache.doris.flink.rest;
 
-import org.apache.doris.flink.cfg.DorisOptions;
-
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.HashSet;
@@ -35,16 +33,10 @@ public class PartitionDefinition implements Serializable, Comparable<PartitionDe
     private final String beAddress;
     private final Set<Long> tabletIds;
     private final String queryPlan;
-    private final String serializedSettings;
 
     public PartitionDefinition(String database, String table,
-                               DorisOptions settings, String beAddress, Set<Long> tabletIds, String queryPlan)
+                               String beAddress, Set<Long> tabletIds, String queryPlan)
             throws IllegalArgumentException {
-        if (settings != null) {
-            this.serializedSettings = settings.save();
-        } else {
-            this.serializedSettings = null;
-        }
         this.database = database;
         this.table = table;
         this.beAddress = beAddress;
@@ -71,7 +63,6 @@ public class PartitionDefinition implements Serializable, Comparable<PartitionDe
     public String getQueryPlan() {
         return queryPlan;
     }
-
 
     @Override
     public int compareTo(PartitionDefinition o) {
@@ -123,8 +114,7 @@ public class PartitionDefinition implements Serializable, Comparable<PartitionDe
                 Objects.equals(table, that.table) &&
                 Objects.equals(beAddress, that.beAddress) &&
                 Objects.equals(tabletIds, that.tabletIds) &&
-                Objects.equals(queryPlan, that.queryPlan) &&
-                Objects.equals(serializedSettings, that.serializedSettings);
+                Objects.equals(queryPlan, that.queryPlan) ;
     }
 
     @Override

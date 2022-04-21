@@ -19,15 +19,12 @@ package org.apache.doris.flink.table;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
-import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
-import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.DynamicTableSinkFactory;
 import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.factories.FactoryUtil;
@@ -37,7 +34,6 @@ import org.apache.flink.table.utils.TableSchemaUtils;
 import java.time.Duration;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 
@@ -159,6 +155,12 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
             .defaultValue(true)
             .withDescription("whether to enable the delete function");
 
+    private static final ConfigOption<Boolean> SOURCE_USE_OLD_API = ConfigOptions
+            .key("source.use-old-api")
+            .booleanType()
+            .defaultValue(false)
+            .withDescription("Whether to read data using the new interface defined according to the FLIP-27 specification,default false");
+
     @Override
     public String factoryIdentifier() {
         return "doris"; // used for matching to `connector = '...'`
@@ -199,6 +201,8 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
         options.add(SINK_LABEL_PREFIX);
         options.add(SINK_BUFFER_SIZE);
         options.add(SINK_BUFFER_COUNT);
+
+        options.add(SOURCE_USE_OLD_API);
         return options;
     }
 
@@ -244,7 +248,8 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
                 .setRequestConnectTimeoutMs(readableConfig.get(DORIS_REQUEST_CONNECT_TIMEOUT_MS))
                 .setRequestReadTimeoutMs(readableConfig.get(DORIS_REQUEST_READ_TIMEOUT_MS))
                 .setRequestRetries(readableConfig.get(DORIS_REQUEST_RETRIES))
-                .setRequestTabletSize(readableConfig.get(DORIS_TABLET_SIZE));
+                .setRequestTabletSize(readableConfig.get(DORIS_TABLET_SIZE))
+                .setUseOldApi(readableConfig.get(SOURCE_USE_OLD_API));
         return builder.build();
     }
 
