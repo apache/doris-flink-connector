@@ -17,7 +17,10 @@
 package org.apache.doris.flink.deserialization.converter;
 
 import org.apache.doris.flink.serialization.RowBatch;
-import org.apache.flink.table.data.*;
+import org.apache.flink.table.data.DecimalData;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
