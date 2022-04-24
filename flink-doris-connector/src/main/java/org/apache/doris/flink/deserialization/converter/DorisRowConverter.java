@@ -50,8 +50,8 @@ public class DorisRowConverter implements Serializable {
      * @param record from rowBatch
      */
     public GenericRowData convert(List record){
-        GenericRowData rowData = new GenericRowData(record.size());
-        for (int i = 0; i < record.size(); i++) {
+        GenericRowData rowData = new GenericRowData(deserializationConverters.length);
+        for (int i = 0; i < deserializationConverters.length ; i++) {
             rowData.setField(i, deserializationConverters[i].deserialize(record.get(i)));
         }
         return rowData;
