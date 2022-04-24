@@ -38,7 +38,9 @@ import org.apache.flink.table.types.logical.RowType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * The {@link DorisDynamicTableSource} is used during planning.
@@ -70,8 +72,13 @@ public final class DorisDynamicTableSource implements ScanTableSource, LookupTab
 
     @Override
     public ScanRuntimeProvider getScanRuntimeProvider(ScanContext runtimeProviderContext) {
+        readOptions.setReadFields(Arrays.stream(physicalSchema.getFieldNames())
+                .map(item->String.format("`%s`", item.trim().replace("`", "")))
+                .collect(Collectors.joining(", ")));
+
         List<PartitionDefinition> dorisPartitions;
         try {
+            //request doris query plan
             dorisPartitions = RestService.findPartitions(options, readOptions, LOG);
         } catch (DorisException e) {
             throw new RuntimeException("Failed fetch doris partitions");

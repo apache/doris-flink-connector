@@ -50,6 +50,7 @@ public class DorisSourceExample {
                         "  'connector' = 'doris',\n" +
                         "  'fenodes' = 'FE_IP:8030',\n" +
                         "  'table.identifier' = 'db.table',\n" +
+                        "  'doris.filter.query' = 'bigint_1=1',\n" +
                         "  'username' = 'root',\n" +
                         "  'password' = ''\n" +
                         ")");
