@@ -158,6 +158,9 @@ public class DorisRowDataInputFormat extends RichInputFormat<RowData, DorisTable
     }
 
     private Object deserialize(LogicalType type, Object val) {
+        if(val == null){
+            return null;
+        }
         switch (type.getTypeRoot()) {
             case DECIMAL:
                 final DecimalType decimalType = ((DecimalType) type);
