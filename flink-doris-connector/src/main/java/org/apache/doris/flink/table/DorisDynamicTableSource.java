@@ -38,11 +38,12 @@ import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.RowType;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * The {@link DorisDynamicTableSource} is used during planning.
@@ -76,6 +77,10 @@ public final class DorisDynamicTableSource implements ScanTableSource, LookupTab
 
     @Override
     public ScanRuntimeProvider getScanRuntimeProvider(ScanContext runtimeProviderContext) {
+        readOptions.setReadFields(Arrays.stream(physicalSchema.getFieldNames())
+                .map(item->String.format("`%s`", item.trim().replace("`", "")))
+                .collect(Collectors.joining(", ")));
+
         if (readOptions.getUseOldApi()) {
             List<PartitionDefinition> dorisPartitions;
             try {
