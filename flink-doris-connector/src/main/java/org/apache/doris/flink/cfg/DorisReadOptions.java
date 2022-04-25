@@ -98,6 +98,13 @@ public class DorisReadOptions implements Serializable {
         return deserializeArrowAsync;
     }
 
+    public void setReadFields(String readFields) {
+        this.readFields = readFields;
+    }
+
+    public void setFilterQuery(String filterQuery) {
+        this.filterQuery = filterQuery;
+    }
 
     public static Builder builder() {
         return new Builder();
