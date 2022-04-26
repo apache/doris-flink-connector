@@ -55,15 +55,6 @@ if [ $# == 0 ] ; then
     usage
 fi
 
-eval set -- "$OPTS"
-
-. "${DORIS_HOME}"/env.sh
-
-# include custom environment variables
-if [[ -f ${DORIS_HOME}/custom_env.sh ]]; then
-    . "${DORIS_HOME}"/custom_env.sh
-fi
-
 BUILD_FROM_TAG=0
 FLINK_VERSION=0
 SCALA_VERSION=0
@@ -73,9 +64,18 @@ while true; do
         --scala) SCALA_VERSION=$2 ; shift 2 ;;
         --tag) BUILD_FROM_TAG=1 ; shift ;;
         --) shift ;  break ;;
-        *) echo "Internal error" ; exit 1 ;;
+        *) break ;;
     esac
 done
+
+eval set -- "$OPTS"
+
+. "${DORIS_HOME}"/env.sh
+
+# include custom environment variables
+if [[ -f ${DORIS_HOME}/custom_env.sh ]]; then
+    . "${DORIS_HOME}"/custom_env.sh
+fi
 
 # extract minor version:
 # eg: 1.14.3 -> 1.14
@@ -90,7 +90,7 @@ if [[ ${BUILD_FROM_TAG} -eq 1 ]]; then
     ${MVN_BIN} clean package
 else
     rm -rf output/
-    ${MVN_BIN} clean package -Dscala.version=${SCALA_VERSION} -Dflink.version=${FLINK_VERSION} -Dflink.minor.version=${FLINK_MINOR_VERSION}
+    ${MVN_BIN} clean package -Dscala.version=${SCALA_VERSION} -Dflink.version=${FLINK_VERSION} -Dflink.minor.version=${FLINK_MINOR_VERSION} -DskipTests
 fi
 
 echo "*****************************************"
