@@ -28,11 +28,11 @@ Flink Doris Connector now support flink version from 1.11 to 1.14.
 
 If you wish to contribute or use a connector from flink 1.13 (and earlier), please use the [branch-for-flink-before-1.13](https://github.com/apache/incubator-doris-flink-connector/tree/branch-for-flink-before-1.13)
 
-More information about compilation and usage, please visit [Flink Doris Connector](http://doris.apache.org/extending-doris/flink-doris-connector.html)
+More information about compilation and usage, please visit [Flink Doris Connector](https://doris.apache.org/ecosystem/flink-doris-connector.html)
 
 ## License
 
-[Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0)
+[Apache License, Version 2.0](https://www.apache.org/licenses/LICENSE-2.0)
 
 ## Report issues or submit pull request
 
@@ -44,10 +44,10 @@ Contact us through the following mailing list.
 
 | Name                                                                          | Scope                           |                                                                 |                                                                     |                                                                              |
 |:------------------------------------------------------------------------------|:--------------------------------|:----------------------------------------------------------------|:--------------------------------------------------------------------|:-----------------------------------------------------------------------------|
-| [dev@doris.apache.org](mailto:dev@doris.apache.org)     | Development-related discussions | [Subscribe](mailto:dev-subscribe@doris.apache.org)   | [Unsubscribe](mailto:dev-unsubscribe@doris.apache.org)   | [Archives](http://mail-archives.apache.org/mod_mbox/doris-dev/)   |
+| [dev@doris.apache.org](mailto:dev@doris.apache.org)     | Development-related discussions | [Subscribe](mailto:dev-subscribe@doris.apache.org)   | [Unsubscribe](mailto:dev-unsubscribe@doris.apache.org)   | [Archives](https://mail-archives.apache.org/mod_mbox/doris-dev/)   |
 
 ## Links
 
-* Doris official site - <http://doris.incubator.apache.org>
+* Doris official site - <https://doris.incubator.apache.org>
 * Developer Mailing list - <dev@doris.apache.org>. Mail to <dev-subscribe@doris.apache.org>, follow the reply to subscribe the mail list.
 * Slack channel - [Join the Slack](https://join.slack.com/t/apachedoriscommunity/shared_invite/zt-11jb8gesh-7IukzSrdea6mqoG0HB4gZg)

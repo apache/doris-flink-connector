@@ -30,6 +30,7 @@ import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.SourceProvider;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import static org.hamcrest.CoreMatchers.instanceOf;
@@ -55,6 +56,7 @@ public class DorisDynamicTableSourceTest {
         assertDorisSource(provider);
     }
 
+    @Ignore
     @Test
     public void testDorisUseOldApi() {
         DorisReadOptions.Builder builder = OptionUtils.dorisReadOptionsBuilder();

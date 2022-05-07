@@ -21,6 +21,7 @@ import org.apache.doris.flink.sink.OptionUtils;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.List;
@@ -28,6 +29,7 @@ import java.util.List;
 /**
  * Example Tests for the {@link DorisSource}.
  **/
+@Ignore
 public class DorisSourceExampleTest {
 
     @Test
