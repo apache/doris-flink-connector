@@ -4,3 +4,4 @@ flink-doris-connector/output/
 flink-doris-connector/target/
 flink-doris-connector/pom.xml.releaseBackup
 flink-doris-connector/release.properties
+flink-doris-connector/.idea/

@@ -29,6 +29,7 @@ import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.Collections;
@@ -42,6 +43,7 @@ import static org.mockito.Mockito.when;
 /**
  * test for DorisWriter.
  */
+@Ignore
 public class TestDorisWriter {
     DorisOptions dorisOptions;
     DorisReadOptions readOptions;

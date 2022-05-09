@@ -32,17 +32,17 @@ public class RowDataDeserializationSchemaTest {
 
     @Test
     public void deserializeTest() throws Exception {
-        List<String> records = Arrays.asList("flink","doris");
+        String[][] records = {{"flink", "1", "true"}, {"doris", "2", "false"}};
         SimpleCollector collector = new SimpleCollector();
         RowDataDeserializationSchema deserializationSchema = new RowDataDeserializationSchema(PHYSICAL_TYPE);
-        for(String record : records){
-            deserializationSchema.deserialize(Arrays.asList(record),collector);
+        for (String[] record : records) {
+            deserializationSchema.deserialize(Arrays.asList(record), collector);
         }
 
         List<String> expected =
                 Arrays.asList(
-                        "+I(flink)",
-                        "+I(doris)");
+                        "+I(flink,1,true)",
+                        "+I(doris,2,false)");
 
         List<String> actual =
                 collector.list.stream().map(Object::toString).collect(Collectors.toList());
