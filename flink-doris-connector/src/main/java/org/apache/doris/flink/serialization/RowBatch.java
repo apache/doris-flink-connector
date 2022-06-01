@@ -42,6 +42,9 @@ import org.slf4j.LoggerFactory;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -78,6 +81,9 @@ public class RowBatch {
     private List<FieldVector> fieldVectors;
     private RootAllocator rootAllocator;
     private final Schema schema;
+
+    private final DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private final DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
     public List<Row> getRowBatch() {
         return rowBatch;
@@ -243,8 +249,34 @@ public class RowBatch {
                         }
                         break;
                     case "DATE":
-                    case "LARGEINT":
+                        Preconditions.checkArgument(mt.equals(Types.MinorType.VARCHAR),
+                                typeMismatchMessage(currentType, mt));
+                        VarCharVector date = (VarCharVector) curFieldVector;
+                        for (int rowIndex = 0; rowIndex < rowCountInOneBatch; rowIndex++) {
+                            if (date.isNull(rowIndex)) {
+                                addValueToRow(rowIndex, null);
+                                continue;
+                            }
+                            String value = new String(date.get(rowIndex));
+                            LocalDate localDate = LocalDate.parse(value, dateFormatter);
+                            addValueToRow(rowIndex, localDate);
+                        }
+                        break;
                     case "DATETIME":
+                        Preconditions.checkArgument(mt.equals(Types.MinorType.VARCHAR),
+                                typeMismatchMessage(currentType, mt));
+                        VarCharVector timeStampSecVector = (VarCharVector) curFieldVector;
+                        for (int rowIndex = 0; rowIndex < rowCountInOneBatch; rowIndex++) {
+                            if (timeStampSecVector.isNull(rowIndex)) {
+                                addValueToRow(rowIndex, null);
+                                continue;
+                            }
+                            String value = new String(timeStampSecVector.get(rowIndex));
+                            LocalDateTime parse = LocalDateTime.parse(value, dateTimeFormatter);
+                            addValueToRow(rowIndex, parse);
+                        }
+                        break;
+                    case "LARGEINT":
                     case "CHAR":
                     case "VARCHAR":
                     case "STRING":

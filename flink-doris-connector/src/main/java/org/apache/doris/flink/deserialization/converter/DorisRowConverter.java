@@ -17,16 +17,15 @@
 package org.apache.doris.flink.deserialization.converter;
 
 import org.apache.doris.flink.serialization.RowBatch;
-import org.apache.flink.table.data.DecimalData;
-import org.apache.flink.table.data.GenericRowData;
-import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.data.*;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -109,7 +108,9 @@ public class DorisRowConverter implements Serializable {
             case TIMESTAMP_WITH_TIME_ZONE:
             case TIMESTAMP_WITHOUT_TIME_ZONE:
             case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+                return val -> TimestampData.fromLocalDateTime((LocalDateTime) val);
             case DATE:
+                return val -> ((LocalDate) val).toEpochDay();
             case CHAR:
             case VARCHAR:
                 return val -> StringData.fromString((String) val);
