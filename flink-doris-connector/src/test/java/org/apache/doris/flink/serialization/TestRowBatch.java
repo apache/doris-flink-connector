@@ -53,6 +53,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -247,8 +249,8 @@ public class TestRowBatch {
                 1L,
                 (float) 1.1,
                 (double) 1.1,
-                "2008-08-08",
-                "2008-08-08 00:00:00",
+                LocalDate.of(2008, 8, 8),
+                LocalDateTime.of(2008,8,8,0,0,0),
                 DecimalData.fromBigDecimal(new BigDecimal(12.34), 4, 2),
                 "char1"
         );
@@ -261,8 +263,8 @@ public class TestRowBatch {
                 2L,
                 (float) 2.2,
                 (double) 2.2,
-                "1900-08-08",
-                "1900-08-08 00:00:00",
+                LocalDate.of(1900, 8, 8),
+                LocalDateTime.of(1900,8,8,0,0,0),
                 DecimalData.fromBigDecimal(new BigDecimal(88.88), 4, 2),
                 "char2"
         );
@@ -275,8 +277,8 @@ public class TestRowBatch {
                 3L,
                 (float) 3.3,
                 (double) 3.3,
-                "2100-08-08",
-                "2100-08-08 00:00:00",
+                LocalDate.of(2100, 8, 8),
+                LocalDateTime.of(2100,8,8,0,0,0),
                 DecimalData.fromBigDecimal(new BigDecimal(10.22), 4, 2),
                 "char3"
         );

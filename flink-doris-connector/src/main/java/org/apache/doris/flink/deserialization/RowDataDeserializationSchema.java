@@ -44,7 +44,7 @@ public class RowDataDeserializationSchema implements DorisDeserializationSchema<
 
     @Override
     public void deserialize(List<?> record, Collector<RowData> out) throws Exception {
-        RowData row = rowConverter.convert(record);
+        RowData row = rowConverter.convertInternal(record);
         out.collect(row);
     }
 }

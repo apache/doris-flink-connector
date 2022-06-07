@@ -17,6 +17,7 @@
 package org.apache.doris.flink.deserialization.convert;
 
 import org.apache.doris.flink.deserialization.converter.DorisRowConverter;
+import org.apache.doris.flink.sink.writer.RowDataSerializer;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
@@ -25,15 +26,18 @@ import org.apache.flink.table.types.logical.RowType;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 
 public class DorisRowConverterTest implements Serializable {
 
     @Test
-    public void testConvert(){
+    public void testConvert() throws IOException {
         ResolvedSchema SCHEMA =
                 ResolvedSchema.of(
                         Column.physical("f1", DataTypes.NULL()),
@@ -55,8 +59,19 @@ public class DorisRowConverterTest implements Serializable {
 
         DorisRowConverter converter = new DorisRowConverter((RowType) SCHEMA.toPhysicalRowDataType().getLogicalType());
 
-        List record = Arrays.asList(null,"true",1.2,1.2345,24,10,1,32,64,128, BigDecimal.valueOf(10.123),"2021-01-01 08:00:00","2021-01-01 08:00:00","2021-01-01","a","doris");
-        GenericRowData rowData = converter.convert(record);
-        Assert.assertEquals("+I(null,true,1.2,1.2345,24,10,1,32,64,128,10.12,2021-01-01 08:00:00,2021-01-01 08:00:00,2021-01-01,a,doris)",rowData.toString());
+        LocalDateTime time1 = LocalDateTime.of(2021, 1, 1, 8, 0, 0);
+        LocalDateTime time2 = LocalDateTime.of(2021, 1, 1, 8, 0, 0);
+        LocalDate date1 = LocalDate.of(2021, 1, 1);
+        List record = Arrays.asList(null,true,1.2F,1.2345D,24,10,(byte) 1, (short) 32,64,128L, BigDecimal.valueOf(10.123),time1,time2, date1,"a","doris");
+        GenericRowData rowData = converter.convertInternal(record);
+
+        RowDataSerializer serializer = new RowDataSerializer.Builder()
+                .setRowType((RowType) SCHEMA.toPhysicalRowDataType().getLogicalType())
+                .setType("csv")
+                .setFieldDelimiter("|")
+                .setFieldNames(new String[]{"f1","f2","f3","f4","f5","f6","f7","f8","f9","f10","f11","f12","f13","f14","f15","f16"})
+                .build();
+        String s = new String(serializer.serialize(rowData));
+        Assert.assertEquals("\\N|true|1.2|1.2345|24|10|1|32|64|128|10.12|2021-01-01 08:00:00.0|2021-01-01 08:00:00.0|2021-01-01|a|doris", s);
     }
 }
