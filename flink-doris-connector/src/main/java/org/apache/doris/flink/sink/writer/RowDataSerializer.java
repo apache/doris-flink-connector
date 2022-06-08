@@ -20,7 +20,7 @@ package org.apache.doris.flink.sink.writer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.doris.flink.deserialization.converter.DorisRowConverter;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Preconditions;
 
@@ -46,7 +46,7 @@ public class RowDataSerializer implements DorisRecordSerializer<RowData> {
     private final boolean enableDelete;
     private final DorisRowConverter rowConverter;
 
-    private RowDataSerializer(String[] fieldNames, RowType rowType, String type, String fieldDelimiter, boolean enableDelete) {
+    private RowDataSerializer(String[] fieldNames, DataType[] dataTypes, String type, String fieldDelimiter, boolean enableDelete) {
         this.fieldNames = fieldNames;
         this.type = type;
         this.fieldDelimiter = fieldDelimiter;
@@ -54,7 +54,7 @@ public class RowDataSerializer implements DorisRecordSerializer<RowData> {
         if (JSON.equals(type)) {
             objectMapper = new ObjectMapper();
         }
-        this.rowConverter = new DorisRowConverter(rowType);
+        this.rowConverter = new DorisRowConverter(dataTypes);
     }
 
     @Override
@@ -120,7 +120,7 @@ public class RowDataSerializer implements DorisRecordSerializer<RowData> {
      */
     public static class Builder {
         private String[] fieldNames;
-        private RowType rowType;
+        private DataType[] dataTypes;
         private String type;
         private String fieldDelimiter;
         private boolean deletable;
@@ -130,8 +130,8 @@ public class RowDataSerializer implements DorisRecordSerializer<RowData> {
             return this;
         }
 
-        public Builder setRowType(RowType rowType) {
-            this.rowType = rowType;
+        public Builder setFieldType(DataType[] dataTypes) {
+            this.dataTypes = dataTypes;
             return this;
         }
 
@@ -152,9 +152,9 @@ public class RowDataSerializer implements DorisRecordSerializer<RowData> {
 
         public RowDataSerializer build() {
             Preconditions.checkState(CSV.equals(type) && fieldDelimiter != null || JSON.equals(type));
-            Preconditions.checkNotNull(rowType);
+            Preconditions.checkNotNull(dataTypes);
             Preconditions.checkNotNull(fieldNames);
-            return new RowDataSerializer(fieldNames, rowType, type, fieldDelimiter, deletable);
+            return new RowDataSerializer(fieldNames, dataTypes, type, fieldDelimiter, deletable);
         }
     }
 }

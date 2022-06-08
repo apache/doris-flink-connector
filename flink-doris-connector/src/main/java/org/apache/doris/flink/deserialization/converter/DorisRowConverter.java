@@ -22,6 +22,7 @@ import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -51,6 +52,17 @@ public class DorisRowConverter implements Serializable {
         for (int i = 0; i < rowType.getFieldCount(); i++) {
             deserializationConverters[i] = createNullableInternalConverter(rowType.getTypeAt(i));
             serializationConverters[i] = createNullableExternalConverter(rowType.getTypeAt(i));
+        }
+    }
+
+    public DorisRowConverter(DataType[] dataTypes) {
+        checkNotNull(dataTypes);
+        this.deserializationConverters = new DeserializationConverter[dataTypes.length];
+        this.serializationConverters = new SerializationConverter[dataTypes.length];
+        for (int i = 0; i < dataTypes.length; i++) {
+            LogicalType logicalType = dataTypes[i].getLogicalType();
+            deserializationConverters[i] = createNullableInternalConverter(logicalType);
+            serializationConverters[i] = createNullableExternalConverter(logicalType);
         }
     }
 
@@ -161,7 +173,7 @@ public class DorisRowConverter implements Serializable {
             case DATE:
                 return val -> {
                     if (val instanceof LocalDate) {
-                        return ((LocalDate) val).toEpochDay();
+                        return (int) ((LocalDate) val).toEpochDay();
                     } else {
                         throw new UnsupportedOperationException("timestamp type must be java.time.LocalDate, the actual type is: " + val.getClass());
                     }
@@ -213,7 +225,7 @@ public class DorisRowConverter implements Serializable {
             case DOUBLE:
                 return (index, val) -> val.getDouble(index);
             case DATE:
-                return (index, val) -> Date.valueOf(LocalDate.ofEpochDay(val.getLong(index)));
+                return (index, val) -> Date.valueOf(LocalDate.ofEpochDay(val.getInt(index)));
             case TIMESTAMP_WITHOUT_TIME_ZONE:
                 final int timestampPrecision = ((TimestampType) type).getPrecision();
                 return (index, val) -> val.getTimestamp(index, timestampPrecision).toTimestamp();

@@ -28,7 +28,6 @@ import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.SinkProvider;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.RowKind;
 
 import org.apache.flink.util.Preconditions;
@@ -91,7 +90,7 @@ public class DorisDynamicTableSink implements DynamicTableSink {
 
         RowDataSerializer.Builder serializerBuilder = RowDataSerializer.builder();
         serializerBuilder.setFieldNames(tableSchema.getFieldNames())
-                .setRowType((RowType) tableSchema.toRowDataType().getLogicalType())
+                .setFieldType(tableSchema.getFieldDataTypes())
                 .setType(loadProperties.getProperty(FORMAT_KEY, CSV))
                 .enableDelete(deletable)
                 .setFieldDelimiter(loadProperties.getProperty(FIELD_DELIMITER_KEY, FIELD_DELIMITER_DEFAULT));
