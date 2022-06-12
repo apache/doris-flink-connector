@@ -148,7 +148,7 @@ public class DorisRowDataInputFormat extends RichInputFormat<RowData, DorisTable
             return null;
         }
         List next = (List) scalaValueReader.next();
-        RowData genericRowData = rowConverter.convert(next);
+        RowData genericRowData = rowConverter.convertInternal(next);
         //update hasNext after we've read the record
         hasNext = scalaValueReader.hasNext();
         return genericRowData;

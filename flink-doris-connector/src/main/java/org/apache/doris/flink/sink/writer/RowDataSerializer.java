@@ -18,6 +18,7 @@
 package org.apache.doris.flink.sink.writer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.doris.flink.deserialization.converter.DorisRowConverter;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.RowKind;
@@ -33,18 +34,17 @@ import static org.apache.doris.flink.sink.writer.LoadConstants.CSV;
 import static org.apache.doris.flink.sink.writer.LoadConstants.DORIS_DELETE_SIGN;
 import static org.apache.doris.flink.sink.writer.LoadConstants.JSON;
 import static org.apache.doris.flink.sink.writer.LoadConstants.NULL_VALUE;
-import static org.apache.flink.table.data.RowData.createFieldGetter;
 
 /**
  * Serializer for RowData.
  */
 public class RowDataSerializer implements DorisRecordSerializer<RowData> {
     String[] fieldNames;
-    RowData.FieldGetter[] fieldGetters;
     String type;
     private ObjectMapper objectMapper;
     private final String fieldDelimiter;
     private final boolean enableDelete;
+    private final DorisRowConverter rowConverter;
 
     private RowDataSerializer(String[] fieldNames, DataType[] dataTypes, String type, String fieldDelimiter, boolean enableDelete) {
         this.fieldNames = fieldNames;
@@ -54,15 +54,12 @@ public class RowDataSerializer implements DorisRecordSerializer<RowData> {
         if (JSON.equals(type)) {
             objectMapper = new ObjectMapper();
         }
-        this.fieldGetters = new RowData.FieldGetter[dataTypes.length];
-        for (int fieldIndex = 0; fieldIndex < dataTypes.length; fieldIndex++) {
-            fieldGetters[fieldIndex] = createFieldGetter(dataTypes[fieldIndex].getLogicalType(), fieldIndex);
-        }
+        this.rowConverter = new DorisRowConverter(dataTypes);
     }
 
     @Override
     public byte[] serialize(RowData record) throws IOException{
-        int maxIndex = Math.min(record.getArity(), fieldGetters.length);
+        int maxIndex = Math.min(record.getArity(), fieldNames.length);
         String valString;
         if (JSON.equals(type)) {
             valString = buildJsonString(record, maxIndex);
@@ -78,7 +75,7 @@ public class RowDataSerializer implements DorisRecordSerializer<RowData> {
         int fieldIndex = 0;
         Map<String, String> valueMap = new HashMap<>();
         while (fieldIndex < maxIndex) {
-            Object field = fieldGetters[fieldIndex].getFieldOrNull(record);
+            Object field = rowConverter.convertExternal(record, fieldIndex);
             String value = field != null ? field.toString() : null;
             valueMap.put(fieldNames[fieldIndex], value);
             fieldIndex++;
@@ -93,7 +90,7 @@ public class RowDataSerializer implements DorisRecordSerializer<RowData> {
         int fieldIndex = 0;
         StringJoiner joiner = new StringJoiner(fieldDelimiter);
         while (fieldIndex < maxIndex) {
-            Object field = fieldGetters[fieldIndex].getFieldOrNull(record);
+            Object field = rowConverter.convertExternal(record, fieldIndex);
             String value = field != null ? field.toString() : NULL_VALUE;
             joiner.add(value);
             fieldIndex++;
