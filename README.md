@@ -26,7 +26,7 @@ under the License.
 
 Flink Doris Connector now support flink version from 1.11 to 1.14.
 
-If you wish to contribute or use a connector from flink 1.13 (and earlier), please use the [branch-for-flink-before-1.13](https://github.com/apache/incubator-doris-flink-connector/tree/branch-for-flink-before-1.13)
+If you wish to contribute or use a connector from flink 1.13 (and earlier), please use the [branch-for-flink-before-1.13](https://github.com/apache/doris-flink-connector/tree/branch-for-flink-before-1.13)
 
 More information about compilation and usage, please visit [Flink Doris Connector](https://doris.apache.org/ecosystem/flink-doris-connector.html)
 
@@ -49,7 +49,7 @@ brew link --force gnu-getopt
 
 ## Report issues or submit pull request
 
-If you find any bugs, feel free to file a [GitHub issue](https://github.com/apache/incubator-doris/issues) or fix it by submitting a [pull request](https://github.com/apache/incubator-doris/pulls).
+If you find any bugs, feel free to file a [GitHub issue](https://github.com/apache/doris/issues) or fix it by submitting a [pull request](https://github.com/apache/doris/pulls).
 
 ## Contact Us
 
@@ -61,6 +61,6 @@ Contact us through the following mailing list.
 
 ## Links
 
-* Doris official site - <https://doris.incubator.apache.org>
+* Doris official site - <https://doris.apache.org>
 * Developer Mailing list - <dev@doris.apache.org>. Mail to <dev-subscribe@doris.apache.org>, follow the reply to subscribe the mail list.
 * Slack channel - [Join the Slack](https://join.slack.com/t/apachedoriscommunity/shared_invite/zt-11jb8gesh-7IukzSrdea6mqoG0HB4gZg)
