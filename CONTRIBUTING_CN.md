@@ -21,4 +21,4 @@ under the License.
 
 非常感谢您对 Doris 及其周边项目感兴趣，我们非常欢迎您对 Doris 的各种建议、意见（包括批评）、评论和贡献。
 
-关于如何为 Doris 及周边项目做贡献，请前往 Doris 主库查阅 [CONTRIBUTING_CN](https://github.com/apache/incubator-doris/blob/master/CONTRIBUTING_CN.md)
+关于如何为 Doris 及周边项目做贡献，请前往 Doris 主库查阅 [CONTRIBUTING_CN](https://github.com/apache/doris/blob/master/CONTRIBUTING_CN.md)
