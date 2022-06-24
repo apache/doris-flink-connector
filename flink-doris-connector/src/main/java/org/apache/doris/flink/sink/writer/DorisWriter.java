@@ -45,6 +45,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -119,7 +120,11 @@ public class DorisWriter<IN> implements SinkWriter<IN, DorisCommittable, DorisWr
     @Override
     public void write(IN in, Context context) throws IOException {
         checkLoadException();
-        dorisStreamLoad.writeRecord(serializer.serialize(in));
+        byte[] serialize = serializer.serialize(in);
+        if(Objects.isNull(serialize)){
+            return;
+        }
+        dorisStreamLoad.writeRecord(serialize);
     }
 
     @Override

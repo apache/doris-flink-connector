@@ -21,68 +21,57 @@ import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.sink.DorisSink;
 import org.apache.doris.flink.sink.writer.SimpleStringSerializer;
-import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.streaming.api.TimeCharacteristic;
-import org.apache.flink.streaming.api.datastream.DataStreamSource;
-import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.source.SourceFunction;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Properties;
-import java.util.UUID;
 
 
-public class DorisSinkExample {
+public class DorisSinkExampleDataStream {
 
     public static void main(String[] args) throws Exception{
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
-        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
-        env.enableCheckpointing(10000);
+//        env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+//        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+        env.enableCheckpointing(5000);
         env.setParallelism(1);
-        env.getCheckpointConfig().enableExternalizedCheckpoints(CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(5, Time.milliseconds(30000)));
+
         DorisSink.Builder<String> builder = DorisSink.builder();
-        final DorisReadOptions.Builder readOptionBuilder = DorisReadOptions.builder();
-        readOptionBuilder.setDeserializeArrowAsync(false)
-                .setDeserializeQueueSize(64)
-                .setExecMemLimit(2147483648L)
-                .setRequestQueryTimeoutS(3600)
-                .setRequestBatchSize(1000)
-                .setRequestConnectTimeoutMs(10000)
-                .setRequestReadTimeoutMs(10000)
-                .setRequestRetries(3)
-                .setRequestTabletSize(1024 * 1024);
-        Properties properties = new Properties();
-        properties.setProperty("column_separator", "op");
-        properties.setProperty("line_delimiter", "\n");
-        properties.setProperty("format", "csv");
         DorisOptions.Builder dorisBuilder = DorisOptions.builder();
         dorisBuilder.setFenodes("52.83.29.166:8131")
                 .setTableIdentifier("test.test1")
                 .setUsername("root")
                 .setPassword("");
-        DorisExecutionOptions.Builder  executionBuilder = DorisExecutionOptions.builder();
-        executionBuilder.setLabelPrefix("label-doris" + UUID.randomUUID().toString())
-                .setStreamLoadProp(properties)
-                .setBufferSize(8*1024)
-                .setBufferCount(3);
 
-        builder.setDorisReadOptions(readOptionBuilder.build())
+        DorisExecutionOptions.Builder  executionBuilder = DorisExecutionOptions.builder();
+        executionBuilder.setLabelPrefix("label-doris");
+        builder.setDorisReadOptions(DorisReadOptions.builder().build())
                 .setDorisExecutionOptions(executionBuilder.build())
                 .setSerializer(new SimpleStringSerializer())
                 .setDorisOptions(dorisBuilder.build());
 
         List<Tuple2<String, Integer>> data = new ArrayList<>();
         data.add(new Tuple2<>("doris",1));
-        DataStreamSource<Tuple2<String, Integer>> source = env.fromCollection(data);
-        source.map((MapFunction<Tuple2<String, Integer>, String>) t -> t.f0 + "op" + t.f1)
+        SourceFunction<Tuple2<String, Integer>> zhangsan = new SourceFunction<Tuple2<String, Integer>>() {
+
+            @Override
+            public void run(SourceContext<Tuple2<String, Integer>> ctx) throws Exception {
+                while(true){
+                    ctx.collect(new Tuple2<>("zhangsan", 1));
+                    Thread.sleep(1000);
+                }
+            }
+
+            @Override
+            public void cancel() {
+
+            }
+        };
+        env.addSource(zhangsan).map((MapFunction<Tuple2<String, Integer>, String>) t -> t.f0 + "\t" + t.f1)
                 .sinkTo(builder.build());
-        env.execute("doris test");
+        env.execute("doris sink demo");
     }
 }
