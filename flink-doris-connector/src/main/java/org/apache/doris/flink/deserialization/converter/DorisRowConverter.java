@@ -115,7 +115,7 @@ public class DorisRowConverter implements Serializable {
 
     protected SerializationConverter wrapIntoNullableExternalConverter(SerializationConverter serializationConverter) {
         return (index, val) -> {
-            if (val == null) {
+            if (val == null || val.isNullAt(index)) {
                 return null;
             } else {
                 return serializationConverter.serialize(index, val);
