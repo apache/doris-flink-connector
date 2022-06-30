@@ -118,6 +118,12 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
             .defaultValue(DORIS_EXEC_MEM_LIMIT_DEFAULT)
             .withDescription("");
     // flink write config options
+    private static final ConfigOption<Boolean> SINK_ENABLE_2PC = ConfigOptions
+            .key("sink.enable-2pc")
+            .booleanType()
+            .defaultValue(true)
+            .withDescription("enable 2PC while loading");
+
     private static final ConfigOption<Integer> SINK_CHECK_INTERVAL = ConfigOptions
             .key("sink.check-interval")
             .intType()
@@ -195,6 +201,7 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
         options.add(DORIS_EXEC_MEM_LIMIT);
 
         options.add(SINK_CHECK_INTERVAL);
+        options.add(SINK_ENABLE_2PC);
         options.add(SINK_MAX_RETRIES);
         options.add(SINK_BUFFER_FLUSH_INTERVAL);
         options.add(SINK_ENABLE_DELETE);
@@ -262,6 +269,9 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
         builder.setLabelPrefix(readableConfig.get(SINK_LABEL_PREFIX));
         builder.setStreamLoadProp(streamLoadProp);
         builder.setDeletable(readableConfig.get(SINK_ENABLE_DELETE));
+        if (!readableConfig.get(SINK_ENABLE_2PC)) {
+            builder.disable2PC();
+        }
         return builder.build();
     }
 

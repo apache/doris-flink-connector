@@ -61,7 +61,7 @@ import static org.apache.doris.flink.sink.writer.LoadConstants.LINE_DELIMITER_KE
 public class DorisStreamLoad implements Serializable {
     private static final Logger LOG = LoggerFactory.getLogger(DorisStreamLoad.class);
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-    private final String labelSuffix;
+    private final LabelGenerator labelGenerator;
     private final byte[] lineDelimiter;
     private static final String LOAD_URL_PATTERN = "http://%s/api/%s/%s/_stream_load";
     private static final String ABORT_URL_PATTERN = "http://%s/api/%s/_stream_load_2pc";
@@ -74,6 +74,7 @@ public class DorisStreamLoad implements Serializable {
     private final String passwd;
     private final String db;
     private final String table;
+    private final boolean enable2PC;
     private final Properties streamLoadProp;
     private final RecordStream recordStream;
     private Future<CloseableHttpResponse> pendingLoadFuture;
@@ -84,7 +85,7 @@ public class DorisStreamLoad implements Serializable {
     public DorisStreamLoad(String hostPort,
                            DorisOptions dorisOptions,
                            DorisExecutionOptions executionOptions,
-                           String labelSuffix,
+                           LabelGenerator labelGenerator,
                            CloseableHttpClient httpClient) {
         this.hostPort = hostPort;
         String[] tableInfo = dorisOptions.getTableIdentifier().split("\\.");
@@ -92,9 +93,10 @@ public class DorisStreamLoad implements Serializable {
         this.table = tableInfo[1];
         this.user = dorisOptions.getUsername();
         this.passwd = dorisOptions.getPassword();
-        this.labelSuffix = labelSuffix;
+        this.labelGenerator = labelGenerator;
         this.loadUrlStr = String.format(LOAD_URL_PATTERN, hostPort, db, table);
         this.abortUrlStr = String.format(ABORT_URL_PATTERN, hostPort, db);
+        this.enable2PC = executionOptions.enabled2PC();
         this.streamLoadProp = executionOptions.getStreamLoadProp();
         this.httpClient = httpClient;
         this.executorService = new ThreadPoolExecutor(1, 1,
@@ -133,7 +135,7 @@ public class DorisStreamLoad implements Serializable {
         LOG.info("abort for labelSuffix {}. start chkId {}.", labelSuffix, chkID);
         while (true) {
             try {
-                String label = labelSuffix + "_" + startChkID;
+                String label = labelGenerator.generateLabel(startChkID);
                 HttpPutBuilder builder = new HttpPutBuilder();
                 builder.setUrl(loadUrlStr)
                         .baseAuth(user, passwd)
@@ -218,12 +220,11 @@ public class DorisStreamLoad implements Serializable {
 
     /**
      * start write data for new checkpoint.
-     * @param chkID
+     * @param label
      * @throws IOException
      */
-    public void startLoad(long chkID) throws IOException{
+    public void startLoad(String label) throws IOException{
         loadBatchFirstRecord = true;
-        String label = labelSuffix + "_" + chkID;
         HttpPutBuilder putBuilder = new HttpPutBuilder();
         recordStream.startInput();
         LOG.info("stream load started for {}", label);
@@ -232,10 +233,12 @@ public class DorisStreamLoad implements Serializable {
             putBuilder.setUrl(loadUrlStr)
                     .baseAuth(user, passwd)
                     .addCommonHeader()
-                    .enable2PC()
                     .setLabel(label)
                     .setEntity(entity)
                     .addProperties(streamLoadProp);
+            if (enable2PC) {
+               putBuilder.enable2PC();
+            }
             pendingLoadFuture = executorService.submit(() -> {
                 LOG.info("start execute load");
                 return httpClient.execute(putBuilder.build());

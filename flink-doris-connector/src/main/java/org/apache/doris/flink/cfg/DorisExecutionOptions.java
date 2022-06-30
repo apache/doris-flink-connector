@@ -45,13 +45,16 @@ public class DorisExecutionOptions implements Serializable {
 
     private final Boolean enableDelete;
 
+    private final Boolean enable2PC;
 
     public DorisExecutionOptions(int checkInterval,
                                  int maxRetries,
                                  int bufferSize,
                                  int bufferCount,
                                  String labelPrefix,
-                                 Properties streamLoadProp, Boolean enableDelete) {
+                                 Properties streamLoadProp,
+                                 Boolean enableDelete,
+                                 Boolean enable2PC) {
         Preconditions.checkArgument(maxRetries >= 0);
         this.checkInterval = checkInterval;
         this.maxRetries = maxRetries;
@@ -60,6 +63,7 @@ public class DorisExecutionOptions implements Serializable {
         this.labelPrefix = labelPrefix;
         this.streamLoadProp = streamLoadProp;
         this.enableDelete = enableDelete;
+        this.enable2PC = enable2PC;
     }
 
     public static Builder builder() {
@@ -105,6 +109,9 @@ public class DorisExecutionOptions implements Serializable {
         return enableDelete;
     }
 
+    public Boolean enabled2PC() {
+        return enable2PC;
+    }
     /**
      * Builder of {@link DorisExecutionOptions}.
      */
@@ -116,6 +123,8 @@ public class DorisExecutionOptions implements Serializable {
         private String labelPrefix = "";
         private Properties streamLoadProp = new Properties();
         private boolean enableDelete = false;
+
+        private boolean enable2PC = true;
 
         public Builder setCheckInterval(Integer checkInterval) {
             this.checkInterval = checkInterval;
@@ -152,8 +161,13 @@ public class DorisExecutionOptions implements Serializable {
             return this;
         }
 
+        public Builder disable2PC() {
+            this.enable2PC = false;
+            return this;
+        }
+
         public DorisExecutionOptions build() {
-            return new DorisExecutionOptions(checkInterval, maxRetries, bufferSize, bufferCount, labelPrefix, streamLoadProp, enableDelete);
+            return new DorisExecutionOptions(checkInterval, maxRetries, bufferSize, bufferCount, labelPrefix, streamLoadProp, enableDelete, enable2PC);
         }
     }
 

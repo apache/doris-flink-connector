@@ -66,6 +66,7 @@ public class DorisWriter<IN> implements SinkWriter<IN, DorisCommittable, DorisWr
     private final DorisReadOptions dorisReadOptions;
     private final DorisExecutionOptions executionOptions;
     private final String labelPrefix;
+    private final LabelGenerator labelGenerator;
     private final int intervalTime;
     private final DorisWriterState dorisWriterState;
     private final DorisRecordSerializer<IN> serializer;
@@ -87,6 +88,7 @@ public class DorisWriter<IN> implements SinkWriter<IN, DorisCommittable, DorisWr
         LOG.info("labelPrefix " + executionOptions.getLabelPrefix());
         this.dorisWriterState = new DorisWriterState(executionOptions.getLabelPrefix());
         this.labelPrefix = executionOptions.getLabelPrefix() + "_" + initContext.getSubtaskId();
+        this.labelGenerator = new LabelGenerator(labelPrefix, executionOptions.enabled2PC());
         this.scheduledExecutorService = new ScheduledThreadPoolExecutor(1, new ExecutorThreadFactory("stream-load-check"));
         this.serializer = serializer;
         this.dorisOptions = dorisOptions;
@@ -98,20 +100,22 @@ public class DorisWriter<IN> implements SinkWriter<IN, DorisCommittable, DorisWr
 
     public void initializeLoad(List<DorisWriterState> state) throws IOException {
         try {
-            this.dorisStreamLoad  = new DorisStreamLoad(
+            this.dorisStreamLoad = new DorisStreamLoad(
                     RestService.getBackend(dorisOptions, dorisReadOptions, LOG),
                     dorisOptions,
                     executionOptions,
-                    labelPrefix, new HttpUtil().getHttpClient());
+                    labelGenerator, new HttpUtil().getHttpClient());
             // TODO: we need check and abort all pending transaction.
             //  Discard transactions that may cause the job to fail.
-            dorisStreamLoad.abortPreCommit(labelPrefix, lastCheckpointId + 1);
+            if(executionOptions.enabled2PC()) {
+                dorisStreamLoad.abortPreCommit(labelPrefix, lastCheckpointId + 1);
+            }
         } catch (Exception e) {
             throw new DorisRuntimeException(e);
         }
         // get main work thread.
         executorThread = Thread.currentThread();
-        dorisStreamLoad.startLoad(lastCheckpointId + 1);
+        dorisStreamLoad.startLoad(labelGenerator.generateLabel(lastCheckpointId + 1));
         // when uploading data in streaming mode, we need to regularly detect whether there are exceptions.
         scheduledExecutorService.scheduleWithFixedDelay(this::checkDone, 200, intervalTime, TimeUnit.MILLISECONDS);
     }
@@ -124,6 +128,7 @@ public class DorisWriter<IN> implements SinkWriter<IN, DorisCommittable, DorisWr
 
     @Override
     public List<DorisCommittable> prepareCommit(boolean flush) throws IOException {
+        // disable exception checker before stop load.
         loading = false;
         Preconditions.checkState(dorisStreamLoad != null);
         RespContent respContent = dorisStreamLoad.stopLoad();
@@ -131,7 +136,9 @@ public class DorisWriter<IN> implements SinkWriter<IN, DorisCommittable, DorisWr
             String errMsg = String.format("stream load error: %s, see more in %s", respContent.getMessage(), respContent.getErrorURL());
             throw new DorisRuntimeException(errMsg);
         }
-
+        if (!executionOptions.enabled2PC()) {
+            return Collections.emptyList();
+        }
         long txnId = respContent.getTxnId();
 
         return ImmutableList.of(new DorisCommittable(dorisStreamLoad.getHostPort(), dorisStreamLoad.getDb(), txnId));
@@ -140,7 +147,7 @@ public class DorisWriter<IN> implements SinkWriter<IN, DorisCommittable, DorisWr
     @Override
     public List<DorisWriterState> snapshotState(long checkpointId) throws IOException {
         Preconditions.checkState(dorisStreamLoad != null);
-        this.dorisStreamLoad.startLoad(checkpointId + 1);
+        this.dorisStreamLoad.startLoad(labelGenerator.generateLabel(checkpointId + 1));
         this.loading = true;
         return Collections.singletonList(dorisWriterState);
     }
@@ -173,7 +180,7 @@ public class DorisWriter<IN> implements SinkWriter<IN, DorisCommittable, DorisWr
 
     private void checkLoadException() {
         if (loadException != null) {
-            throw new RuntimeException("error while load exception.", loadException);
+            throw new RuntimeException("error while loading data.", loadException);
         }
     }
 
