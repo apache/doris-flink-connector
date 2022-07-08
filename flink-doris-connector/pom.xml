@@ -61,7 +61,7 @@ under the License.
         </mailingList>
     </mailingLists>
     <properties>
-        <scala.version>2.12</scala.version>
+        <scala.version>2.11</scala.version>
         <flink.version>1.14.5</flink.version>
         <flink.minor.version>1.14</flink.minor.version>
         <libthrift.version>0.13.0</libthrift.version>
