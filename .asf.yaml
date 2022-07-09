@@ -16,7 +16,7 @@
 #
 
 github:
-  description: Flink Connector for Apache Doris(incubating)
+  description: Flink Connector for Apache Doris
   homepage: https://doris.apache.org/
   labels:
     - data-warehousing
@@ -26,6 +26,7 @@ github:
     - apache
     - doris
     - flink
+    - connector
   enabled_merge_buttons:
     squash:  true
     merge:   false
