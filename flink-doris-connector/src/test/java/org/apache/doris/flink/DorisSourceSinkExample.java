@@ -24,7 +24,6 @@ public class DorisSourceSinkExample {
 
     public static void main(String[] args) {
         EnvironmentSettings settings = EnvironmentSettings.newInstance()
-                .useBlinkPlanner()
                 .inStreamingMode()
                 .build();
         TableEnvironment tEnv = TableEnvironment.create(settings);
