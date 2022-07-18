@@ -147,7 +147,7 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
     private static final ConfigOption<String> SINK_LABEL_PREFIX = ConfigOptions
             .key("sink.label-prefix")
             .stringType()
-            .noDefaultValue()
+            .defaultValue("")
             .withDescription("the unique label prefix.");
     private static final ConfigOption<Duration> SINK_BUFFER_FLUSH_INTERVAL = ConfigOptions
             .key("sink.batch.interval")

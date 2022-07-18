@@ -18,7 +18,6 @@ package org.apache.doris.flink.source.reader;
 
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
-import org.apache.doris.flink.datastream.ScalaValueReader;
 import org.apache.doris.flink.source.split.DorisSourceSplit;
 import org.apache.doris.flink.source.split.DorisSplitRecords;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
@@ -43,7 +42,7 @@ public class DorisSourceSplitReader
     private final Queue<DorisSourceSplit> splits;
     private final DorisOptions options;
     private final DorisReadOptions readOptions;
-    private ScalaValueReader scalaValueReader;
+    private DorisValueReader valueReader;
     private String currentSplitId;
 
     public DorisSourceSplitReader(DorisOptions options, DorisReadOptions readOptions) {
@@ -56,14 +55,14 @@ public class DorisSourceSplitReader
     public RecordsWithSplitIds<List> fetch() throws IOException {
         checkSplitOrStartNext();
 
-        if (!scalaValueReader.hasNext()) {
+        if (!valueReader.hasNext()) {
             return finishSplit();
         }
-        return DorisSplitRecords.forRecords(currentSplitId, scalaValueReader);
+        return DorisSplitRecords.forRecords(currentSplitId, valueReader);
     }
 
     private void checkSplitOrStartNext() throws IOException {
-        if (scalaValueReader != null) {
+        if (valueReader != null) {
             return;
         }
         final DorisSourceSplit nextSplit = splits.poll();
@@ -71,13 +70,17 @@ public class DorisSourceSplitReader
             throw new IOException("Cannot fetch from another split - no split remaining");
         }
         currentSplitId = nextSplit.splitId();
-        scalaValueReader = new ScalaValueReader(nextSplit.getPartitionDefinition(), options, readOptions);
+        valueReader = new DorisValueReader(nextSplit.getPartitionDefinition(), options, readOptions);
     }
 
     private DorisSplitRecords finishSplit() {
-        if (scalaValueReader != null) {
-            scalaValueReader.close();
-            scalaValueReader = null;
+        if (valueReader != null) {
+            try {
+                valueReader.close();
+            } catch (Exception e) {
+                LOG.error("close resource reader failed,", e);
+            }
+            valueReader = null;
         }
         final DorisSplitRecords finishRecords = DorisSplitRecords.finishedSplit(currentSplitId);
         currentSplitId = null;
@@ -96,8 +99,8 @@ public class DorisSourceSplitReader
 
     @Override
     public void close() throws Exception {
-        if (scalaValueReader != null) {
-            scalaValueReader.close();
+        if (valueReader != null) {
+            valueReader.close();
         }
     }
 }

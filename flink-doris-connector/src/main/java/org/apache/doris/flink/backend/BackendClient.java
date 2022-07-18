@@ -20,7 +20,6 @@ package org.apache.doris.flink.backend;
 import org.apache.doris.flink.cfg.ConfigurationOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.exception.ConnectedFailedException;
-import org.apache.doris.flink.exception.DorisException;
 import org.apache.doris.flink.exception.DorisInternalException;
 import org.apache.doris.flink.serialization.Routing;
 import org.apache.doris.flink.util.ErrorMessages;
@@ -57,7 +56,7 @@ public class BackendClient {
     private final int socketTimeout;
     private final int connectTimeout;
 
-    public BackendClient(Routing routing, DorisReadOptions readOptions) throws ConnectedFailedException {
+    public BackendClient(Routing routing, DorisReadOptions readOptions) {
         this.routing = routing;
         this.connectTimeout = readOptions.getRequestConnectTimeoutMs() == null ? ConfigurationOptions.DORIS_REQUEST_CONNECT_TIMEOUT_MS_DEFAULT : readOptions.getRequestConnectTimeoutMs();
         this.socketTimeout = readOptions.getRequestReadTimeoutMs() == null ? ConfigurationOptions.DORIS_REQUEST_READ_TIMEOUT_MS_DEFAULT : readOptions.getRequestReadTimeoutMs();
@@ -67,7 +66,7 @@ public class BackendClient {
         open();
     }
 
-    private void open() throws ConnectedFailedException {
+    private void open() {
         logger.debug("Open client to Doris BE '{}'.", routing);
         TException ex = null;
         for (int attempt = 0; !isConnected && attempt < retries; ++attempt) {
@@ -117,7 +116,7 @@ public class BackendClient {
      * @return scan open result
      * @throws ConnectedFailedException throw if cannot connect to Doris BE
      */
-    public TScanOpenResult openScanner(TScanOpenParams openParams) throws ConnectedFailedException {
+    public TScanOpenResult openScanner(TScanOpenParams openParams) {
         logger.debug("OpenScanner to '{}', parameter is '{}'.", routing, openParams);
         if (!isConnected) {
             open();
@@ -153,7 +152,7 @@ public class BackendClient {
      * @return scan batch result
      * @throws ConnectedFailedException throw if cannot connect to Doris BE
      */
-    public TScanBatchResult getNext(TScanNextBatchParams nextBatchParams) throws DorisException {
+    public TScanBatchResult getNext(TScanNextBatchParams nextBatchParams) {
         logger.debug("GetNext to '{}', parameter is '{}'.", routing, nextBatchParams);
         if (!isConnected) {
             open();

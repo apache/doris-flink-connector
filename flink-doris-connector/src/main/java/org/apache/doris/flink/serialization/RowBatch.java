@@ -33,6 +33,7 @@ import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.ipc.ArrowStreamReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.doris.flink.exception.DorisException;
+import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.apache.doris.flink.rest.models.Schema;
 import org.apache.doris.thrift.TScanBatchResult;
 import org.apache.flink.util.Preconditions;
@@ -99,7 +100,7 @@ public class RowBatch {
         this.offsetInRowBatch = 0;
     }
 
-    public RowBatch readArrow() throws DorisException {
+    public RowBatch readArrow() {
         try {
             this.root = arrowStreamReader.getVectorSchemaRoot();
             while (arrowStreamReader.loadNextBatch()) {
@@ -124,7 +125,7 @@ public class RowBatch {
             return this;
         } catch (Exception e) {
             logger.error("Read Doris Data failed because: ", e);
-            throw new DorisException(e.getMessage());
+            throw new DorisRuntimeException(e.getMessage());
         } finally {
             close();
         }
@@ -304,7 +305,7 @@ public class RowBatch {
         }
     }
 
-    public List<Object> next() throws DorisException {
+    public List<Object> next() {
         if (!hasNext()) {
             String errMsg = "Get row offset:" + offsetInRowBatch + " larger than row size: " + readRowCount;
             logger.error(errMsg);
