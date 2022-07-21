@@ -21,7 +21,7 @@ import org.apache.doris.thrift.TStatusCode;
 
 import java.util.List;
 
-public class DorisInternalException extends DorisException {
+public class DorisInternalException extends DorisRuntimeException {
     public DorisInternalException(String server, TStatusCode statusCode, List<String> errorMsgs) {
         super("Doris server " + server + " internal failed, status code [" + statusCode + "] error message is " + errorMsgs);
     }

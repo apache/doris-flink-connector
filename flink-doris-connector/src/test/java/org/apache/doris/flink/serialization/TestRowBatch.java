@@ -41,8 +41,6 @@ import org.apache.doris.flink.rest.models.Schema;
 import org.apache.doris.thrift.TScanBatchResult;
 import org.apache.doris.thrift.TStatus;
 import org.apache.doris.thrift.TStatusCode;
-import org.apache.flink.calcite.shaded.com.google.common.collect.ImmutableList;
-import org.apache.flink.calcite.shaded.com.google.common.collect.Lists;
 import org.apache.flink.table.data.DecimalData;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -55,6 +53,7 @@ import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -70,7 +69,7 @@ public class TestRowBatch {
     @Test
     public void testRowBatch() throws Exception {
         // schema
-        ImmutableList.Builder<Field> childrenBuilder = ImmutableList.builder();
+        List<Field> childrenBuilder = new ArrayList<>();
         childrenBuilder.add(new Field("k0", FieldType.nullable(new ArrowType.Bool()), null));
         childrenBuilder.add(new Field("k1", FieldType.nullable(new ArrowType.Int(8, true)), null));
         childrenBuilder.add(new Field("k2", FieldType.nullable(new ArrowType.Int(16, true)), null));
@@ -84,7 +83,7 @@ public class TestRowBatch {
         childrenBuilder.add(new Field("k6", FieldType.nullable(new ArrowType.Utf8()), null));
 
         VectorSchemaRoot root = VectorSchemaRoot.create(
-                new org.apache.arrow.vector.types.pojo.Schema(childrenBuilder.build(), null),
+                new org.apache.arrow.vector.types.pojo.Schema(childrenBuilder, null),
                 new RootAllocator(Integer.MAX_VALUE));
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         ArrowStreamWriter arrowStreamWriter = new ArrowStreamWriter(
@@ -241,7 +240,7 @@ public class TestRowBatch {
 
         RowBatch rowBatch = new RowBatch(scanBatchResult, schema).readArrow();
 
-        List<Object> expectedRow1 = Lists.newArrayList(
+        List<Object> expectedRow1 = Arrays.asList(
                 Boolean.TRUE,
                 (byte) 1,
                 (short) 1,
@@ -310,11 +309,11 @@ public class TestRowBatch {
         byte[] binaryRow1 = {'d', 'e', 'f'};
         byte[] binaryRow2 = {'g', 'h', 'i'};
 
-        ImmutableList.Builder<Field> childrenBuilder = ImmutableList.builder();
+        List <Field> childrenBuilder = new ArrayList<>();
         childrenBuilder.add(new Field("k7", FieldType.nullable(new ArrowType.Binary()), null));
 
         VectorSchemaRoot root = VectorSchemaRoot.create(
-                new org.apache.arrow.vector.types.pojo.Schema(childrenBuilder.build(), null),
+                new org.apache.arrow.vector.types.pojo.Schema(childrenBuilder, null),
                 new RootAllocator(Integer.MAX_VALUE));
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         ArrowStreamWriter arrowStreamWriter = new ArrowStreamWriter(
@@ -378,11 +377,11 @@ public class TestRowBatch {
 
     @Test
     public void testDecimalV2() throws Exception {
-        ImmutableList.Builder<Field> childrenBuilder = ImmutableList.builder();
+        List<Field> childrenBuilder = new ArrayList<>();
         childrenBuilder.add(new Field("k7", FieldType.nullable(new ArrowType.Decimal(27, 9)), null));
 
         VectorSchemaRoot root = VectorSchemaRoot.create(
-                new org.apache.arrow.vector.types.pojo.Schema(childrenBuilder.build(), null),
+                new org.apache.arrow.vector.types.pojo.Schema(childrenBuilder, null),
                 new RootAllocator(Integer.MAX_VALUE));
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         ArrowStreamWriter arrowStreamWriter = new ArrowStreamWriter(

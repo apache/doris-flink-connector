@@ -16,7 +16,7 @@
 // under the License.
 package org.apache.doris.flink.source.split;
 
-import org.apache.doris.flink.datastream.ScalaValueReader;
+import org.apache.doris.flink.source.reader.DorisValueReader;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 
 import javax.annotation.Nullable;
@@ -26,25 +26,25 @@ import java.util.Set;
 
 /**
  * An implementation of {@link RecordsWithSplitIds}.
- * This is essentially a slim wrapper around the {@link ScalaValueReader} that only adds
+ * This is essentially a slim wrapper around the {@link DorisValueReader} that only adds
  * information about the current split, or finished splits
  */
 public class DorisSplitRecords implements RecordsWithSplitIds<List> {
 
     private final Set<String> finishedSplits;
-    private final ScalaValueReader scalaValueReader;
+    private final DorisValueReader valueReader;
     private String splitId;
 
     public DorisSplitRecords(String splitId,
-                             ScalaValueReader scalaValueReader,
+                             DorisValueReader valueReader,
                              Set<String> finishedSplits) {
         this.splitId = splitId;
-        this.scalaValueReader = scalaValueReader;
+        this.valueReader = valueReader;
         this.finishedSplits = finishedSplits;
     }
 
     public static DorisSplitRecords forRecords(
-            final String splitId, final ScalaValueReader valueReader) {
+            final String splitId, final DorisValueReader valueReader) {
         return new DorisSplitRecords(splitId, valueReader, Collections.emptySet());
     }
 
@@ -58,7 +58,7 @@ public class DorisSplitRecords implements RecordsWithSplitIds<List> {
         // move the split one (from current value to null)
         final String nextSplit = this.splitId;
         this.splitId = null;
-        if (scalaValueReader == null || !scalaValueReader.hasNext()) {
+        if (valueReader == null || !valueReader.hasNext()) {
             return null;
         }
         return nextSplit;
@@ -67,8 +67,8 @@ public class DorisSplitRecords implements RecordsWithSplitIds<List> {
     @Nullable
     @Override
     public List nextRecordFromSplit() {
-        if (scalaValueReader != null && scalaValueReader.hasNext()) {
-            List next = scalaValueReader.next();
+        if (valueReader != null && valueReader.hasNext()) {
+            List next = valueReader.next();
             return next;
         }
         return null;
