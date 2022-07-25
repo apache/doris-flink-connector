@@ -79,7 +79,7 @@ public class DorisCommitter implements Committer<DorisCommittable> {
         int retry = 0;
         String hostPort = committable.getHostPort();
         CloseableHttpResponse response = null;
-        while (retry++ < maxRetry) {
+        while (retry++ <= maxRetry) {
             HttpPutBuilder putBuilder = new HttpPutBuilder();
             putBuilder.setUrl(String.format(commitPattern, hostPort, committable.getDb()))
                     .baseAuth(dorisOptions.getUsername(), dorisOptions.getPassword())
