@@ -26,7 +26,7 @@ under the License.
     </parent>
     <groupId>org.apache.doris</groupId>
     <artifactId>flink-doris-connector-${flink.minor.version}_${scala.version}</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.3-SNAPSHOT</version>
     <name>Flink Doris Connector</name>
     <url>https://doris.apache.org/</url>
     <licenses>
@@ -40,7 +40,7 @@ under the License.
         <connection>scm:git:https://git@github.com/apache/incubator-doris-flink-connector.git</connection>
         <developerConnection>scm:git:https://git@github.com/apache/incubator-doris-flink-connector.git</developerConnection>
         <url>scm:git:https://git@github.com/apache/incubator-doris-flink-connector.git</url>
-        <tag>1.12_2.11-1.0.3</tag>
+        <tag>HEAD</tag>
     </scm>
     <issueManagement>
         <system>GitHub</system>
