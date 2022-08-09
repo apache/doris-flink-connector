@@ -73,6 +73,7 @@ public class DorisWriter<IN> implements SinkWriter<IN, DorisCommittable, DorisWr
     private final transient ScheduledExecutorService scheduledExecutorService;
     private transient Thread executorThread;
     private transient volatile Exception loadException = null;
+    private transient boolean hasUncommittedData = false;
 
     public DorisWriter(Sink.InitContext initContext,
                        List<DorisWriterState> state,
@@ -124,10 +125,15 @@ public class DorisWriter<IN> implements SinkWriter<IN, DorisCommittable, DorisWr
     public void write(IN in, Context context) throws IOException {
         checkLoadException();
         dorisStreamLoad.writeRecord(serializer.serialize(in));
+        hasUncommittedData = true;
     }
 
     @Override
     public List<DorisCommittable> prepareCommit(boolean flush) throws IOException {
+        // if there's no data, skip the stream load commit to avoid failures caused by no data
+        if (!hasUncommittedData) {
+            return Collections.emptyList();
+        }
         // disable exception checker before stop load.
         loading = false;
         Preconditions.checkState(dorisStreamLoad != null);
@@ -140,7 +146,8 @@ public class DorisWriter<IN> implements SinkWriter<IN, DorisCommittable, DorisWr
             return Collections.emptyList();
         }
         long txnId = respContent.getTxnId();
-
+        // reset status
+        hasUncommittedData = false;
         return ImmutableList.of(new DorisCommittable(dorisStreamLoad.getHostPort(), dorisStreamLoad.getDb(), txnId));
     }
 
