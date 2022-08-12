@@ -68,6 +68,7 @@ public class RowDataSerializer implements DorisRecordSerializer<RowData> {
         } else {
             throw new IllegalArgumentException("The type " + type + " is not supported!");
         }
+        System.out.println(valString);
         return valString.getBytes(StandardCharsets.UTF_8);
     }
 

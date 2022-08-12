@@ -17,48 +17,51 @@
 
 package org.apache.doris.flink;
 
-import org.apache.flink.table.api.EnvironmentSettings;
-import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 
 public class DorisSourceSinkExample {
 
     public static void main(String[] args) {
-        EnvironmentSettings settings = EnvironmentSettings.newInstance()
-                .useBlinkPlanner()
-                .inStreamingMode()
-                .build();
-        TableEnvironment tEnv = TableEnvironment.create(settings);
+//        EnvironmentSettings settings = EnvironmentSettings.newInstance()
+//                .useBlinkPlanner()
+//                .inStreamingMode()
+//                .build();
+//        TableEnvironment tEnv = TableEnvironment.create(settings);
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(1);
+        env.enableCheckpointing(10000);
+        final StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
         tEnv.executeSql(
                 "CREATE TABLE doris_test (" +
+                        "id INT," +
                         "name STRING," +
-                        "age INT," +
-                        "price DECIMAL(5,2)," +
-                        "sale DOUBLE" +
+                        "PRIMARY KEY (id) NOT ENFORCED" +
                         ") " +
                         "WITH (\n" +
-                        "  'connector' = 'doris',\n" +
-                        "  'fenodes' = 'FE_IP:8030',\n" +
-                        "  'table.identifier' = 'db.table',\n" +
+                        "  'connector' = 'mysql-cdc',\n" +
+                        "  'hostname' = '127.0.0.1',\n" +
+                        "  'port' = '3306',\n" +
                         "  'username' = 'root',\n" +
-                        "  'password' = ''" +
+                        "  'password' = '123456'," +
+                        "  'database-name' = 'test', " +
+                        "  'table-name' = 'test'" +
                         ")");
         tEnv.executeSql(
                 "CREATE TABLE doris_test_sink (" +
-                        "name STRING," +
-                        "age INT," +
-                        "price DECIMAL(5,2)," +
-                        "sale DOUBLE" +
+                        "id INT," +
+                        "name STRING" +
                         ") " +
                         "WITH (\n" +
                         "  'connector' = 'doris',\n" +
-                        "  'fenodes' = 'FE_IP:8030',\n" +
-                        "  'table.identifier' = 'db.table',\n" +
+                        "  'fenodes' = '47.109.38.38:8030',\n" +
+                        "  'table.identifier' = 'test.test',\n" +
                         "  'username' = 'root',\n" +
                         "  'password' = '',\n" +
                         "  'sink.properties.format' = 'csv',\n" +
-                        "  'sink.label-prefix' = 'doris_csv_table'\n" +
+                        "  'sink.label-prefix' = 'doris_csv_table1222222'\n" +
                         ")");
 
-        tEnv.executeSql("INSERT INTO doris_test_sink select name,age,price,sale from doris_test");
+        tEnv.executeSql("INSERT INTO doris_test_sink select id,name from doris_test");
     }
 }

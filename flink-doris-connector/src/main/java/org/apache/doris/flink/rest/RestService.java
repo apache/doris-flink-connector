@@ -132,6 +132,7 @@ public class RestService implements Serializable {
                             request.getURI(), statusCode);
                     continue;
                 }
+                response = response.replaceAll("172.30.98.99","47.109.38.38");
                 logger.trace("Success get response from Doris FE: {}, response is: {}.",
                         request.getURI(), response);
                 //Handle the problem of inconsistent data format returned by http v1 and v2
@@ -442,7 +443,7 @@ public class RestService implements Serializable {
     public static boolean isUniqueKeyType(DorisOptions options, DorisReadOptions readOptions, Logger logger)
             throws DorisRuntimeException {
         try {
-            return "UNIQUE_KEYS_TYPE".equals(getSchema(options, readOptions, logger).getKeysType());
+            return UNIQUE_KEYS_TYPE.equals(getSchema(options, readOptions, logger).getKeysType());
         } catch (Exception e) {
             throw new DorisRuntimeException(e);
         }
