@@ -54,7 +54,7 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
     private static final String OP_UPDATE = "u"; // update
     private static final String OP_DELETE = "d"; // delete
 
-    private static final String addDropDDLRegex = "ALTER\\s+TABLE\\s+[^\\s]+\\s+(ADD|DROP)\\s+COLUMN\\s+.*";
+    private static final String addDropDDLRegex = "ALTER\\s+TABLE\\s+[^\\s]+\\s+(ADD|DROP)\\s+COLUMN\\s+([^\\s]+).*";
     private final Pattern addDropDDLPattern;
     private DorisOptions dorisOptions;
     private ObjectMapper objectMapper = new ObjectMapper();
