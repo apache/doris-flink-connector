@@ -6,3 +6,4 @@ flink-doris-connector/pom.xml.releaseBackup
 flink-doris-connector/release.properties
 .idea
 *.iml
+*.DS_Store
