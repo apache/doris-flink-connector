@@ -42,6 +42,16 @@ usage() {
   exit 1
 }
 
+# we use GNU enhanced version getopt command here for long option names, rather than the original version.
+# check the version of the getopt command before using.
+getopt -T > /dev/null && echo "
+  The GNU version of getopt command is required.
+  On Mac OS, you can use Homebrew to install gnu-getopt:
+    1. brew install gnu-getopt                  # install gnu-getopt
+    2. GETOPT_PATH=\`brew --prefix gnu-getopt\`   # get the gnu-getopt execute path
+    3. export PATH=\"\${GETOPT_PATH}/bin:\$PATH\"         # set gnu-getopt as default getopt
+" && exit 1
+
 OPTS=$(getopt \
   -n $0 \
   -o '' \
