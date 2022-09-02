@@ -16,3 +16,4 @@
 # under the License.
 
 org.apache.doris.flink.table.DorisDynamicTableFactory
+org.apache.doris.flink.catalog.DorisCatalogFactory

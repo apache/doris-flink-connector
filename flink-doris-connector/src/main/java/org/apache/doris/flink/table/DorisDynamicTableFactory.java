@@ -20,7 +20,6 @@ import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
@@ -31,21 +30,37 @@ import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.utils.TableSchemaUtils;
 
-import java.time.Duration;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
-import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_BATCH_SIZE_DEFAULT;
-import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_DESERIALIZE_ARROW_ASYNC_DEFAULT;
-import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_DESERIALIZE_QUEUE_SIZE_DEFAULT;
-import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_EXEC_MEM_LIMIT_DEFAULT;
-import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_REQUEST_CONNECT_TIMEOUT_MS_DEFAULT;
-import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_REQUEST_QUERY_TIMEOUT_S_DEFAULT;
-import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_REQUEST_READ_TIMEOUT_MS_DEFAULT;
-import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_REQUEST_RETRIES_DEFAULT;
-import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_TABLET_SIZE_DEFAULT;
+import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_BATCH_SIZE;
+import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_DESERIALIZE_ARROW_ASYNC;
+import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_DESERIALIZE_QUEUE_SIZE;
+import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_EXEC_MEM_LIMIT;
+import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_FILTER_QUERY;
+import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_READ_FIELD;
+import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_REQUEST_CONNECT_TIMEOUT_MS;
+import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_REQUEST_QUERY_TIMEOUT_S;
+import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_REQUEST_READ_TIMEOUT_MS;
+import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_REQUEST_RETRIES;
+import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_TABLET_SIZE;
+import static org.apache.doris.flink.table.DorisConfigOptions.FENODES;
+import static org.apache.doris.flink.table.DorisConfigOptions.IDENTIFIER;
+import static org.apache.doris.flink.table.DorisConfigOptions.PASSWORD;
+import static org.apache.doris.flink.table.DorisConfigOptions.SINK_BUFFER_COUNT;
+import static org.apache.doris.flink.table.DorisConfigOptions.SINK_BUFFER_SIZE;
+import static org.apache.doris.flink.table.DorisConfigOptions.SINK_CHECK_INTERVAL;
+import static org.apache.doris.flink.table.DorisConfigOptions.SINK_ENABLE_2PC;
+import static org.apache.doris.flink.table.DorisConfigOptions.SINK_ENABLE_DELETE;
+import static org.apache.doris.flink.table.DorisConfigOptions.SINK_LABEL_PREFIX;
+import static org.apache.doris.flink.table.DorisConfigOptions.SINK_MAX_RETRIES;
+import static org.apache.doris.flink.table.DorisConfigOptions.SOURCE_USE_OLD_API;
+import static org.apache.doris.flink.table.DorisConfigOptions.STREAM_LOAD_PROP_PREFIX;
+import static org.apache.doris.flink.table.DorisConfigOptions.TABLE_IDENTIFIER;
+import static org.apache.doris.flink.table.DorisConfigOptions.USERNAME;
+
 
 /**
  * The {@link DorisDynamicTableFactory} translates the catalog table to a table source.
@@ -55,121 +70,9 @@ import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_TABLET_SIZE_
  */
 public final class DorisDynamicTableFactory implements DynamicTableSourceFactory, DynamicTableSinkFactory {
 
-    public static final ConfigOption<String> FENODES = ConfigOptions.key("fenodes").stringType().noDefaultValue().withDescription("doris fe http address.");
-    public static final ConfigOption<String> TABLE_IDENTIFIER = ConfigOptions.key("table.identifier").stringType().noDefaultValue().withDescription("the jdbc table name.");
-    public static final ConfigOption<String> USERNAME = ConfigOptions.key("username").stringType().noDefaultValue().withDescription("the jdbc user name.");
-    public static final ConfigOption<String> PASSWORD = ConfigOptions.key("password").stringType().noDefaultValue().withDescription("the jdbc password.");
-    // Prefix for Doris StreamLoad specific properties.
-    public static final String STREAM_LOAD_PROP_PREFIX = "sink.properties.";
-    // doris options
-    private static final ConfigOption<String> DORIS_READ_FIELD = ConfigOptions
-            .key("doris.read.field")
-            .stringType()
-            .noDefaultValue()
-            .withDescription("List of column names in the Doris table, separated by commas");
-    private static final ConfigOption<String> DORIS_FILTER_QUERY = ConfigOptions
-            .key("doris.filter.query")
-            .stringType()
-            .noDefaultValue()
-            .withDescription("Filter expression of the query, which is transparently transmitted to Doris. Doris uses this expression to complete source-side data filtering");
-    private static final ConfigOption<Integer> DORIS_TABLET_SIZE = ConfigOptions
-            .key("doris.request.tablet.size")
-            .intType()
-            .defaultValue(DORIS_TABLET_SIZE_DEFAULT)
-            .withDescription("");
-    private static final ConfigOption<Integer> DORIS_REQUEST_CONNECT_TIMEOUT_MS = ConfigOptions
-            .key("doris.request.connect.timeout.ms")
-            .intType()
-            .defaultValue(DORIS_REQUEST_CONNECT_TIMEOUT_MS_DEFAULT)
-            .withDescription("");
-    private static final ConfigOption<Integer> DORIS_REQUEST_READ_TIMEOUT_MS = ConfigOptions
-            .key("doris.request.read.timeout.ms")
-            .intType()
-            .defaultValue(DORIS_REQUEST_READ_TIMEOUT_MS_DEFAULT)
-            .withDescription("");
-    private static final ConfigOption<Integer> DORIS_REQUEST_QUERY_TIMEOUT_S = ConfigOptions
-            .key("doris.request.query.timeout.s")
-            .intType()
-            .defaultValue(DORIS_REQUEST_QUERY_TIMEOUT_S_DEFAULT)
-            .withDescription("");
-    private static final ConfigOption<Integer> DORIS_REQUEST_RETRIES = ConfigOptions
-            .key("doris.request.retries")
-            .intType()
-            .defaultValue(DORIS_REQUEST_RETRIES_DEFAULT)
-            .withDescription("");
-    private static final ConfigOption<Boolean> DORIS_DESERIALIZE_ARROW_ASYNC = ConfigOptions
-            .key("doris.deserialize.arrow.async")
-            .booleanType()
-            .defaultValue(DORIS_DESERIALIZE_ARROW_ASYNC_DEFAULT)
-            .withDescription("");
-    private static final ConfigOption<Integer> DORIS_DESERIALIZE_QUEUE_SIZE = ConfigOptions
-            .key("doris.request.retriesdoris.deserialize.queue.size")
-            .intType()
-            .defaultValue(DORIS_DESERIALIZE_QUEUE_SIZE_DEFAULT)
-            .withDescription("");
-    private static final ConfigOption<Integer> DORIS_BATCH_SIZE = ConfigOptions
-            .key("doris.batch.size")
-            .intType()
-            .defaultValue(DORIS_BATCH_SIZE_DEFAULT)
-            .withDescription("");
-    private static final ConfigOption<Long> DORIS_EXEC_MEM_LIMIT = ConfigOptions
-            .key("doris.exec.mem.limit")
-            .longType()
-            .defaultValue(DORIS_EXEC_MEM_LIMIT_DEFAULT)
-            .withDescription("");
-    // flink write config options
-    private static final ConfigOption<Boolean> SINK_ENABLE_2PC = ConfigOptions
-            .key("sink.enable-2pc")
-            .booleanType()
-            .defaultValue(true)
-            .withDescription("enable 2PC while loading");
-
-    private static final ConfigOption<Integer> SINK_CHECK_INTERVAL = ConfigOptions
-            .key("sink.check-interval")
-            .intType()
-            .defaultValue(10000)
-            .withDescription("check exception with the interval while loading");
-    private static final ConfigOption<Integer> SINK_MAX_RETRIES = ConfigOptions
-            .key("sink.max-retries")
-            .intType()
-            .defaultValue(3)
-            .withDescription("the max retry times if writing records to database failed.");
-    private static final ConfigOption<Integer> SINK_BUFFER_SIZE = ConfigOptions
-            .key("sink.buffer-size")
-            .intType()
-            .defaultValue(256 * 1024)
-            .withDescription("the buffer size to cache data for stream load.");
-    private static final ConfigOption<Integer> SINK_BUFFER_COUNT = ConfigOptions
-            .key("sink.buffer-count")
-            .intType()
-            .defaultValue(3)
-            .withDescription("the buffer count to cache data for stream load.");
-    private static final ConfigOption<String> SINK_LABEL_PREFIX = ConfigOptions
-            .key("sink.label-prefix")
-            .stringType()
-            .defaultValue("")
-            .withDescription("the unique label prefix.");
-    private static final ConfigOption<Duration> SINK_BUFFER_FLUSH_INTERVAL = ConfigOptions
-            .key("sink.batch.interval")
-            .durationType()
-            .defaultValue(Duration.ofSeconds(1))
-            .withDescription("the flush interval mills, over this time, asynchronous threads will flush data. The " +
-                    "default value is 1s.");
-    private static final ConfigOption<Boolean> SINK_ENABLE_DELETE = ConfigOptions
-            .key("sink.enable-delete")
-            .booleanType()
-            .defaultValue(true)
-            .withDescription("whether to enable the delete function");
-
-    private static final ConfigOption<Boolean> SOURCE_USE_OLD_API = ConfigOptions
-            .key("source.use-old-api")
-            .booleanType()
-            .defaultValue(false)
-            .withDescription("Whether to read data using the new interface defined according to the FLIP-27 specification,default false");
-
     @Override
     public String factoryIdentifier() {
-        return "doris"; // used for matching to `connector = '...'`
+        return IDENTIFIER; // used for matching to `connector = '...'`
     }
 
     @Override
@@ -203,7 +106,6 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
         options.add(SINK_CHECK_INTERVAL);
         options.add(SINK_ENABLE_2PC);
         options.add(SINK_MAX_RETRIES);
-        options.add(SINK_BUFFER_FLUSH_INTERVAL);
         options.add(SINK_ENABLE_DELETE);
         options.add(SINK_LABEL_PREFIX);
         options.add(SINK_BUFFER_SIZE);
