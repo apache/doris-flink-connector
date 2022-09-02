@@ -234,7 +234,9 @@ public class DorisCatalog extends AbstractCatalog {
         props.put(USERNAME.key(), username);
         props.put(PASSWORD.key(), password);
         props.put(TABLE_IDENTIFIER.key(), databaseName + "." + tableName);
-        props.put(SINK_LABEL_PREFIX.key(), databaseName + "-" + tableName);
+
+        String labelPrefix = props.getOrDefault(SINK_LABEL_PREFIX.key(),"");
+        props.put(SINK_LABEL_PREFIX.key(), String.join("_",labelPrefix,databaseName,tableName));
         //remove catalog option
         props.remove(JDBCURL.key());
         props.remove(DEFAULT_DATABASE.key());
