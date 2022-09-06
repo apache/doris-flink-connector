@@ -74,14 +74,6 @@ public class DorisSourceSplitReader
     }
 
     private DorisSplitRecords finishSplit() {
-        if (valueReader != null) {
-            try {
-                valueReader.close();
-            } catch (Exception e) {
-                LOG.error("close resource reader failed,", e);
-            }
-            valueReader = null;
-        }
         final DorisSplitRecords finishRecords = DorisSplitRecords.finishedSplit(currentSplitId);
         currentSplitId = null;
         return finishRecords;
