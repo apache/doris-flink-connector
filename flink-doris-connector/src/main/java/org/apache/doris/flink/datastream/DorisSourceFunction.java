@@ -70,7 +70,7 @@ public class DorisSourceFunction extends RichParallelSourceFunction<List<?>> imp
     }
 
     /**
-     * Assign patitions to each task.
+     * Assign partitions to each task.
      */
     private void assignTaskPartitions() {
         int taskIndex = getRuntimeContext().getIndexOfThisSubtask();
