@@ -66,7 +66,7 @@ public class DorisLookupOptions implements Serializable {
             return this;
         }
 
-        /** optional, max retry times for jdbc connector. */
+        /** optional, max retry times. */
         public Builder setMaxRetryTimes(int maxRetryTimes) {
             this.maxRetryTimes = maxRetryTimes;
             return this;
