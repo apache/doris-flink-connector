@@ -17,6 +17,7 @@
 
 package org.apache.doris.flink.table;
 
+import org.apache.doris.flink.cfg.DorisLookupOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.deserialization.RowDataDeserializationSchema;
@@ -34,9 +35,11 @@ import org.apache.flink.table.connector.source.InputFormatProvider;
 import org.apache.flink.table.connector.source.LookupTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.SourceProvider;
+import org.apache.flink.table.connector.source.TableFunctionProvider;
 import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,7 +61,18 @@ public final class DorisDynamicTableSource implements ScanTableSource, LookupTab
     private static final Logger LOG = LoggerFactory.getLogger(DorisDynamicTableSource.class);
     private final DorisOptions options;
     private final DorisReadOptions readOptions;
+    private  DorisLookupOptions lookupOptions;
     private TableSchema physicalSchema;
+
+    public DorisDynamicTableSource(DorisOptions options,
+                                   DorisReadOptions readOptions,
+                                   DorisLookupOptions lookupOptions,
+                                   TableSchema physicalSchema) {
+        this.options = options;
+        this.lookupOptions = lookupOptions;
+        this.readOptions = readOptions;
+        this.physicalSchema = physicalSchema;
+    }
 
     public DorisDynamicTableSource(DorisOptions options,
                                    DorisReadOptions readOptions,
@@ -109,13 +123,27 @@ public final class DorisDynamicTableSource implements ScanTableSource, LookupTab
     }
 
     @Override
-    public LookupRuntimeProvider getLookupRuntimeProvider(LookupContext lookupContext) {
-        return null;
+    public LookupRuntimeProvider getLookupRuntimeProvider(LookupContext context) {
+        DataType physicalRowDataType = physicalSchema.toRowDataType();
+        String[] keyNames = new String[context.getKeys().length];
+        for (int i = 0; i < keyNames.length; i++) {
+            int[] innerKeyArr = context.getKeys()[i];
+            keyNames[i] = DataType.getFieldNames(physicalRowDataType).get(innerKeyArr[0]);
+        }
+
+        return TableFunctionProvider.of(
+                new DorisRowDataLookupFunction(
+                        options,
+                        readOptions,
+                        lookupOptions,
+                        DataType.getFieldNames(physicalRowDataType).toArray(new String[0]),
+                        DataType.getFieldDataTypes(physicalRowDataType).toArray(new DataType[0]),
+                        keyNames));
     }
 
     @Override
     public DynamicTableSource copy() {
-        return new DorisDynamicTableSource(options, readOptions, physicalSchema);
+        return new DorisDynamicTableSource(options, readOptions, lookupOptions, physicalSchema);
     }
 
     @Override

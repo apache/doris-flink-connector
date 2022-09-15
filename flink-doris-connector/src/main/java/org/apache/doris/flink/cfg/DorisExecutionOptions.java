@@ -23,7 +23,7 @@ import java.io.Serializable;
 import java.util.Properties;
 
 /**
- * JDBC sink batch options.
+ * Doris sink batch options.
  */
 public class DorisExecutionOptions implements Serializable {
 

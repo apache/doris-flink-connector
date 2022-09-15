@@ -17,6 +17,7 @@
 package org.apache.doris.flink.table;
 
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
+import org.apache.doris.flink.cfg.DorisLookupOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.flink.configuration.ConfigOption;
@@ -48,6 +49,9 @@ import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_REQUEST_RETR
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_TABLET_SIZE;
 import static org.apache.doris.flink.table.DorisConfigOptions.FENODES;
 import static org.apache.doris.flink.table.DorisConfigOptions.IDENTIFIER;
+import static org.apache.doris.flink.table.DorisConfigOptions.LOOKUP_CACHE_MAX_ROWS;
+import static org.apache.doris.flink.table.DorisConfigOptions.LOOKUP_CACHE_TTL;
+import static org.apache.doris.flink.table.DorisConfigOptions.LOOKUP_MAX_RETRIES;
 import static org.apache.doris.flink.table.DorisConfigOptions.PASSWORD;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_BUFFER_COUNT;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_BUFFER_SIZE;
@@ -102,6 +106,9 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
         options.add(DORIS_DESERIALIZE_QUEUE_SIZE);
         options.add(DORIS_BATCH_SIZE);
         options.add(DORIS_EXEC_MEM_LIMIT);
+        options.add(LOOKUP_CACHE_MAX_ROWS);
+        options.add(LOOKUP_CACHE_TTL);
+        options.add(LOOKUP_MAX_RETRIES);
 
         options.add(SINK_CHECK_INTERVAL);
         options.add(SINK_ENABLE_2PC);
@@ -131,6 +138,7 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
         return new DorisDynamicTableSource(
                 getDorisOptions(helper.getOptions()),
                 getDorisReadOptions(helper.getOptions()),
+                getDorisLookupOptions(helper.getOptions()),
                 physicalSchema);
     }
 
@@ -187,6 +195,14 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
             }
         }
         return streamLoadProp;
+    }
+
+    private DorisLookupOptions getDorisLookupOptions(ReadableConfig readableConfig){
+        final DorisLookupOptions.Builder builder = DorisLookupOptions.builder();
+        builder.setCacheExpireMs(readableConfig.get(LOOKUP_CACHE_TTL).toMillis());
+        builder.setCacheMaxSize(readableConfig.get(LOOKUP_CACHE_MAX_ROWS));
+        builder.setMaxRetryTimes(readableConfig.get(LOOKUP_MAX_RETRIES));
+        return builder.build();
     }
 
     @Override
