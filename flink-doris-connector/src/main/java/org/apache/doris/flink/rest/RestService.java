@@ -440,7 +440,7 @@ public class RestService implements Serializable {
     public static boolean isUniqueKeyType(DorisOptions options, DorisReadOptions readOptions, Logger logger)
             throws DorisRuntimeException {
         try {
-            return "UNIQUE_KEYS_TYPE".equals(getSchema(options, readOptions, logger).getKeysType());
+            return UNIQUE_KEYS_TYPE.equals(getSchema(options, readOptions, logger).getKeysType());
         } catch (Exception e) {
             throw new DorisRuntimeException(e);
         }
