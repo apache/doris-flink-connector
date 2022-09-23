@@ -132,7 +132,6 @@ public class RestService implements Serializable {
                             request.getURI(), statusCode);
                     continue;
                 }
-                response = response.replaceAll("172.30.98.99","47.109.38.38");
                 logger.trace("Success get response from Doris FE: {}, response is: {}.",
                         request.getURI(), response);
                 //Handle the problem of inconsistent data format returned by http v1 and v2
