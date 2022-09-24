@@ -47,8 +47,8 @@ public class DorisSinkSQLExample {
                         ") " +
                         "WITH (\n" +
                         "  'connector' = 'doris',\n" +
-                        "  'fenodes' = '69.230.245.132:8131',\n" +
-                        "  'table.identifier' = 'test.test_seq',\n" +
+                        "  'fenodes' = '127.0.0.1:8030',\n" +
+                        "  'table.identifier' = 'test.tbl',\n" +
                         "  'username' = 'root',\n" +
                         "  'password' = '',\n" +
                         "  'sink.properties.format' = 'json',\n" +

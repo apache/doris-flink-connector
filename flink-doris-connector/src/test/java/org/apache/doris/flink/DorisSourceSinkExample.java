@@ -23,11 +23,6 @@ import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 public class DorisSourceSinkExample {
 
     public static void main(String[] args) {
-//        EnvironmentSettings settings = EnvironmentSettings.newInstance()
-//                .useBlinkPlanner()
-//                .inStreamingMode()
-//                .build();
-//        TableEnvironment tEnv = TableEnvironment.create(settings);
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
         env.enableCheckpointing(10000);
@@ -54,12 +49,12 @@ public class DorisSourceSinkExample {
                         ") " +
                         "WITH (\n" +
                         "  'connector' = 'doris',\n" +
-                        "  'fenodes' = '47.109.38.38:8030',\n" +
-                        "  'table.identifier' = 'test.test',\n" +
+                        "  'fenodes' = '127.0.0.1:8030',\n" +
+                        "  'table.identifier' = 'test.tbk',\n" +
                         "  'username' = 'root',\n" +
                         "  'password' = '',\n" +
                         "  'sink.properties.format' = 'csv',\n" +
-                        "  'sink.label-prefix' = 'doris_csv_table1222222'\n" +
+                        "  'sink.label-prefix' = 'doris_csv_table'\n" +
                         ")");
 
         tEnv.executeSql("INSERT INTO doris_test_sink select id,name from doris_test");
