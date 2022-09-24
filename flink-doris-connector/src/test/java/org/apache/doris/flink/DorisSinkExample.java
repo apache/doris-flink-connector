@@ -59,7 +59,7 @@ public class DorisSinkExample {
                 .setRequestRetries(3)
                 .setRequestTabletSize(1024 * 1024);
         Properties properties = new Properties();
-        properties.setProperty("column_separator", "op");
+        properties.setProperty("column_separator", ",");
         properties.setProperty("line_delimiter", "\n");
         properties.setProperty("format", "csv");
         DorisOptions.Builder dorisBuilder = DorisOptions.builder();
