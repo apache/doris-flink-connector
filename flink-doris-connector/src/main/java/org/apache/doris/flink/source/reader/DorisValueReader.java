@@ -41,6 +41,8 @@ import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_BATCH_SIZE_DEFAULT;
 import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_DEFAULT_CLUSTER;
@@ -53,6 +55,8 @@ import static org.apache.doris.flink.util.ErrorMessages.SHOULD_NOT_HAPPEN_MESSAG
 public class DorisValueReader implements AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(DorisValueReader.class);
     protected BackendClient client;
+    protected Lock clientLock = new ReentrantLock();
+
     private PartitionDefinition partition;
     private DorisOptions options;
     private DorisReadOptions readOptions;
@@ -85,10 +89,15 @@ public class DorisValueReader implements AutoCloseable {
     }
 
     private void init() {
-        this.openParams = openParams();
-        TScanOpenResult openResult = this.client.openScanner(this.openParams);
-        this.contextId = openResult.getContextId();
-        this.schema = SchemaUtils.convertToSchema(openResult.getSelectedColumns());
+        clientLock.lock();
+        try {
+            this.openParams = openParams();
+            TScanOpenResult openResult = this.client.openScanner(this.openParams);
+            this.contextId = openResult.getContextId();
+            this.schema = SchemaUtils.convertToSchema(openResult.getSelectedColumns());
+        } finally {
+            clientLock.unlock();
+        }
         this.asyncThreadStarted = asyncThreadStarted();
         LOG.debug("Open scan result is, contextId: {}, schema: {}.", contextId, schema);
     }
@@ -127,22 +136,27 @@ public class DorisValueReader implements AutoCloseable {
     protected Thread asyncThread = new Thread(new Runnable() {
         @Override
         public void run() {
-            TScanNextBatchParams nextBatchParams = new TScanNextBatchParams();
-            nextBatchParams.setContextId(contextId);
-            while (!eos.get()) {
-                nextBatchParams.setOffset(offset);
-                TScanBatchResult nextResult = client.getNext(nextBatchParams);
-                eos.set(nextResult.isEos());
-                if (!eos.get()) {
-                    RowBatch rowBatch = new RowBatch(nextResult, schema).readArrow();
-                    offset += rowBatch.getReadRowCount();
-                    rowBatch.close();
-                    try {
-                        rowBatchBlockingQueue.put(rowBatch);
-                    } catch (InterruptedException e) {
-                        throw new DorisRuntimeException(e);
+            clientLock.lock();
+            try{
+                TScanNextBatchParams nextBatchParams = new TScanNextBatchParams();
+                nextBatchParams.setContextId(contextId);
+                while (!eos.get()) {
+                    nextBatchParams.setOffset(offset);
+                    TScanBatchResult nextResult = client.getNext(nextBatchParams);
+                    eos.set(nextResult.isEos());
+                    if (!eos.get()) {
+                        RowBatch rowBatch = new RowBatch(nextResult, schema).readArrow();
+                        offset += rowBatch.getReadRowCount();
+                        rowBatch.close();
+                        try {
+                            rowBatchBlockingQueue.put(rowBatch);
+                        } catch (InterruptedException e) {
+                            throw new DorisRuntimeException(e);
+                        }
                     }
                 }
+            } finally {
+                clientLock.unlock();
             }
         }
     });
@@ -187,22 +201,27 @@ public class DorisValueReader implements AutoCloseable {
                 hasNext = true;
             }
         } else {
-            // Arrow data was acquired synchronously during the iterative process
-            if (!eos.get() && (rowBatch == null || !rowBatch.hasNext())) {
-                if (rowBatch != null) {
-                    offset += rowBatch.getReadRowCount();
-                    rowBatch.close();
+            clientLock.lock();
+            try{
+                // Arrow data was acquired synchronously during the iterative process
+                if (!eos.get() && (rowBatch == null || !rowBatch.hasNext())) {
+                    if (rowBatch != null) {
+                        offset += rowBatch.getReadRowCount();
+                        rowBatch.close();
+                    }
+                    TScanNextBatchParams nextBatchParams = new TScanNextBatchParams();
+                    nextBatchParams.setContextId(contextId);
+                    nextBatchParams.setOffset(offset);
+                    TScanBatchResult nextResult = client.getNext(nextBatchParams);
+                    eos.set(nextResult.isEos());
+                    if (!eos.get()) {
+                        rowBatch = new RowBatch(nextResult, schema).readArrow();
+                    }
                 }
-                TScanNextBatchParams nextBatchParams = new TScanNextBatchParams();
-                nextBatchParams.setContextId(contextId);
-                nextBatchParams.setOffset(offset);
-                TScanBatchResult nextResult = client.getNext(nextBatchParams);
-                eos.set(nextResult.isEos());
-                if (!eos.get()) {
-                    rowBatch = new RowBatch(nextResult, schema).readArrow();
-                }
+                hasNext = !eos.get();
+            } finally {
+                clientLock.unlock();
             }
-            hasNext = !eos.get();
         }
         return hasNext;
     }
@@ -222,8 +241,13 @@ public class DorisValueReader implements AutoCloseable {
 
     @Override
     public void close() throws Exception {
-        TScanCloseParams closeParams = new TScanCloseParams();
-        closeParams.setContextId(contextId);
-        client.closeScanner(closeParams);
+        clientLock.lock();
+        try {
+            TScanCloseParams closeParams = new TScanCloseParams();
+            closeParams.setContextId(contextId);
+            client.closeScanner(closeParams);
+        } finally {
+            clientLock.unlock();
+        }
     }
 }

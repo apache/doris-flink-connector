@@ -84,7 +84,7 @@ public class DorisOptions extends DorisConnectionOptions {
         }
 
         /**
-         * required, JDBC DB url.
+         * required, Frontend Http Rest url.
          */
         public Builder setFenodes(String fenodes) {
             this.fenodes = fenodes;

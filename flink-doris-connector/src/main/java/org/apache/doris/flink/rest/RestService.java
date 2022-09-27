@@ -440,7 +440,7 @@ public class RestService implements Serializable {
     public static boolean isUniqueKeyType(DorisOptions options, DorisReadOptions readOptions, Logger logger)
             throws DorisRuntimeException {
         try {
-            return "UNIQUE_KEYS_TYPE".equals(getSchema(options, readOptions, logger).getKeysType());
+            return UNIQUE_KEYS_TYPE.equals(getSchema(options, readOptions, logger).getKeysType());
         } catch (Exception e) {
             throw new DorisRuntimeException(e);
         }
@@ -493,7 +493,7 @@ public class RestService implements Serializable {
      *
      * @param options configuration of request
      * @param logger  {@link Logger}
-     * @return an list of Doris partitions
+     * @return a list of Doris partitions
      * @throws DorisException throw when find partition failed
      */
     public static List<PartitionDefinition> findPartitions(DorisOptions options, DorisReadOptions readOptions, Logger logger) throws DorisException {
