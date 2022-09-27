@@ -19,10 +19,11 @@ package org.apache.doris.flink.table;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
+import org.apache.doris.flink.cfg.GenericDorisSinkFunction;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
-import org.apache.flink.table.connector.sink.OutputFormatProvider;
+import org.apache.flink.table.connector.sink.SinkFunctionProvider;
 import org.apache.flink.types.RowKind;
 
 /**
@@ -65,7 +66,7 @@ public class DorisDynamicTableSink implements DynamicTableSink {
                 .setExecutionOptions(executionOptions)
                 .setFieldDataTypes(tableSchema.getFieldDataTypes())
                 .setFieldNames(tableSchema.getFieldNames());
-        return OutputFormatProvider.of(builder.build());
+        return SinkFunctionProvider.of(new GenericDorisSinkFunction(builder.build()));
     }
 
     @Override
