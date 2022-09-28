@@ -17,13 +17,14 @@
 
 package org.apache.doris.flink.sink;
 
-import org.apache.flink.util.Preconditions;
-
 import org.apache.commons.codec.binary.Base64;
+import org.apache.doris.flink.sink.writer.LoadConstants;
+import org.apache.flink.util.Preconditions;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHeaders;
 import org.apache.http.client.methods.HttpPut;
 import org.apache.http.entity.StringEntity;
+
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
@@ -47,6 +48,13 @@ public class HttpPutBuilder {
 
     public HttpPutBuilder addCommonHeader() {
         header.put(HttpHeaders.EXPECT, "100-continue");
+        return this;
+    }
+
+    public HttpPutBuilder addHiddenColumns(boolean add) {
+        if(add){
+            header.put("hidden_columns", LoadConstants.DORIS_DELETE_SIGN);
+        }
         return this;
     }
 
