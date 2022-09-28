@@ -73,7 +73,7 @@ public class DorisExecutionOptions implements Serializable {
     public static DorisExecutionOptions defaults() {
         Properties properties = new Properties();
         properties.setProperty("format", "json");
-        properties.setProperty("strip_outer_array", "true");
+        properties.setProperty("read_json_by_line", "true");
         return new Builder().setStreamLoadProp(properties).build();
     }
 

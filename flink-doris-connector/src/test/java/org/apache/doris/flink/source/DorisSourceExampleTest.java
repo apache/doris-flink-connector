@@ -40,7 +40,6 @@ public class DorisSourceExampleTest {
                 .setDeserializer(new SimpleListDeserializationSchema())
                 .build();
 
-
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
         env.fromSource(dorisSource, WatermarkStrategy.noWatermarks(), "doris Source")

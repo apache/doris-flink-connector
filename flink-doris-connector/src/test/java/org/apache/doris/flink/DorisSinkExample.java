@@ -34,6 +34,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
+import java.util.UUID;
 
 
 public class DorisSinkExample {
@@ -43,6 +44,7 @@ public class DorisSinkExample {
         env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
         env.enableCheckpointing(10000);
+        env.setParallelism(1);
         env.getCheckpointConfig().enableExternalizedCheckpoints(CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
         env.setRestartStrategy(RestartStrategies.fixedDelayRestart(5, Time.milliseconds(30000)));
         DorisSink.Builder<String> builder = DorisSink.builder();
@@ -61,12 +63,12 @@ public class DorisSinkExample {
         properties.setProperty("line_delimiter", "\n");
         properties.setProperty("format", "csv");
         DorisOptions.Builder dorisBuilder = DorisOptions.builder();
-        dorisBuilder.setFenodes("127.0.0.1:8040")
-                .setTableIdentifier("db.table")
-                .setUsername("test")
-                .setPassword("test");
+        dorisBuilder.setFenodes("127.0.0.1:8131")
+                .setTableIdentifier("test.tbl")
+                .setUsername("root")
+                .setPassword("");
         DorisExecutionOptions.Builder  executionBuilder = DorisExecutionOptions.builder();
-        executionBuilder.setLabelPrefix("label-doris")
+        executionBuilder.setLabelPrefix("label-doris" + UUID.randomUUID())
                 .setStreamLoadProp(properties)
                 .setBufferSize(8*1024)
                 .setBufferCount(3);
