@@ -122,7 +122,7 @@ public class RowSerializer implements DorisRecordSerializer<Row> {
     }
 
     /**
-     * Builder for RowDataSerializer.
+     * Builder for RowSerializer.
      */
     public static class Builder {
         private String[] fieldNames;
