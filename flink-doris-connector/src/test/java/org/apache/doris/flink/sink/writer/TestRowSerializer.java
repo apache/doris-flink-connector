@@ -94,15 +94,4 @@ public class TestRowSerializer {
         Assert.assertEquals("60.2", valueMap.get("weight"));
         Assert.assertEquals("0", valueMap.get("__DORIS_DELETE_SIGN__"));
     }
-
-    @Test
-    public void testParseDeleteSign() {
-        RowSerializer.Builder builder = RowSerializer.builder();
-        builder.setFieldNames(fieldNames).setFieldType(dataTypes).setType("json").setFieldDelimiter("|").enableDelete(true);
-        RowSerializer serializer = builder.build();
-        Assert.assertEquals("0", serializer.parseDeleteSign(RowKind.INSERT));
-        Assert.assertEquals("0", serializer.parseDeleteSign(RowKind.UPDATE_AFTER));
-        Assert.assertEquals("1", serializer.parseDeleteSign(RowKind.DELETE));
-        Assert.assertEquals("1", serializer.parseDeleteSign(RowKind.UPDATE_BEFORE));
-    }
 }

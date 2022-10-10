@@ -62,16 +62,6 @@ public class RowSerializer implements DorisRecordSerializer<Row> {
         return new Builder();
     }
 
-    public String parseDeleteSign(RowKind rowKind) {
-        if (RowKind.INSERT.equals(rowKind) || RowKind.UPDATE_AFTER.equals(rowKind)) {
-            return "0";
-        } else if (RowKind.DELETE.equals(rowKind) || RowKind.UPDATE_BEFORE.equals(rowKind)) {
-            return "1";
-        } else {
-            throw new IllegalArgumentException("Unrecognized row kind:" + rowKind.toString());
-        }
-    }
-
     /**
      * Builder for RowSerializer.
      */
