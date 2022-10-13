@@ -60,6 +60,7 @@ import static org.apache.doris.flink.table.DorisConfigOptions.SINK_ENABLE_2PC;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_ENABLE_DELETE;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_LABEL_PREFIX;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_MAX_RETRIES;
+import static org.apache.doris.flink.table.DorisConfigOptions.SINK_PARALLELISM;
 import static org.apache.doris.flink.table.DorisConfigOptions.SOURCE_USE_OLD_API;
 import static org.apache.doris.flink.table.DorisConfigOptions.STREAM_LOAD_PROP_PREFIX;
 import static org.apache.doris.flink.table.DorisConfigOptions.TABLE_IDENTIFIER;
@@ -117,6 +118,7 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
         options.add(SINK_LABEL_PREFIX);
         options.add(SINK_BUFFER_SIZE);
         options.add(SINK_BUFFER_COUNT);
+        options.add(SINK_PARALLELISM);
 
         options.add(SOURCE_USE_OLD_API);
         return options;
@@ -213,6 +215,8 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
 
         // validate all options
         helper.validateExcept(STREAM_LOAD_PROP_PREFIX);
+        // sink parallelism
+        final Integer parallelism = context.getConfiguration().getOptional(SINK_PARALLELISM).orElse(null);
 
         Properties streamLoadProp = getStreamLoadProp(context.getCatalogTable().getOptions());
         TableSchema physicalSchema =
@@ -222,7 +226,8 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
                 getDorisOptions(helper.getOptions()),
                 getDorisReadOptions(helper.getOptions()),
                 getDorisExecutionOptions(helper.getOptions(), streamLoadProp),
-                physicalSchema
+                physicalSchema,
+                parallelism
         );
     }
 }
