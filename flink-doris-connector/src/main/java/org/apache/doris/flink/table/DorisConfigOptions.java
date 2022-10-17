@@ -19,6 +19,7 @@ package org.apache.doris.flink.table;
 
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
+import org.apache.flink.table.factories.FactoryUtil;
 
 import java.time.Duration;
 
@@ -162,6 +163,8 @@ public class DorisConfigOptions {
             .booleanType()
             .defaultValue(true)
             .withDescription("whether to enable the delete function");
+
+    public static final ConfigOption<Integer> SINK_PARALLELISM = FactoryUtil.SINK_PARALLELISM;
 
     // Prefix for Doris StreamLoad specific properties.
     public static final String STREAM_LOAD_PROP_PREFIX = "sink.properties.";

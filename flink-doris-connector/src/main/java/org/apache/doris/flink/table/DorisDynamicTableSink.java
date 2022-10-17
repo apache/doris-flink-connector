@@ -14,6 +14,7 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.table;
 
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
@@ -21,15 +22,14 @@ import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.sink.DorisSink;
-
 import org.apache.doris.flink.sink.writer.RowDataSerializer;
+
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.SinkProvider;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.types.RowKind;
-
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,15 +54,18 @@ public class DorisDynamicTableSink implements DynamicTableSink {
     private final DorisReadOptions readOptions;
     private final DorisExecutionOptions executionOptions;
     private final TableSchema tableSchema;
+    private final Integer sinkParallelism;
 
     public DorisDynamicTableSink(DorisOptions options,
                                  DorisReadOptions readOptions,
                                  DorisExecutionOptions executionOptions,
-                                 TableSchema tableSchema) {
+                                 TableSchema tableSchema,
+                                 Integer sinkParallelism) {
         this.options = options;
         this.readOptions = readOptions;
         this.executionOptions = executionOptions;
         this.tableSchema = tableSchema;
+        this.sinkParallelism = sinkParallelism;
     }
 
     @Override
@@ -99,12 +102,12 @@ public class DorisDynamicTableSink implements DynamicTableSink {
                 .setDorisReadOptions(readOptions)
                 .setDorisExecutionOptions(executionOptions)
                 .setSerializer(serializerBuilder.build());
-        return SinkProvider.of(dorisSinkBuilder.build());
+        return SinkProvider.of(dorisSinkBuilder.build(), sinkParallelism);
     }
 
     @Override
     public DynamicTableSink copy() {
-        return new DorisDynamicTableSink(options, readOptions, executionOptions, tableSchema);
+        return new DorisDynamicTableSink(options, readOptions, executionOptions, tableSchema, sinkParallelism);
     }
 
     @Override
