@@ -216,7 +216,7 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
         // validate all options
         helper.validateExcept(STREAM_LOAD_PROP_PREFIX);
         // sink parallelism
-        final Integer parallelism = context.getConfiguration().getOptional(SINK_PARALLELISM).orElse(null);
+        final Integer parallelism = helper.getOptions().get(SINK_PARALLELISM);
 
         Properties streamLoadProp = getStreamLoadProp(context.getCatalogTable().getOptions());
         TableSchema physicalSchema =
