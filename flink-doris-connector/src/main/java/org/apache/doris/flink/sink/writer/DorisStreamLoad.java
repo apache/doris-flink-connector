@@ -275,7 +275,7 @@ public class DorisStreamLoad implements Serializable {
                 throw new DorisException("try abort committed transaction, " +
                         "do you recover from old savepoint?");
             }
-            LOG.warn("Fail to abort transaction. error: {}", res.get("msg"));
+            LOG.warn("Fail to abort transaction. txnId: {}, error: {}", txnID, res.get("msg"));
         }
     }
 
