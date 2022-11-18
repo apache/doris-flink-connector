@@ -270,7 +270,7 @@ public class DorisStreamLoad implements Serializable {
         ObjectMapper mapper = new ObjectMapper();
         String loadResult = EntityUtils.toString(response.getEntity());
         Map<String, String> res = mapper.readValue(loadResult, new TypeReference<HashMap<String, String>>(){});
-        if (!SUCCESS.equals(res.get("status"))) {
+        if (!SUCCESS.equals(res.get("status")) && !SUCCESS.equals(res.get("Status"))) {
             if (ResponseUtil.isCommitted(res.get("msg"))) {
                 throw new DorisException("try abort committed transaction, " +
                         "do you recover from old savepoint?");
