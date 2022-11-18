@@ -76,6 +76,11 @@ public class HttpTestUtil {
             "\n" +
             "}";
 
+    public static final String ABORT_FAILED_RESPONSE = "{\n"
+            + "    \"status\": \"Internal error\",\n"
+            + "    \"msg\": \"transaction operation should be 'commit' or 'abort'\"\n"
+            + "}";
+
     public static StatusLine normalLine = new BasicStatusLine(new ProtocolVersion("http", 1, 0), 200, "");
     public static StatusLine abnormalLine = new BasicStatusLine(new ProtocolVersion("http", 1, 0), 404, "");
 
