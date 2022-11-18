@@ -272,7 +272,8 @@ public class DorisStreamLoad implements Serializable {
         Map<String, String> res = mapper.readValue(loadResult, new TypeReference<HashMap<String, String>>(){});
         if (!SUCCESS.equals(res.get("status"))) {
             if (ResponseUtil.isCommitted(res.get("msg"))) {
-                throw new DorisException("try abort committed transaction, do you recover from old savepoint?");
+                throw new DorisException("try abort committed transaction, " +
+                        "do you recover from old savepoint?");
             }
             LOG.warn("Fail to abort transaction. txnId: {}, error: {}", txnID, res.get("msg"));
         }
