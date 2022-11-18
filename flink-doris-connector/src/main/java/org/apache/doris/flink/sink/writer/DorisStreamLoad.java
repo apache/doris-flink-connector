@@ -75,6 +75,7 @@ public class DorisStreamLoad implements Serializable {
     private final String db;
     private final String table;
     private final boolean enable2PC;
+    private final boolean enableDelete;
     private final Properties streamLoadProp;
     private final RecordStream recordStream;
     private Future<CloseableHttpResponse> pendingLoadFuture;
@@ -98,6 +99,7 @@ public class DorisStreamLoad implements Serializable {
         this.abortUrlStr = String.format(ABORT_URL_PATTERN, hostPort, db);
         this.enable2PC = executionOptions.enabled2PC();
         this.streamLoadProp = executionOptions.getStreamLoadProp();
+        this.enableDelete = executionOptions.getDeletable();
         this.httpClient = httpClient;
         this.executorService = new ThreadPoolExecutor(1, 1,
                 0L, TimeUnit.MILLISECONDS,
@@ -233,6 +235,7 @@ public class DorisStreamLoad implements Serializable {
             putBuilder.setUrl(loadUrlStr)
                     .baseAuth(user, passwd)
                     .addCommonHeader()
+                    .addHiddenColumns(enableDelete)
                     .setLabel(label)
                     .setEntity(entity)
                     .addProperties(streamLoadProp);

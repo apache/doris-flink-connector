@@ -90,6 +90,7 @@ public class DorisCommitter implements Committer<DorisCommittable> {
             try {
                 response = httpClient.execute(putBuilder.build());
             } catch (IOException e) {
+                LOG.error("commit transaction failed: ", e);
                 hostPort = RestService.getBackend(dorisOptions, dorisReadOptions, LOG);
                 continue;
             }
