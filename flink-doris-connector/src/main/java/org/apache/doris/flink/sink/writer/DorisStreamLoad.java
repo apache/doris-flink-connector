@@ -27,6 +27,8 @@ import org.apache.doris.flink.exception.StreamLoadException;
 import org.apache.doris.flink.rest.models.RespContent;
 import org.apache.doris.flink.sink.HttpPutBuilder;
 import org.apache.doris.flink.sink.ResponseUtil;
+
+import static org.apache.doris.flink.sink.LoadStatus.SUCCESS;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
@@ -49,7 +51,6 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 
-import static org.apache.doris.flink.sink.LoadStatus.FAIL;
 import static org.apache.doris.flink.sink.LoadStatus.LABEL_ALREADY_EXIST;
 import static org.apache.doris.flink.sink.ResponseUtil.LABEL_EXIST_PATTERN;
 import static org.apache.doris.flink.sink.writer.LoadConstants.LINE_DELIMITER_DEFAULT;
@@ -253,7 +254,7 @@ public class DorisStreamLoad implements Serializable {
         }
     }
 
-    private void abortTransaction(long txnID) throws Exception {
+    public void abortTransaction(long txnID) throws Exception {
         HttpPutBuilder builder = new HttpPutBuilder();
         builder.setUrl(abortUrlStr)
                 .baseAuth(user, passwd)
@@ -272,12 +273,12 @@ public class DorisStreamLoad implements Serializable {
         ObjectMapper mapper = new ObjectMapper();
         String loadResult = EntityUtils.toString(response.getEntity());
         Map<String, String> res = mapper.readValue(loadResult, new TypeReference<HashMap<String, String>>(){});
-        if (FAIL.equals(res.get("status"))) {
+        if (!SUCCESS.equals(res.get("status"))) {
             if (ResponseUtil.isCommitted(res.get("msg"))) {
                 throw new DorisException("try abort committed transaction, " +
                         "do you recover from old savepoint?");
             }
-            LOG.warn("Fail to abort transaction. error: {}", res.get("msg"));
+            LOG.warn("Fail to abort transaction. txnId: {}, error: {}", txnID, res.get("msg"));
         }
     }
 

@@ -32,7 +32,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.Properties;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
 /**
@@ -54,11 +57,30 @@ public class TestDorisStreamLoad {
     public void testAbortPreCommit() throws Exception {
         CloseableHttpClient httpClient = mock(CloseableHttpClient.class);
         CloseableHttpResponse existLabelResponse = HttpTestUtil.getResponse(HttpTestUtil.LABEL_EXIST_PRE_COMMIT_RESPONSE, true);
-        CloseableHttpResponse abortSuccessResponse = HttpTestUtil.getResponse(HttpTestUtil.ABORT_SUCCESS_RESPONSE, true);
         CloseableHttpResponse preCommitResponse = HttpTestUtil.getResponse(HttpTestUtil.PRE_COMMIT_RESPONSE, true);
-        when(httpClient.execute(any())).thenReturn(existLabelResponse, abortSuccessResponse, preCommitResponse);
-        DorisStreamLoad dorisStreamLoad = new DorisStreamLoad("", dorisOptions, executionOptions, new LabelGenerator("test001_0", true), httpClient);
+        when(httpClient.execute(any())).thenReturn(existLabelResponse, preCommitResponse);
+        DorisStreamLoad dorisStreamLoad = spy(new DorisStreamLoad("", dorisOptions, executionOptions, new LabelGenerator("test001_0", true), httpClient));
+
+        doNothing().when(dorisStreamLoad).abortTransaction(anyLong());
         dorisStreamLoad.abortPreCommit("test001_0", 1);
+    }
+
+    @Test
+    public void  testAbortTransaction() throws Exception{
+        CloseableHttpClient httpClient = mock(CloseableHttpClient.class);
+        CloseableHttpResponse abortSuccessResponse = HttpTestUtil.getResponse(HttpTestUtil.ABORT_SUCCESS_RESPONSE, true);
+        when(httpClient.execute(any())).thenReturn(abortSuccessResponse);
+        DorisStreamLoad dorisStreamLoad = new DorisStreamLoad("", dorisOptions, executionOptions, new LabelGenerator("test001_0", true), httpClient);
+        dorisStreamLoad.abortTransaction(anyLong());
+    }
+
+    @Test
+    public void  testAbortTransactionFailed() throws Exception{
+        CloseableHttpClient httpClient = mock(CloseableHttpClient.class);
+        CloseableHttpResponse abortFailedResponse = HttpTestUtil.getResponse(HttpTestUtil.ABORT_FAILED_RESPONSE, true);
+        when(httpClient.execute(any())).thenReturn(abortFailedResponse);
+        DorisStreamLoad dorisStreamLoad = new DorisStreamLoad("", dorisOptions, executionOptions, new LabelGenerator("test001_0", true), httpClient);
+        dorisStreamLoad.abortTransaction(anyLong());
     }
 
     @Test
