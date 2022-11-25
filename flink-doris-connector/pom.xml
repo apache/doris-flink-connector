@@ -17,8 +17,7 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
-<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>org.apache</groupId>
@@ -27,7 +26,7 @@ under the License.
     </parent>
     <groupId>org.apache.doris</groupId>
     <artifactId>flink-doris-connector-${flink.minor.version}</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>1.2.1</version>
     <name>Flink Doris Connector</name>
     <url>https://doris.apache.org/</url>
     <licenses>
@@ -41,7 +40,7 @@ under the License.
         <connection>scm:git:https://git@github.com/apache/doris-flink-connector.git</connection>
         <developerConnection>scm:git:https://git@github.com/apache/doris-flink-connector.git</developerConnection>
         <url>scm:git:https://git@github.com/apache/doris-flink-connector.git</url>
-        <tag>HEAD</tag>
+        <tag>flink-doris-connector-1.15-1.2.1</tag>
     </scm>
     <issueManagement>
         <system>GitHub</system>
@@ -62,7 +61,7 @@ under the License.
         </mailingList>
     </mailingLists>
     <properties>
-        <flink.version>1.15.3</flink.version>
+        <flink.version>1.15.2</flink.version>
         <flink.minor.version>1.15</flink.minor.version>
         <libthrift.version>0.13.0</libthrift.version>
         <arrow.version>5.0.0</arrow.version>
