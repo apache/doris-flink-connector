@@ -64,13 +64,16 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
     private ObjectMapper objectMapper = new ObjectMapper();
     private String database;
     private String table;
+    //table name of the cdc upstream, format is db.tbl
+    private String sourceTableName;
 
-    public JsonDebeziumSchemaSerializer(DorisOptions dorisOptions, Pattern pattern) {
+    public JsonDebeziumSchemaSerializer(DorisOptions dorisOptions, Pattern pattern, String sourceTableName) {
         this.dorisOptions = dorisOptions;
         this.addDropDDLPattern = pattern == null ? Pattern.compile(addDropDDLRegex, Pattern.CASE_INSENSITIVE) : pattern;
         String[] tableInfo = dorisOptions.getTableIdentifier().split("\\.");
         this.database = tableInfo[0];
         this.table = tableInfo[1];
+        this.sourceTableName = sourceTableName;
     }
 
     @Override
@@ -104,6 +107,9 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
     public boolean schemaChange(JsonNode recordRoot) {
         boolean status = false;
         try{
+            if(!StringUtils.isNullOrWhitespaceOnly(sourceTableName) && !checkTable(recordRoot)){
+                return false;
+            }
             String ddl = extractDDL(recordRoot);
             if(StringUtils.isNullOrWhitespaceOnly(ddl)){
                 LOG.info("ddl can not do schema change:{}", recordRoot);
@@ -116,6 +122,16 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
             LOG.warn("schema change error :", ex);
         }
         return status;
+    }
+
+    /**
+     * When cdc synchronizes multiple tables, it will capture multiple table schema changes
+     */
+    private boolean checkTable(JsonNode recordRoot) {
+        String db = extractDatabase(recordRoot);
+        String tbl = extractTable(recordRoot);
+        String dbTbl = db + "." + tbl;
+        return sourceTableName.equals(dbTbl);
     }
 
     private void addDeleteSign(Map<String, String> valueMap, boolean delete) {
@@ -171,6 +187,19 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
         httpPost.setEntity(new StringEntity(objectMapper.writeValueAsString(param)));
         boolean success = handleResponse(httpPost);
         return success;
+    }
+
+    private String extractDatabase(JsonNode record) {
+        if(record.get("source").has("schema")){
+            //Compatible with oracle
+            return extractJsonNode(record.get("source"), "schema");
+        }else{
+            return extractJsonNode(record.get("source"), "db");
+        }
+    }
+
+    private String extractTable(JsonNode record) {
+        return extractJsonNode(record.get("source"), "table");
     }
 
     private boolean handleResponse(HttpUriRequest request) {
@@ -249,6 +278,7 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
     public static class Builder {
         private DorisOptions dorisOptions;
         private Pattern addDropDDLPattern;
+        private String sourceTableName;
 
         public JsonDebeziumSchemaSerializer.Builder setDorisOptions(DorisOptions dorisOptions) {
             this.dorisOptions = dorisOptions;
@@ -260,8 +290,13 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
             return this;
         }
 
+        public JsonDebeziumSchemaSerializer.Builder setSourceTableName(String sourceTableName) {
+            this.sourceTableName = sourceTableName;
+            return this;
+        }
+
         public JsonDebeziumSchemaSerializer build() {
-            return new JsonDebeziumSchemaSerializer(dorisOptions, addDropDDLPattern);
+            return new JsonDebeziumSchemaSerializer(dorisOptions, addDropDDLPattern, sourceTableName);
         }
     }
 }
