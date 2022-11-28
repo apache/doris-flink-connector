@@ -25,6 +25,7 @@ import org.apache.commons.codec.binary.Base64;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.sink.HttpGetWithEntity;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.util.StringUtils;
 import org.apache.http.HttpHeaders;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPost;
@@ -60,10 +61,15 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
     private final Pattern addDropDDLPattern;
     private DorisOptions dorisOptions;
     private ObjectMapper objectMapper = new ObjectMapper();
+    private String database;
+    private String table;
 
     public JsonDebeziumSchemaSerializer(DorisOptions dorisOptions, Pattern pattern) {
         this.dorisOptions = dorisOptions;
         this.addDropDDLPattern = pattern == null ? Pattern.compile(addDropDDLRegex, Pattern.CASE_INSENSITIVE) : pattern;
+        String[] tableInfo = dorisOptions.getTableIdentifier().split("\\.");
+        this.database = tableInfo[0];
+        this.table = tableInfo[1];
     }
 
     @Override
@@ -97,8 +103,13 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
     public boolean schemaChange(JsonNode recordRoot) {
         boolean status = false;
         try{
-            boolean doSchemaChange = checkSchemaChange(recordRoot);
-            status = doSchemaChange && execSchemaChange(recordRoot);
+            String ddl = extractDDL(recordRoot);
+            if(StringUtils.isNullOrWhitespaceOnly(ddl)){
+                LOG.info("ddl can not do schema change:{}", recordRoot);
+                return false;
+            }
+            boolean doSchemaChange = checkSchemaChange(ddl);
+            status = doSchemaChange && execSchemaChange(ddl);
             LOG.info("schema change status:{}", status);
         }catch (Exception ex){
             LOG.warn("schema change error :", ex);
@@ -114,11 +125,9 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
         }
     }
 
-    private boolean checkSchemaChange(JsonNode record) throws IOException {
-        String database = extractDatabase(record);
-        String table = extractTable(record);
+    private boolean checkSchemaChange(String ddl) throws IOException {
         String requestUrl = String.format(CHECK_SCHEMA_CHANGE_API, dorisOptions.getFenodes(), database, table);
-        Map<String,Object> param = buildRequestParam(record);
+        Map<String,Object> param = buildRequestParam(ddl);
         if(param.size() != 2){
             return false;
         }
@@ -139,12 +148,8 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
      * "columnName" : "column"
      * }
      */
-    private Map<String, Object> buildRequestParam(JsonNode record) throws JsonProcessingException {
+    private Map<String, Object> buildRequestParam(String ddl) throws JsonProcessingException {
         Map<String,Object> params = new HashMap<>();
-        String ddl = extractDDL(record);
-        if(ddl == null){
-            return params;
-        }
         Matcher matcher = addDropDDLPattern.matcher(ddl);
         if(matcher.find()){
             String op = matcher.group(1);
@@ -155,11 +160,9 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
         return params;
     }
 
-    private boolean execSchemaChange(JsonNode record) throws IOException {
-        String extractDDL = extractDDL(record);
+    private boolean execSchemaChange(String ddl) throws IOException {
         Map<String, String> param = new HashMap<>();
-        param.put("stmt", extractDDL);
-        String database = extractDatabase(record);
+        param.put("stmt", ddl);
         String requestUrl = String.format(SCHEMA_CHANGE_API, dorisOptions.getFenodes(), database);
         HttpPost httpPost = new HttpPost(requestUrl);
         httpPost.setHeader(HttpHeaders.AUTHORIZATION, authHeader());
@@ -167,14 +170,6 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
         httpPost.setEntity(new StringEntity(objectMapper.writeValueAsString(param)));
         boolean success = handleResponse(httpPost);
         return success;
-    }
-
-    private String extractDatabase(JsonNode record) {
-        return extractJsonNode(record.get("source"), "db");
-    }
-
-    private String extractTable(JsonNode record) {
-        return extractJsonNode(record.get("source"), "table");
     }
 
     private boolean handleResponse(HttpUriRequest request) throws IOException {
@@ -222,13 +217,13 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
             return null;
         }
         String ddl = extractJsonNode(objectMapper.readTree(historyRecord), "ddl");
+        LOG.info("parse ddl:{}", ddl);
         if (!Objects.isNull(ddl)) {
             //filter add/drop operation
             if (addDropDDLPattern.matcher(ddl).matches()) {
                 return ddl;
             }
         }
-        LOG.info("parse ddl:{}", ddl);
         return null;
     }
 
