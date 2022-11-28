@@ -217,11 +217,10 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
             return null;
         }
         String ddl = extractJsonNode(objectMapper.readTree(historyRecord), "ddl");
-        LOG.debug("received debezium ddl :{}", ddl);
+        LOG.info("parse ddl:{}", ddl);
         if (!Objects.isNull(ddl)) {
             //filter add/drop operation
             if (addDropDDLPattern.matcher(ddl).matches()) {
-                LOG.info("parse ddl:{}", ddl);
                 return ddl;
             }
         }
