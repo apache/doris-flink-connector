@@ -57,7 +57,8 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
     private static final String OP_UPDATE = "u"; // update
     private static final String OP_DELETE = "d"; // delete
 
-    private static final String addDropDDLRegex = "ALTER\\s+TABLE\\s+[^\\s]+\\s+(ADD|DROP)\\s+COLUMN\\s+([^\\s]+).*";
+    public static final String EXECUTE_DDL = "ALTER TABLE %s %s COLUMN %s %s"; //alter table tbl add cloumn aca int
+    private static final String addDropDDLRegex = "ALTER\\s+TABLE\\s+[^\\s]+\\s+(ADD|DROP)\\s+COLUMN\\s+([^\\s]+)(\\s+([^\\s]+))?.*";
     private final Pattern addDropDDLPattern;
     private DorisOptions dorisOptions;
     private ObjectMapper objectMapper = new ObjectMapper();
@@ -148,7 +149,7 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
      * "columnName" : "column"
      * }
      */
-    private Map<String, Object> buildRequestParam(String ddl) throws JsonProcessingException {
+    private Map<String, Object> buildRequestParam(String ddl) {
         Map<String,Object> params = new HashMap<>();
         Matcher matcher = addDropDDLPattern.matcher(ddl);
         if(matcher.find()){
@@ -172,7 +173,7 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
         return success;
     }
 
-    private boolean handleResponse(HttpUriRequest request) throws IOException {
+    private boolean handleResponse(HttpUriRequest request) {
         try (CloseableHttpClient httpclient = HttpClients.createDefault()) {
             CloseableHttpResponse response = httpclient.execute(request);
             final int statusCode = response.getStatusLine().getStatusCode();
@@ -217,10 +218,17 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
             return null;
         }
         String ddl = extractJsonNode(objectMapper.readTree(historyRecord), "ddl");
-        LOG.info("parse ddl:{}", ddl);
+        LOG.debug("received debezium ddl :{}", ddl);
         if (!Objects.isNull(ddl)) {
             //filter add/drop operation
-            if (addDropDDLPattern.matcher(ddl).matches()) {
+            Matcher matcher = addDropDDLPattern.matcher(ddl);
+            if(matcher.find()){
+                String op = matcher.group(1);
+                String col = matcher.group(2);
+                String type = matcher.group(4);
+                type = type == null ? "" : type;
+                ddl = String.format(EXECUTE_DDL, dorisOptions.getTableIdentifier(), op, col, type);
+                LOG.info("parse ddl:{}", ddl);
                 return ddl;
             }
         }
