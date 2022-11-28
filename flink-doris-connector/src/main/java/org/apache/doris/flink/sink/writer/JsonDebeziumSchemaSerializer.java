@@ -191,7 +191,7 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
 
     private String extractDatabase(JsonNode record) {
         if(record.get("source").has("schema")){
-            //Compatible with oracle
+            //compatible with schema
             return extractJsonNode(record.get("source"), "schema");
         }else{
             return extractJsonNode(record.get("source"), "db");
