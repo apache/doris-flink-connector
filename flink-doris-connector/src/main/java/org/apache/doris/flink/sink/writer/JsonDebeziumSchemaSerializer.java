@@ -58,7 +58,7 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
     private static final String OP_DELETE = "d"; // delete
 
     public static final String EXECUTE_DDL = "ALTER TABLE %s %s COLUMN %s %s"; //alter table tbl add cloumn aca int
-    private static final String addDropDDLRegex = "ALTER\\s+TABLE\\s+[^\\s]+\\s+(ADD|DROP)\\s+COLUMN\\s+([^\\s]+)(\\s+([^\\s]+))?.*";
+    private static final String addDropDDLRegex = "ALTER\\s+TABLE\\s+[^\\s]+\\s+(ADD|DROP)\\s+(COLUMN)?\\s+([^\\s]+)(\\s+([^\\s]+))?.*";
     private final Pattern addDropDDLPattern;
     private DorisOptions dorisOptions;
     private ObjectMapper objectMapper = new ObjectMapper();
@@ -127,7 +127,7 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
     /**
      * When cdc synchronizes multiple tables, it will capture multiple table schema changes
      */
-    private boolean checkTable(JsonNode recordRoot) {
+    protected boolean checkTable(JsonNode recordRoot) {
         String db = extractDatabase(recordRoot);
         String tbl = extractTable(recordRoot);
         String dbTbl = db + "." + tbl;
@@ -165,12 +165,12 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
      * "columnName" : "column"
      * }
      */
-    private Map<String, Object> buildRequestParam(String ddl) {
+    protected Map<String, Object> buildRequestParam(String ddl) {
         Map<String,Object> params = new HashMap<>();
         Matcher matcher = addDropDDLPattern.matcher(ddl);
         if(matcher.find()){
             String op = matcher.group(1);
-            String col = matcher.group(2);
+            String col = matcher.group(3);
             params.put("isDropColumn", op.equalsIgnoreCase("DROP"));
             params.put("columnName", col);
         }
@@ -189,7 +189,7 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
         return success;
     }
 
-    private String extractDatabase(JsonNode record) {
+    protected String extractDatabase(JsonNode record) {
         if(record.get("source").has("schema")){
             //compatible with schema
             return extractJsonNode(record.get("source"), "schema");
@@ -198,7 +198,7 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
         }
     }
 
-    private String extractTable(JsonNode record) {
+    protected String extractTable(JsonNode record) {
         return extractJsonNode(record.get("source"), "table");
     }
 
@@ -240,7 +240,6 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
         return recordMap != null ? recordMap : new HashMap<>();
     }
 
-    @VisibleForTesting
     public String extractDDL(JsonNode record) throws JsonProcessingException {
         String historyRecord = extractJsonNode(record, "historyRecord");
         if (Objects.isNull(historyRecord)) {
@@ -253,8 +252,8 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
             Matcher matcher = addDropDDLPattern.matcher(ddl);
             if(matcher.find()){
                 String op = matcher.group(1);
-                String col = matcher.group(2);
-                String type = matcher.group(4);
+                String col = matcher.group(3);
+                String type = matcher.group(5);
                 type = type == null ? "" : type;
                 ddl = String.format(EXECUTE_DDL, dorisOptions.getTableIdentifier(), op, col, type);
                 LOG.info("parse ddl:{}", ddl);
