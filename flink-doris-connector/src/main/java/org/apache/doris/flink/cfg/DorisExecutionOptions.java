@@ -17,6 +17,7 @@
 package org.apache.doris.flink.cfg;
 
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
@@ -167,6 +168,9 @@ public class DorisExecutionOptions implements Serializable {
         }
 
         public DorisExecutionOptions build() {
+            if (StringUtils.isEmpty(labelPrefix)) {
+                throw new IllegalArgumentException("sink.label-prefix is null");
+            }
             return new DorisExecutionOptions(checkInterval, maxRetries, bufferSize, bufferCount, labelPrefix, streamLoadProp, enableDelete, enable2PC);
         }
     }

@@ -42,6 +42,7 @@ public class OptionUtils {
                 .setBufferCount(3)
                 .setDeletable(true)
                 .setCheckInterval(100)
+                .setLabelPrefix("doris_sink_test")
                 .setMaxRetries(2);
         return builder.build();
     }
