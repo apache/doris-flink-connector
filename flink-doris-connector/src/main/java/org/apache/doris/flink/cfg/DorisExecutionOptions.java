@@ -171,7 +171,8 @@ public class DorisExecutionOptions implements Serializable {
             if (StringUtils.isEmpty(labelPrefix)) {
                 throw new IllegalArgumentException("sink.label-prefix is null");
             }
-            return new DorisExecutionOptions(checkInterval, maxRetries, bufferSize, bufferCount, labelPrefix, streamLoadProp, enableDelete, enable2PC);
+            return new DorisExecutionOptions(checkInterval, maxRetries, bufferSize, bufferCount, labelPrefix,
+                    streamLoadProp, enableDelete, enable2PC);
         }
     }
 
