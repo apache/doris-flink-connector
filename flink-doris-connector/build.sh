@@ -33,10 +33,10 @@ export DORIS_HOME=${ROOT}/../
 usage() {
   echo "
   Usage:
-    $0 --flink version --scala version # specify flink and scala version
-    $0 --tag                           # this is a build from tag
+    $0 --flink version # specify flink version (after flink-doris-connector v1.2 and flink-1.15, there is no need to provide scala version)
+    $0 --tag           # this is a build from tag
   e.g.:
-    $0 --flink 1.15.2 --scala 2.12
+    $0 --flink 1.16.0
     $0 --tag
   "
   exit 1
@@ -57,7 +57,6 @@ OPTS=$(getopt \
   -o '' \
   -o 'h' \
   -l 'flink:' \
-  -l 'scala:' \
   -l 'tag' \
   -- "$@")
 
@@ -76,11 +75,9 @@ fi
 
 BUILD_FROM_TAG=0
 FLINK_VERSION=0
-SCALA_VERSION=0
 while true; do
     case "$1" in
         --flink) FLINK_VERSION=$2 ; shift 2 ;;
-        --scala) SCALA_VERSION=$2 ; shift 2 ;;
         --tag) BUILD_FROM_TAG=1 ; shift ;;
         --) shift ;  break ;;
         *) echo "Internal error" ; exit 1 ;;
@@ -100,7 +97,7 @@ if [[ ${BUILD_FROM_TAG} -eq 1 ]]; then
     ${MVN_BIN} clean package
 else
     rm -rf output/
-    ${MVN_BIN} clean package -Dscala.version=${SCALA_VERSION} -Dflink.version=${FLINK_VERSION} -Dflink.minor.version=${FLINK_MINOR_VERSION}
+    ${MVN_BIN} clean package -Dflink.version=${FLINK_VERSION} -Dflink.minor.version=${FLINK_MINOR_VERSION}
 fi
 
 echo "*****************************************"
