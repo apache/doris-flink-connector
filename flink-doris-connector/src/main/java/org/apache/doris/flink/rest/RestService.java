@@ -20,9 +20,9 @@ package org.apache.doris.flink.rest;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
+import com.github.benmanes.caffeine.cache.CacheLoader;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.LoadingCache;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.doris.flink.cfg.ConfigurationOptions;
@@ -98,7 +98,7 @@ public class RestService implements Serializable {
     private static LoadingCache<String, List<BackendRowV2>> cache;
 
     public static  void initCache(DorisOptions dorisOptions, DorisReadOptions dorisReadOptions, Logger log) {
-        cache = CacheBuilder.newBuilder()
+        cache = Caffeine.newBuilder()
                 .expireAfterWrite(cacheExpireTimeout, TimeUnit.MINUTES)
                 .build(new CacheLoader<String, List<BackendRowV2>>() {
                     @Override
