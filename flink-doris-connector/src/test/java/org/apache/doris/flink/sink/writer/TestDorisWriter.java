@@ -62,7 +62,8 @@ public class TestDorisWriter {
         CloseableHttpResponse preCommitResponse = HttpTestUtil.getResponse(HttpTestUtil.PRE_COMMIT_RESPONSE, true);
         when(httpClient.execute(any())).thenReturn(preCommitResponse);
 
-        DorisStreamLoad dorisStreamLoad = new DorisStreamLoad("local:8040", dorisOptions, executionOptions, new LabelGenerator("", true), httpClient);
+        DorisStreamLoad dorisStreamLoad = new DorisStreamLoad(dorisOptions, executionOptions, new LabelGenerator("", true), httpClient);
+        dorisStreamLoad.setHostPort("local:8040");
         dorisStreamLoad.startLoad("");
         Sink.InitContext initContext = mock(Sink.InitContext.class);
         when(initContext.getRestoredCheckpointId()).thenReturn(OptionalLong.of(1));
@@ -83,7 +84,8 @@ public class TestDorisWriter {
         CloseableHttpResponse preCommitResponse = HttpTestUtil.getResponse(HttpTestUtil.PRE_COMMIT_RESPONSE, true);
         when(httpClient.execute(any())).thenReturn(preCommitResponse);
 
-        DorisStreamLoad dorisStreamLoad = new DorisStreamLoad("local:8040", dorisOptions, executionOptions, new LabelGenerator("", true), httpClient);
+        DorisStreamLoad dorisStreamLoad = new DorisStreamLoad(dorisOptions, executionOptions, new LabelGenerator("", true), httpClient);
+        dorisStreamLoad.setHostPort("local:8040");
         Sink.InitContext initContext = mock(Sink.InitContext.class);
         when(initContext.getRestoredCheckpointId()).thenReturn(OptionalLong.of(1));
         DorisWriter<String> dorisWriter = new DorisWriter<String>(initContext, Collections.emptyList(), new SimpleStringSerializer(), dorisOptions, readOptions, executionOptions);

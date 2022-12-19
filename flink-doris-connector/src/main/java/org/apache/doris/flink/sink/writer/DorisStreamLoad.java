@@ -24,6 +24,7 @@ import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.exception.DorisException;
 import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.apache.doris.flink.exception.StreamLoadException;
+import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.rest.models.RespContent;
 import org.apache.doris.flink.sink.HttpPutBuilder;
 import org.apache.doris.flink.sink.ResponseUtil;
@@ -70,7 +71,7 @@ public class DorisStreamLoad implements Serializable {
 
     private String loadUrlStr;
     private String hostPort;
-    private final String abortUrlStr;
+    private String abortUrlStr;
     private final String user;
     private final String passwd;
     private final String db;
@@ -84,20 +85,17 @@ public class DorisStreamLoad implements Serializable {
     private final ExecutorService executorService;
     private boolean loadBatchFirstRecord;
 
-    public DorisStreamLoad(String hostPort,
-                           DorisOptions dorisOptions,
+    public DorisStreamLoad(DorisOptions dorisOptions,
                            DorisExecutionOptions executionOptions,
                            LabelGenerator labelGenerator,
                            CloseableHttpClient httpClient) {
-        this.hostPort = hostPort;
+        refreshBeNode();
         String[] tableInfo = dorisOptions.getTableIdentifier().split("\\.");
         this.db = tableInfo[0];
         this.table = tableInfo[1];
         this.user = dorisOptions.getUsername();
         this.passwd = dorisOptions.getPassword();
         this.labelGenerator = labelGenerator;
-        this.loadUrlStr = String.format(LOAD_URL_PATTERN, hostPort, db, table);
-        this.abortUrlStr = String.format(ABORT_URL_PATTERN, hostPort, db);
         this.enable2PC = executionOptions.enabled2PC();
         this.streamLoadProp = executionOptions.getStreamLoadProp();
         this.enableDelete = executionOptions.getDeletable();
@@ -118,6 +116,7 @@ public class DorisStreamLoad implements Serializable {
         return hostPort;
     }
 
+    @VisibleForTesting
     public void setHostPort(String hostPort) {
         this.hostPort = hostPort;
         this.loadUrlStr = String.format(LOAD_URL_PATTERN, hostPort, this.db, this.table);
@@ -222,11 +221,24 @@ public class DorisStreamLoad implements Serializable {
     }
 
     /**
+     * refresh BE node from cache.
+     * note: requesting a fixed Coordinator BE for a long time, will cause the Coordinator BE to suffer
+     * a lot of network traffic and scheduling management, which will cause the Coordinator BE in a high load state.
+     */
+    public void refreshBeNode() {
+        hostPort = RestService.getBackend(LOG);
+        loadUrlStr = String.format(LOAD_URL_PATTERN, hostPort, db, table);
+        abortUrlStr = String.format(ABORT_URL_PATTERN, hostPort, db);
+    }
+
+
+    /**
      * start write data for new checkpoint.
      * @param label
      * @throws IOException
      */
     public void startLoad(String label) throws IOException{
+        refreshBeNode();
         loadBatchFirstRecord = true;
         HttpPutBuilder putBuilder = new HttpPutBuilder();
         recordStream.startInput();

@@ -20,6 +20,9 @@ package org.apache.doris.flink.rest;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.doris.flink.cfg.ConfigurationOptions;
@@ -33,6 +36,7 @@ import org.apache.doris.flink.exception.ShouldNeverHappenException;
 import org.apache.doris.flink.rest.models.Backend;
 import org.apache.doris.flink.rest.models.BackendRow;
 import org.apache.doris.flink.rest.models.BackendV2;
+import org.apache.doris.flink.rest.models.BackendV2.BackendRowV2;
 import org.apache.doris.flink.rest.models.QueryPlan;
 import org.apache.doris.flink.rest.models.Schema;
 import org.apache.doris.flink.rest.models.Tablet;
@@ -63,6 +67,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_TABLET_SIZE;
@@ -88,6 +93,19 @@ public class RestService implements Serializable {
     private static final String BACKENDS = "/rest/v1/system?path=//backends";
     private static final String BACKENDS_V2 = "/api/backends?is_alive=true";
     private static final String FE_LOGIN = "/rest/v1/login";
+    private static final long cacheExpireTimeout = 4 * 60;
+    private static LoadingCache<String, List<BackendRowV2>> cache;
+
+    public static  void initCache(DorisOptions dorisOptions, DorisReadOptions dorisReadOptions, Logger log) {
+        cache = CacheBuilder.newBuilder()
+                .expireAfterWrite(cacheExpireTimeout, TimeUnit.MINUTES)
+                .build(new CacheLoader<String, List<BackendRowV2>>() {
+                    @Override
+                    public List<BackendV2.BackendRowV2> load(String key) {
+                        return RestService.getBackendRows(dorisOptions, dorisReadOptions, log);
+                    }
+                });
+    }
 
     /**
      * send request to Doris FE and get response json string.
@@ -264,31 +282,36 @@ public class RestService implements Serializable {
     }
 
     /**
-     * choice a Doris BE node to request.
+     * choice a Doris BE node to cache.
      *
-     * @param options configuration of request
-     * @param logger  slf4j logger
+     * @param LOG slf4j logger
      * @return the chosen one Doris BE node
-     * @throws IllegalArgumentException BE nodes is illegal
      */
-    @VisibleForTesting
-    public static String randomBackend(DorisOptions options, DorisReadOptions readOptions, Logger logger) throws DorisException, IOException {
-        List<BackendV2.BackendRowV2> backends = getBackendsV2(options, readOptions, logger);
-        logger.trace("Parse beNodes '{}'.", backends);
-        if (backends == null || backends.isEmpty()) {
-            logger.error(ILLEGAL_ARGUMENT_MESSAGE, "beNodes", backends);
-            throw new IllegalArgumentException("beNodes", String.valueOf(backends));
+    public static String getBackend(Logger LOG) {
+        try {
+            //get backends from cache
+            List<BackendV2.BackendRowV2> backends = cache.get("backends");
+            LOG.trace("Parse beNodes '{}'.", backends);
+            if (backends == null || backends.isEmpty()) {
+                LOG.error(ILLEGAL_ARGUMENT_MESSAGE, "beNodes", backends);
+                throw new IllegalArgumentException("beNodes", String.valueOf(backends));
+            }
+            Collections.shuffle(backends);
+            BackendV2.BackendRowV2 backend = backends.get(0);
+            String beNode = backend.getIp() + ":" + backend.getHttpPort();
+            LOG.info("get be node from cache. node={}", beNode);
+            return beNode;
+        } catch (Exception e) {
+            throw new RuntimeException("get backends info fail", e);
         }
-        Collections.shuffle(backends);
-        BackendV2.BackendRowV2 backend = backends.get(0);
-        return backend.getIp() + ":" + backend.getHttpPort();
     }
 
-    public static String getBackend(DorisOptions options, DorisReadOptions readOptions, Logger logger) throws DorisRuntimeException {
+    public static List<BackendRowV2> getBackendRows(DorisOptions dorisOptions, DorisReadOptions dorisReadOptions, Logger log) {
         try {
-            return randomBackend(options, readOptions, logger);
+            return getBackendsV2(dorisOptions, dorisReadOptions, log);
         } catch (Exception e) {
-            throw new DorisRuntimeException("Failed to get backend via " + options.getFenodes(), e);
+            log.warn("Failed to get backends " + dorisOptions.getFenodes(), e);
+            throw new DorisRuntimeException("Failed to get backend via " + dorisOptions.getFenodes(), e);
         }
     }
 

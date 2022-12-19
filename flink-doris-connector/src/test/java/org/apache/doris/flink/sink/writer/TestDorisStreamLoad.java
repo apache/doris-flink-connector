@@ -20,6 +20,7 @@ package org.apache.doris.flink.sink.writer;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
+import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.sink.HttpTestUtil;
 import org.apache.doris.flink.sink.OptionUtils;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -33,10 +34,13 @@ import java.util.Properties;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import org.mockito.MockedStatic;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
+import org.slf4j.Logger;
 
 /**
  * test for DorisStreamLoad.
@@ -59,7 +63,11 @@ public class TestDorisStreamLoad {
         CloseableHttpResponse existLabelResponse = HttpTestUtil.getResponse(HttpTestUtil.LABEL_EXIST_PRE_COMMIT_RESPONSE, true);
         CloseableHttpResponse preCommitResponse = HttpTestUtil.getResponse(HttpTestUtil.PRE_COMMIT_RESPONSE, true);
         when(httpClient.execute(any())).thenReturn(existLabelResponse, preCommitResponse);
-        DorisStreamLoad dorisStreamLoad = spy(new DorisStreamLoad("", dorisOptions, executionOptions, new LabelGenerator("test001_0", true), httpClient));
+
+        MockedStatic<RestService> restServiceMockedStatic = mockStatic(RestService.class);
+        restServiceMockedStatic.when(() -> RestService.getBackend(any(Logger.class))).thenReturn("192.168.0.1:1234");
+        DorisStreamLoad dorisStreamLoad = spy(
+                new DorisStreamLoad(dorisOptions, executionOptions, new LabelGenerator("test001_0", true), httpClient));
 
         doNothing().when(dorisStreamLoad).abortTransaction(anyLong());
         dorisStreamLoad.abortPreCommit("test001_0", 1);
@@ -70,7 +78,7 @@ public class TestDorisStreamLoad {
         CloseableHttpClient httpClient = mock(CloseableHttpClient.class);
         CloseableHttpResponse abortSuccessResponse = HttpTestUtil.getResponse(HttpTestUtil.ABORT_SUCCESS_RESPONSE, true);
         when(httpClient.execute(any())).thenReturn(abortSuccessResponse);
-        DorisStreamLoad dorisStreamLoad = new DorisStreamLoad("", dorisOptions, executionOptions, new LabelGenerator("test001_0", true), httpClient);
+        DorisStreamLoad dorisStreamLoad = new DorisStreamLoad(dorisOptions, executionOptions, new LabelGenerator("test001_0", true), httpClient);
         dorisStreamLoad.abortTransaction(anyLong());
     }
 
@@ -79,7 +87,7 @@ public class TestDorisStreamLoad {
         CloseableHttpClient httpClient = mock(CloseableHttpClient.class);
         CloseableHttpResponse abortFailedResponse = HttpTestUtil.getResponse(HttpTestUtil.ABORT_FAILED_RESPONSE, true);
         when(httpClient.execute(any())).thenReturn(abortFailedResponse);
-        DorisStreamLoad dorisStreamLoad = new DorisStreamLoad("", dorisOptions, executionOptions, new LabelGenerator("test001_0", true), httpClient);
+        DorisStreamLoad dorisStreamLoad = new DorisStreamLoad(dorisOptions, executionOptions, new LabelGenerator("test001_0", true), httpClient);
         dorisStreamLoad.abortTransaction(anyLong());
     }
 
@@ -89,7 +97,7 @@ public class TestDorisStreamLoad {
         CloseableHttpResponse preCommitResponse = HttpTestUtil.getResponse(HttpTestUtil.PRE_COMMIT_RESPONSE, true);
         when(httpClient.execute(any())).thenReturn(preCommitResponse);
         byte[] writeBuffer = "test".getBytes(StandardCharsets.UTF_8);
-        DorisStreamLoad dorisStreamLoad = new DorisStreamLoad("", dorisOptions, executionOptions, new LabelGenerator("", true), httpClient);
+        DorisStreamLoad dorisStreamLoad = new DorisStreamLoad(dorisOptions, executionOptions, new LabelGenerator("", true), httpClient);
         dorisStreamLoad.startLoad("1");
         dorisStreamLoad.writeRecord(writeBuffer);
         dorisStreamLoad.stopLoad();
@@ -108,7 +116,7 @@ public class TestDorisStreamLoad {
         CloseableHttpResponse preCommitResponse = HttpTestUtil.getResponse(HttpTestUtil.PRE_COMMIT_RESPONSE, true);
         when(httpClient.execute(any())).thenReturn(preCommitResponse);
         byte[] writeBuffer = "test".getBytes(StandardCharsets.UTF_8);
-        DorisStreamLoad dorisStreamLoad = new DorisStreamLoad("", dorisOptions, executionOptions, new LabelGenerator("", true), httpClient);
+        DorisStreamLoad dorisStreamLoad = new DorisStreamLoad(dorisOptions, executionOptions, new LabelGenerator("", true), httpClient);
         dorisStreamLoad.startLoad("1");
         dorisStreamLoad.writeRecord(writeBuffer);
         dorisStreamLoad.writeRecord(writeBuffer);
@@ -133,7 +141,7 @@ public class TestDorisStreamLoad {
         CloseableHttpResponse preCommitResponse = HttpTestUtil.getResponse(HttpTestUtil.PRE_COMMIT_RESPONSE, true);
         when(httpClient.execute(any())).thenReturn(preCommitResponse);
 
-        DorisStreamLoad dorisStreamLoad = new DorisStreamLoad("", dorisOptions, executionOptions, new LabelGenerator("", true), httpClient);
+        DorisStreamLoad dorisStreamLoad = new DorisStreamLoad(dorisOptions, executionOptions, new LabelGenerator("", true), httpClient);
         dorisStreamLoad.startLoad("1");
         dorisStreamLoad.writeRecord("{\"id\": 1}".getBytes(StandardCharsets.UTF_8));
         dorisStreamLoad.writeRecord("{\"id\": 2}".getBytes(StandardCharsets.UTF_8));

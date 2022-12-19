@@ -91,14 +91,14 @@ public class DorisCommitter implements Committer<DorisCommittable> {
                 response = httpClient.execute(putBuilder.build());
             } catch (IOException e) {
                 LOG.error("commit transaction failed: ", e);
-                hostPort = RestService.getBackend(dorisOptions, dorisReadOptions, LOG);
+                hostPort = RestService.getBackend(LOG);
                 continue;
             }
             statusCode = response.getStatusLine().getStatusCode();
             reasonPhrase = response.getStatusLine().getReasonPhrase();
             if (statusCode != 200) {
                 LOG.warn("commit failed with {}, reason {}", hostPort, reasonPhrase);
-                hostPort = RestService.getBackend(dorisOptions, dorisReadOptions, LOG);
+                hostPort = RestService.getBackend(LOG);
             } else {
                 break;
             }

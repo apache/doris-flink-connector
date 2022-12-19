@@ -97,12 +97,12 @@ public class DorisWriter<IN> implements SinkWriter<IN, DorisCommittable, DorisWr
         this.executionOptions = executionOptions;
         this.intervalTime = executionOptions.checkInterval();
         this.loading = false;
+        RestService.initCache(dorisOptions, dorisReadOptions, LOG);
     }
 
     public void initializeLoad(List<DorisWriterState> state) throws IOException {
         try {
             this.dorisStreamLoad = new DorisStreamLoad(
-                    RestService.getBackend(dorisOptions, dorisReadOptions, LOG),
                     dorisOptions,
                     executionOptions,
                     labelGenerator, new HttpUtil().getHttpClient());
