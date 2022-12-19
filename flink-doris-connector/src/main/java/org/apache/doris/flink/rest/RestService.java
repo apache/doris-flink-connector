@@ -299,7 +299,7 @@ public class RestService implements Serializable {
             Collections.shuffle(backends);
             BackendV2.BackendRowV2 backend = backends.get(0);
             String beNode = backend.getIp() + ":" + backend.getHttpPort();
-            LOG.info("get be node from cache. node={}", beNode);
+            LOG.debug("get be node from cache. node={}", beNode);
             return beNode;
         } catch (Exception e) {
             throw new RuntimeException("get backends info fail", e);
