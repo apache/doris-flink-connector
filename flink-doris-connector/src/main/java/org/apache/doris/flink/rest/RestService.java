@@ -93,6 +93,7 @@ public class RestService implements Serializable {
     private static final String BACKENDS = "/rest/v1/system?path=//backends";
     private static final String BACKENDS_V2 = "/api/backends?is_alive=true";
     private static final String FE_LOGIN = "/rest/v1/login";
+    private static final String cacheBackends = "backends";
     private static final long cacheExpireTimeout = 4 * 60;
     private static LoadingCache<String, List<BackendRowV2>> cache;
 
@@ -282,6 +283,17 @@ public class RestService implements Serializable {
     }
 
     /**
+     * get backend in new cache
+     *
+     * @param LOG slf4j logger
+     * @return The BE node in the new cache
+     */
+    public static String getBackendInNewCache(Logger LOG) {
+        cache.invalidate(cacheBackends);
+        return getBackend(LOG);
+    }
+
+    /**
      * choice a Doris BE node from cache.
      *
      * @param LOG slf4j logger
@@ -290,7 +302,7 @@ public class RestService implements Serializable {
     public static String getBackend(Logger LOG) {
         try {
             //get backends from cache
-            List<BackendV2.BackendRowV2> backends = cache.get("backends");
+            List<BackendV2.BackendRowV2> backends = cache.get(cacheBackends);
             LOG.trace("Parse beNodes '{}'.", backends);
             if (backends == null || backends.isEmpty()) {
                 LOG.error(ILLEGAL_ARGUMENT_MESSAGE, "beNodes", backends);
