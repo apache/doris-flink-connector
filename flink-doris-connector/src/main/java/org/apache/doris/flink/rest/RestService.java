@@ -282,7 +282,7 @@ public class RestService implements Serializable {
     }
 
     /**
-     * choice a Doris BE node to cache.
+     * choice a Doris BE node from cache.
      *
      * @param LOG slf4j logger
      * @return the chosen one Doris BE node

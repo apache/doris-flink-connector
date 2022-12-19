@@ -222,7 +222,7 @@ public class DorisStreamLoad implements Serializable {
 
     /**
      * refresh BE node from cache.
-     * note: requesting a fixed Coordinator BE for a long time, will cause the Coordinator BE to suffer
+     * Note: requesting a fixed Coordinator BE for a long time, will cause the Coordinator BE to suffer
      * a lot of network traffic and scheduling management, which will cause the Coordinator BE in a high load state.
      */
     public void refreshBeNode() {
