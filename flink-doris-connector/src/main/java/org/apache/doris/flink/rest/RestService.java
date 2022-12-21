@@ -296,11 +296,6 @@ public class RestService implements Serializable {
         }
     }
 
-    /**
-     * dynamic refresh BE node.
-     * Note: requesting a fixed Coordinator BE for a long time, will cause the Coordinator BE to suffer
-     * a lot of network traffic and scheduling management, which will cause the Coordinator BE in a high load state.
-     */
     public static String getAvailableHost() {
         long tmp = pos + backendRows.size();
         while (pos < tmp) {
