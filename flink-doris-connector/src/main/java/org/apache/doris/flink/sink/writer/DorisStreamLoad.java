@@ -28,6 +28,7 @@ import org.apache.doris.flink.rest.models.RespContent;
 import org.apache.doris.flink.sink.HttpPutBuilder;
 import org.apache.doris.flink.sink.ResponseUtil;
 
+import org.apache.commons.lang3.StringUtils;
 import static org.apache.doris.flink.sink.LoadStatus.SUCCESS;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.Preconditions;
@@ -119,6 +120,9 @@ public class DorisStreamLoad implements Serializable {
     }
 
     public void setHostPort(String hostPort) {
+        if (StringUtils.isEmpty(hostPort)) {
+            throw new IllegalArgumentException("cannot get host port.");
+        }
         this.hostPort = hostPort;
         this.loadUrlStr = String.format(LOAD_URL_PATTERN, hostPort, this.db, this.table);
     }
