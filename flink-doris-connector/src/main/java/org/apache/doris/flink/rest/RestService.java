@@ -33,6 +33,7 @@ import org.apache.doris.flink.exception.ShouldNeverHappenException;
 import org.apache.doris.flink.rest.models.Backend;
 import org.apache.doris.flink.rest.models.BackendRow;
 import org.apache.doris.flink.rest.models.BackendV2;
+import org.apache.doris.flink.rest.models.BackendV2.BackendRowV2;
 import org.apache.doris.flink.rest.models.QueryPlan;
 import org.apache.doris.flink.rest.models.Schema;
 import org.apache.doris.flink.rest.models.Tablet;
@@ -88,6 +89,8 @@ public class RestService implements Serializable {
     private static final String BACKENDS = "/rest/v1/system?path=//backends";
     private static final String BACKENDS_V2 = "/api/backends?is_alive=true";
     private static final String FE_LOGIN = "/rest/v1/login";
+    private static List<BackendV2.BackendRowV2> backendRows;
+    private static long pos;
 
     /**
      * send request to Doris FE and get response json string.
@@ -274,6 +277,7 @@ public class RestService implements Serializable {
     @VisibleForTesting
     public static String randomBackend(DorisOptions options, DorisReadOptions readOptions, Logger logger) throws DorisException, IOException {
         List<BackendV2.BackendRowV2> backends = getBackendsV2(options, readOptions, logger);
+        backendRows = backends;
         logger.trace("Parse beNodes '{}'.", backends);
         if (backends == null || backends.isEmpty()) {
             logger.error(ILLEGAL_ARGUMENT_MESSAGE, "beNodes", backends);
@@ -290,6 +294,21 @@ public class RestService implements Serializable {
         } catch (Exception e) {
             throw new DorisRuntimeException("Failed to get backend via " + options.getFenodes(), e);
         }
+    }
+
+    /**
+     * dynamic refresh BE node.
+     * Note: requesting a fixed Coordinator BE for a long time, will cause the Coordinator BE to suffer
+     * a lot of network traffic and scheduling management, which will cause the Coordinator BE in a high load state.
+     */
+    public static String getAvailableHost() {
+        long tmp = pos + backendRows.size();
+        while (pos < tmp) {
+            BackendRowV2 backend = backendRows.get((int) (pos % backendRows.size()));
+            pos++;
+            return backend.getIp() + ":" + backend.getHttpPort();
+        }
+        return null;
     }
 
     /**
