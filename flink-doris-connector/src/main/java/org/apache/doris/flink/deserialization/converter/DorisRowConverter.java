@@ -200,7 +200,7 @@ public class DorisRowConverter implements Serializable {
                 return ((index, val) -> null);
             case CHAR:
             case VARCHAR:
-                return (index, val) -> val.getString(index);
+                return (index, val) -> val.getString(index).toString();
             case BOOLEAN:
                 return (index, val) -> val.getBoolean(index);
             case BINARY:
@@ -209,7 +209,7 @@ public class DorisRowConverter implements Serializable {
             case DECIMAL:
                 final int decimalPrecision = ((DecimalType) type).getPrecision();
                 final int decimalScale = ((DecimalType) type).getScale();
-                return (index, val) -> val.getDecimal(index, decimalPrecision, decimalScale);
+                return (index, val) -> val.getDecimal(index, decimalPrecision, decimalScale).toBigDecimal();
             case TINYINT:
                 return (index, val) -> val.getByte(index);
             case SMALLINT:

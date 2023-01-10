@@ -42,6 +42,8 @@ public class DorisConfigOptions {
     public static final ConfigOption<String> USERNAME = ConfigOptions.key("username").stringType().noDefaultValue().withDescription("the doris user name.");
     public static final ConfigOption<String> PASSWORD = ConfigOptions.key("password").stringType().noDefaultValue().withDescription("the doris password.");
 
+    public static final ConfigOption<String> JDBC_URL = ConfigOptions.key("jdbc-url").stringType().noDefaultValue().withDescription("doris jdbc url address.");
+
     // source config options
     public static final ConfigOption<String> DORIS_READ_FIELD = ConfigOptions
             .key("doris.read.field")
@@ -123,8 +125,33 @@ public class DorisConfigOptions {
     public static final ConfigOption<Integer> LOOKUP_MAX_RETRIES =
             ConfigOptions.key("lookup.max-retries")
                     .intType()
-                    .defaultValue(3)
+                    .defaultValue(1)
                     .withDescription("The max retry times if lookup database failed.");
+
+    public static final ConfigOption<Integer> LOOKUP_JDBC_READ_BATCH_SIZE =
+            ConfigOptions.key("lookup.jdbc.read.batch.size")
+                    .intType()
+                    .defaultValue(128)
+                    .withDescription("when dimension table query, save the maximum number of batches.");
+
+    public static final ConfigOption<Integer> LOOKUP_JDBC_READ_BATCH_QUEUE_SIZE =
+            ConfigOptions.key("lookup.jdbc.read.batch.queue-size")
+                    .intType()
+                    .defaultValue(256)
+                    .withDescription("dimension table query request buffer queue size.");
+
+    public static final ConfigOption<Integer> LOOKUP_JDBC_READ_THREAD_SIZE =
+            ConfigOptions.key("lookup.jdbc.read.thread-size")
+                    .intType()
+                    .defaultValue(3)
+                    .withDescription("the number of threads for dimension table query, each query occupies a JDBC connection");
+
+    public static final ConfigOption<Boolean> LOOKUP_JDBC_ASYNC =
+            ConfigOptions.key("lookup.jdbc.async")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription("whether to set async lookup");
+
 
     // sink config options
     public static final ConfigOption<Boolean> SINK_ENABLE_2PC = ConfigOptions

@@ -24,12 +24,27 @@ public class DorisLookupOptions implements Serializable {
     private final long cacheMaxSize;
     private final long cacheExpireMs;
     private final int maxRetryTimes;
+    private final int jdbcReadBatchSize;
+    private final int jdbcReadBatchQueueSize;
+    private final int jdbcReadThreadSize;
+
+    private final boolean async;
 
     public DorisLookupOptions(
-            long cacheMaxSize, long cacheExpireMs, int maxRetryTimes) {
+            long cacheMaxSize,
+            long cacheExpireMs,
+            int maxRetryTimes,
+            int jdbcReadBatchSize,
+            int jdbcReadBatchQueueSize,
+            int jdbcReadThreadSize,
+            boolean async) {
         this.cacheMaxSize = cacheMaxSize;
         this.cacheExpireMs = cacheExpireMs;
         this.maxRetryTimes = maxRetryTimes;
+        this.jdbcReadBatchSize = jdbcReadBatchSize;
+        this.jdbcReadBatchQueueSize = jdbcReadBatchQueueSize;
+        this.jdbcReadThreadSize = jdbcReadThreadSize;
+        this.async = async;
     }
 
     public long getCacheMaxSize() {
@@ -44,6 +59,22 @@ public class DorisLookupOptions implements Serializable {
         return maxRetryTimes;
     }
 
+    public int getJdbcReadBatchSize() {
+        return jdbcReadBatchSize;
+    }
+
+    public int getJdbcReadBatchQueueSize() {
+        return jdbcReadBatchQueueSize;
+    }
+
+    public int getJdbcReadThreadSize() {
+        return jdbcReadThreadSize;
+    }
+
+    public boolean isAsync() {
+        return async;
+    }
+
     public static Builder builder() {
         return new Builder();
     }
@@ -52,7 +83,11 @@ public class DorisLookupOptions implements Serializable {
     public static class Builder {
         private long cacheMaxSize = -1L;
         private long cacheExpireMs = -1L;
-        private int maxRetryTimes = 3;
+        private int maxRetryTimes = 1;
+        private int jdbcReadBatchSize;
+        private int jdbcReadBatchQueueSize;
+        private int jdbcReadThreadSize;
+        private boolean async;
 
         /** optional, lookup cache max size, over this value, the old data will be eliminated. */
         public Builder setCacheMaxSize(long cacheMaxSize) {
@@ -72,9 +107,36 @@ public class DorisLookupOptions implements Serializable {
             return this;
         }
 
+        public Builder setJdbcReadBatchSize(int jdbcReadBatchSize){
+            this.jdbcReadBatchSize = jdbcReadBatchSize;
+            return this;
+        }
+
+        public Builder setJdbcReadBatchQueueSize(int jdbcReadBatchQueueSize){
+            this.jdbcReadBatchQueueSize = jdbcReadBatchQueueSize;
+            return this;
+        }
+
+        public Builder setJdbcReadThreadSize(int jdbcReadThreadSize){
+            this.jdbcReadThreadSize = jdbcReadThreadSize;
+            return this;
+        }
+
+        public Builder setAsync(boolean async){
+            this.async = async;
+            return this;
+        }
+
+
         public DorisLookupOptions build() {
             return new DorisLookupOptions(
-                    cacheMaxSize, cacheExpireMs, maxRetryTimes);
+                    cacheMaxSize,
+                    cacheExpireMs,
+                    maxRetryTimes,
+                    jdbcReadBatchSize,
+                    jdbcReadBatchQueueSize,
+                    jdbcReadThreadSize,
+                    async);
         }
     }
 }

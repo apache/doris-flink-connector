@@ -37,6 +37,11 @@ public class DorisOptions extends DorisConnectionOptions {
         this.tableIdentifier = tableIdentifier;
     }
 
+    public DorisOptions(String fenodes, String username, String password, String tableIdentifier, String jdbcUrl) {
+        super(fenodes, username, password, jdbcUrl);
+        this.tableIdentifier = tableIdentifier;
+    }
+
     public String getTableIdentifier() {
         return tableIdentifier;
     }
@@ -55,6 +60,8 @@ public class DorisOptions extends DorisConnectionOptions {
      */
     public static class Builder {
         private String fenodes;
+
+        private String jdbcUrl;
         private String username;
         private String password;
         private String tableIdentifier;
@@ -91,11 +98,18 @@ public class DorisOptions extends DorisConnectionOptions {
             return this;
         }
 
+        /**
+         * not required, fe jdbc url, for lookup query
+         */
+        public Builder setJdbcUrl(String jdbcUrl) {
+            this.jdbcUrl = jdbcUrl;
+            return this;
+        }
 
         public DorisOptions build() {
             checkNotNull(fenodes, "No fenodes supplied.");
             checkNotNull(tableIdentifier, "No tableIdentifier supplied.");
-            return new DorisOptions(fenodes, username, password, tableIdentifier);
+            return new DorisOptions(fenodes, username, password, tableIdentifier, jdbcUrl);
         }
     }
 

@@ -30,6 +30,7 @@ import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.source.AsyncTableFunctionProvider;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.InputFormatProvider;
 import org.apache.flink.table.connector.source.LookupTableSource;
@@ -126,19 +127,31 @@ public final class DorisDynamicTableSource implements ScanTableSource, LookupTab
     public LookupRuntimeProvider getLookupRuntimeProvider(LookupContext context) {
         DataType physicalRowDataType = physicalSchema.toRowDataType();
         String[] keyNames = new String[context.getKeys().length];
+        int[] keyIndexs = new int[context.getKeys().length];
         for (int i = 0; i < keyNames.length; i++) {
             int[] innerKeyArr = context.getKeys()[i];
             keyNames[i] = DataType.getFieldNames(physicalRowDataType).get(innerKeyArr[0]);
+            keyIndexs[i] = innerKeyArr[0];
         }
-
-        return TableFunctionProvider.of(
-                new DorisRowDataLookupFunction(
-                        options,
-                        readOptions,
-                        lookupOptions,
-                        DataType.getFieldNames(physicalRowDataType).toArray(new String[0]),
-                        DataType.getFieldDataTypes(physicalRowDataType).toArray(new DataType[0]),
-                        keyNames));
+        if (lookupOptions.isAsync()) {
+            return AsyncTableFunctionProvider.of(
+                    new DorisRowDataAsyncLookupFunction(
+                            options,
+                            lookupOptions,
+                            DataType.getFieldNames(physicalRowDataType).toArray(new String[0]),
+                            DataType.getFieldDataTypes(physicalRowDataType).toArray(new DataType[0]),
+                            keyNames,
+                            keyIndexs));
+        } else {
+            return TableFunctionProvider.of(
+                    new DorisRowDataJdbcLookupFunction(
+                            options,
+                            lookupOptions,
+                            DataType.getFieldNames(physicalRowDataType).toArray(new String[0]),
+                            DataType.getFieldDataTypes(physicalRowDataType).toArray(new DataType[0]),
+                            keyNames,
+                            keyIndexs));
+        }
     }
 
     @Override
