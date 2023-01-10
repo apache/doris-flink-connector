@@ -115,7 +115,7 @@ public class Worker implements Runnable {
         }
 
         String sql = sb.toString();
-        LOG.info("query sql is {}", sql);
+        LOG.debug("query sql is {}", sql);
         try {
             Map<RecordKey, List<Record>> resultRecordMap = executeQuery(sql, recordList, schema);
             for (Get get : recordList) {
