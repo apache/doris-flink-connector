@@ -18,10 +18,13 @@
 package org.apache.doris.flink.lookup;
 
 import java.util.List;
+import java.util.concurrent.Semaphore;
 
 public class GetAction {
 
     List<Get> getList;
+
+    Semaphore semaphore;
 
     public GetAction(List<Get> getList) {
         this.getList = getList;
@@ -29,5 +32,13 @@ public class GetAction {
 
     public List<Get> getGetList() {
         return getList;
+    }
+
+    public Semaphore getSemaphore() {
+        return semaphore;
+    }
+
+    public void setSemaphore(Semaphore semaphore) {
+        this.semaphore = semaphore;
     }
 }

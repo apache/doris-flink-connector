@@ -32,6 +32,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -51,6 +52,10 @@ public class ExecutionPool implements Closeable {
     ThreadFactory actionWatcherThreadFactory;
     private Worker[] workers;
 
+    private Semaphore semaphore;
+
+    private final int jdbcReadThreadSize;
+
     public ExecutionPool(DorisOptions options, DorisLookupOptions lookupOptions) {
         started = new AtomicBoolean(false);
         workerStated = new AtomicBoolean(false);
@@ -62,6 +67,7 @@ public class ExecutionPool implements Closeable {
         for (int i = 0; i < workers.length; ++i) {
             workers[i] = new Worker(workerStated, options, lookupOptions, i);
         }
+        this.jdbcReadThreadSize = lookupOptions.getJdbcReadThreadSize();
         start();
     }
 
@@ -74,6 +80,7 @@ public class ExecutionPool implements Closeable {
                 workerExecutorService.execute(workers[i]);
             }
             actionWatcherExecutorService.execute(readActionWatcher);
+            this.semaphore = new Semaphore(jdbcReadThreadSize);
         }
     }
 
@@ -99,16 +106,34 @@ public class ExecutionPool implements Closeable {
             actionWatcherExecutorService.shutdown();
             workerStated.set(false);
             workerExecutorService.shutdown();
+            this.semaphore = null;
         }
     }
 
     public boolean submit(GetAction action) {
+        //if has semaphore, try to obtain the semaphore, otherwise return submit failure
+        if (semaphore != null) {
+            try {
+                boolean acquire = semaphore.tryAcquire(2000L, TimeUnit.MILLISECONDS);
+                if (!acquire) {
+                    return false;
+                }
+            } catch (InterruptedException e) {
+                throw new RuntimeException("get semaphore be interrupt");
+            }
+            action.setSemaphore(semaphore);
+        }
+
         //try to submit to worker
         for (int i = 0; i < workers.length; ++i) {
             Worker worker = workers[i];
             if (worker.offer(action)) {
                 return true;
             }
+        }
+        //If submit fails, it will be released, and if successful, the worker will be responsible for the release
+        if (semaphore != null) {
+            semaphore.release();
         }
         return false;
     }

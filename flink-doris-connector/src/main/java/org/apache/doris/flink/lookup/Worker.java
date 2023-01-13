@@ -67,7 +67,13 @@ public class Worker implements Runnable {
             try {
                 GetAction action = queue.poll(2000L, TimeUnit.MILLISECONDS);
                 if (action != null) {
-                    handle(action);
+                    try{
+                        handle(action);
+                    }finally {
+                        if (action.getSemaphore() != null) {
+                            action.getSemaphore().release();
+                        }
+                    }
                 }
             } catch (Exception e) {
                 LOG.error("worker running error", e);
@@ -85,25 +91,16 @@ public class Worker implements Runnable {
         }
         LookupSchema schema = action.getGetList().get(0).getRecord().getSchema();
         List<Get> recordList = action.getGetList();
-        String[] selectFields = schema.getSelectFields();
 
         StringBuilder sb = new StringBuilder();
-        sb.append("select ");
-        for (int i = 0; i < selectFields.length; i++) {
-            if (i > 0) {
-                sb.append(",");
-            }
-            String columnName = selectFields[i];
-            sb.append(quoteIdentifier(columnName));
-        }
-        sb.append(" from ").append(schema.getTableIdentifier()).append(" where ");
         boolean first;
         for (int i = 0; i < recordList.size(); i++) {
             if (i > 0) {
-                sb.append(" or ");
+                sb.append(" union all ");
             }
             first = true;
-            sb.append("( ");
+            appendSelect(sb, schema);
+            sb.append(" where ( ");
             for (String condition : schema.getConditionFields()) {
                 if (!first) {
                     sb.append(" and ");
@@ -133,6 +130,19 @@ public class Worker implements Runnable {
                 }
             }
         }
+    }
+
+    private void appendSelect(StringBuilder sb, LookupSchema schema){
+        String[] selectFields = schema.getSelectFields();
+        sb.append("select ");
+        for (int i = 0; i < selectFields.length; i++) {
+            if (i > 0) {
+                sb.append(",");
+            }
+            String columnName = selectFields[i];
+            sb.append(quoteIdentifier(columnName));
+        }
+        sb.append(" from ").append(schema.getTableIdentifier());
     }
 
     private Map<RecordKey, List<Record>> executeQuery(String sql,
