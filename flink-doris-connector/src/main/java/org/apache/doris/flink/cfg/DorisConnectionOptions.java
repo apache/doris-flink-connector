@@ -30,11 +30,17 @@ public class DorisConnectionOptions implements Serializable {
     protected final String fenodes;
     protected final String username;
     protected final String password;
+    protected String jdbcUrl;
 
     public DorisConnectionOptions(String fenodes, String username, String password) {
         this.fenodes = Preconditions.checkNotNull(fenodes, "fenodes  is empty");
         this.username = username;
         this.password = password;
+    }
+
+    public DorisConnectionOptions(String fenodes, String username, String password, String jdbcUrl){
+        this(fenodes,username,password);
+        this.jdbcUrl = jdbcUrl;
     }
 
     public String getFenodes() {
@@ -49,6 +55,10 @@ public class DorisConnectionOptions implements Serializable {
         return password;
     }
 
+    public String getJdbcUrl(){
+        return jdbcUrl;
+    }
+
     /**
      * Builder for {@link DorisConnectionOptions}.
      */
@@ -56,6 +66,8 @@ public class DorisConnectionOptions implements Serializable {
         private String fenodes;
         private String username;
         private String password;
+
+        private String jdbcUrl;
 
         public DorisConnectionOptionsBuilder withFenodes(String fenodes) {
             this.fenodes = fenodes;
@@ -72,8 +84,13 @@ public class DorisConnectionOptions implements Serializable {
             return this;
         }
 
+        public DorisConnectionOptionsBuilder withJdbcUrl(String jdbcUrl) {
+            this.jdbcUrl = jdbcUrl;
+            return this;
+        }
+
         public DorisConnectionOptions build() {
-            return new DorisConnectionOptions(fenodes, username, password);
+            return new DorisConnectionOptions(fenodes, username, password, jdbcUrl);
         }
     }
 

@@ -49,8 +49,13 @@ import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_REQUEST_RETR
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_TABLET_SIZE;
 import static org.apache.doris.flink.table.DorisConfigOptions.FENODES;
 import static org.apache.doris.flink.table.DorisConfigOptions.IDENTIFIER;
+import static org.apache.doris.flink.table.DorisConfigOptions.JDBC_URL;
 import static org.apache.doris.flink.table.DorisConfigOptions.LOOKUP_CACHE_MAX_ROWS;
 import static org.apache.doris.flink.table.DorisConfigOptions.LOOKUP_CACHE_TTL;
+import static org.apache.doris.flink.table.DorisConfigOptions.LOOKUP_JDBC_ASYNC;
+import static org.apache.doris.flink.table.DorisConfigOptions.LOOKUP_JDBC_READ_BATCH_QUEUE_SIZE;
+import static org.apache.doris.flink.table.DorisConfigOptions.LOOKUP_JDBC_READ_BATCH_SIZE;
+import static org.apache.doris.flink.table.DorisConfigOptions.LOOKUP_JDBC_READ_THREAD_SIZE;
 import static org.apache.doris.flink.table.DorisConfigOptions.LOOKUP_MAX_RETRIES;
 import static org.apache.doris.flink.table.DorisConfigOptions.PASSWORD;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_BUFFER_COUNT;
@@ -95,6 +100,7 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
         options.add(TABLE_IDENTIFIER);
         options.add(USERNAME);
         options.add(PASSWORD);
+        options.add(JDBC_URL);
 
         options.add(DORIS_READ_FIELD);
         options.add(DORIS_FILTER_QUERY);
@@ -110,6 +116,10 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
         options.add(LOOKUP_CACHE_MAX_ROWS);
         options.add(LOOKUP_CACHE_TTL);
         options.add(LOOKUP_MAX_RETRIES);
+        options.add(LOOKUP_JDBC_ASYNC);
+        options.add(LOOKUP_JDBC_READ_BATCH_SIZE);
+        options.add(LOOKUP_JDBC_READ_THREAD_SIZE);
+        options.add(LOOKUP_JDBC_READ_BATCH_QUEUE_SIZE);
 
         options.add(SINK_CHECK_INTERVAL);
         options.add(SINK_ENABLE_2PC);
@@ -148,6 +158,7 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
         final String fenodes = readableConfig.get(FENODES);
         final DorisOptions.Builder builder = DorisOptions.builder()
                 .setFenodes(fenodes)
+                .setJdbcUrl(readableConfig.get(JDBC_URL))
                 .setTableIdentifier(readableConfig.get(TABLE_IDENTIFIER));
 
         readableConfig.getOptional(USERNAME).ifPresent(builder::setUsername);
@@ -204,6 +215,10 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
         builder.setCacheExpireMs(readableConfig.get(LOOKUP_CACHE_TTL).toMillis());
         builder.setCacheMaxSize(readableConfig.get(LOOKUP_CACHE_MAX_ROWS));
         builder.setMaxRetryTimes(readableConfig.get(LOOKUP_MAX_RETRIES));
+        builder.setJdbcReadBatchSize(readableConfig.get(LOOKUP_JDBC_READ_BATCH_SIZE));
+        builder.setJdbcReadBatchQueueSize(readableConfig.get(LOOKUP_JDBC_READ_BATCH_QUEUE_SIZE));
+        builder.setJdbcReadThreadSize(readableConfig.get(LOOKUP_JDBC_READ_THREAD_SIZE));
+        builder.setAsync(readableConfig.get(LOOKUP_JDBC_ASYNC));
         return builder.build();
     }
 
