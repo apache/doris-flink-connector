@@ -85,6 +85,7 @@ public class RowBatch {
 
     private final DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private final DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    private final DateTimeFormatter dateTimeV2Formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS");
 
     public List<Row> getRowBatch() {
         return rowBatch;
@@ -237,6 +238,9 @@ public class RowBatch {
                         break;
                     case "DECIMAL":
                     case "DECIMALV2":
+                    case "DECIMAL32":
+                    case "DECIMAL64":
+                    case "DECIMAL128I":
                         Preconditions.checkArgument(mt.equals(Types.MinorType.DECIMAL),
                                 typeMismatchMessage(currentType, mt));
                         DecimalVector decimalVector = (DecimalVector) curFieldVector;
@@ -250,6 +254,7 @@ public class RowBatch {
                         }
                         break;
                     case "DATE":
+                    case "DATEV2":
                         Preconditions.checkArgument(mt.equals(Types.MinorType.VARCHAR),
                                 typeMismatchMessage(currentType, mt));
                         VarCharVector date = (VarCharVector) curFieldVector;
@@ -274,6 +279,20 @@ public class RowBatch {
                             }
                             String value = new String(timeStampSecVector.get(rowIndex));
                             LocalDateTime parse = LocalDateTime.parse(value, dateTimeFormatter);
+                            addValueToRow(rowIndex, parse);
+                        }
+                        break;
+                    case "DATETIMEV2":
+                        Preconditions.checkArgument(mt.equals(Types.MinorType.VARCHAR),
+                                typeMismatchMessage(currentType, mt));
+                        VarCharVector timeStampV2SecVector = (VarCharVector) curFieldVector;
+                        for (int rowIndex = 0; rowIndex < rowCountInOneBatch; rowIndex++) {
+                            if (timeStampV2SecVector.isNull(rowIndex)) {
+                                addValueToRow(rowIndex, null);
+                                continue;
+                            }
+                            String value = new String(timeStampV2SecVector.get(rowIndex));
+                            LocalDateTime parse = LocalDateTime.parse(value, dateTimeV2Formatter);
                             addValueToRow(rowIndex, parse);
                         }
                         break;
