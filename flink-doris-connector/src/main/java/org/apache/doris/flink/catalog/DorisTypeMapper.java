@@ -28,6 +28,10 @@ public class DorisTypeMapper {
     private static final String DORIS_BIGINT = "BIGINT";
     private static final String DORIS_LARGEINT = "BIGINT UNSIGNED";
     private static final String DORIS_DECIMAL = "DECIMAL";
+    private static final String DORIS_DECIMALV2 = "DECIMALV2";
+    private static final String DORIS_DECIMAL32 = "DECIMAL32";
+    private static final String DORIS_DECIMAL64 = "DECIMAL64";
+    private static final String DORIS_DECIMAL128I = "DECIMAL128I";
     private static final String DORIS_FLOAT = "FLOAT";
     private static final String DORIS_DOUBLE = "DOUBLE";
 
@@ -39,7 +43,9 @@ public class DorisTypeMapper {
 
     // ------------------------------time-------------------------
     private static final String DORIS_DATE = "DATE";
+    private static final String DORIS_DATEV2 = "DATEV2";
     private static final String DORIS_DATETIME = "DATETIME";
+    private static final String DORIS_DATETIMEV2 = "DATETIMEV2";
 
     //------------------------------bool------------------------
     private static final String DORIS_BOOLEAN = "BOOLEAN";
@@ -64,6 +70,10 @@ public class DorisTypeMapper {
             case DORIS_BIGINT:
                 return DataTypes.BIGINT();
             case DORIS_DECIMAL:
+            case DORIS_DECIMALV2:
+            case DORIS_DECIMAL32:
+            case DORIS_DECIMAL64:
+            case DORIS_DECIMAL128I:
                 return DataTypes.DECIMAL(precision, scale);
             case DORIS_FLOAT:
                 return DataTypes.FLOAT();
@@ -77,8 +87,10 @@ public class DorisTypeMapper {
             case DORIS_TEXT:
                 return DataTypes.STRING();
             case DORIS_DATE:
+            case DORIS_DATEV2:
                 return DataTypes.DATE();
             case DORIS_DATETIME:
+            case DORIS_DATETIMEV2:
                 return DataTypes.TIMESTAMP(0);
             default:
                 throw new UnsupportedOperationException(
