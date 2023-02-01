@@ -252,11 +252,11 @@ public class RestService implements Serializable {
      * @throws IllegalArgumentException fe nodes is illegal
      */
     @VisibleForTesting
-    static List<String> allEndpoints(String feNodes, Logger logger) throws IllegalArgumentException {
+    static List<String> allEndpoints(String feNodes, Logger logger) {
         logger.trace("Parse fenodes '{}'.", feNodes);
         if (StringUtils.isEmpty(feNodes)) {
             logger.error(ILLEGAL_ARGUMENT_MESSAGE, "fenodes", feNodes);
-            throw new IllegalArgumentException("fenodes", feNodes);
+            throw new DorisRuntimeException("fenodes is empty");
         }
         List<String> nodes = Arrays.stream(feNodes.split(",")).map(String::trim).collect(Collectors.toList());
         Collections.shuffle(nodes);
@@ -353,8 +353,7 @@ public class RestService implements Serializable {
      * @return the chosen one Doris BE node
      * @throws IllegalArgumentException BE nodes is illegal
      */
-    @VisibleForTesting
-    static List<BackendV2.BackendRowV2> getBackendsV2(DorisOptions options, DorisReadOptions readOptions, Logger logger) throws DorisException, IOException {
+    public static List<BackendV2.BackendRowV2> getBackendsV2(DorisOptions options, DorisReadOptions readOptions, Logger logger) {
         String feNodes = options.getFenodes();
         List<String> feNodeList = allEndpoints(feNodes, logger);
         for (String feNode: feNodeList) {
@@ -371,10 +370,10 @@ public class RestService implements Serializable {
         }
         String errMsg = "No Doris FE is available, please check configuration";
         logger.error(errMsg);
-        throw new DorisException(errMsg);
+        throw new DorisRuntimeException(errMsg);
     }
 
-    static List<BackendV2.BackendRowV2> parseBackendV2(String response, Logger logger) throws DorisException, IOException {
+    static List<BackendV2.BackendRowV2> parseBackendV2(String response, Logger logger) {
         ObjectMapper mapper = new ObjectMapper();
         BackendV2 backend;
         try {
@@ -382,15 +381,15 @@ public class RestService implements Serializable {
         } catch (JsonParseException e) {
             String errMsg = "Doris BE's response is not a json. res: " + response;
             logger.error(errMsg, e);
-            throw new DorisException(errMsg, e);
+            throw new DorisRuntimeException(errMsg, e);
         } catch (JsonMappingException e) {
             String errMsg = "Doris BE's response cannot map to schema. res: " + response;
             logger.error(errMsg, e);
-            throw new DorisException(errMsg, e);
+            throw new DorisRuntimeException(errMsg, e);
         } catch (IOException e) {
             String errMsg = "Parse Doris BE's response to json failed. res: " + response;
             logger.error(errMsg, e);
-            throw new DorisException(errMsg, e);
+            throw new DorisRuntimeException(errMsg, e);
         }
 
         if (backend == null) {
