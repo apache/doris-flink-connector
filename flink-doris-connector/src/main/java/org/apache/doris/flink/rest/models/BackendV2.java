@@ -70,5 +70,10 @@ public class BackendV2 {
         public void setAlive(boolean alive) {
             isAlive = alive;
         }
+
+        public String toBackendString(){
+            return ip + ":" + httpPort;
+        }
+
     }
 }

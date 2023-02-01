@@ -17,30 +17,29 @@
 
 package org.apache.doris.flink.sink.writer;
 
-import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.util.Preconditions;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.apache.doris.flink.exception.StreamLoadException;
 import org.apache.doris.flink.rest.RestService;
+import org.apache.doris.flink.rest.models.BackendV2;
 import org.apache.doris.flink.rest.models.RespContent;
 import org.apache.doris.flink.sink.DorisCommittable;
 import org.apache.doris.flink.sink.HttpUtil;
-
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
-
 import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
-
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -75,6 +74,9 @@ public class DorisWriter<IN> implements SinkWriter<IN, DorisCommittable, DorisWr
     private transient Thread executorThread;
     private transient volatile Exception loadException = null;
 
+    private List<BackendV2.BackendRowV2> backends;
+    private long pos;
+
     public DorisWriter(Sink.InitContext initContext,
                        List<DorisWriterState> state,
                        DorisRecordSerializer<IN> serializer,
@@ -97,12 +99,16 @@ public class DorisWriter<IN> implements SinkWriter<IN, DorisCommittable, DorisWr
         this.executionOptions = executionOptions;
         this.intervalTime = executionOptions.checkInterval();
         this.loading = false;
+        this.pos = 0;
     }
 
     public void initializeLoad(List<DorisWriterState> state) throws IOException {
+        //cache backend
+        this.backends = RestService.getBackendsV2(dorisOptions, dorisReadOptions, LOG);
+        String backend = getAvailableBackend();
         try {
             this.dorisStreamLoad = new DorisStreamLoad(
-                    RestService.getBackend(dorisOptions, dorisReadOptions, LOG),
+                    backend,
                     dorisOptions,
                     executionOptions,
                     labelGenerator, new HttpUtil().getHttpClient());
@@ -152,6 +158,8 @@ public class DorisWriter<IN> implements SinkWriter<IN, DorisCommittable, DorisWr
     @Override
     public List<DorisWriterState> snapshotState(long checkpointId) throws IOException {
         Preconditions.checkState(dorisStreamLoad != null);
+        // dynamic refresh BE node
+        this.dorisStreamLoad.setHostPort(getAvailableBackend());
         this.dorisStreamLoad.startLoad(labelGenerator.generateLabel(checkpointId + 1));
         this.loading = true;
         return Collections.singletonList(dorisWriterState);
@@ -199,6 +207,11 @@ public class DorisWriter<IN> implements SinkWriter<IN, DorisCommittable, DorisWr
         this.dorisStreamLoad = streamLoad;
     }
 
+    @VisibleForTesting
+    public void setBackends(List<BackendV2.BackendRowV2> backends) {
+        this.backends = backends;
+    }
+
     @Override
     public void close() throws Exception {
         if (scheduledExecutorService != null) {
@@ -209,4 +222,33 @@ public class DorisWriter<IN> implements SinkWriter<IN, DorisCommittable, DorisWr
         }
     }
 
+    @VisibleForTesting
+    public String getAvailableBackend() {
+        long tmp = pos + backends.size();
+        while (pos < tmp) {
+            BackendV2.BackendRowV2 backend = backends.get((int) (pos % backends.size()));
+            String res = backend.toBackendString();
+            if(tryHttpConnection(res)){
+                pos++;
+                return res;
+            }
+        }
+        throw new DorisRuntimeException("no available backend.");
+    }
+
+    public boolean tryHttpConnection(String backend) {
+        try {
+            backend = "http://" + backend;
+            URL url = new URL(backend);
+            HttpURLConnection co =  (HttpURLConnection) url.openConnection();
+            co.setConnectTimeout(1000);
+            co.connect();
+            co.disconnect();
+            return true;
+        } catch (Exception ex) {
+            LOG.warn("Failed to connect to backend:{}", backend, ex);
+            pos++;
+            return false;
+        }
+    }
 }

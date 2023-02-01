@@ -17,14 +17,14 @@
 
 package org.apache.doris.flink.sink.writer;
 
-import org.apache.flink.api.connector.sink.Sink;
-
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
+import org.apache.doris.flink.rest.models.BackendV2;
 import org.apache.doris.flink.sink.DorisCommittable;
 import org.apache.doris.flink.sink.HttpTestUtil;
 import org.apache.doris.flink.sink.OptionUtils;
+import org.apache.flink.api.connector.sink.Sink;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.junit.Assert;
@@ -32,6 +32,7 @@ import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.OptionalLong;
@@ -94,4 +95,36 @@ public class TestDorisWriter {
         Assert.assertEquals("doris", writerStates.get(0).getLabelPrefix());
         Assert.assertTrue(dorisWriter.isLoading());
     }
+
+    @Test
+    public void testGetAvailableBackend() throws Exception{
+        Sink.InitContext initContext = mock(Sink.InitContext.class);
+        DorisWriter<String> dorisWriter = new DorisWriter<String>(initContext, Collections.emptyList(), new SimpleStringSerializer(), dorisOptions, readOptions, executionOptions);
+        List<BackendV2.BackendRowV2> backends = Arrays.asList(
+                newBackend("127.0.0.1", 8040),
+                newBackend("127.0.0.2", 8040),
+                newBackend("127.0.0.3", 8040));
+        dorisWriter.setBackends(backends);
+        Assert.assertEquals(backends.get(0).toBackendString(), dorisWriter.getAvailableBackend());
+        Assert.assertEquals(backends.get(1).toBackendString(), dorisWriter.getAvailableBackend());
+        Assert.assertEquals(backends.get(2).toBackendString(), dorisWriter.getAvailableBackend());
+        Assert.assertEquals(backends.get(0).toBackendString(), dorisWriter.getAvailableBackend());
+    }
+
+    @Test
+    public void testTryHttpConnection(){
+        Sink.InitContext initContext = mock(Sink.InitContext.class);
+        DorisWriter<String> dorisWriter = new DorisWriter<String>(initContext, Collections.emptyList(), new SimpleStringSerializer(), dorisOptions, readOptions, executionOptions);
+        boolean flag = dorisWriter.tryHttpConnection("43.142.11.232:8040");
+        System.out.println(flag);
+    }
+
+    private BackendV2.BackendRowV2 newBackend(String host, int port){
+        BackendV2.BackendRowV2 backend = new BackendV2.BackendRowV2();
+        backend.setIp(host);
+        backend.setHttpPort(port);
+        return backend;
+    }
+
+
 }
