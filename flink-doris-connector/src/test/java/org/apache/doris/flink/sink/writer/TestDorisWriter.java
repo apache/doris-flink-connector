@@ -115,8 +115,8 @@ public class TestDorisWriter {
     public void testTryHttpConnection(){
         Sink.InitContext initContext = mock(Sink.InitContext.class);
         DorisWriter<String> dorisWriter = new DorisWriter<String>(initContext, Collections.emptyList(), new SimpleStringSerializer(), dorisOptions, readOptions, executionOptions);
-        boolean flag = dorisWriter.tryHttpConnection("43.142.11.232:8040");
-        System.out.println(flag);
+        boolean flag = dorisWriter.tryHttpConnection("127.0.0.1:8040");
+        Assert.assertFalse(flag);
     }
 
     private BackendV2.BackendRowV2 newBackend(String host, int port){
