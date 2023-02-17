@@ -78,7 +78,7 @@ public class DorisStreamLoad implements Serializable {
     private final boolean enableDelete;
     private final Properties streamLoadProp;
     private final RecordStream recordStream;
-    private Future<CloseableHttpResponse> pendingLoadFuture;
+    private volatile Future<CloseableHttpResponse> pendingLoadFuture;
     private final CloseableHttpClient httpClient;
     private final ExecutorService executorService;
     private boolean loadBatchFirstRecord;
