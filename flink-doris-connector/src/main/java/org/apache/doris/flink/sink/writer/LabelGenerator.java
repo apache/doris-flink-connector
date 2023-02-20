@@ -29,6 +29,6 @@ public class LabelGenerator {
     }
 
     public String generateLabel(long chkId) {
-        return enable2PC ? labelPrefix + "_" + chkId : labelPrefix + "_" + System.currentTimeMillis();
+        return enable2PC ? labelPrefix + "_" + chkId : labelPrefix + "_" + System.nanoTime() + "_" + Math.random();
     }
 }
