@@ -40,6 +40,7 @@ public class DorisTypeMapper {
     private static final String DORIS_VARCHAR = "VARCHAR";
     private static final String DORIS_STRING = "STRING";
     private static final String DORIS_TEXT = "TEXT";
+    private static final String DORIS_JSONB = "JSONB";
 
     // ------------------------------time-------------------------
     private static final String DORIS_DATE = "DATE";
@@ -85,6 +86,7 @@ public class DorisTypeMapper {
             case DORIS_VARCHAR:
             case DORIS_STRING:
             case DORIS_TEXT:
+            case DORIS_JSONB:
                 return DataTypes.STRING();
             case DORIS_DATE:
             case DORIS_DATEV2:

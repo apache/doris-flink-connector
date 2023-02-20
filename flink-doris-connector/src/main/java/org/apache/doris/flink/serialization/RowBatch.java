@@ -300,6 +300,7 @@ public class RowBatch {
                     case "CHAR":
                     case "VARCHAR":
                     case "STRING":
+                    case "JSONB":
                         Preconditions.checkArgument(mt.equals(Types.MinorType.VARCHAR),
                                 typeMismatchMessage(currentType, mt));
                         VarCharVector varCharVector = (VarCharVector) curFieldVector;
