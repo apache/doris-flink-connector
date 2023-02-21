@@ -46,15 +46,6 @@ jobs:
     - name: touch custom_env.sh
       run: |
         touch custom_env.sh
-        echo 'export THRIFT_BIN=/usr/bin/thrift' >> custom_env.sh
-
-#    - name: Setup thrift
-#      run: |
-#        sudo apt-get update
-#        sudo DEBIAN_FRONTEND=noninteractive apt-get install -y thrift-compiler=0.13.0-2build2
-#        thrift --version
-#        touch custom_env.sh
-#        echo 'export THRIFT_BIN=/usr/bin/thrift' >> custom_env.sh
 
     - name: Build flink connector 1.15
       run: |
