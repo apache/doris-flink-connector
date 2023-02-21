@@ -38,13 +38,23 @@ jobs:
         distribution: adopt
         java-version: '8'
 
-    - name: Setup thrift
+    - name: Setup Apache Thrift Compiler
+      uses: dodopizza/setup-thrift@v1
+      with:
+        version: 0.13.0
+
+    - name: touch custom_env.sh
       run: |
-        sudo apt-get update
-        sudo DEBIAN_FRONTEND=noninteractive apt-get install -y thrift-compiler=0.13.0-2build2
-        thrift --version
         touch custom_env.sh
         echo 'export THRIFT_BIN=/usr/bin/thrift' >> custom_env.sh
+
+#    - name: Setup thrift
+#      run: |
+#        sudo apt-get update
+#        sudo DEBIAN_FRONTEND=noninteractive apt-get install -y thrift-compiler=0.13.0-2build2
+#        thrift --version
+#        touch custom_env.sh
+#        echo 'export THRIFT_BIN=/usr/bin/thrift' >> custom_env.sh
 
     - name: Build flink connector 1.15
       run: |
