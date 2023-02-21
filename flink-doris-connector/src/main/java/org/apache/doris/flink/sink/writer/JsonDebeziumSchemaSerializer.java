@@ -19,6 +19,7 @@ package org.apache.doris.flink.sink.writer;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.codec.binary.Base64;
@@ -79,7 +80,11 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
     @Override
     public byte[] serialize(String record) throws IOException {
         LOG.debug("received debezium json data {} :", record);
-        JsonNode recordRoot = objectMapper.readTree(record);
+        ObjectMapper mapper = new ObjectMapper();
+        // Prevent loss of decimal data precision
+        mapper.enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS);
+        JsonNode recordRoot = mapper.readValue(record, JsonNode.class);
+
         String op = extractJsonNode(recordRoot, "op");
         if (Objects.isNull(op)) {
             //schema change ddl
