@@ -44,7 +44,7 @@ jobs:
         sudo apt-get install automake bison flex g++ git libboost-all-dev libevent-dev libssl-dev libtool make pkg-config
         tar -zxvf thrift-0.13.0.tar.gz
         cd thrift-0.13.0
-        ./configure --without-tests
+        sudo ./configure --with-boost=/usr/local
         make & make install
         thrift --version
         touch custom_env.sh
