@@ -45,7 +45,7 @@ jobs:
         tar -zxvf thrift-0.13.0.tar.gz
         cd thrift-0.13.0
         sudo ./configure --with-boost=/usr/local
-        sudo chmod 777 -R /home/runner/work/doris-flink-connector/doris-flink-connector/thrift-0.13.0/compiler/cpp/
+        sudo chmod 777 -R /home/runner/work/doris-flink-connector/doris-flink-connector/thrift-0.13.0/compiler/cpp/src
         make & make install
         thrift --version
         touch custom_env.sh
