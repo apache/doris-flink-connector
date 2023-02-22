@@ -16,7 +16,7 @@
 # under the License.
 #
 ---
-name: License Check
+name: CICD
 on:
   pull_request:
   push:
@@ -33,3 +33,26 @@ jobs:
         uses: apache/skywalking-eyes@v0.2.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-extension:
+    name: "build-extension"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@master
+      - name: Setup java
+        uses: actions/setup-java@v2
+        with:
+          distribution: adopt
+          java-version: '8'
+      - name: Setup thrift
+        uses: dodopizza/setup-thrift@v1
+        with:
+          version: 0.13.0
+      - name: Setup custom_env
+        run: |
+          touch custom_env.sh
+          echo 'export THRIFT_BIN=/usr/bin/thrift' >> custom_env.sh
+      - name: Build flink connector 1.15
+        run: |
+          cd flink-doris-connector/ && /bin/bash build.sh --flink 1.15.0
