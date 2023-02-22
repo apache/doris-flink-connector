@@ -25,8 +25,12 @@ on:
 
 jobs:
   build-extension:
-    name: "Build Extensions"
-    runs-on: ubuntu-latest
+    name:   build-extension
+    # The type of runner that the job will run on
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ ubuntu-latest ]
     steps:
     - name: Checkout
       uses: actions/checkout@master
