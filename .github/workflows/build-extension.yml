@@ -47,7 +47,8 @@ jobs:
         sudo ./configure --with-boost=/usr/local
         sudo chmod 777 -R /home/runner/work/doris-flink-connector/doris-flink-connector/thrift-0.13.0
         sudo chmod 777 -R /usr/local
-        sudo cp /usr/lib/libboost_unit_test_framework.a /usr/local/lib/libboost_unit_test_framework.a
+        find / -name libboost_unit_test_framework.*
+        sudo cp /usr/lib64/libboost_unit_test_framework.a /usr/local/lib/libboost_unit_test_framework.a
         sudo make & make install
         thrift --version
         touch custom_env.sh
