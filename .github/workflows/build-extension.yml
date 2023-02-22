@@ -41,8 +41,7 @@ jobs:
     - name: Setup Apache Thrift Compiler
       run: |
         wget https://archive.apache.org/dist/thrift/0.13.0/thrift-0.13.0.tar.gz
-        sudo apt-get install yum
-        sudo yum install -y autoconf automake libtool cmake ncurses-devel openssl-devel lzo-devel zlib-devel gcc gcc-c++
+        sudo apt-get install automake bison flex g++ git libboost-all-dev libevent-dev libssl-dev libtool make pkg-config
         tar -zxvf thrift-0.13.0.tar.gz
         cd thrift-0.13.0
         ./configure --without-tests
