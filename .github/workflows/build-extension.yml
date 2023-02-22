@@ -45,6 +45,7 @@ jobs:
         tar -zxvf thrift-0.13.0.tar.gz
         cd thrift-0.13.0
         sudo ./configure --with-boost=/usr/local
+        chmod 777 -R thrift
         make & make install
         thrift --version
         touch custom_env.sh
