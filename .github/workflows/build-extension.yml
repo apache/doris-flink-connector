@@ -40,18 +40,23 @@ jobs:
 
     - name: Setup Apache Thrift Compiler
       run: |
-        wget https://archive.apache.org/dist/thrift/0.13.0/thrift-0.13.0.tar.gz
-        sudo apt-get install automake bison flex g++ git libboost-all-dev libevent-dev libssl-dev libtool make pkg-config
-        tar -zxvf thrift-0.13.0.tar.gz
-        cd thrift-0.13.0
-        sudo ./configure --with-boost=/usr/local
-        sudo chmod 777 -R /home/runner/work/doris-flink-connector/doris-flink-connector/thrift-0.13.0
-        sudo chmod 777 -R /usr/local
-        sudo cp /usr/lib/x86_64-linux-gnu/libboost_unit_test_framework.a /usr/local/lib/libboost_unit_test_framework.a
-        sudo make & make install
+        sudo apt-get update
+        sudo apt-get search thrift-compiler=0.13.0
+        sudo DEBIAN_FRONTEND=noninteractive apt-get install -y thrift-compiler=0.13.0
         thrift --version
-        touch custom_env.sh
-        echo 'export THRIFT_BIN=/usr/bin/thrift' >> custom_env.sh
+
+#        wget https://archive.apache.org/dist/thrift/0.13.0/thrift-0.13.0.tar.gz
+#        sudo apt-get install automake bison flex g++ git libboost-all-dev libevent-dev libssl-dev libtool make pkg-config
+#        tar -zxvf thrift-0.13.0.tar.gz
+#        cd thrift-0.13.0
+#        sudo ./configure --with-boost=/usr/local
+#        sudo chmod 777 -R /home/runner/work/doris-flink-connector/doris-flink-connector/thrift-0.13.0
+#        sudo chmod 777 -R /usr/local
+#        sudo cp /usr/lib/x86_64-linux-gnu/libboost_unit_test_framework.a /usr/local/lib/libboost_unit_test_framework.a
+#        sudo make & make install
+#        thrift --version
+#        touch custom_env.sh
+#        echo 'export THRIFT_BIN=/usr/bin/thrift' >> custom_env.sh
 
     - name: Build flink connector 1.15
       run: |
