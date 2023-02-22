@@ -22,6 +22,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.sink.HttpGetWithEntity;
@@ -75,15 +76,16 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
         this.database = tableInfo[0];
         this.table = tableInfo[1];
         this.sourceTableName = sourceTableName;
+        // Prevent loss of decimal data precision
+        this.objectMapper.enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS);
+        JsonNodeFactory jsonNodeFactory = JsonNodeFactory.withExactBigDecimals(true);
+        this.objectMapper.setNodeFactory(jsonNodeFactory);
     }
 
     @Override
     public byte[] serialize(String record) throws IOException {
         LOG.debug("received debezium json data {} :", record);
-        ObjectMapper mapper = new ObjectMapper();
-        // Prevent loss of decimal data precision
-        mapper.enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS);
-        JsonNode recordRoot = mapper.readValue(record, JsonNode.class);
+        JsonNode recordRoot = objectMapper.readValue(record, JsonNode.class);
 
         String op = extractJsonNode(recordRoot, "op");
         if (Objects.isNull(op)) {
