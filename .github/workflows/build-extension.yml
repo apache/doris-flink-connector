@@ -29,20 +29,18 @@ jobs:
       run:
         shell: bash
     steps:
+    - run: git config --global core.longpaths true
     - name: Checkout
       uses: actions/checkout@master
-
     - name: Setup java
       uses: actions/setup-java@v2
       with:
         distribution: adopt
         java-version: '8'
-
     - name: Setup Apache Thrift Compiler
       uses: dodopizza/setup-thrift@v1
       with:
         version: 0.13.0
-
     - name: touch custom_env.sh
       run: |
         touch custom_env.sh
