@@ -39,12 +39,10 @@ jobs:
         java-version: '8'
 
     - name: Setup Apache Thrift Compiler
-      uses: dodopizza/setup-thrift@v1
-      with:
-        version: 0.13.0
-
-    - name: touch custom_env.sh
       run: |
+        wget http://archive.ubuntu.com/ubuntu/pool/universe/t/thrift/thrift-compiler_0.13.0-2build2_amd64.deb
+        sudo dpkg -i thrift-compiler_0.13.0-2build2_amd64.deb
+        thrift --version
         touch custom_env.sh
         echo 'export THRIFT_BIN=/usr/bin/thrift' >> custom_env.sh
 
