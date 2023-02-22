@@ -41,7 +41,6 @@ jobs:
     - name: Setup Apache Thrift Compiler
       run: |
         sudo apt-get update
-#        sudo apt-get search thrift-compiler
         sudo DEBIAN_FRONTEND=noninteractive apt-get install -y thrift-compiler=0.13.0-2build2_arm64
         thrift --version
 
