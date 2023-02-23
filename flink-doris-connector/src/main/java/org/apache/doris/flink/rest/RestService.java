@@ -121,7 +121,7 @@ public class RestService implements Serializable {
             try {
                 String response;
                 if (request instanceof HttpGet) {
-                    response = getConnectionGet(request.getURI().toString(), options.getUsername(), options.getPassword(), logger);
+                    response = getConnectionGet(request, options.getUsername(), options.getPassword(), logger);
                 } else {
                     response = getConnectionPost(request, options.getUsername(), options.getPassword(), logger);
                 }
@@ -162,6 +162,8 @@ public class RestService implements Serializable {
         String res = IOUtils.toString(content);
         conn.setDoOutput(true);
         conn.setDoInput(true);
+        conn.setConnectTimeout(request.getConfig().getConnectTimeout());
+        conn.setReadTimeout(request.getConfig().getSocketTimeout());
         PrintWriter out = new PrintWriter(conn.getOutputStream());
         // send request params
         out.print(res);
@@ -171,14 +173,16 @@ public class RestService implements Serializable {
         return parseResponse(conn, logger);
     }
 
-    private static String getConnectionGet(String request, String user, String passwd, Logger logger) throws IOException {
-        URL realUrl = new URL(request);
+    private static String getConnectionGet(HttpRequestBase request, String user, String passwd, Logger logger) throws IOException {
+        URL realUrl = new URL(request.getURI().toString());
         // open connection
         HttpURLConnection connection = (HttpURLConnection) realUrl.openConnection();
         String authEncoding = Base64.getEncoder().encodeToString(String.format("%s:%s", user, passwd).getBytes(StandardCharsets.UTF_8));
         connection.setRequestProperty("Authorization", "Basic " + authEncoding);
 
         connection.connect();
+        connection.setConnectTimeout(request.getConfig().getConnectTimeout());
+        connection.setReadTimeout(request.getConfig().getSocketTimeout());
         return parseResponse(connection, logger);
     }
 

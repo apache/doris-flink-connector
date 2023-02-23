@@ -80,7 +80,7 @@ public class DorisDynamicTableSink implements DynamicTableSink {
     @Override
     public SinkRuntimeProvider getSinkRuntimeProvider(Context context) {
         Properties loadProperties = executionOptions.getStreamLoadProp();
-        boolean deletable = RestService.isUniqueKeyType(options, readOptions, LOG) && executionOptions.getDeletable();
+        boolean deletable = executionOptions.getDeletable() && RestService.isUniqueKeyType(options, readOptions, LOG);
         if (!loadProperties.containsKey(COLUMNS_KEY)) {
             String[] fieldNames = tableSchema.getFieldNames();
             Preconditions.checkState(fieldNames != null && fieldNames.length > 0);
