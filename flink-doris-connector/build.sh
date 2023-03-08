@@ -176,6 +176,6 @@ if [ $EXIT_CODE -eq 0 ]; then
   echo_g "*****************************************************************"
   exit 0
 else
-  echo_w "failed build Flink-Doris-Connector"
+  echo_w "Failed build Flink-Doris-Connector"
   exit $EXIT_CODE
 fi
