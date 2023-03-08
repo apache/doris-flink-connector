@@ -162,15 +162,20 @@ ${MVN_BIN} clean package \
   -Dflink.minor.version=${FLINK_MINOR_VERSION} \
   -Dthrift.binary=${THRIFT_BIN} "$@"
 
-DIST_DIR=${DORIS_HOME}/dist
-[ ! -d "$DIST_DIR" ] && mkdir "$DIST_DIR"
-dist_jar=$(ls "${ROOT}"/target | grep "flink-doris-" | grep -v "sources.jar" | grep -v "original-")
-rm -rf "${DIST_DIR}"/"${dist_jar}"
-cp "${ROOT}"/target/"${dist_jar}" "$DIST_DIR"
 
-echo_g "*****************************************************************"
-echo_g "Successfully build Flink-Doris-Connector"
-echo_g "dist: $DIST_DIR/$dist_jar "
-echo_g "*****************************************************************"
-
-exit 0
+EXIT_CODE=$?
+if [ $EXIT_CODE -eq 0 ]; then
+  DIST_DIR=${DORIS_HOME}/dist
+  [ ! -d "$DIST_DIR" ] && mkdir "$DIST_DIR"
+  dist_jar=$(ls "${ROOT}"/target | grep "flink-doris-" | grep -v "sources.jar" | grep -v "original-")
+  rm -rf "${DIST_DIR}"/"${dist_jar}"
+  cp "${ROOT}"/target/"${dist_jar}" "$DIST_DIR"
+  echo_g "*****************************************************************"
+  echo_g "Successfully build Flink-Doris-Connector"
+  echo_g "dist: $DIST_DIR/$dist_jar "
+  echo_g "*****************************************************************"
+  exit 0
+else
+  echo_w "failed build Flink-Doris-Connector"
+  exit $EXIT_CODE
+fi
