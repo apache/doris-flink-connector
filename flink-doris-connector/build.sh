@@ -23,48 +23,96 @@
 #
 ##############################################################
 
-set -eo pipefail
-
-ROOT=$(dirname "$0")
-ROOT=$(cd "$ROOT"; pwd)
-
-export DORIS_HOME=${ROOT}/../
-
-usage() {
-  echo "
-  Usage:
-    $0 --flink version # specify flink version (after flink-doris-connector v1.2 and flink-1.15, there is no need to provide scala version)
-    $0 --tag           # this is a build from tag
-  e.g.:
-    $0 --flink 1.16.0
-    $0 --tag
-  "
-  exit 1
-}
-
-# we use GNU enhanced version getopt command here for long option names, rather than the original version.
-# check the version of the getopt command before using.
-getopt -T > /dev/null && echo "
-  The GNU version of getopt command is required.
-  On Mac OS, you can use Homebrew to install gnu-getopt:
-    1. brew install gnu-getopt                  # install gnu-getopt
-    2. GETOPT_PATH=\`brew --prefix gnu-getopt\`   # get the gnu-getopt execute path
-    3. export PATH=\"\${GETOPT_PATH}/bin:\$PATH\"         # set gnu-getopt as default getopt
-" && exit 1
-
-OPTS=$(getopt \
-  -n $0 \
-  -o '' \
-  -o 'h' \
-  -l 'flink:' \
-  -l 'tag' \
-  -- "$@")
-
-if [ $# == 0 ] ; then
-    usage
+# Bugzilla 37848: When no TTY is available, don't output to console
+have_tty=0
+# shellcheck disable=SC2006
+if [[ "`tty`" != "not a tty" ]]; then
+    have_tty=1
 fi
 
-eval set -- "$OPTS"
+# Bugzilla 37848: When no TTY is available, don't output to console
+have_tty=0
+# shellcheck disable=SC2006
+if [[ "`tty`" != "not a tty" ]]; then
+    have_tty=1
+fi
+
+ # Only use colors if connected to a terminal
+if [[ ${have_tty} -eq 1 ]]; then
+  PRIMARY=$(printf '\033[38;5;082m')
+  RED=$(printf '\033[31m')
+  GREEN=$(printf '\033[32m')
+  YELLOW=$(printf '\033[33m')
+  BLUE=$(printf '\033[34m')
+  BOLD=$(printf '\033[1m')
+  RESET=$(printf '\033[0m')
+else
+  PRIMARY=""
+  RED=""
+  GREEN=""
+  YELLOW=""
+  BLUE=""
+  BOLD=""
+  RESET=""
+fi
+
+echo_r () {
+    # Color red: Error, Failed
+    [[ $# -ne 1 ]] && return 1
+    # shellcheck disable=SC2059
+    printf "[%sDoris%s] %s$1%s\n"  $BLUE $RESET $RED $RESET
+}
+
+echo_g () {
+    # Color green: Success
+    [[ $# -ne 1 ]] && return 1
+    # shellcheck disable=SC2059
+    printf "[%sDoris%s] %s$1%s\n"  $BLUE $RESET $GREEN $RESET
+}
+
+echo_y () {
+    # Color yellow: Warning
+    [[ $# -ne 1 ]] && return 1
+    # shellcheck disable=SC2059
+    printf "[%sDoris%s] %s$1%s\n"  $BLUE $RESET $YELLOW $RESET
+}
+
+echo_w () {
+    # Color yellow: White
+    [[ $# -ne 1 ]] && return 1
+    # shellcheck disable=SC2059
+    printf "[%sDoris%s] %s$1%s\n"  $BLUE $RESET $WHITE $RESET
+}
+
+# OS specific support.  $var _must_ be set to either true or false.
+cygwin=false
+os400=false
+# shellcheck disable=SC2006
+case "`uname`" in
+CYGWIN*) cygwin=true;;
+OS400*) os400=true;;
+esac
+
+# resolve links - $0 may be a softlink
+PRG="$0"
+
+while [[ -h "$PRG" ]]; do
+  # shellcheck disable=SC2006
+  ls=`ls -ld "$PRG"`
+  # shellcheck disable=SC2006
+  link=`expr "$ls" : '.*-> \(.*\)$'`
+  if expr "$link" : '/.*' > /dev/null; then
+    PRG="$link"
+  else
+    # shellcheck disable=SC2006
+    PRG=`dirname "$PRG"`/"$link"
+  fi
+done
+
+# Get standard environment variables
+# shellcheck disable=SC2006
+ROOT=$(cd "$(dirname "$PRG")" &>/dev/null && pwd)
+export DORIS_HOME=$(cd "$ROOT/../" &>/dev/null && pwd)
 
 . "${DORIS_HOME}"/env.sh
 
@@ -73,35 +121,52 @@ if [[ -f ${DORIS_HOME}/custom_env.sh ]]; then
     . "${DORIS_HOME}"/custom_env.sh
 fi
 
-BUILD_FROM_TAG=0
-FLINK_VERSION=0
-while true; do
-    case "$1" in
-        --flink) FLINK_VERSION=$2 ; shift 2 ;;
-        --tag) BUILD_FROM_TAG=1 ; shift ;;
-        --) shift ;  break ;;
-        *) echo "Internal error" ; exit 1 ;;
+selectFlink() {
+  echo 'Flink-Doris-Connector supports multiple versions of flink. Which version do you need ?'
+  select flink in "1.15.x" "1.16.x"
+  do
+    case $flink in
+      "1.15.x")
+        return 1
+        ;;
+      "1.16.x")
+        return 2
+        ;;
     esac
-done
+  done
+}
+
+FLINK_VERSION=0
+selectFlink
+flinkVer=$?
+if [ ${flinkVer} -eq 1 ]; then
+    FLINK_VERSION="1.15.0"
+elif [ ${flinkVer} -eq 2 ]; then
+    FLINK_VERSION="1.16.0"
+fi
 
 # extract minor version:
-# eg: 1.14.3 -> 1.14
+# eg: 3.1.2 -> 3
 FLINK_MINOR_VERSION=0
-if [ ${FLINK_VERSION} != 0 ]; then
-    FLINK_MINOR_VERSION=${FLINK_VERSION%.*}
-    echo "FLINK_MINOR_VERSION: ${FLINK_MINOR_VERSION}"
-fi
+[ ${FLINK_VERSION} != 0 ] && FLINK_MINOR_VERSION=${FLINK_VERSION%.*}
 
-if [[ ${BUILD_FROM_TAG} -eq 1 ]]; then
-    rm -rf output/
-    ${MVN_BIN} clean package
-else
-    rm -rf output/
-    ${MVN_BIN} clean package -Dflink.version=${FLINK_VERSION} -Dflink.minor.version=${FLINK_MINOR_VERSION}
-fi
+echo_g " flink version: ${FLINK_VERSION}, minor version: ${FLINK_MINOR_VERSION}"
+echo_g " build starting..."
 
-echo "*****************************************"
-echo "Successfully build Flink-Doris-Connector"
-echo "*****************************************"
+${MVN_BIN} clean package \
+  -Dflink.version=${FLINK_VERSION} \
+  -Dflink.minor.version=${FLINK_MINOR_VERSION} \
+  -Dthrift.binary=${THRIFT_BIN} "$@"
+
+DIST_DIR=${DORIS_HOME}/dist
+[ ! -d "$DIST_DIR" ] && mkdir "$DIST_DIR"
+dist_jar=$(ls "${ROOT}"/target | grep "flink-doris-" | grep -v "sources.jar" | grep -v "original-")
+rm -rf "${DIST_DIR}"/"${dist_jar}"
+cp "${ROOT}"/target/"${dist_jar}" "$DIST_DIR"
+
+echo_g "*****************************************************************"
+echo_g "Successfully build Flink-Doris-Connector"
+echo_g "dist: $DIST_DIR/$dist_jar "
+echo_g "*****************************************************************"
 
 exit 0

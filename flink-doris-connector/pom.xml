@@ -62,8 +62,8 @@ under the License.
         </mailingList>
     </mailingLists>
     <properties>
-        <flink.version>${env.flink.version}</flink.version>
-        <flink.minor.version>${env.flink.minor.version}</flink.minor.version>
+        <flink.version>1.15.0</flink.version>
+        <flink.minor.version>1.15</flink.minor.version>
         <libthrift.version>0.13.0</libthrift.version>
         <arrow.version>5.0.0</arrow.version>
         <maven-compiler-plugin.version>3.8.1</maven-compiler-plugin.version>
@@ -71,7 +71,6 @@ under the License.
         <maven-source-plugin.version>3.2.1</maven-source-plugin.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <log4j2.version>2.18.0</log4j2.version>
-        <thrift.binary>${env.THRIFT_BIN}</thrift.binary>
         <project.scm.id>github</project.scm.id>
     </properties>
     <profiles>
@@ -106,15 +105,6 @@ under the License.
                     <url>${env.CUSTOM_MAVEN_REPO}</url>
                 </pluginRepository>
             </pluginRepositories>
-        </profile>
-        <profile>
-            <id>flink.version</id>
-            <properties>
-                <env.flink.version>1.15.0</env.flink.version>
-            </properties>
-            <activation>
-                <activeByDefault>true</activeByDefault>
-            </activation>
         </profile>
         <!-- for general repository -->
         <profile>
