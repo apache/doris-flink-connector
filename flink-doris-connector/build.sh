@@ -132,6 +132,10 @@ selectFlink() {
       "1.16.x")
         return 2
         ;;
+      *)
+        echo "invalid selected, exit.."
+        exit 1
+        ;;
     esac
   done
 }
