@@ -100,3 +100,4 @@ fi
 [ -z "$MVN_BIN" ] && export MVN_BIN=$(which mvn)
 ${MVN_BIN} --version >/dev/null 2>&1
 [ $? -ne 0 ] && export MVN_BIN=${DORIS_HOME}/mvnw
+
