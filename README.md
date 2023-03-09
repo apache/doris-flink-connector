@@ -34,17 +34,16 @@ More information about compilation and usage, please visit [Flink Doris Connecto
 
 [Apache License, Version 2.0](https://www.apache.org/licenses/LICENSE-2.0)
 
-## Building
+## How to Build
+
 You need to copy customer_env.sh.tpl to customer_env.sh before build and you need to configure it before build.
 ```shell
-sh build.sh --flink 1.15.2 --scala 2.12
+git clone git@github.com:apache/doris-flink-connector.git
+cd doris-flink-connector/flink-doris-connector
+./build.sh
 ```
 
-If you are using mac, you must install gnu-getopt before executing the build.sh.
-```shell
-brew install gnu-getopt
-brew link --force gnu-getopt
-```
+![how-to-build](https://user-images.githubusercontent.com/13284744/223990851-9d82b599-ef36-4fd1-82c8-17bdd2de22e6.gif)
 
 
 ## Report issues or submit pull request
