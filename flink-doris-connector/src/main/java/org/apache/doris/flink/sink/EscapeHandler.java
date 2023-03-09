@@ -33,7 +33,7 @@ public class EscapeHandler {
     public static final String ESCAPE_DELIMITERS_FLAGS = "\\x";
     public static final Pattern ESCAPE_PATTERN = Pattern.compile("\\\\x([0-9|a-f|A-F]{2})");
 
-    public String escapeString(String source) {
+    public static String escapeString(String source) {
         if (source.contains(ESCAPE_DELIMITERS_FLAGS)) {
             Matcher m = ESCAPE_PATTERN.matcher(source);
             StringBuffer buf = new StringBuffer();
@@ -46,7 +46,7 @@ public class EscapeHandler {
         return source;
     }
 
-    public void handle(Properties properties) {
+    public static void handle(Properties properties) {
         String fieldDelimiter = properties.getProperty(FIELD_DELIMITER_KEY,
                 FIELD_DELIMITER_DEFAULT);
         if (fieldDelimiter.contains(ESCAPE_DELIMITERS_FLAGS)) {
@@ -60,7 +60,6 @@ public class EscapeHandler {
     }
 
     public static void handleEscape(Properties properties) {
-        EscapeHandler handler = new EscapeHandler();
-        handler.handle(properties);
+        handle(properties);
     }
 }
