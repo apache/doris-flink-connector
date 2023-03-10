@@ -108,13 +108,13 @@ public class DorisCommitter implements Committer<DorisCommittable> {
                             LOG.info("load result {}", loadResult);
                         }
                     }
-                    break;
+                    return;
                 }
                 String reasonPhrase = statusLine.getReasonPhrase();
+                LOG.warn("commit failed with {}, reason {}", hostPort, reasonPhrase);
                 if (retry == maxRetry) {
                     throw new DorisRuntimeException("stream load error: " + reasonPhrase);
                 }
-                LOG.warn("commit failed with {}, reason {}", hostPort, reasonPhrase);
                 hostPort = RestService.getBackend(dorisOptions, dorisReadOptions, LOG);
             } catch (IOException e) {
                 LOG.error("commit transaction failed: ", e);
