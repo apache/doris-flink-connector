@@ -70,7 +70,7 @@ public class DorisCommitter implements Committer<DorisCommittable> {
     }
 
     @Override
-    public List<DorisCommittable> commit(List<DorisCommittable> committableList) throws IOException, InterruptedException {
+    public List<DorisCommittable> commit(List<DorisCommittable> committableList) throws IOException {
         for (DorisCommittable committable : committableList) {
             commitTransaction(committable);
         }
@@ -118,6 +118,9 @@ public class DorisCommitter implements Committer<DorisCommittable> {
                 hostPort = RestService.getBackend(dorisOptions, dorisReadOptions, LOG);
             } catch (IOException e) {
                 LOG.error("commit transaction failed: ", e);
+                if (retry == maxRetry) {
+                    throw new IOException("commit transaction failed: {}", e);
+                }
                 hostPort = RestService.getBackend(dorisOptions, dorisReadOptions, LOG);
             }
         }
