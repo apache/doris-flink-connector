@@ -29,6 +29,7 @@ import org.apache.doris.flink.sink.DorisCommittable;
 import org.apache.doris.flink.sink.HttpPutBuilder;
 import org.apache.doris.flink.sink.HttpUtil;
 import org.apache.doris.flink.sink.ResponseUtil;
+import org.apache.http.StatusLine;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPut;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -53,6 +54,8 @@ public class DorisCommitter implements Committer<DorisCommittable> {
     private final CloseableHttpClient httpClient;
     private final DorisOptions dorisOptions;
     private final DorisReadOptions dorisReadOptions;
+    private final ObjectMapper jsonMapper = new ObjectMapper();
+
     int maxRetry;
 
     public DorisCommitter(DorisOptions dorisOptions, DorisReadOptions dorisReadOptions, int maxRetry) {
@@ -93,11 +96,11 @@ public class DorisCommitter implements Committer<DorisCommittable> {
 
             // http execute...
             try (CloseableHttpResponse response = httpClient.execute(httpPut)) {
-                if (200 == response.getStatusLine().getStatusCode()) {
-                    ObjectMapper mapper = new ObjectMapper();
+                StatusLine statusLine = response.getStatusLine();
+                if (200 == statusLine.getStatusCode()) {
                     if (response.getEntity() != null) {
                         String loadResult = EntityUtils.toString(response.getEntity());
-                        Map<String, String> res = mapper.readValue(loadResult, new TypeReference<HashMap<String, String>>() {
+                        Map<String, String> res = jsonMapper.readValue(loadResult, new TypeReference<HashMap<String, String>>() {
                         });
                         if (res.get("status").equals(FAIL) && !ResponseUtil.isCommitted(res.get("msg"))) {
                             throw new DorisRuntimeException("Commit failed " + loadResult);
@@ -106,20 +109,18 @@ public class DorisCommitter implements Committer<DorisCommittable> {
                         }
                     }
                     break;
-                } else {
-                    String reasonPhrase = response.getStatusLine().getReasonPhrase();
-                    if (retry == maxRetry) {
-                        throw new DorisRuntimeException("stream load error: " + reasonPhrase);
-                    }
-                    LOG.warn("commit failed with {}, reason {}", hostPort, reasonPhrase);
-                    hostPort = RestService.getBackend(dorisOptions, dorisReadOptions, LOG);
                 }
+                String reasonPhrase = statusLine.getReasonPhrase();
+                if (retry == maxRetry) {
+                    throw new DorisRuntimeException("stream load error: " + reasonPhrase);
+                }
+                LOG.warn("commit failed with {}, reason {}", hostPort, reasonPhrase);
+                hostPort = RestService.getBackend(dorisOptions, dorisReadOptions, LOG);
             } catch (IOException e) {
                 LOG.error("commit transaction failed: ", e);
                 hostPort = RestService.getBackend(dorisOptions, dorisReadOptions, LOG);
             }
         }
-
     }
 
     @Override
