@@ -30,6 +30,7 @@ import org.apache.doris.flink.sink.HttpPutBuilder;
 import org.apache.doris.flink.sink.HttpUtil;
 import org.apache.doris.flink.sink.ResponseUtil;
 import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpPut;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
@@ -74,51 +75,51 @@ public class DorisCommitter implements Committer<DorisCommittable> {
     }
 
     private void commitTransaction(DorisCommittable committable) throws IOException {
-        int statusCode = -1;
-        String reasonPhrase = null;
-        int retry = 0;
+        //basic params
+        HttpPutBuilder builder = new HttpPutBuilder()
+                .addCommonHeader()
+                .baseAuth(dorisOptions.getUsername(), dorisOptions.getPassword())
+                .addTxnId(committable.getTxnID())
+                .commit();
+
+        //hostPort
         String hostPort = committable.getHostPort();
-        CloseableHttpResponse response = null;
+
+        int retry = 0;
         while (retry++ <= maxRetry) {
-            HttpPutBuilder putBuilder = new HttpPutBuilder();
-            putBuilder.setUrl(String.format(commitPattern, hostPort, committable.getDb()))
-                    .baseAuth(dorisOptions.getUsername(), dorisOptions.getPassword())
-                    .addCommonHeader()
-                    .addTxnId(committable.getTxnID())
-                    .setEmptyEntity()
-                    .commit();
-            try {
-                response = httpClient.execute(putBuilder.build());
+            //get latest-url
+            String url = String.format(commitPattern, hostPort, committable.getDb());
+            HttpPut httpPut = builder.setUrl(url).setEmptyEntity().build();
+
+            // http execute...
+            try (CloseableHttpResponse response = httpClient.execute(httpPut)) {
+                if (200 == response.getStatusLine().getStatusCode()) {
+                    ObjectMapper mapper = new ObjectMapper();
+                    if (response.getEntity() != null) {
+                        String loadResult = EntityUtils.toString(response.getEntity());
+                        Map<String, String> res = mapper.readValue(loadResult, new TypeReference<HashMap<String, String>>() {
+                        });
+                        if (res.get("status").equals(FAIL) && !ResponseUtil.isCommitted(res.get("msg"))) {
+                            throw new DorisRuntimeException("Commit failed " + loadResult);
+                        } else {
+                            LOG.info("load result {}", loadResult);
+                        }
+                    }
+                    break;
+                } else {
+                    String reasonPhrase = response.getStatusLine().getReasonPhrase();
+                    if (retry == maxRetry) {
+                        throw new DorisRuntimeException("stream load error: " + reasonPhrase);
+                    }
+                    LOG.warn("commit failed with {}, reason {}", hostPort, reasonPhrase);
+                    hostPort = RestService.getBackend(dorisOptions, dorisReadOptions, LOG);
+                }
             } catch (IOException e) {
                 LOG.error("commit transaction failed: ", e);
                 hostPort = RestService.getBackend(dorisOptions, dorisReadOptions, LOG);
-                continue;
-            }
-            statusCode = response.getStatusLine().getStatusCode();
-            reasonPhrase = response.getStatusLine().getReasonPhrase();
-            if (statusCode != 200) {
-                LOG.warn("commit failed with {}, reason {}", hostPort, reasonPhrase);
-                hostPort = RestService.getBackend(dorisOptions, dorisReadOptions, LOG);
-            } else {
-                break;
             }
         }
 
-        if (statusCode != 200) {
-            throw new DorisRuntimeException("stream load error: " + reasonPhrase);
-        }
-
-        ObjectMapper mapper = new ObjectMapper();
-        if (response.getEntity() != null) {
-            String loadResult = EntityUtils.toString(response.getEntity());
-            Map<String, String> res = mapper.readValue(loadResult, new TypeReference<HashMap<String, String>>() {
-            });
-            if (res.get("status").equals(FAIL) && !ResponseUtil.isCommitted(res.get("msg"))) {
-                throw new DorisRuntimeException("Commit failed " + loadResult);
-            } else {
-                LOG.info("load result {}", loadResult);
-            }
-        }
     }
 
     @Override
