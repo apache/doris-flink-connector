@@ -30,6 +30,7 @@ import org.apache.arrow.vector.TinyIntVector;
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
+import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.ipc.ArrowStreamReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.doris.flink.exception.DorisException;
@@ -310,6 +311,16 @@ public class RowBatch {
                                 continue;
                             }
                             String value = new String(varCharVector.get(rowIndex));
+                            addValueToRow(rowIndex, value);
+                        }
+                        break;
+                    case "ARRAY":
+                        Preconditions.checkArgument(mt.equals(Types.MinorType.LIST),
+                                typeMismatchMessage(currentType, mt));
+                        ListVector listVector = (ListVector) curFieldVector;
+                        for (int rowIndex = 0; rowIndex < rowCountInOneBatch; rowIndex++) {
+                            Object value = listVector.isNull(rowIndex) ? null : listVector.getObject(rowIndex);
+                            //todo: when the subtype of array is date, conversion is required
                             addValueToRow(rowIndex, value);
                         }
                         break;
