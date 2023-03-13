@@ -19,6 +19,7 @@ package org.apache.doris.flink.sink.writer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.doris.flink.deserialization.converter.DorisRowConverter;
+import org.apache.doris.flink.sink.EscapeHandler;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.RowKind;
@@ -141,7 +142,7 @@ public class RowDataSerializer implements DorisRecordSerializer<RowData> {
         }
 
         public Builder setFieldDelimiter(String fieldDelimiter) {
-            this.fieldDelimiter = fieldDelimiter;
+            this.fieldDelimiter = EscapeHandler.escapeString(fieldDelimiter);
             return this;
         }
 

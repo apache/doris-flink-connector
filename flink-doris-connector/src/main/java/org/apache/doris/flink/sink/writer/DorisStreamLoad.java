@@ -25,6 +25,7 @@ import org.apache.doris.flink.exception.DorisException;
 import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.apache.doris.flink.exception.StreamLoadException;
 import org.apache.doris.flink.rest.models.RespContent;
+import org.apache.doris.flink.sink.EscapeHandler;
 import org.apache.doris.flink.sink.HttpPutBuilder;
 import org.apache.doris.flink.sink.ResponseUtil;
 import org.apache.flink.annotation.VisibleForTesting;
@@ -105,7 +106,7 @@ public class DorisStreamLoad implements Serializable {
                 0L, TimeUnit.MILLISECONDS,
                 new LinkedBlockingQueue<>(), new ExecutorThreadFactory("stream-load-upload"));
         this.recordStream = new RecordStream(executionOptions.getBufferSize(), executionOptions.getBufferCount());
-        lineDelimiter = streamLoadProp.getProperty(LINE_DELIMITER_KEY, LINE_DELIMITER_DEFAULT).getBytes();
+        lineDelimiter = EscapeHandler.escapeString(streamLoadProp.getProperty(LINE_DELIMITER_KEY, LINE_DELIMITER_DEFAULT)).getBytes();
         loadBatchFirstRecord = true;
     }
 

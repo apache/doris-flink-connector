@@ -87,8 +87,8 @@ public class DorisRowDataAsyncLookupFunction extends AsyncTableFunction<RowData>
             List<RowData> cachedRows = cache.getIfPresent(keyRow);
             if (cachedRows != null) {
                 future.complete(cachedRows);
+                return;
             }
-            return;
         }
         CompletableFuture<List<RowData>> resultFuture = lookupReader.asyncGet(keyRow);
         resultFuture.handleAsync(
