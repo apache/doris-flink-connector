@@ -55,7 +55,7 @@ public class RowDataSerializer implements DorisRecordSerializer<RowData> {
         if (JSON.equals(type)) {
             objectMapper = new ObjectMapper();
         }
-        this.rowConverter = new DorisRowConverter(dataTypes);
+        this.rowConverter = new DorisRowConverter().setExternalConverter(dataTypes);
     }
 
     @Override

@@ -16,34 +16,53 @@
 // under the License.
 package org.apache.doris.flink.deserialization.converter;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.doris.flink.serialization.RowBatch;
+import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.DecimalData;
+import org.apache.flink.table.data.GenericArrayData;
+import org.apache.flink.table.data.GenericMapData;
 import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
+import org.apache.flink.table.data.binary.BinaryArrayData;
+import org.apache.flink.table.data.binary.BinaryMapData;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.ZonedTimestampType;
+import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 public class DorisRowConverter implements Serializable {
 
     private static final long serialVersionUID = 1L;
-    private final DeserializationConverter[] deserializationConverters;
-    private final SerializationConverter[] serializationConverters;
+    private DeserializationConverter[] deserializationConverters;
+    private SerializationConverter[] serializationConverters;
+    private static final ObjectMapper objectMapper = new ObjectMapper();
+
+    public DorisRowConverter(){}
 
     public DorisRowConverter(RowType rowType) {
         checkNotNull(rowType);
@@ -64,6 +83,16 @@ public class DorisRowConverter implements Serializable {
             deserializationConverters[i] = createNullableInternalConverter(logicalType);
             serializationConverters[i] = createNullableExternalConverter(logicalType);
         }
+    }
+
+    public DorisRowConverter setExternalConverter(DataType[] dataTypes) {
+        checkNotNull(dataTypes);
+        this.serializationConverters = new SerializationConverter[dataTypes.length];
+        for (int i = 0; i < dataTypes.length; i++) {
+            LogicalType logicalType = dataTypes[i].getLogicalType();
+            serializationConverters[i] = createNullableExternalConverter(logicalType);
+        }
+        return this;
     }
 
     /**
@@ -180,11 +209,12 @@ public class DorisRowConverter implements Serializable {
                 };
             case CHAR:
             case VARCHAR:
-                return val -> StringData.fromString((String) val);
+                return val -> StringData.fromString(val.toString());
             case TIME_WITHOUT_TIME_ZONE:
             case BINARY:
             case VARBINARY:
             case ARRAY:
+                return val -> convertArrayData(((List<?>) val).toArray(), type);
             case ROW:
             case MAP:
             case MULTISET:
@@ -234,11 +264,14 @@ public class DorisRowConverter implements Serializable {
                 return (index, val) -> val.getTimestamp(index, localP).toTimestamp();
             case TIMESTAMP_WITH_TIME_ZONE:
                 final int zonedP = ((ZonedTimestampType) type).getPrecision();
-            return (index, val) -> val.getTimestamp(index, zonedP).toTimestamp();
+                return (index, val) -> val.getTimestamp(index, zonedP).toTimestamp();
             case ARRAY:
-            case MULTISET:
+                return (index, val) -> convertArrayData(val.getArray(index), type);
             case MAP:
+                return (index, val) -> writeValueAsString(convertMapData(val.getMap(index), type));
             case ROW:
+                return (index, val) -> writeValueAsString(convertRowData(val, index, type));
+            case MULTISET:
             case STRUCTURED_TYPE:
             case DISTINCT_TYPE:
             case RAW:
@@ -246,6 +279,91 @@ public class DorisRowConverter implements Serializable {
             case UNRESOLVED:
             default:
                 throw new UnsupportedOperationException("Unsupported type:" + type);
+        }
+    }
+
+    private ArrayData convertArrayData(Object[] array, LogicalType type) {
+        List<LogicalType> children = type.getChildren();
+        Preconditions.checkState(children.size() > 0, "Failed to obtain the item type of array");
+        DeserializationConverter converter = createNullableInternalConverter(children.get(0));
+        for (int i = 0; i < array.length; i++) {
+            Object result = converter.deserialize(array[i]);
+            array[i] = result;
+        }
+        GenericArrayData arrayData = new GenericArrayData(array);
+        return arrayData;
+    }
+
+    private List<Object> convertArrayData(ArrayData array, LogicalType type){
+        if(array instanceof GenericArrayData){
+            return Arrays.asList(((GenericArrayData)array).toObjectArray());
+        }
+        if(array instanceof BinaryArrayData){
+            LogicalType elementType = ((ArrayType)type).getElementType();
+            List<Object> values = Arrays.asList(((BinaryArrayData) array).toObjectArray(elementType));
+            if(LogicalTypeRoot.DATE.equals(elementType.getTypeRoot())) {
+                return values.stream().map(date -> Date.valueOf(LocalDate.ofEpochDay((Integer)date))).collect(Collectors.toList());
+            }
+            if (LogicalTypeRoot.ARRAY.equals(elementType.getTypeRoot())) {
+                return values.stream().map(arr -> convertArrayData((ArrayData)arr, elementType)).collect(Collectors.toList());
+            }
+            return values;
+        }
+        throw new UnsupportedOperationException("Unsupported array data: " + array.getClass());
+    }
+
+    private Object convertMapData(MapData map, LogicalType type) {
+        Map<Object, Object> result = new HashMap<>();
+        if (map instanceof GenericMapData) {
+            GenericMapData gMap = (GenericMapData)map;
+            for (Object key : ((GenericArrayData)gMap.keyArray()).toObjectArray()) {
+                result.put(key, gMap.get(key));
+            }
+            return result;
+        }
+        if (map instanceof BinaryMapData) {
+            BinaryMapData bMap = (BinaryMapData)map;
+            LogicalType valueType = ((MapType)type).getValueType();
+            Map<?, ?> javaMap = bMap.toJavaMap(((MapType) type).getKeyType(), valueType);
+            for (Map.Entry<?,?> entry : javaMap.entrySet()) {
+                String key = entry.getKey().toString();
+                if (LogicalTypeRoot.MAP.equals(valueType.getTypeRoot())) {
+                    result.put(key, convertMapData((MapData)entry.getValue(), valueType));
+                }else if (LogicalTypeRoot.DATE.equals(valueType.getTypeRoot())) {
+                    result.put(key, Date.valueOf(LocalDate.ofEpochDay((Integer)entry.getValue())).toString());
+                }else if (LogicalTypeRoot.ARRAY.equals(valueType.getTypeRoot())) {
+                    result.put(key, convertArrayData((ArrayData)entry.getValue(), valueType));
+                }else if(entry.getValue() instanceof TimestampData){
+                    result.put(key, ((TimestampData)entry.getValue()).toTimestamp().toString());
+                }else{
+                    result.put(key, entry.getValue().toString());
+                }
+            }
+            return result;
+        }
+        throw new UnsupportedOperationException("Unsupported map data: " + map.getClass());
+    }
+
+    private Object convertRowData(RowData val, int index, LogicalType type) {
+        RowType rowType = (RowType)type;
+        Map<String, Object> value = new HashMap<>();
+        RowData row = val.getRow(index, rowType.getFieldCount());
+
+        List<RowType.RowField> fields = rowType.getFields();
+        for(int i = 0;i< fields.size(); i++){
+            RowType.RowField rowField = fields.get(i);
+            SerializationConverter converter = createNullableExternalConverter(rowField.getType());
+            Object valTmp = converter.serialize(i, row);
+            value.put(rowField.getName(), valTmp.toString());
+        }
+        return value;
+    }
+
+    private String writeValueAsString(Object object){
+        try {
+            return objectMapper.writeValueAsString(object);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
         }
     }
 }
