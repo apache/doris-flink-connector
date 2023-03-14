@@ -122,12 +122,6 @@ public class DorisSourceSinkExample {
                         "  c_12 date,\n" +
                         "  c_13 timestamp,\n" +
                         "  c_14 timestamp,\n" +
-                        "  c_141 timestamp(1),\n" +
-                        "  c_142 timestamp(2),\n" +
-                        "  c_143 timestamp(3),\n" +
-                        "  c_144 timestamp(4),\n" +
-                        "  c_145 timestamp(5),\n" +
-                        "  c_146 timestamp(6),\n" +
                         "  c_15 string,\n" +
                         "  c_16 string,\n" +
                         "  c_17 string,\n" +
