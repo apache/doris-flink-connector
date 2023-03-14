@@ -69,27 +69,23 @@ public class BackendClient {
     private void open() {
         logger.debug("Open client to Doris BE '{}'.", routing);
         TException ex = null;
-        for (int attempt = 0; !isConnected && attempt < retries; ++attempt) {
+        for (int attempt = 0; attempt < retries; ++attempt) {
             logger.debug("Attempt {} to connect {}.", attempt, routing);
             TBinaryProtocol.Factory factory = new TBinaryProtocol.Factory();
             transport = new TSocket(routing.getHost(), routing.getPort(), socketTimeout, connectTimeout);
             TProtocol protocol = factory.getProtocol(transport);
             client = new TDorisExternalService.Client(protocol);
-            if (isConnected) {
-                logger.info("Success connect to {}.", routing);
-                return;
-            }
             try {
                 logger.trace("Connect status before open transport to {} is '{}'.", routing, isConnected);
                 if (!transport.isOpen()) {
                     transport.open();
                     isConnected = true;
+                    break;
                 }
             } catch (TTransportException e) {
                 logger.warn(ErrorMessages.CONNECT_FAILED_MESSAGE, routing, e);
                 ex = e;
             }
-
         }
         if (!isConnected) {
             logger.error(ErrorMessages.CONNECT_FAILED_MESSAGE, routing);
