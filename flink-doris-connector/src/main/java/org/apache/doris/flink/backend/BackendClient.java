@@ -80,6 +80,7 @@ public class BackendClient {
                 if (!transport.isOpen()) {
                     transport.open();
                     isConnected = true;
+                    logger.info("Success connect to {}.", routing);
                     break;
                 }
             } catch (TTransportException e) {
