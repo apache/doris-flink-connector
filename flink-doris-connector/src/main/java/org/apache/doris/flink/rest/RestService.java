@@ -45,10 +45,8 @@ import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.entity.StringEntity;
 import org.slf4j.Logger;
 
-import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.io.Serializable;
 import java.net.HttpURLConnection;
@@ -62,6 +60,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Scanner;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -192,16 +191,13 @@ public class RestService implements Serializable {
                     connection.getURL(), connection.getResponseCode());
             throw new IOException("Failed to get response from Doris");
         }
-        String result = "";
-        BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream(), "utf-8"));
-        String line;
-        while ((line = in.readLine()) != null) {
-            result += line;
+        StringBuffer result = new StringBuffer();
+        try (Scanner scanner = new Scanner(connection.getInputStream(), "utf-8")) {
+            while (scanner.hasNext()) {
+                result.append(scanner.next());
+            }
+            return result.toString();
         }
-        if (in != null) {
-            in.close();
-        }
-        return result;
     }
 
     /**
