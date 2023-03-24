@@ -53,13 +53,15 @@ public class LookupJoinCdcExample {
                 "CREATE TABLE doris_tb (" +
                         "id INT," +
                         "age INT," +
+                        "dt DATE," +
+                        "dtime TIMESTAMP," +
                         "primary key(id) NOT ENFORCED" +
                         ") " +
                         "WITH (\n" +
                         "  'connector' = 'doris',\n" +
                         "  'fenodes' = '127.0.0.1:8030',\n" +
                         "  'jdbc-url' = 'jdbc:mysql://127.0.0.1:9030',\n" +
-                        "  'table.identifier' = 'test.dim_table',\n" +
+                        "  'table.identifier' = 'test.dim_table_dt',\n" +
                         "  'lookup.cache.max-rows' = '1000'," +
                         "  'lookup.cache.ttl' = '1 hour'," +
                         "  'lookup.jdbc.async' = 'true',\n" +
@@ -67,7 +69,7 @@ public class LookupJoinCdcExample {
                         "  'password' = ''\n" +
                         ")");
 
-        Table table = tEnv.sqlQuery("SELECT a.id, a.name, b.age\n" +
+        Table table = tEnv.sqlQuery("SELECT a.id, a.name, b.age, b.dt, b.dtime\n" +
                 "FROM mysql_tb a\n" +
                 "  left join doris_tb FOR SYSTEM_TIME AS OF a.process_time AS b\n" +
                 "  ON a.id = b.id");
