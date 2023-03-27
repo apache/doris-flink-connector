@@ -84,13 +84,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 public class DorisCatalog extends AbstractCatalog {
 
     private static final Logger LOG = LoggerFactory.getLogger(DorisCatalog.class);
-
-    private static final Set<String> builtinDatabases =
-            new HashSet<String>() {
-                {
-                    add("information_schema");
-                }
-            };
+    private static final Set<String> builtinDatabases = Collections.singleton("information_schema");
 
     private final String username;
     private final String password;
@@ -112,7 +106,6 @@ public class DorisCatalog extends AbstractCatalog {
                 !StringUtils.isNullOrWhitespaceOnly(username), "username cannot be null or empty");
 
         this.jdbcUrl = jdbcUrl.endsWith("/") ? jdbcUrl : jdbcUrl + "/";
-        ;
         this.username = username;
         this.password = password;
         this.properties = Collections.unmodifiableMap(properties);
