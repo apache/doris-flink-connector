@@ -88,6 +88,7 @@ public class DorisCommitter implements Committer<DorisCommittable> {
         //hostPort
         String hostPort = committable.getHostPort();
 
+        LOG.info("commit txn {} to host {}", committable.getTxnID(), hostPort);
         int retry = 0;
         while (retry++ <= maxRetry) {
             //get latest-url

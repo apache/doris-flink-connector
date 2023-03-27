@@ -210,9 +210,9 @@ public class DorisStreamLoad implements Serializable {
         throw new StreamLoadException("stream load error: " + response.getStatusLine().toString());
     }
 
-    public RespContent stopLoad() throws IOException{
+    public RespContent stopLoad(String label) throws IOException{
         recordStream.endInput();
-        LOG.info("stream load stopped.");
+        LOG.info("stream load stopped for {} on host {}", label, hostPort);
         Preconditions.checkState(pendingLoadFuture != null);
         try {
            return handlePreCommitResponse(pendingLoadFuture.get());
