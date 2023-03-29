@@ -147,19 +147,12 @@ elif [ ${flinkVer} -eq 3 ]; then
     FLINK_VERSION="1.17.0"
 fi
 
-# extract minor version:
-# eg: 3.1.2 -> 3
-FLINK_MINOR_VERSION=0
-[ ${FLINK_VERSION} != 0 ] && FLINK_MINOR_VERSION=${FLINK_VERSION%.*}
-
-echo_g " flink version: ${FLINK_VERSION}, minor version: ${FLINK_MINOR_VERSION}"
+echo_g " flink version: ${FLINK_VERSION}"
 echo_g " build starting..."
 
 ${MVN_BIN} clean package \
   -Dflink.version=${FLINK_VERSION} \
-  -Dflink.minor.version=${FLINK_MINOR_VERSION} \
   -Dthrift.binary=${THRIFT_BIN} "$@"
-
 
 EXIT_CODE=$?
 if [ $EXIT_CODE -eq 0 ]; then
