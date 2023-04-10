@@ -202,7 +202,11 @@ public class DorisRowConverter implements Serializable {
             case DATE:
                 return val -> {
                     if (val instanceof LocalDate) {
+                        //doris source
                         return (int) ((LocalDate) val).toEpochDay();
+                    } else if (val instanceof Date) {
+                        //doris lookup
+                        return (int) ((Date) val).toLocalDate().toEpochDay();
                     } else {
                         throw new UnsupportedOperationException("timestamp type must be java.time.LocalDate, the actual type is: " + val.getClass());
                     }
