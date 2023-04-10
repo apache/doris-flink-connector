@@ -24,6 +24,7 @@ import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.core.memory.DataOutputView;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
@@ -76,7 +77,10 @@ public class DorisSourceSplitSerializer
         out.writeUTF(partDef.getTable());
         out.writeUTF(partDef.getBeAddress());
         writeLongArray(out, partDef.getTabletIds().toArray(new Long[]{}));
-        out.writeUTF(partDef.getQueryPlan());
+        //writeUTF has a length limit, but the query plan is sometimes very long
+        final byte[] queryPlanBytes = partDef.getQueryPlan().getBytes(StandardCharsets.UTF_8);
+        out.writeInt(queryPlanBytes.length);
+        out.write(queryPlanBytes);
 
         final byte[] result = out.getCopyOfBuffer();
         out.clear();
@@ -103,7 +107,12 @@ public class DorisSourceSplitSerializer
         final String beAddress = in.readUTF();
         Long[] vals = readLongArray(in);
         final Set<Long> tabletIds = new HashSet<>(Arrays.asList(vals));
-        final String queryPlan = in.readUTF();
+
+        //read query plan
+        final int len = in.readInt();
+        final byte[] bytes = new byte[len];
+        in.read(bytes);
+        final String queryPlan = new String(bytes, StandardCharsets.UTF_8);
         PartitionDefinition partDef = new PartitionDefinition(database, table, beAddress, tabletIds, queryPlan);
         return new DorisSourceSplit(partDef);
     }
