@@ -116,7 +116,7 @@ fi
 
 selectFlink() {
   echo 'Flink-Doris-Connector supports multiple versions of flink. Which version do you need ?'
-  select flink in "1.15.x" "1.16.x"
+  select flink in "1.15.x" "1.16.x" "1.17.x"
   do
     case $flink in
       "1.15.x")
@@ -124,6 +124,9 @@ selectFlink() {
         ;;
       "1.16.x")
         return 2
+        ;;
+      "1.17.x")
+        return 3
         ;;
       *)
         echo "invalid selected, exit.."
@@ -140,21 +143,16 @@ if [ ${flinkVer} -eq 1 ]; then
     FLINK_VERSION="1.15.0"
 elif [ ${flinkVer} -eq 2 ]; then
     FLINK_VERSION="1.16.0"
+elif [ ${flinkVer} -eq 3 ]; then
+    FLINK_VERSION="1.17.0"
 fi
 
-# extract minor version:
-# eg: 3.1.2 -> 3
-FLINK_MINOR_VERSION=0
-[ ${FLINK_VERSION} != 0 ] && FLINK_MINOR_VERSION=${FLINK_VERSION%.*}
-
-echo_g " flink version: ${FLINK_VERSION}, minor version: ${FLINK_MINOR_VERSION}"
+echo_g " flink version: ${FLINK_VERSION}"
 echo_g " build starting..."
 
 ${MVN_BIN} clean package \
   -Dflink.version=${FLINK_VERSION} \
-  -Dflink.minor.version=${FLINK_MINOR_VERSION} \
   -Dthrift.binary=${THRIFT_BIN} "$@"
-
 
 EXIT_CODE=$?
 if [ $EXIT_CODE -eq 0 ]; then
