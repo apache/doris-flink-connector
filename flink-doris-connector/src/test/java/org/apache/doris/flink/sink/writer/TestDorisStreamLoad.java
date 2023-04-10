@@ -92,7 +92,7 @@ public class TestDorisStreamLoad {
         DorisStreamLoad dorisStreamLoad = new DorisStreamLoad("", dorisOptions, executionOptions, new LabelGenerator("", true), httpClient);
         dorisStreamLoad.startLoad("1");
         dorisStreamLoad.writeRecord(writeBuffer);
-        dorisStreamLoad.stopLoad();
+        dorisStreamLoad.stopLoad("label");
         byte[] buff = new byte[4];
         int n = dorisStreamLoad.getRecordStream().read(buff);
         dorisStreamLoad.getRecordStream().read(new byte[4]);
@@ -112,7 +112,7 @@ public class TestDorisStreamLoad {
         dorisStreamLoad.startLoad("1");
         dorisStreamLoad.writeRecord(writeBuffer);
         dorisStreamLoad.writeRecord(writeBuffer);
-        dorisStreamLoad.stopLoad();
+        dorisStreamLoad.stopLoad("label");
         byte[] buff = new byte[9];
         int n = dorisStreamLoad.getRecordStream().read(buff);
         int ret = dorisStreamLoad.getRecordStream().read(new byte[9]);
@@ -137,7 +137,7 @@ public class TestDorisStreamLoad {
         dorisStreamLoad.startLoad("1");
         dorisStreamLoad.writeRecord("{\"id\": 1}".getBytes(StandardCharsets.UTF_8));
         dorisStreamLoad.writeRecord("{\"id\": 2}".getBytes(StandardCharsets.UTF_8));
-        dorisStreamLoad.stopLoad();
+        dorisStreamLoad.stopLoad("label");
         byte[] buff = new byte[expectBuffer.length];
         int n = dorisStreamLoad.getRecordStream().read(buff);
 

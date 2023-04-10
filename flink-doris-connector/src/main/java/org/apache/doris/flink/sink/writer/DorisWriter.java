@@ -73,9 +73,9 @@ public class DorisWriter<IN> implements SinkWriter<IN, DorisCommittable, DorisWr
     private final transient ScheduledExecutorService scheduledExecutorService;
     private transient Thread executorThread;
     private transient volatile Exception loadException = null;
-
     private List<BackendV2.BackendRowV2> backends;
     private long pos;
+    private String currentLabel;
 
     public DorisWriter(Sink.InitContext initContext,
                        List<DorisWriterState> state,
@@ -122,7 +122,8 @@ public class DorisWriter<IN> implements SinkWriter<IN, DorisCommittable, DorisWr
         }
         // get main work thread.
         executorThread = Thread.currentThread();
-        dorisStreamLoad.startLoad(labelGenerator.generateLabel(lastCheckpointId + 1));
+        this.currentLabel = labelGenerator.generateLabel(lastCheckpointId + 1);
+        dorisStreamLoad.startLoad(currentLabel);
         // when uploading data in streaming mode, we need to regularly detect whether there are exceptions.
         scheduledExecutorService.scheduleWithFixedDelay(this::checkDone, 200, intervalTime, TimeUnit.MILLISECONDS);
     }
@@ -142,7 +143,7 @@ public class DorisWriter<IN> implements SinkWriter<IN, DorisCommittable, DorisWr
         // disable exception checker before stop load.
         loading = false;
         Preconditions.checkState(dorisStreamLoad != null);
-        RespContent respContent = dorisStreamLoad.stopLoad();
+        RespContent respContent = dorisStreamLoad.stopLoad(currentLabel);
         if (!DORIS_SUCCESS_STATUS.contains(respContent.getStatus())) {
             String errMsg = String.format("stream load error: %s, see more in %s", respContent.getMessage(), respContent.getErrorURL());
             throw new DorisRuntimeException(errMsg);
@@ -160,7 +161,8 @@ public class DorisWriter<IN> implements SinkWriter<IN, DorisCommittable, DorisWr
         Preconditions.checkState(dorisStreamLoad != null);
         // dynamic refresh BE node
         this.dorisStreamLoad.setHostPort(getAvailableBackend());
-        this.dorisStreamLoad.startLoad(labelGenerator.generateLabel(checkpointId + 1));
+        this.currentLabel = labelGenerator.generateLabel(checkpointId + 1);
+        this.dorisStreamLoad.startLoad(currentLabel);
         this.loading = true;
         return Collections.singletonList(dorisWriterState);
     }
