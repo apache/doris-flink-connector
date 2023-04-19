@@ -25,6 +25,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.doris.flink.cfg.DorisOptions;
+import org.apache.doris.flink.exception.IllegalArgumentException;
+import org.apache.doris.flink.rest.*;
 import org.apache.doris.flink.sink.HttpGetWithEntity;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.StringUtils;
@@ -148,8 +150,8 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
         }
     }
 
-    private boolean checkSchemaChange(String ddl) throws IOException {
-        String requestUrl = String.format(CHECK_SCHEMA_CHANGE_API, dorisOptions.getFenodes(), database, table);
+    private boolean checkSchemaChange(String ddl) throws IOException, IllegalArgumentException {
+        String requestUrl = String.format(CHECK_SCHEMA_CHANGE_API, RestService.randomEndpoint(dorisOptions.getFenodes(), LOG), database, table);
         Map<String,Object> param = buildRequestParam(ddl);
         if(param.size() != 2){
             return false;

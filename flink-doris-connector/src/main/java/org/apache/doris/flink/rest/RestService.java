@@ -232,7 +232,7 @@ public class RestService implements Serializable {
      * @throws IllegalArgumentException fe nodes is illegal
      */
     @VisibleForTesting
-    static String randomEndpoint(String feNodes, Logger logger) throws IllegalArgumentException {
+    public static String randomEndpoint(String feNodes, Logger logger) throws IllegalArgumentException {
         logger.trace("Parse fenodes '{}'.", feNodes);
         if (StringUtils.isEmpty(feNodes)) {
             logger.error(ILLEGAL_ARGUMENT_MESSAGE, "fenodes", feNodes);
