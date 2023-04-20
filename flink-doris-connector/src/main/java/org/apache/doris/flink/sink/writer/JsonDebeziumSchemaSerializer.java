@@ -185,10 +185,10 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
         return params;
     }
 
-    private boolean execSchemaChange(String ddl) throws IOException {
+    private boolean execSchemaChange(String ddl) throws IOException, IllegalArgumentException {
         Map<String, String> param = new HashMap<>();
         param.put("stmt", ddl);
-        String requestUrl = String.format(SCHEMA_CHANGE_API, dorisOptions.getFenodes(), database);
+        String requestUrl = String.format(SCHEMA_CHANGE_API, RestService.randomEndpoint(dorisOptions.getFenodes(), LOG), database);
         HttpPost httpPost = new HttpPost(requestUrl);
         httpPost.setHeader(HttpHeaders.AUTHORIZATION, authHeader());
         httpPost.setHeader(HttpHeaders.CONTENT_TYPE, "application/json");
