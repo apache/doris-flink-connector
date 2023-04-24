@@ -320,7 +320,7 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
         Matcher matcher = pattern.matcher(type);
         if (matcher.find()) {
             String len = matcher.group(1);
-            return String.format("varchar(%d)", Integer.parseInt(len) * 3);
+            return String.format("varchar(%d)", Math.min(Integer.parseInt(len) * 3, 65533));
         }
 
         return type;
