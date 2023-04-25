@@ -95,18 +95,20 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
             return null;
         }
         Map<String, String> valueMap;
-        if (OP_READ.equals(op) || OP_CREATE.equals(op)) {
-            valueMap = extractAfterRow(recordRoot);
-            addDeleteSign(valueMap,false);
-        } else if (OP_UPDATE.equals(op)) {
-            valueMap = extractAfterRow(recordRoot);
-            addDeleteSign(valueMap,false);
-        } else if (OP_DELETE.equals(op)) {
-            valueMap = extractBeforeRow(recordRoot);
-            addDeleteSign(valueMap,true);
-        } else {
-            LOG.error("parse record fail, unknown op {} in {}",op,record);
-            return null;
+        switch (op) {
+            case OP_READ:
+            case OP_CREATE:
+            case OP_UPDATE:
+                valueMap = extractAfterRow(recordRoot);
+                addDeleteSign(valueMap, false);
+                break;
+            case OP_DELETE:
+                valueMap = extractBeforeRow(recordRoot);
+                addDeleteSign(valueMap, true);
+                break;
+            default:
+                LOG.error("parse record fail, unknown op {} in {}", op, record);
+                return null;
         }
         return objectMapper.writeValueAsString(valueMap).getBytes(StandardCharsets.UTF_8);
     }
@@ -262,7 +264,7 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
                 String op = matcher.group(1);
                 String col = matcher.group(3);
                 String type = matcher.group(5);
-                type = type == null ? "" : type;
+                type = handleType(type);
                 ddl = String.format(EXECUTE_DDL, dorisOptions.getTableIdentifier(), op, col, type);
                 LOG.info("parse ddl:{}", ddl);
                 return ddl;
@@ -306,4 +308,23 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
             return new JsonDebeziumSchemaSerializer(dorisOptions, addDropDDLPattern, sourceTableName);
         }
     }
+
+    private String handleType(String type) {
+
+        if (type == null || "".equals(type)) {
+            return "";
+        }
+
+        // varchar len * 3
+        Pattern pattern = Pattern.compile("varchar\\(([1-9][0-9]*)\\)", Pattern.CASE_INSENSITIVE);
+        Matcher matcher = pattern.matcher(type);
+        if (matcher.find()) {
+            String len = matcher.group(1);
+            return String.format("varchar(%d)", Math.min(Integer.parseInt(len) * 3, 65533));
+        }
+
+        return type;
+
+    }
+
 }
