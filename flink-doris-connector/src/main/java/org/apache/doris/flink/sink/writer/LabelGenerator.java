@@ -16,6 +16,8 @@
 // under the License.
 package org.apache.doris.flink.sink.writer;
 
+import java.util.UUID;
+
 /**
  * Generator label for stream load.
  */
@@ -29,6 +31,6 @@ public class LabelGenerator {
     }
 
     public String generateLabel(long chkId) {
-        return enable2PC ? labelPrefix + "_" + chkId : labelPrefix + "_" + System.currentTimeMillis();
+        return enable2PC ? labelPrefix + "_" + chkId : labelPrefix + "_" + UUID.randomUUID();
     }
 }

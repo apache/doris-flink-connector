@@ -123,7 +123,6 @@ public class DorisWriter<IN> implements SinkWriter<IN, DorisCommittable, DorisWr
         // get main work thread.
         executorThread = Thread.currentThread();
         this.currentLabel = labelGenerator.generateLabel(lastCheckpointId + 1);
-        dorisStreamLoad.startLoad(currentLabel);
         // when uploading data in streaming mode, we need to regularly detect whether there are exceptions.
         scheduledExecutorService.scheduleWithFixedDelay(this::checkDone, 200, intervalTime, TimeUnit.MILLISECONDS);
     }
@@ -131,6 +130,11 @@ public class DorisWriter<IN> implements SinkWriter<IN, DorisCommittable, DorisWr
     @Override
     public void write(IN in, Context context) throws IOException {
         checkLoadException();
+        if(!loading) {
+            //Start streamload only when there has data
+            dorisStreamLoad.startLoad(currentLabel);
+            loading = true;
+        }
         byte[] serialize = serializer.serialize(in);
         if(Objects.isNull(serialize)){
             return;
@@ -140,6 +144,10 @@ public class DorisWriter<IN> implements SinkWriter<IN, DorisCommittable, DorisWr
 
     @Override
     public List<DorisCommittable> prepareCommit(boolean flush) throws IOException {
+        if(!loading){
+            //There is no data during the entire checkpoint period
+            return Collections.emptyList();
+        }
         // disable exception checker before stop load.
         loading = false;
         Preconditions.checkState(dorisStreamLoad != null);
@@ -152,7 +160,6 @@ public class DorisWriter<IN> implements SinkWriter<IN, DorisCommittable, DorisWr
             return Collections.emptyList();
         }
         long txnId = respContent.getTxnId();
-
         return ImmutableList.of(new DorisCommittable(dorisStreamLoad.getHostPort(), dorisStreamLoad.getDb(), txnId));
     }
 
@@ -162,8 +169,6 @@ public class DorisWriter<IN> implements SinkWriter<IN, DorisCommittable, DorisWr
         // dynamic refresh BE node
         this.dorisStreamLoad.setHostPort(getAvailableBackend());
         this.currentLabel = labelGenerator.generateLabel(checkpointId + 1);
-        this.dorisStreamLoad.startLoad(currentLabel);
-        this.loading = true;
         return Collections.singletonList(dorisWriterState);
     }
 
