@@ -28,11 +28,11 @@ import org.apache.doris.flink.rest.SchemaUtils;
 import org.apache.doris.flink.rest.models.Schema;
 import org.apache.doris.flink.serialization.Routing;
 import org.apache.doris.flink.serialization.RowBatch;
-import org.apache.doris.thrift.TScanBatchResult;
-import org.apache.doris.thrift.TScanCloseParams;
-import org.apache.doris.thrift.TScanNextBatchParams;
-import org.apache.doris.thrift.TScanOpenParams;
-import org.apache.doris.thrift.TScanOpenResult;
+import org.apache.doris.sdk.thrift.TScanBatchResult;
+import org.apache.doris.sdk.thrift.TScanCloseParams;
+import org.apache.doris.sdk.thrift.TScanNextBatchParams;
+import org.apache.doris.sdk.thrift.TScanOpenParams;
+import org.apache.doris.sdk.thrift.TScanOpenResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
