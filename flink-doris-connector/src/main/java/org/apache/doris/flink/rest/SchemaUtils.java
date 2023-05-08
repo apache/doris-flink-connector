@@ -18,7 +18,7 @@ package org.apache.doris.flink.rest;
 
 import org.apache.doris.flink.rest.models.Field;
 import org.apache.doris.flink.rest.models.Schema;
-import org.apache.doris.thrift.TScanColumnDesc;
+import org.apache.doris.sdk.thrift.TScanColumnDesc;
 
 import java.util.List;
 

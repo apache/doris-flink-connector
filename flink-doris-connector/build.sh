@@ -150,9 +150,7 @@ fi
 echo_g " flink version: ${FLINK_VERSION}"
 echo_g " build starting..."
 
-${MVN_BIN} clean package \
-  -Dflink.version=${FLINK_VERSION} \
-  -Dthrift.binary=${THRIFT_BIN} "$@"
+${MVN_BIN} clean package -Dflink.version=${FLINK_VERSION} "$@"
 
 EXIT_CODE=$?
 if [ $EXIT_CODE -eq 0 ]; then

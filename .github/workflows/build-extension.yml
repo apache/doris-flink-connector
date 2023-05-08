@@ -38,16 +38,9 @@ jobs:
         distribution: adopt
         java-version: '8'
 
-    - name: Setup Apache Thrift Compiler
-      run: |
-        wget http://archive.ubuntu.com/ubuntu/pool/universe/t/thrift/thrift-compiler_0.13.0-2build2_amd64.deb
-        sudo dpkg -i thrift-compiler_0.13.0-2build2_amd64.deb
-        thrift --version
-
     - name: Build flink connector 1.15
       run: |
         cd flink-doris-connector && mvn clean package \
           -Dflink.version=1.15.0 \
-          -Dflink.minor.version=1.15 \
-          -Dthrift.binary=/usr/bin/thrift
+          -Dflink.minor.version=1.15
 

@@ -17,7 +17,7 @@
 
 package org.apache.doris.flink.exception;
 
-import org.apache.doris.thrift.TStatusCode;
+import org.apache.doris.sdk.thrift.TStatusCode;
 
 import java.util.List;
 
