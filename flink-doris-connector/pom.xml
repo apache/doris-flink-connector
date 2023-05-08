@@ -76,14 +76,14 @@ under the License.
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <log4j2.version>2.18.0</log4j2.version>
         <project.scm.id>github</project.scm.id>
-        <thrift-service.version>1.0.0</thrift-service.version>
+        <thrift-service.version>1.0.0-SNAPSHOT</thrift-service.version>
     </properties>
 
     <dependencies>
         <dependency>
             <groupId>org.apache.doris</groupId>
             <artifactId>thrift-service</artifactId>
-            <version>1.0.0</version>
+            <version>${thrift-service.version}</version>
         </dependency>
 
         <dependency>
