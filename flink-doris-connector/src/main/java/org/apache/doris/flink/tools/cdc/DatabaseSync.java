@@ -172,7 +172,7 @@ public abstract class DatabaseSync {
         if (excludingPattern != null) {
             shouldMonitor = shouldMonitor && !excludingPattern.matcher(tableName).matches();
         }
-        LOG.info("Source table {} is monitored? {}", tableName, shouldMonitor);
+        LOG.debug("Source table {} is monitored? {}", tableName, shouldMonitor);
         return shouldMonitor;
     }
 }
