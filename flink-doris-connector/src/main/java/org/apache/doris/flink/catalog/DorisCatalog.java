@@ -81,6 +81,9 @@ import static org.apache.doris.flink.table.DorisConfigOptions.USERNAME;
 import static org.apache.flink.table.factories.FactoryUtil.CONNECTOR;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
+/**
+ * catalog for flink
+ */
 public class DorisCatalog extends AbstractCatalog {
 
     private static final Logger LOG = LoggerFactory.getLogger(DorisCatalog.class);
