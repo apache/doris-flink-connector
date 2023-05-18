@@ -68,7 +68,7 @@ under the License.
 
     <properties>
         <flink.version>1.15.0</flink.version>
-        <libthrift.version>0.13.0</libthrift.version>
+        <libthrift.version>0.16.0</libthrift.version>
         <arrow.version>5.0.0</arrow.version>
         <maven-compiler-plugin.version>3.10.1</maven-compiler-plugin.version>
         <maven-javadoc-plugin.version>3.3.0</maven-javadoc-plugin.version>
@@ -76,9 +76,16 @@ under the License.
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <log4j2.version>2.18.0</log4j2.version>
         <project.scm.id>github</project.scm.id>
+        <thrift-service.version>1.0.0</thrift-service.version>
     </properties>
 
     <dependencies>
+        <dependency>
+            <groupId>org.apache.doris</groupId>
+            <artifactId>thrift-service</artifactId>
+            <version>${thrift-service.version}</version>
+        </dependency>
+
         <dependency>
             <groupId>org.apache.flink</groupId>
             <artifactId>flink-clients</artifactId>
@@ -266,25 +273,6 @@ under the License.
                 </plugin>
 
                 <plugin>
-                    <groupId>org.apache.thrift.tools</groupId>
-                    <artifactId>maven-thrift-plugin</artifactId>
-                    <version>0.1.11</version>
-                    <configuration>
-                        <thriftExecutable>${thrift.binary}</thriftExecutable>
-                        <generator>java:fullcamel</generator>
-                    </configuration>
-                    <executions>
-                        <execution>
-                            <id>thrift-sources</id>
-                            <phase>generate-sources</phase>
-                            <goals>
-                                <goal>compile</goal>
-                            </goals>
-                        </execution>
-                    </executions>
-                </plugin>
-
-                <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-shade-plugin</artifactId>
                     <version>3.2.4</version>
@@ -401,11 +389,6 @@ under the License.
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
-            </plugin>
-
-            <plugin>
-                <groupId>org.apache.thrift.tools</groupId>
-                <artifactId>maven-thrift-plugin</artifactId>
             </plugin>
 
             <plugin>

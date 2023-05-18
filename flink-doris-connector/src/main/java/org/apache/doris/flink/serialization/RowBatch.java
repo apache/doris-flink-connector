@@ -36,7 +36,7 @@ import org.apache.arrow.vector.types.Types;
 import org.apache.doris.flink.exception.DorisException;
 import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.apache.doris.flink.rest.models.Schema;
-import org.apache.doris.thrift.TScanBatchResult;
+import org.apache.doris.sdk.thrift.TScanBatchResult;
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
