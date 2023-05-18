@@ -28,8 +28,8 @@ import org.apache.doris.flink.sink.writer.JsonDebeziumSchemaSerializer;
 import org.apache.doris.flink.table.DorisConfigOptions;
 import org.apache.doris.flink.tools.cdc.mysql.ParsingProcessFunction;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
-import org.apache.flink.streaming.api.datastream.SideOutputDataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.util.OutputTag;
@@ -108,7 +108,7 @@ public abstract class DatabaseSync {
         SingleOutputStreamOperator<Void> parsedStream = streamSource.process(new ParsingProcessFunction());
         for (String table : dorisTables) {
             OutputTag<String> recordOutputTag = ParsingProcessFunction.createRecordOutputTag(table);
-            SideOutputDataStream<String> sideOutput = parsedStream.getSideOutput(recordOutputTag);
+            DataStream<String> sideOutput = parsedStream.getSideOutput(recordOutputTag);
             sideOutput.sinkTo(buildDorisSink(table)).name(table);
         }
     }
