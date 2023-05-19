@@ -37,6 +37,7 @@ import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Serializable;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -49,8 +50,7 @@ public abstract class DatabaseSync {
     private static final Logger LOG = LoggerFactory.getLogger(DatabaseSync.class);
     protected Configuration config;
     protected String database;
-    protected String tablePrefix;
-    protected String tableSuffix;
+    protected TableNameConverter converter;
     protected Pattern includingPattern;
     protected Pattern excludingPattern;
     protected Map<String, String> tableConfig;
@@ -70,8 +70,7 @@ public abstract class DatabaseSync {
         this.env = env;
         this.config = config;
         this.database = database;
-        this.tablePrefix = tablePrefix == null ? "" : tablePrefix;
-        this.tableSuffix = tableSuffix == null ? "" : tableSuffix;
+        this.converter = new TableNameConverter(tablePrefix, tableSuffix);
         this.includingPattern = includingTables == null ? null : Pattern.compile(includingTables);
         this.excludingPattern = excludingTables == null ? null : Pattern.compile(excludingTables);
         this.sinkConfig = sinkConfig;
@@ -92,11 +91,12 @@ public abstract class DatabaseSync {
         List<String> dorisTables = new ArrayList<>();
         for (SourceSchema schema : schemaList) {
             monitoredTables.add(schema.getTableName());
-            String dorisTable = convertTableName(schema.getTableName());
+            String dorisTable = converter.convert(schema.getTableName());
             if (!dorisSystem.tableExists(database, dorisTable)) {
                 TableSchema dorisSchema = schema.convertTableSchema(tableConfig);
                 //set doris target database
                 dorisSchema.setDatabase(database);
+                dorisSchema.setTable(dorisTable);
                 dorisSystem.createTable(dorisSchema);
             }
             dorisTables.add(dorisTable);
@@ -105,7 +105,7 @@ public abstract class DatabaseSync {
         config.set(MySqlSourceOptions.TABLE_NAME, "(" + String.join("|", monitoredTables) + ")");
 
         DataStreamSource<String> streamSource = buildCdcSource(env);
-        SingleOutputStreamOperator<Void> parsedStream = streamSource.process(new ParsingProcessFunction());
+        SingleOutputStreamOperator<Void> parsedStream = streamSource.process(new ParsingProcessFunction(converter));
         for (String table : dorisTables) {
             OutputTag<String> recordOutputTag = ParsingProcessFunction.createRecordOutputTag(table);
             DataStream<String> sideOutput = parsedStream.getSideOutput(recordOutputTag);
@@ -127,10 +127,6 @@ public abstract class DatabaseSync {
                 .withPassword(passwd)
                 .withJdbcUrl(jdbcUrl);
         return builder.build();
-    }
-
-    private String convertTableName(String tableName) {
-        return tablePrefix + tableName + tableSuffix;
     }
 
     /**
@@ -174,5 +170,24 @@ public abstract class DatabaseSync {
         }
         LOG.debug("Source table {} is monitored? {}", tableName, shouldMonitor);
         return shouldMonitor;
+    }
+
+    public static class TableNameConverter implements Serializable {
+        private static final long serialVersionUID = 1L;
+        private final String prefix;
+        private final String suffix;
+
+        TableNameConverter(){
+            this("","");
+        }
+
+        TableNameConverter(String prefix, String suffix) {
+            this.prefix = prefix == null ? "" : prefix;
+            this.suffix = suffix == null ? "" : suffix;
+        }
+
+        public String convert(String tableName) {
+            return prefix + tableName + suffix;
+        }
     }
 }

@@ -18,6 +18,7 @@ package org.apache.doris.flink.tools.cdc.mysql;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.doris.flink.tools.cdc.DatabaseSync;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.util.Collector;
@@ -29,6 +30,11 @@ import java.util.Map;
 public class ParsingProcessFunction extends ProcessFunction<String, Void> {
     private ObjectMapper objectMapper = new ObjectMapper();
     private transient Map<String, OutputTag<String>> recordOutputTags;
+    private DatabaseSync.TableNameConverter converter;
+
+    public ParsingProcessFunction(DatabaseSync.TableNameConverter converter) {
+        this.converter = converter;
+    }
 
     @Override
     public void open(Configuration parameters) throws Exception {
@@ -39,7 +45,8 @@ public class ParsingProcessFunction extends ProcessFunction<String, Void> {
     public void processElement(String record, ProcessFunction<String, Void>.Context context, Collector<Void> collector) throws Exception {
         JsonNode recordRoot = objectMapper.readValue(record, JsonNode.class);
         String tableName = extractJsonNode(recordRoot.get("source"), "table");
-        context.output(getRecordOutputTag(tableName), record);
+        String dorisName = converter.convert(tableName);
+        context.output(getRecordOutputTag(dorisName), record);
     }
 
     private String extractJsonNode(JsonNode record, String key) {

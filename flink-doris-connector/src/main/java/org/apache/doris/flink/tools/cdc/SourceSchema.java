@@ -68,7 +68,6 @@ public class SourceSchema {
 
     public TableSchema convertTableSchema(Map<String, String> tableProps) {
         TableSchema tableSchema = new TableSchema();
-        tableSchema.setTable(this.tableName);
         tableSchema.setFields(this.fields);
         tableSchema.setKeys(this.primaryKeys);
         tableSchema.setDistributeKeys(this.primaryKeys);
