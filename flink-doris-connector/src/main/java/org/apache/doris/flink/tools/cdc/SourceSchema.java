@@ -16,6 +16,7 @@
 // under the License.
 package org.apache.doris.flink.tools.cdc;
 
+import org.apache.doris.flink.catalog.doris.DataModel;
 import org.apache.doris.flink.catalog.doris.TableSchema;
 import org.apache.doris.flink.tools.cdc.mysql.MysqlType;
 
@@ -68,6 +69,7 @@ public class SourceSchema {
 
     public TableSchema convertTableSchema(Map<String, String> tableProps) {
         TableSchema tableSchema = new TableSchema();
+        tableSchema.setModel(DataModel.UNIQUE);
         tableSchema.setFields(this.fields);
         tableSchema.setKeys(this.primaryKeys);
         tableSchema.setDistributeKeys(this.primaryKeys);

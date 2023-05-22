@@ -22,6 +22,7 @@ import org.apache.doris.flink.cfg.DorisConnectionOptions;
 import org.apache.doris.flink.connection.JdbcConnectionProvider;
 import org.apache.doris.flink.connection.SimpleJdbcConnectionProvider;
 import org.apache.doris.flink.exception.CreateTableException;
+import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.apache.doris.flink.tools.cdc.DatabaseSync;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
@@ -54,11 +55,6 @@ public class DorisSystem {
         this.jdbcConnectionProvider = new SimpleJdbcConnectionProvider(options);
     }
 
-    public boolean tableExists(String database, String table) throws Exception {
-
-        return false;
-    }
-
     public List<String> listDatabases() throws Exception {
         return extractColumnValuesBySQL(
                 "SELECT `SCHEMA_NAME` FROM `INFORMATION_SCHEMA`.`SCHEMATA`;",
@@ -74,6 +70,26 @@ public class DorisSystem {
     public boolean createDatabase(String database) throws Exception {
         execute(String.format("CREATE DATABASE %s", database));
         return true;
+    }
+
+    public boolean tableExists(String database, String table){
+        try {
+            return databaseExists(database)
+                    && listTables(database).contains(table);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public List<String> listTables(String databaseName) throws Exception {
+        if (!databaseExists(databaseName)) {
+            throw new DorisRuntimeException("database" + databaseName + " is not exists");
+        }
+        return extractColumnValuesBySQL(
+                "SELECT TABLE_NAME FROM information_schema.`TABLES` WHERE TABLE_SCHEMA = ?",
+                1,
+                null,
+                databaseName);
     }
 
     public void createTable(TableSchema schema) throws Exception {
