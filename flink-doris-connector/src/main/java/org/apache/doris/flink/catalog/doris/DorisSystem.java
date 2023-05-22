@@ -21,6 +21,7 @@ import org.apache.commons.compress.utils.Lists;
 import org.apache.doris.flink.cfg.DorisConnectionOptions;
 import org.apache.doris.flink.connection.JdbcConnectionProvider;
 import org.apache.doris.flink.connection.SimpleJdbcConnectionProvider;
+import org.apache.doris.flink.exception.CreateTableException;
 import org.apache.doris.flink.tools.cdc.DatabaseSync;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
@@ -126,33 +127,43 @@ public class DorisSystem {
                 .append(identifier(schema.getTable()))
                 .append("(");
 
-        //append values
-        int index = 0;
         Map<String, String> fields = schema.getFields();
+        List<String> keys = schema.getKeys();
+        //append keys
+        for(String key : keys){
+            if(!fields.containsKey(key)){
+                throw new CreateTableException("key " + key + " not found in column list");
+            }
+            sb.append(identifier(key))
+                    .append(" ")
+                    .append(fields.get(key))
+                    .append(",");
+        }
+
+        //append values
         for (Map.Entry<String, String> entry : fields.entrySet()) {
-            if (index > 0) {
-                sb.append(",");
+            if(keys.contains(entry.getKey())){
+                continue;
             }
             sb.append(identifier(entry.getKey()))
                     .append(" ")
-                    .append(entry.getValue());
-            index++;
+                    .append(entry.getValue())
+                    .append(",");
         }
+        sb = sb.deleteCharAt(sb.length() -1);
         sb.append(" ) ");
         //append model
-        if (schema.getKeys() != null && !schema.getKeys().isEmpty()) {
-            sb.append(schema.getModel().name())
-                    .append(" KEY(")
-                    .append(String.join(",", schema.getKeys()))
-                    .append(")");
-        }
+        sb.append(schema.getModel().name())
+                .append(" KEY(")
+                .append(String.join(",", schema.getKeys()))
+                .append(")");
         //append distribute key
         sb.append(" DISTRIBUTED BY HASH(")
                 .append(String.join(",", schema.getDistributeKeys()))
                 .append(") BUCKETS AUTO ");
 
         //append properties
-        index = 0;
+        int index = 0;
         for (Map.Entry<String, String> entry : schema.getProperties().entrySet()) {
             if (index == 0) {
                 sb.append(" PROPERTIES (");

@@ -16,6 +16,7 @@
 // under the License.
 package org.apache.doris.flink.catalog.doris;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -24,9 +25,9 @@ public class TableSchema {
     private String database;
     private String table;
     private Map<String, String> fields;
-    private List<String> keys;
+    private List<String> keys = new ArrayList<>();
     private DataModel model = DataModel.DUPLICATE;
-    private List<String> distributeKeys;
+    private List<String> distributeKeys = new ArrayList<>();
     private Map<String, String> properties = new HashMap<>();
 
     public String getDatabase() {

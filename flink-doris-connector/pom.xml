@@ -26,7 +26,7 @@ under the License.
         <version>23</version>
     </parent>
     <groupId>org.apache.doris</groupId>
-    <artifactId>flink-doris-connector</artifactId>
+    <artifactId>flink-doris-connector-${flink.minor.version}</artifactId>
     <version>1.4.0-SNAPSHOT</version>
     <name>Flink Doris Connector</name>
     <url>https://doris.apache.org/</url>
@@ -68,6 +68,7 @@ under the License.
 
     <properties>
         <flink.version>1.15.0</flink.version>
+        <flink.minor.version>1.15</flink.minor.version>
         <libthrift.version>0.16.0</libthrift.version>
         <arrow.version>5.0.0</arrow.version>
         <maven-compiler-plugin.version>3.10.1</maven-compiler-plugin.version>
@@ -239,14 +240,13 @@ under the License.
             <version>1.7.25</version>
             <scope>provided</scope>
         </dependency>
-
+        <!-- use cdc bundled jar for kafka connect class-->
         <dependency>
             <groupId>com.ververica</groupId>
-            <artifactId>flink-connector-mysql-cdc</artifactId>
+            <artifactId>flink-sql-connector-mysql-cdc</artifactId>
             <version>2.3.0</version>
             <scope>provided</scope>
         </dependency>
-
         <dependency>
             <groupId>org.apache.flink</groupId>
             <artifactId>flink-runtime-web</artifactId>
@@ -400,19 +400,6 @@ under the License.
     </build>
 
     <profiles>
-
-        <profile>
-            <id>thirdparty</id>
-            <activation>
-                <property>
-                    <name>env.DORIS_THIRDPARTY</name>
-                </property>
-            </activation>
-            <properties>
-                <doris.thirdparty>${env.DORIS_THIRDPARTY}</doris.thirdparty>
-            </properties>
-        </profile>
-
         <!-- for custom internal repository -->
         <profile>
             <id>custom-env</id>
