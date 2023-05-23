@@ -21,6 +21,7 @@ import org.apache.doris.flink.tools.cdc.mysql.MysqlDatabaseSync;
 import org.apache.flink.api.java.utils.MultipleParameterTool;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.util.StringUtils;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -48,6 +49,7 @@ public class CdcTools {
 
     private static void createMySQLSyncDatabase(String[] opArgs) throws Exception {
         MultipleParameterTool params = MultipleParameterTool.fromArgs(opArgs);
+        String jobName = params.get("job-name");
         String database = params.get("database");
         String tablePrefix = params.get("table-prefix");
         String tableSuffix = params.get("table-suffix");
@@ -65,7 +67,11 @@ public class CdcTools {
         DatabaseSync databaseSync = new MysqlDatabaseSync();
         databaseSync.create(env, database, mysqlConfig, tablePrefix, tableSuffix, includingTables, excludingTables, sinkConfig, tableMap);
         databaseSync.build();
-        env.execute(String.format("MySQL-Doris Database Sync: %s", database));
+
+        if(StringUtils.isNullOrWhitespaceOnly(jobName)){
+            jobName = String.format("MySQL-Doris Sync Database: %s", mysqlMap.get("database-name"));
+        }
+        env.execute(jobName);
     }
 
     private static Map<String, String> getConfigMap(MultipleParameterTool params, String key) {

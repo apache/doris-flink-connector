@@ -32,6 +32,7 @@ import org.apache.doris.flink.tools.cdc.SourceSchema;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.util.Preconditions;
 
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
@@ -90,6 +91,7 @@ public class MysqlDatabaseSync extends DatabaseSync {
         MySqlSourceBuilder<String> sourceBuilder = MySqlSource.builder();
 
         String databaseName = config.get(MySqlSourceOptions.DATABASE_NAME);
+        Preconditions.checkNotNull(databaseName, "database-name in mysql is required");
         String tableName = config.get(MySqlSourceOptions.TABLE_NAME);
         sourceBuilder
                 .hostname(config.get(MySqlSourceOptions.HOSTNAME))
