@@ -24,6 +24,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -31,6 +32,7 @@ import java.util.Map;
  */
 public class CdcTools {
     private static final String MYSQL_SYNC_DATABASE = "mysql-sync-database";
+    private static final List<String> EMPTY_KEYS = Arrays.asList("password");
 
     public static void main(String[] args) throws Exception {
         String operation = args[0].toLowerCase();
@@ -76,6 +78,9 @@ public class CdcTools {
             String[] kv = param.split("=");
             if (kv.length == 2) {
                 map.put(kv[0], kv[1]);
+                continue;
+            }else if(kv.length == 1 && EMPTY_KEYS.contains(kv[0])){
+                map.put(kv[0], "");
                 continue;
             }
 
