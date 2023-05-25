@@ -39,6 +39,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -143,39 +144,36 @@ public class DorisSystem {
                 .append(identifier(schema.getTable()))
                 .append("(");
 
-        Map<String, String> fields = schema.getFields();
+        Map<String, FieldSchema> fields = schema.getFields();
         List<String> keys = schema.getKeys();
         //append keys
         for(String key : keys){
             if(!fields.containsKey(key)){
                 throw new CreateTableException("key " + key + " not found in column list");
             }
-            sb.append(identifier(key))
-                    .append(" ")
-                    .append(fields.get(key))
-                    .append(",");
+            FieldSchema field = fields.get(key);
+            buildColumn(sb, field);
         }
 
         //append values
-        for (Map.Entry<String, String> entry : fields.entrySet()) {
+        for (Map.Entry<String, FieldSchema> entry : fields.entrySet()) {
             if(keys.contains(entry.getKey())){
                 continue;
             }
-            sb.append(identifier(entry.getKey()))
-                    .append(" ")
-                    .append(entry.getValue())
-                    .append(",");
+            FieldSchema field = entry.getValue();
+            buildColumn(sb, field);
+
         }
         sb = sb.deleteCharAt(sb.length() -1);
         sb.append(" ) ");
         //append model
         sb.append(schema.getModel().name())
                 .append(" KEY(")
-                .append(String.join(",", schema.getKeys()))
+                .append(String.join(",", identifier(schema.getKeys())))
                 .append(")");
         //append distribute key
         sb.append(" DISTRIBUTED BY HASH(")
-                .append(String.join(",", schema.getDistributeKeys()))
+                .append(String.join(",", identifier(schema.getDistributeKeys())))
                 .append(") BUCKETS AUTO ");
 
         //append properties
@@ -197,6 +195,20 @@ public class DorisSystem {
             }
         }
         return sb.toString();
+    }
+
+    private void buildColumn(StringBuilder sql, FieldSchema field){
+        sql.append(identifier(field.getName()))
+                .append(" ")
+                .append(field.getTypeString())
+                .append(" COMMENT '")
+                .append(field.getComment())
+                .append("',");
+    }
+
+    private List<String> identifier(List<String> name) {
+        List<String> result = name.stream().map(m -> identifier(m)).collect(Collectors.toList());
+        return result;
     }
 
     private String identifier(String name) {

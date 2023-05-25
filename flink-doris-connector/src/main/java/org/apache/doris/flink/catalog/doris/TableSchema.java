@@ -24,7 +24,7 @@ import java.util.Map;
 public class TableSchema {
     private String database;
     private String table;
-    private Map<String, String> fields;
+    private Map<String, FieldSchema> fields;
     private List<String> keys = new ArrayList<>();
     private DataModel model = DataModel.DUPLICATE;
     private List<String> distributeKeys = new ArrayList<>();
@@ -38,7 +38,7 @@ public class TableSchema {
         return table;
     }
 
-    public Map<String, String> getFields() {
+    public Map<String, FieldSchema> getFields() {
         return fields;
     }
 
@@ -66,7 +66,7 @@ public class TableSchema {
         this.table = table;
     }
 
-    public void setFields(Map<String, String> fields) {
+    public void setFields(Map<String, FieldSchema> fields) {
         this.fields = fields;
     }
 
