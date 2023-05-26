@@ -33,6 +33,8 @@ import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.util.Preconditions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
@@ -46,6 +48,7 @@ import java.util.Map;
 import java.util.Properties;
 
 public class MysqlDatabaseSync extends DatabaseSync {
+    private static final Logger LOG = LoggerFactory.getLogger(MysqlDatabaseSync.class);
 
     public MysqlDatabaseSync() {
     }
@@ -71,14 +74,16 @@ public class MysqlDatabaseSync extends DatabaseSync {
                          metaData.getTables(databaseName, null, "%", new String[]{"TABLE"})) {
                 while (tables.next()) {
                     String tableName = tables.getString("TABLE_NAME");
-                    if (!shouldMonitorTable(tableName)) {
+                    if (!isSyncNeeded(tableName)) {
                         continue;
                     }
                     SourceSchema sourceSchema =
                             new SourceSchema(metaData, databaseName, tableName);
                     if (sourceSchema.primaryKeys.size() > 0) {
-                        // only tables with primary keys will be considered
+                        //Only sync tables with primary keys
                         schemaList.add(sourceSchema);
+                    } else {
+                        LOG.warn("table {} has no primary key, skip", tableName);
                     }
                 }
             }
@@ -120,6 +125,9 @@ public class MysqlDatabaseSync extends DatabaseSync {
         config
                 .getOptional(MySqlSourceOptions.HEARTBEAT_INTERVAL)
                 .ifPresent(sourceBuilder::heartbeatInterval);
+        config
+                .getOptional(MySqlSourceOptions.SCAN_NEWLY_ADDED_TABLE_ENABLED)
+                .ifPresent(sourceBuilder::scanNewlyAddedTableEnabled);
 
         String startupMode = config.get(MySqlSourceOptions.SCAN_STARTUP_MODE);
         if ("initial".equalsIgnoreCase(startupMode)) {

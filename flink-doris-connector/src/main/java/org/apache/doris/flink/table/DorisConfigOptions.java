@@ -22,6 +22,8 @@ import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.table.factories.FactoryUtil;
 
 import java.time.Duration;
+import java.util.Map;
+import java.util.Properties;
 
 import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_BATCH_SIZE_DEFAULT;
 import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_DESERIALIZE_ARROW_ASYNC_DEFAULT;
@@ -195,5 +197,17 @@ public class DorisConfigOptions {
 
     // Prefix for Doris StreamLoad specific properties.
     public static final String STREAM_LOAD_PROP_PREFIX = "sink.properties.";
+
+    public static Properties getStreamLoadProp(Map<String, String> tableOptions) {
+        final Properties streamLoadProp = new Properties();
+
+        for (Map.Entry<String, String> entry : tableOptions.entrySet()) {
+            if (entry.getKey().startsWith(STREAM_LOAD_PROP_PREFIX)) {
+                String subKey = entry.getKey().substring(STREAM_LOAD_PROP_PREFIX.length());
+                streamLoadProp.put(subKey, entry.getValue());
+            }
+        }
+        return streamLoadProp;
+    }
 
 }

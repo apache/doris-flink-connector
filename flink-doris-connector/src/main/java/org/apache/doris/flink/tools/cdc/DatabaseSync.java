@@ -87,10 +87,10 @@ public abstract class DatabaseSync {
             dorisSystem.createDatabase(database);
         }
 
-        List<String> monitoredTables = new ArrayList<>();
+        List<String> syncTables = new ArrayList<>();
         List<String> dorisTables = new ArrayList<>();
         for (SourceSchema schema : schemaList) {
-            monitoredTables.add(schema.getTableName());
+            syncTables.add(schema.getTableName());
             String dorisTable = converter.convert(schema.getTableName());
             if (!dorisSystem.tableExists(database, dorisTable)) {
                 TableSchema dorisSchema = schema.convertTableSchema(tableConfig);
@@ -101,15 +101,17 @@ public abstract class DatabaseSync {
             }
             dorisTables.add(dorisTable);
         }
-        Preconditions.checkState(!monitoredTables.isEmpty(), "No tables to be synchronized.");
-        config.set(MySqlSourceOptions.TABLE_NAME, "(" + String.join("|", monitoredTables) + ")");
+        Preconditions.checkState(!syncTables.isEmpty(), "No tables to be synchronized.");
+        config.set(MySqlSourceOptions.TABLE_NAME, "(" + String.join("|", syncTables) + ")");
 
         DataStreamSource<String> streamSource = buildCdcSource(env);
         SingleOutputStreamOperator<Void> parsedStream = streamSource.process(new ParsingProcessFunction(converter));
         for (String table : dorisTables) {
             OutputTag<String> recordOutputTag = ParsingProcessFunction.createRecordOutputTag(table);
             DataStream<String> sideOutput = parsedStream.getSideOutput(recordOutputTag);
-            sideOutput.sinkTo(buildDorisSink(table)).name(table);
+
+            int sinkParallel = sinkConfig.getInteger(DorisConfigOptions.SINK_PARALLELISM, sideOutput.getParallelism());
+            sideOutput.sinkTo(buildDorisSink(table)).setParallelism(sinkParallel).name(table);
         }
     }
 
@@ -137,6 +139,7 @@ public abstract class DatabaseSync {
         String user = sinkConfig.getString(DorisConfigOptions.USERNAME);
         String passwd = sinkConfig.getString(DorisConfigOptions.PASSWORD, "");
         String labelPrefix = sinkConfig.getString(DorisConfigOptions.SINK_LABEL_PREFIX);
+
         DorisSink.Builder<String> builder = DorisSink.builder();
         DorisOptions.Builder dorisBuilder = DorisOptions.builder();
         dorisBuilder.setFenodes(fenodes)
@@ -145,31 +148,46 @@ public abstract class DatabaseSync {
                 .setPassword(passwd);
 
         Properties pro = new Properties();
-        //json data format
+        //default json data format
         pro.setProperty("format", "json");
         pro.setProperty("read_json_by_line", "true");
-        DorisExecutionOptions executionOptions = DorisExecutionOptions.builder()
+        //customer stream load properties
+        Properties streamLoadProp = DorisConfigOptions.getStreamLoadProp(sinkConfig.toMap());
+        pro.putAll(streamLoadProp);
+        DorisExecutionOptions.Builder executionBuilder = DorisExecutionOptions.builder()
                 .setLabelPrefix(String.join("-", labelPrefix, database, table))
-                .setStreamLoadProp(pro)
-                .setDeletable(true).build();
+                .setStreamLoadProp(pro);
 
+        sinkConfig.getOptional(DorisConfigOptions.SINK_ENABLE_DELETE).ifPresent(executionBuilder::setDeletable);
+        sinkConfig.getOptional(DorisConfigOptions.SINK_BUFFER_COUNT).ifPresent(executionBuilder::setBufferCount);
+        sinkConfig.getOptional(DorisConfigOptions.SINK_BUFFER_SIZE).ifPresent(executionBuilder::setBufferSize);
+        sinkConfig.getOptional(DorisConfigOptions.SINK_CHECK_INTERVAL).ifPresent(executionBuilder::setCheckInterval);
+        sinkConfig.getOptional(DorisConfigOptions.SINK_MAX_RETRIES).ifPresent(executionBuilder::setMaxRetries);
+
+        boolean enable2pc = sinkConfig.getBoolean(DorisConfigOptions.SINK_ENABLE_2PC);
+        if(!enable2pc){
+            executionBuilder.disable2PC();
+        }
         builder.setDorisReadOptions(DorisReadOptions.builder().build())
-                .setDorisExecutionOptions(executionOptions)
+                .setDorisExecutionOptions(executionBuilder.build())
                 .setSerializer(JsonDebeziumSchemaSerializer.builder().setDorisOptions(dorisBuilder.build()).build())
                 .setDorisOptions(dorisBuilder.build());
         return builder.build();
     }
 
-    protected boolean shouldMonitorTable(String tableName) {
-        boolean shouldMonitor = true;
+    /**
+     * Filter table that need to be synchronized
+     */
+    protected boolean isSyncNeeded(String tableName) {
+        boolean sync = true;
         if (includingPattern != null) {
-            shouldMonitor = includingPattern.matcher(tableName).matches();
+            sync = includingPattern.matcher(tableName).matches();
         }
         if (excludingPattern != null) {
-            shouldMonitor = shouldMonitor && !excludingPattern.matcher(tableName).matches();
+            sync = sync && !excludingPattern.matcher(tableName).matches();
         }
-        LOG.debug("Source table {} is monitored? {}", tableName, shouldMonitor);
-        return shouldMonitor;
+        LOG.debug("table {} is synchronized? {}", tableName, sync);
+        return sync;
     }
 
     public static class TableNameConverter implements Serializable {

@@ -122,7 +122,7 @@ public class DorisExecutionOptions implements Serializable {
         private int bufferCount = DEFAULT_BUFFER_COUNT;
         private String labelPrefix = "";
         private Properties streamLoadProp = new Properties();
-        private boolean enableDelete = false;
+        private boolean enableDelete = true;
 
         private boolean enable2PC = true;
 
