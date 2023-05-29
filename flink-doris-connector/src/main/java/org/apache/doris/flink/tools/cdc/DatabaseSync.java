@@ -41,6 +41,7 @@ import java.io.Serializable;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -48,6 +49,7 @@ import java.util.regex.Pattern;
 
 public abstract class DatabaseSync {
     private static final Logger LOG = LoggerFactory.getLogger(DatabaseSync.class);
+    private static final String LIGHT_SCHEMA_CHANGE = "light_schema_change";
     protected Configuration config;
     protected String database;
     protected TableNameConverter converter;
@@ -74,7 +76,11 @@ public abstract class DatabaseSync {
         this.includingPattern = includingTables == null ? null : Pattern.compile(includingTables);
         this.excludingPattern = excludingTables == null ? null : Pattern.compile(excludingTables);
         this.sinkConfig = sinkConfig;
-        this.tableConfig = tableConfig;
+        this.tableConfig = tableConfig == null ? new HashMap<>() : tableConfig;
+        //default enable light schema change
+        if(!this.tableConfig.containsKey(LIGHT_SCHEMA_CHANGE)){
+            this.tableConfig.put(LIGHT_SCHEMA_CHANGE, "true");
+        }
     }
 
     public void build() throws Exception {
