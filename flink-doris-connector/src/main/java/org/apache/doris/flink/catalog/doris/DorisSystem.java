@@ -171,6 +171,14 @@ public class DorisSystem {
                 .append(" KEY(")
                 .append(String.join(",", identifier(schema.getKeys())))
                 .append(")");
+
+        //append table comment
+        if(!StringUtils.isNullOrWhitespaceOnly(schema.getTableComment())){
+            sb.append(" COMMENT '")
+                    .append(schema.getTableComment())
+                    .append("' ");
+        }
+
         //append distribute key
         sb.append(" DISTRIBUTED BY HASH(")
                 .append(String.join(",", identifier(schema.getDistributeKeys())))

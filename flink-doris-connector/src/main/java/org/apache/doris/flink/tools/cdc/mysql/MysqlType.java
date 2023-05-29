@@ -151,6 +151,12 @@ public class MysqlType {
             case LONGTEXT:
             case ENUM:
             case TIME:
+            case TINYBLOB:
+            case BLOB:
+            case MEDIUMBLOB:
+            case LONGBLOB:
+            case BINARY:
+            case VARBINARY:
                 return DorisType.STRING;
             case JSON:
                 return DorisType.JSONB;

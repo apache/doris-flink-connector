@@ -57,7 +57,7 @@ public class MysqlDatabaseSync extends DatabaseSync {
     public Connection getConnection() throws SQLException {
         return DriverManager.getConnection(
                 String.format(
-                        "jdbc:mysql://%s:%d/",
+                        "jdbc:mysql://%s:%d?useInformationSchema=true",
                         config.get(MySqlSourceOptions.HOSTNAME),
                         config.get(MySqlSourceOptions.PORT)),
                 config.get(MySqlSourceOptions.USERNAME),
@@ -74,11 +74,12 @@ public class MysqlDatabaseSync extends DatabaseSync {
                          metaData.getTables(databaseName, null, "%", new String[]{"TABLE"})) {
                 while (tables.next()) {
                     String tableName = tables.getString("TABLE_NAME");
+                    String tableComment = tables.getString("REMARKS");
                     if (!isSyncNeeded(tableName)) {
                         continue;
                     }
                     SourceSchema sourceSchema =
-                            new SourceSchema(metaData, databaseName, tableName);
+                            new SourceSchema(metaData, databaseName, tableName, tableComment);
                     if (sourceSchema.primaryKeys.size() > 0) {
                         //Only sync tables with primary keys
                         schemaList.add(sourceSchema);

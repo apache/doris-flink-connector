@@ -31,15 +31,16 @@ import java.util.Map;
 public class SourceSchema {
     private final String databaseName;
     private final String tableName;
-
+    private final String tableComment;
     private final LinkedHashMap<String, FieldSchema> fields;
     public final List<String> primaryKeys;
 
     public SourceSchema(
-            DatabaseMetaData metaData, String databaseName, String tableName)
+            DatabaseMetaData metaData, String databaseName, String tableName, String tableComment)
             throws Exception {
         this.databaseName = databaseName;
         this.tableName = tableName;
+        this.tableComment = tableComment;
 
         fields = new LinkedHashMap<>();
         try (ResultSet rs = metaData.getColumns(databaseName, null, tableName, null)) {
@@ -75,6 +76,7 @@ public class SourceSchema {
         tableSchema.setModel(DataModel.UNIQUE);
         tableSchema.setFields(this.fields);
         tableSchema.setKeys(this.primaryKeys);
+        tableSchema.setTableComment(this.tableComment);
         tableSchema.setDistributeKeys(this.primaryKeys);
         tableSchema.setProperties(tableProps);
         return tableSchema;
@@ -94,5 +96,9 @@ public class SourceSchema {
 
     public List<String> getPrimaryKeys() {
         return primaryKeys;
+    }
+
+    public String getTableComment() {
+        return tableComment;
     }
 }
