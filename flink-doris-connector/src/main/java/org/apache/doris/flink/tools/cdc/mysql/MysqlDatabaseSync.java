@@ -162,6 +162,9 @@ public class MysqlDatabaseSync extends DatabaseSync {
 
         Properties jdbcProperties = new Properties();
         Properties debeziumProperties = new Properties();
+        //date to string
+        debeziumProperties.putAll(DateToStringConverter.DEFAULT_PROPS);
+
         for (Map.Entry<String, String> entry : config.toMap().entrySet()) {
             String key = entry.getKey();
             String value = entry.getValue();
@@ -172,8 +175,6 @@ public class MysqlDatabaseSync extends DatabaseSync {
                         key.substring(DebeziumOptions.DEBEZIUM_OPTIONS_PREFIX.length()), value);
             }
         }
-        //date to string
-        debeziumProperties.putAll(DateToStringConverter.DEFAULT_PROPS);
         sourceBuilder.jdbcProperties(jdbcProperties);
         sourceBuilder.debeziumProperties(debeziumProperties);
 

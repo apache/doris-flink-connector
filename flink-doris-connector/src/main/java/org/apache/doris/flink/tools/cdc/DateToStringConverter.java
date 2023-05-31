@@ -51,7 +51,7 @@ public class DateToStringConverter implements CustomConverter<SchemaBuilder, Rel
         DEFAULT_PROPS.setProperty("date.format.date", "yyyy-MM-dd");
         DEFAULT_PROPS.setProperty("date.format.datetime", "yyyy-MM-dd HH:mm:ss");
         DEFAULT_PROPS.setProperty("date.format.timestamp", "yyyy-MM-dd HH:mm:ss.SSSSSS");
-        DEFAULT_PROPS.setProperty("date.format.timestamp.zone", "UTC");
+        DEFAULT_PROPS.setProperty("date.format.timestamp.zone", "UTC+8");
     }
 
     @Override
