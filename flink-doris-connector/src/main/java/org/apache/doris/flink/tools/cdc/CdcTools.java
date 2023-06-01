@@ -38,9 +38,11 @@ public class CdcTools {
     public static void main(String[] args) throws Exception {
         String operation = args[0].toLowerCase();
         String[] opArgs = Arrays.copyOfRange(args, 1, args.length);
+        System.out.println();
         switch (operation) {
             case MYSQL_SYNC_DATABASE:
                 createMySQLSyncDatabase(opArgs);
+                break;
             default:
                 System.out.println("Unknown operation " + operation);
                 System.exit(1);

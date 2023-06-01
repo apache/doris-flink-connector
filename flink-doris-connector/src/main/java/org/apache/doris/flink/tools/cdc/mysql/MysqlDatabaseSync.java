@@ -85,6 +85,7 @@ public class MysqlDatabaseSync extends DatabaseSync {
                         schemaList.add(sourceSchema);
                     } else {
                         LOG.warn("table {} has no primary key, skip", tableName);
+                        System.out.println("table " + tableName + " has no primary key, skip.");
                     }
                 }
             }
