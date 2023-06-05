@@ -27,7 +27,7 @@ under the License.
     </parent>
     <groupId>org.apache.doris</groupId>
     <artifactId>flink-doris-connector-${flink.minor.version}</artifactId>
-    <version>1.4.0-SNAPSHOT</version>
+    <version>${revision}</version>
     <name>Flink Doris Connector</name>
     <url>https://doris.apache.org/</url>
 
@@ -67,6 +67,7 @@ under the License.
     </mailingLists>
 
     <properties>
+        <revision>1.4.0-SNAPSHOT</revision>
         <flink.version>1.15.0</flink.version>
         <flink.minor.version>1.15</flink.minor.version>
         <libthrift.version>0.16.0</libthrift.version>
