@@ -130,14 +130,15 @@ public class DorisWriter<IN> implements SinkWriter<IN, DorisCommittable, DorisWr
     @Override
     public void write(IN in, Context context) throws IOException {
         checkLoadException();
+        byte[] serialize = serializer.serialize(in);
+        if(Objects.isNull(serialize)){
+            //ddl record
+            return;
+        }
         if(!loading) {
             //Start streamload only when there has data
             dorisStreamLoad.startLoad(currentLabel);
             loading = true;
-        }
-        byte[] serialize = serializer.serialize(in);
-        if(Objects.isNull(serialize)){
-            return;
         }
         dorisStreamLoad.writeRecord(serialize);
     }
@@ -254,7 +255,7 @@ public class DorisWriter<IN> implements SinkWriter<IN, DorisCommittable, DorisWr
             backend = "http://" + backend;
             URL url = new URL(backend);
             HttpURLConnection co =  (HttpURLConnection) url.openConnection();
-            co.setConnectTimeout(1000);
+            co.setConnectTimeout(60000);
             co.connect();
             co.disconnect();
             return true;
