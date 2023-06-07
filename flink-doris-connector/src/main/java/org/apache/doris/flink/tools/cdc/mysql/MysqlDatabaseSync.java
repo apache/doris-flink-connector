@@ -50,18 +50,19 @@ import java.util.Properties;
 public class MysqlDatabaseSync extends DatabaseSync {
     private static final Logger LOG = LoggerFactory.getLogger(MysqlDatabaseSync.class);
 
+    private static String JDBC_URL = "jdbc:mysql://%s:%d?useInformationSchema=true";
+
     public MysqlDatabaseSync() {
     }
 
     @Override
     public Connection getConnection() throws SQLException {
-        return DriverManager.getConnection(
-                String.format(
-                        "jdbc:mysql://%s:%d?useInformationSchema=true",
-                        config.get(MySqlSourceOptions.HOSTNAME),
-                        config.get(MySqlSourceOptions.PORT)),
-                config.get(MySqlSourceOptions.USERNAME),
-                config.get(MySqlSourceOptions.PASSWORD));
+        Properties jdbcProperties = getJdbcProperties();
+        StringBuilder jdbcUrlSb = new StringBuilder(JDBC_URL);
+        jdbcProperties.forEach((key, value) -> jdbcUrlSb.append("&").append(key).append("=").append(value));
+        String jdbcUrl = String.format(jdbcUrlSb.toString(), config.get(MySqlSourceOptions.HOSTNAME), config.get(MySqlSourceOptions.PORT));
+
+        return DriverManager.getConnection(jdbcUrl,config.get(MySqlSourceOptions.USERNAME),config.get(MySqlSourceOptions.PASSWORD));
     }
 
     @Override
@@ -188,5 +189,17 @@ public class MysqlDatabaseSync extends DatabaseSync {
         DataStreamSource<String> streamSource = env.fromSource(
                 mySqlSource, WatermarkStrategy.noWatermarks(), "MySQL Source");
         return streamSource;
+    }
+
+    private Properties getJdbcProperties(){
+        Properties jdbcProps = new Properties();
+        for (Map.Entry<String, String> entry : config.toMap().entrySet()) {
+            String key = entry.getKey();
+            String value = entry.getValue();
+            if (key.startsWith(JdbcUrlUtils.PROPERTIES_PREFIX)) {
+                jdbcProps.put(key.substring(JdbcUrlUtils.PROPERTIES_PREFIX.length()), value);
+            }
+        }
+        return jdbcProps;
     }
 }
