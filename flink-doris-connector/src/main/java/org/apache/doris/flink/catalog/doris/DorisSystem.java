@@ -23,14 +23,13 @@ import org.apache.doris.flink.connection.JdbcConnectionProvider;
 import org.apache.doris.flink.connection.SimpleJdbcConnectionProvider;
 import org.apache.doris.flink.exception.CreateTableException;
 import org.apache.doris.flink.exception.DorisRuntimeException;
+import org.apache.doris.flink.exception.DorisSystemException;
 import org.apache.doris.flink.tools.cdc.DatabaseSync;
 import org.apache.flink.annotation.Public;
-import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
@@ -56,33 +55,34 @@ public class DorisSystem {
         this.jdbcConnectionProvider = new SimpleJdbcConnectionProvider(options);
     }
 
-    public List<String> listDatabases() throws Exception {
+    public List<String> listDatabases() {
         return extractColumnValuesBySQL(
                 "SELECT `SCHEMA_NAME` FROM `INFORMATION_SCHEMA`.`SCHEMATA`;",
                 1,
                 dbName -> !builtinDatabases.contains(dbName));
     }
 
-    public boolean databaseExists(String database) throws Exception {
+    public boolean databaseExists(String database) {
         checkArgument(!StringUtils.isNullOrWhitespaceOnly(database));
         return listDatabases().contains(database);
     }
 
-    public boolean createDatabase(String database) throws Exception {
-        execute(String.format("CREATE DATABASE %s", database));
+    public boolean createDatabase(String database) {
+        execute(String.format("CREATE DATABASE IF NOT EXISTS %s", database));
+        return true;
+    }
+
+    public boolean dropDatabase(String database) {
+        execute(String.format("DROP DATABASE IF EXISTS %s", database));
         return true;
     }
 
     public boolean tableExists(String database, String table){
-        try {
-            return databaseExists(database)
-                    && listTables(database).contains(table);
-        } catch (Exception e) {
-            return false;
-        }
+        return databaseExists(database)
+                && listTables(database).contains(table);
     }
 
-    public List<String> listTables(String databaseName) throws Exception {
+    public List<String> listTables(String databaseName) {
         if (!databaseExists(databaseName)) {
             throw new DorisRuntimeException("database" + databaseName + " is not exists");
         }
@@ -93,29 +93,32 @@ public class DorisSystem {
                 databaseName);
     }
 
-    public void createTable(TableSchema schema) throws Exception {
+    public void dropTable(String tableName) {
+        execute(String.format("DROP TABLE IF EXISTS %s", tableName));
+    }
+
+    public void createTable(TableSchema schema) {
         String ddl = buildCreateTableDDL(schema);
         LOG.info("Create table with ddl:{}", ddl);
         execute(ddl);
     }
 
-    public void execute(String sql) throws Exception {
-        Connection conn = jdbcConnectionProvider.getOrEstablishConnection();
-        try (Statement statement = conn.createStatement()) {
+    public void execute(String sql) {
+        try (Statement statement = jdbcConnectionProvider.getOrEstablishConnection().createStatement()) {
             statement.execute(sql);
+        } catch (Exception e){
+            throw new DorisSystemException(String.format("SQL query could not be executed: %s", sql), e);
         }
     }
 
-    private List<String> extractColumnValuesBySQL(
+    public List<String> extractColumnValuesBySQL(
             String sql,
             int columnIndex,
             Predicate<String> filterFunc,
-            Object... params) throws Exception {
+            Object... params) {
 
-        Connection conn = jdbcConnectionProvider.getOrEstablishConnection();
         List<String> columnValues = Lists.newArrayList();
-
-        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+        try (PreparedStatement ps = jdbcConnectionProvider.getOrEstablishConnection().prepareStatement(sql)) {
             if (Objects.nonNull(params) && params.length > 0) {
                 for (int i = 0; i < params.length; i++) {
                     ps.setObject(i + 1, params[i]);
@@ -130,7 +133,7 @@ public class DorisSystem {
             }
             return columnValues;
         } catch (Exception e) {
-            throw new CatalogException(
+            throw new DorisSystemException(
                     String.format(
                             "The following SQL query could not be executed: %s", sql),
                     e);
@@ -210,7 +213,7 @@ public class DorisSystem {
                 .append(" ")
                 .append(field.getTypeString())
                 .append(" COMMENT '")
-                .append(field.getComment())
+                .append(field.getComment() == null ? "" : field.getComment())
                 .append("',");
     }
 

@@ -16,83 +16,87 @@
 // under the License.
 package org.apache.doris.flink.catalog;
 
+import org.apache.doris.flink.catalog.doris.DorisType;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.ArrayType;
+import org.apache.flink.table.types.logical.BigIntType;
+import org.apache.flink.table.types.logical.BooleanType;
+import org.apache.flink.table.types.logical.CharType;
+import org.apache.flink.table.types.logical.DateType;
+import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.DoubleType;
+import org.apache.flink.table.types.logical.FloatType;
+import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.MapType;
+import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.SmallIntType;
+import org.apache.flink.table.types.logical.TimestampType;
+import org.apache.flink.table.types.logical.TinyIntType;
+import org.apache.flink.table.types.logical.VarBinaryType;
+import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeDefaultVisitor;
+
+import static org.apache.doris.flink.catalog.doris.DorisType.BIGINT;
+import static org.apache.doris.flink.catalog.doris.DorisType.BOOLEAN;
+import static org.apache.doris.flink.catalog.doris.DorisType.CHAR;
+import static org.apache.doris.flink.catalog.doris.DorisType.DATE;
+import static org.apache.doris.flink.catalog.doris.DorisType.DATETIME;
+import static org.apache.doris.flink.catalog.doris.DorisType.DATETIME_V2;
+import static org.apache.doris.flink.catalog.doris.DorisType.DATE_V2;
+import static org.apache.doris.flink.catalog.doris.DorisType.DECIMAL;
+import static org.apache.doris.flink.catalog.doris.DorisType.DECIMAL_V3;
+import static org.apache.doris.flink.catalog.doris.DorisType.DOUBLE;
+import static org.apache.doris.flink.catalog.doris.DorisType.FLOAT;
+import static org.apache.doris.flink.catalog.doris.DorisType.INT;
+import static org.apache.doris.flink.catalog.doris.DorisType.JSONB;
+import static org.apache.doris.flink.catalog.doris.DorisType.LARGEINT;
+import static org.apache.doris.flink.catalog.doris.DorisType.SMALLINT;
+import static org.apache.doris.flink.catalog.doris.DorisType.STRING;
+import static org.apache.doris.flink.catalog.doris.DorisType.TINYINT;
+import static org.apache.doris.flink.catalog.doris.DorisType.VARCHAR;
 
 public class DorisTypeMapper {
-
-    // -------------------------number----------------------------
-    private static final String DORIS_TINYINT = "TINYINT";
-    private static final String DORIS_SMALLINT = "SMALLINT";
-    private static final String DORIS_INT = "INT";
-    private static final String DORIS_BIGINT = "BIGINT";
-    private static final String DORIS_LARGEINT = "BIGINT UNSIGNED";
-    private static final String DORIS_DECIMAL = "DECIMAL";
-    private static final String DORIS_DECIMALV2 = "DECIMALV2";
-    private static final String DORIS_DECIMAL32 = "DECIMAL32";
-    private static final String DORIS_DECIMAL64 = "DECIMAL64";
-    private static final String DORIS_DECIMAL128I = "DECIMAL128I";
-    private static final String DORIS_FLOAT = "FLOAT";
-    private static final String DORIS_DOUBLE = "DOUBLE";
-
-    // -------------------------string----------------------------
-    private static final String DORIS_CHAR = "CHAR";
-    private static final String DORIS_VARCHAR = "VARCHAR";
-    private static final String DORIS_STRING = "STRING";
-    private static final String DORIS_TEXT = "TEXT";
-    private static final String DORIS_JSONB = "JSONB";
-
-    // ------------------------------time-------------------------
-    private static final String DORIS_DATE = "DATE";
-    private static final String DORIS_DATEV2 = "DATEV2";
-    private static final String DORIS_DATETIME = "DATETIME";
-    private static final String DORIS_DATETIMEV2 = "DATETIMEV2";
-
-    //------------------------------bool------------------------
-    private static final String DORIS_BOOLEAN = "BOOLEAN";
-
 
     public static DataType toFlinkType(String columnName, String columnType, int precision, int scale) {
         columnType = columnType.toUpperCase();
         switch (columnType) {
-            case DORIS_BOOLEAN:
+            case BOOLEAN:
                 return DataTypes.BOOLEAN();
-            case DORIS_TINYINT:
+            case TINYINT:
                 if (precision == 0) {
                     //The boolean type will become tinyint when queried in information_schema, and precision=0
                     return DataTypes.BOOLEAN();
                 } else {
                     return DataTypes.TINYINT();
                 }
-            case DORIS_SMALLINT:
+            case SMALLINT:
                 return DataTypes.SMALLINT();
-            case DORIS_INT:
+            case INT:
                 return DataTypes.INT();
-            case DORIS_BIGINT:
+            case BIGINT:
                 return DataTypes.BIGINT();
-            case DORIS_DECIMAL:
-            case DORIS_DECIMALV2:
-            case DORIS_DECIMAL32:
-            case DORIS_DECIMAL64:
-            case DORIS_DECIMAL128I:
+            case DECIMAL:
+            case DECIMAL_V3:
                 return DataTypes.DECIMAL(precision, scale);
-            case DORIS_FLOAT:
+            case FLOAT:
                 return DataTypes.FLOAT();
-            case DORIS_DOUBLE:
+            case DOUBLE:
                 return DataTypes.DOUBLE();
-            case DORIS_CHAR:
+            case CHAR:
                 return DataTypes.CHAR(precision);
-            case DORIS_LARGEINT:
-            case DORIS_VARCHAR:
-            case DORIS_STRING:
-            case DORIS_TEXT:
-            case DORIS_JSONB:
+            case VARCHAR:
+                return DataTypes.VARCHAR(precision);
+            case LARGEINT:
+            case STRING:
+            case JSONB:
                 return DataTypes.STRING();
-            case DORIS_DATE:
-            case DORIS_DATEV2:
+            case DATE:
+            case DATE_V2:
                 return DataTypes.DATE();
-            case DORIS_DATETIME:
-            case DORIS_DATETIMEV2:
+            case DATETIME:
+            case DATETIME_V2:
                 return DataTypes.TIMESTAMP(0);
             default:
                 throw new UnsupportedOperationException(
@@ -100,4 +104,112 @@ public class DorisTypeMapper {
                                 "Doesn't support Doris type '%s' on column '%s'", columnType, columnName));
         }
     }
+
+    public static String toDorisType(DataType flinkType){
+        LogicalType logicalType = flinkType.getLogicalType();
+        return logicalType.accept(new LogicalTypeVisitor(logicalType));
+    }
+
+    private static class LogicalTypeVisitor extends LogicalTypeDefaultVisitor<String> {
+        private final LogicalType type;
+
+        LogicalTypeVisitor(LogicalType type) {
+            this.type = type;
+        }
+
+        @Override
+        public String visit(CharType charType) {
+            return String.format("%s(%s)", DorisType.CHAR, charType.getLength());
+        }
+
+        @Override
+        public String visit(VarCharType varCharType) {
+            int length = varCharType.getLength();
+            return length > 65533 ? STRING : String.format("%s(%s)", VARCHAR, length);
+        }
+
+        @Override
+        public String visit(BooleanType booleanType) {
+            return BOOLEAN;
+        }
+
+        @Override
+        public String visit(VarBinaryType varBinaryType) {
+            return STRING;
+        }
+
+        @Override
+        public String  visit(DecimalType decimalType) {
+            int precision = decimalType.getPrecision();
+            int scale = decimalType.getScale();
+            return precision <= 38
+                    ? String.format("%s(%s,%s)", DorisType.DECIMAL_V3, precision, scale >= 0 ? scale : 0)
+                    : DorisType.STRING;
+        }
+
+        @Override
+        public String visit(TinyIntType tinyIntType) {
+            return TINYINT;
+        }
+
+        @Override
+        public String visit(SmallIntType smallIntType) {
+            return SMALLINT;
+        }
+
+        @Override
+        public String visit(IntType intType) {
+            return INT;
+        }
+
+        @Override
+        public String visit(BigIntType bigIntType) {
+            return BIGINT;
+        }
+
+        @Override
+        public String visit(FloatType floatType) {
+            return FLOAT;
+        }
+
+        @Override
+        public String visit(DoubleType doubleType) {
+            return DOUBLE;
+        }
+
+        @Override
+        public String visit(DateType dateType) {
+            return DATE_V2;
+        }
+
+        @Override
+        public String visit(TimestampType timestampType) {
+            int precision = timestampType.getPrecision();
+            return String.format("%s(%s)", DorisType.DATETIME_V2, Math.min(Math.max(precision, 0), 6));
+        }
+
+        @Override
+        public String visit(ArrayType arrayType) {
+            return STRING;
+        }
+
+        @Override
+        public String visit(MapType mapType) {
+            return STRING;
+        }
+
+        @Override
+        public String visit(RowType rowType) {
+            return STRING;
+        }
+
+        @Override
+        protected String defaultMethod(LogicalType logicalType) {
+            throw new UnsupportedOperationException(
+                    String.format(
+                            "Flink doesn't support converting type %s to Doris type yet.",
+                            type.toString()));
+        }
+    }
+
 }
