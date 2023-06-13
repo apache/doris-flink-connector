@@ -88,12 +88,7 @@ public class DorisCatalog extends AbstractCatalog {
 
     private static final Logger LOG = LoggerFactory.getLogger(DorisCatalog.class);
 
-    private static final Set<String> builtinDatabases =
-            new HashSet<String>() {
-                {
-                    add("information_schema");
-                }
-            };
+    private static final Set<String> builtinDatabases = Collections.singleton("information_schema");
 
     private final String username;
     private final String password;

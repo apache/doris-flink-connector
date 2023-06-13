@@ -167,8 +167,7 @@ public class ExecutionPool implements Closeable {
                         }
                         for (Map.Entry<String, List<Get>> entry : getsByTable.entrySet()) {
                             GetAction getAction = new GetAction(entry.getValue());
-                            while (!submit(getAction)) {
-                            }
+                            while (!submit(getAction));
                         }
                     }
                 } catch (InterruptedException e) {
