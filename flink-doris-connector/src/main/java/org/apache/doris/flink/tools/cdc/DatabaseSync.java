@@ -117,7 +117,7 @@ public abstract class DatabaseSync {
             DataStream<String> sideOutput = parsedStream.getSideOutput(recordOutputTag);
 
             int sinkParallel = sinkConfig.getInteger(DorisConfigOptions.SINK_PARALLELISM, sideOutput.getParallelism());
-            sideOutput.sinkTo(buildDorisSink(table)).setParallelism(sinkParallel).name(table);
+            sideOutput.sinkTo(buildDorisSink(table)).setParallelism(sinkParallel).name(table).uid(table);
         }
     }
 
