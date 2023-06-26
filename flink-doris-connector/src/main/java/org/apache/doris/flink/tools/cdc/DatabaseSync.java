@@ -57,6 +57,7 @@ public abstract class DatabaseSync {
     protected Pattern excludingPattern;
     protected Map<String, String> tableConfig;
     protected Configuration sinkConfig;
+    protected boolean includeTableDefaultValue;
     public StreamExecutionEnvironment env;
 
     public abstract Connection getConnection() throws SQLException;
@@ -68,13 +69,15 @@ public abstract class DatabaseSync {
 
     public void create(StreamExecutionEnvironment env, String database, Configuration config,
                        String tablePrefix, String tableSuffix, String includingTables,
-                       String excludingTables, Configuration sinkConfig, Map<String, String> tableConfig) {
+                       String excludingTables, boolean includeTableDefaultValue,
+            Configuration sinkConfig, Map<String, String> tableConfig) {
         this.env = env;
         this.config = config;
         this.database = database;
         this.converter = new TableNameConverter(tablePrefix, tableSuffix);
         this.includingPattern = includingTables == null ? null : Pattern.compile(includingTables);
         this.excludingPattern = excludingTables == null ? null : Pattern.compile(excludingTables);
+        this.includeTableDefaultValue = includeTableDefaultValue;
         this.sinkConfig = sinkConfig;
         this.tableConfig = tableConfig == null ? new HashMap<>() : tableConfig;
         //default enable light schema change
