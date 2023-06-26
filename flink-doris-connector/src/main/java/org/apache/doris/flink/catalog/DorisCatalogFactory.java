@@ -16,6 +16,7 @@
 // under the License.
 package org.apache.doris.flink.catalog;
 
+import org.apache.doris.flink.cfg.DorisConnectionOptions;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.catalog.Catalog;
@@ -26,7 +27,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 import static org.apache.doris.flink.catalog.DorisCatalogOptions.DEFAULT_DATABASE;
-import static org.apache.doris.flink.catalog.DorisCatalogOptions.JDBCURL;
+import static org.apache.doris.flink.table.DorisConfigOptions.JDBC_URL;
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_BATCH_SIZE;
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_DESERIALIZE_ARROW_ASYNC;
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_DESERIALIZE_QUEUE_SIZE;
@@ -67,7 +68,7 @@ public class DorisCatalogFactory implements CatalogFactory {
     @Override
     public Set<ConfigOption<?>> requiredOptions() {
         final Set<ConfigOption<?>> options = new HashSet<>();
-        options.add(JDBCURL);
+        options.add(JDBC_URL);
         options.add(USERNAME);
         options.add(PASSWORD);
         return options;
@@ -76,7 +77,7 @@ public class DorisCatalogFactory implements CatalogFactory {
     @Override
     public Set<ConfigOption<?>> optionalOptions() {
         final Set<ConfigOption<?>> options = new HashSet<>();
-        options.add(JDBCURL);
+        options.add(JDBC_URL);
         options.add(DEFAULT_DATABASE);
 
         options.add(FENODES);
@@ -115,12 +116,17 @@ public class DorisCatalogFactory implements CatalogFactory {
                 FactoryUtil.createCatalogFactoryHelper(this, context);
         helper.validateExcept(STREAM_LOAD_PROP_PREFIX);
 
+        DorisConnectionOptions connectionOptions =
+                new DorisConnectionOptions.DorisConnectionOptionsBuilder()
+                        .withFenodes(helper.getOptions().get(FENODES))
+                        .withJdbcUrl(helper.getOptions().get(JDBC_URL))
+                        .withUsername(helper.getOptions().get(USERNAME))
+                        .withPassword(helper.getOptions().get(PASSWORD))
+                        .build();
         return new DorisCatalog(
                 context.getName(),
-                helper.getOptions().get(JDBCURL),
+                connectionOptions,
                 helper.getOptions().get(DEFAULT_DATABASE),
-                helper.getOptions().get(USERNAME),
-                helper.getOptions().get(PASSWORD),
                 ((Configuration) helper.getOptions()).toMap());
     }
 }

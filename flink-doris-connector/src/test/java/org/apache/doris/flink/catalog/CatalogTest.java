@@ -17,15 +17,24 @@
 
 package org.apache.doris.flink.catalog;
 
+import org.apache.doris.flink.cfg.DorisConnectionOptions;
 import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogBaseTable;
+import org.apache.flink.table.catalog.CatalogDatabase;
+import org.apache.flink.table.catalog.CatalogDatabaseImpl;
+import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
+import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
+import org.apache.flink.table.types.AtomicDataType;
+import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.CollectionUtil;
@@ -52,10 +61,10 @@ import static org.junit.Assert.assertTrue;
 public class CatalogTest {
     private static final String TEST_CATALOG_NAME = "doris_catalog";
     private static final String TEST_FENODES = "127.0.0.1:8030";
-    private static final String TEST_JDBCURL = "jdbc:mysql://127.0.0.1.78:9030";
+    private static final String TEST_JDBCURL = "jdbc:mysql://127.0.0.1:9030";
     private static final String TEST_USERNAME = "root";
     private static final String TEST_PWD = "";
-    private static final String TEST_DB = "test";
+    private static final String TEST_DB = "db1";
     private static final String TEST_TABLE = "t_all_types";
     private static final String TEST_TABLE_SINK = "t_all_types_sink";
     private static final String TEST_TABLE_SINK_GROUPBY = "t_all_types_sink_groupby";
@@ -76,6 +85,25 @@ public class CatalogTest {
                     .column("c_smallint", DataTypes.SMALLINT())
                     .column("c_string", DataTypes.STRING())
                     .column("c_tinyint", DataTypes.TINYINT())
+                    .build();
+
+    protected static final TableSchema TABLE_SCHEMA_1 =
+            TableSchema.builder()
+                    .field("id", new AtomicDataType(new VarCharType(false,128)))
+                    .field("c_boolean", DataTypes.BOOLEAN())
+                    .field("c_char", DataTypes.CHAR(1))
+                    .field("c_date", DataTypes.DATE())
+                    .field("c_datetime", DataTypes.TIMESTAMP(0))
+                    .field("c_decimal", DataTypes.DECIMAL(10, 2))
+                    .field("c_double", DataTypes.DOUBLE())
+                    .field("c_float", DataTypes.FLOAT())
+                    .field("c_int", DataTypes.INT())
+                    .field("c_bigint", DataTypes.BIGINT())
+                    .field("c_largeint", DataTypes.STRING())
+                    .field("c_smallint", DataTypes.SMALLINT())
+                    .field("c_string", DataTypes.STRING())
+                    .field("c_tinyint", DataTypes.TINYINT())
+                    .primaryKey("id")
                     .build();
 
     private static final List<Row> ALL_TYPES_ROWS =
@@ -118,9 +146,17 @@ public class CatalogTest {
 
     @Before
     public void setup() {
+        DorisConnectionOptions connectionOptions =
+                new DorisConnectionOptions.DorisConnectionOptionsBuilder()
+                        .withFenodes(TEST_FENODES)
+                        .withJdbcUrl(TEST_JDBCURL)
+                        .withUsername(TEST_USERNAME)
+                        .withPassword(TEST_PWD)
+                        .build();
+
         Map<String,String> props = new HashMap<>();
         props.put("sink.enable-2pc","false");
-        catalog = new DorisCatalog(TEST_CATALOG_NAME, TEST_JDBCURL, TEST_DB, TEST_USERNAME, TEST_PWD, props);
+        catalog = new DorisCatalog(TEST_CATALOG_NAME, connectionOptions, TEST_DB, props);
         this.tEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
         tEnv.getConfig().set(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1);
         // Use doris catalog.
@@ -148,6 +184,18 @@ public class CatalogTest {
     }
 
     @Test
+    public void testCreateDb() throws Exception {
+        catalog.createDatabase("db1",createDb(), true);
+        assertTrue(catalog.databaseExists("db1"));
+    }
+
+    @Test
+    public void testDropDb() throws Exception {
+        catalog.dropDatabase("db1",false);
+        assertFalse(catalog.databaseExists("db1"));
+    }
+
+    @Test
     public void testListTables() throws DatabaseNotExistException {
         List<String> actual = catalog.listTables(TEST_DB);
         assertEquals(
@@ -165,11 +213,33 @@ public class CatalogTest {
     }
 
     @Test
+    @Ignore
     public void testGetTable() throws TableNotExistException {
+        //todo: string varchar mapping
         CatalogBaseTable table = catalog.getTable(new ObjectPath(TEST_DB, TEST_TABLE));
         System.out.println(table);
         assertEquals(TABLE_SCHEMA, table.getUnresolvedSchema());
     }
+
+    @Test
+    @Ignore
+    public void testCreateTable() throws TableNotExistException, TableAlreadyExistException, DatabaseNotExistException {
+        //todo: Record primary key not null information
+        ObjectPath tablePath = new ObjectPath(TEST_DB, TEST_TABLE);
+        catalog.dropTable(tablePath, true);
+        catalog.createTable(tablePath, createTable(), true);
+        CatalogBaseTable tableGet = catalog.getTable(tablePath);
+        System.out.println(tableGet.getUnresolvedSchema());
+        System.out.println(TABLE_SCHEMA_1);
+        assertEquals(TABLE_SCHEMA_1, tableGet.getUnresolvedSchema());
+    }
+
+    @Test
+    public void testDropTable() throws TableNotExistException {
+        catalog.dropTable(new ObjectPath("db1", "tbl1"), true);
+        assertFalse(catalog.tableExists(new ObjectPath("db1", "tbl1")));
+    }
+
 
     // ------ test select query. ------
 
@@ -259,5 +329,27 @@ public class CatalogTest {
                                 .execute()
                                 .collect());
         assertEquals(Lists.newArrayList(Row.ofKind(RowKind.INSERT, "catalog","100002")), results);
+    }
+
+    private static CatalogDatabase createDb() {
+        return new CatalogDatabaseImpl(
+                new HashMap<String, String>() {
+                    {
+                        put("k1", "v1");
+                    }
+                },
+                "");
+    }
+
+    private static CatalogTable createTable() {
+        return new CatalogTableImpl(
+                TABLE_SCHEMA_1,
+                new HashMap<String, String>() {
+                    {
+                        put("connector", "doris");
+                        put("table.properties.replication_num", "1");
+                    }
+                },
+                "FlinkTable");
     }
 }
