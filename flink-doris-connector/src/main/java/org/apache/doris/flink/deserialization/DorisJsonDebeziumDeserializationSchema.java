@@ -34,6 +34,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.util.Collector;
 
+import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
@@ -77,8 +78,10 @@ public class DorisJsonDebeziumDeserializationSchema implements DebeziumDeseriali
             final Schema.Type schemaType;
             if (schema == null) {
                 schemaType = ConnectSchema.schemaType(value.getClass());
-                if (schemaType == null)
-                    throw new DorisException("Java class " + value.getClass() + " does not have corresponding schema type.");
+                if (schemaType == null) {
+                    throw new DorisException(
+                            "Java class " + value.getClass() + " does not have corresponding schema type.");
+                }
             } else {
                 schemaType = schema.type();
             }
@@ -105,6 +108,8 @@ public class DorisJsonDebeziumDeserializationSchema implements DebeziumDeseriali
                         return JSON_NODE_FACTORY.binaryNode((byte[]) value);
                     } else if (value instanceof ByteBuffer) {
                         return JSON_NODE_FACTORY.binaryNode(((ByteBuffer) value).array());
+                    } else if (value instanceof BigDecimal) {
+                        return JSON_NODE_FACTORY.numberNode((BigDecimal) value);
                     } else {
                         throw new DorisException("Invalid type for bytes type: " + value.getClass());
                     }

@@ -183,12 +183,12 @@ public class MysqlDatabaseSync extends DatabaseSync {
         sourceBuilder.jdbcProperties(jdbcProperties);
         sourceBuilder.debeziumProperties(debeziumProperties);
         DebeziumDeserializationSchema<String> schema;
-        if (includeTableDefaultValue) {
+        if (ignoreDefaultValue) {
+            schema = new DorisJsonDebeziumDeserializationSchema();
+        } else {
             Map<String, Object> customConverterConfigs = new HashMap<>();
             customConverterConfigs.put(JsonConverterConfig.DECIMAL_FORMAT_CONFIG, "numeric");
             schema = new JsonDebeziumDeserializationSchema(false, customConverterConfigs);
-        } else {
-            schema = new DorisJsonDebeziumDeserializationSchema();
         }
         MySqlSource<String> mySqlSource = sourceBuilder.deserializer(schema).includeSchemaChanges(true).build();
 

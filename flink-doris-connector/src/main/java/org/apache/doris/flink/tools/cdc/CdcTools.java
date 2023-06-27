@@ -57,8 +57,8 @@ public class CdcTools {
         String tableSuffix = params.get("table-suffix");
         String includingTables = params.get("including-tables");
         String excludingTables = params.get("excluding-tables");
-        boolean includeTableDefaultValue =
-                Boolean.parseBoolean(params.get("including-table-default-value", "true"));
+        boolean ignoreDefaultValue =
+                Boolean.parseBoolean(params.get("ignore-default-value", "false"));
 
         Map<String, String> mysqlMap = getConfigMap(params, "mysql-conf");
         Map<String, String> sinkMap = getConfigMap(params, "sink-conf");
@@ -70,7 +70,7 @@ public class CdcTools {
 
         DatabaseSync databaseSync = new MysqlDatabaseSync();
         databaseSync.create(env, database, mysqlConfig, tablePrefix, tableSuffix, includingTables, excludingTables,
-                includeTableDefaultValue, sinkConfig, tableMap);
+                ignoreDefaultValue, sinkConfig, tableMap);
         databaseSync.build();
 
         if(StringUtils.isNullOrWhitespaceOnly(jobName)){
