@@ -215,6 +215,8 @@ public class DorisStreamLoadManager {
     public void remove(long cpk) {
         // TODO recycle the RecordBufferCache
         if(cpkDataCache.contains(cpk)) {
+            //recycle all buffer to ByteBufferManager
+            cpkDataCache.get(cpk).recycle();
             cpkDataCache.remove(cpk);
             // update current committed checkpoint id
             this.curCheckpointId = cpk;

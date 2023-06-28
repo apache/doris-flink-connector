@@ -18,6 +18,16 @@ public class RecordBufferCache {
         loadBatchFirstRecord = true;
     }
 
+    public void recycle() {
+        for(ByteBuffer buff: recordBuffers) {
+            buff.clear();
+            ByteBufferManager.getByteBufferManager().recycle(buff);
+        }
+
+        currentWriteBuffer.clear();
+        ByteBufferManager.getByteBufferManager().recycle(currentWriteBuffer);
+    }
+
     public void write(byte[] buf) {
         int wPos = 0;
         do {
