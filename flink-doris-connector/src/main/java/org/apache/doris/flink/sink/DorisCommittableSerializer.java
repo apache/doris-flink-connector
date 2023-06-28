@@ -41,7 +41,7 @@ class DorisCommittableSerializer implements SimpleVersionedSerializer<DorisCommi
             out.writeUTF(dorisCommittable.getHostPort());
             out.writeUTF(dorisCommittable.getDb());
             out.writeLong(dorisCommittable.getTxnID());
-
+            out.writeLong(dorisCommittable.getCheckpointId());
             out.flush();
             return baos.toByteArray();
         }
@@ -54,7 +54,8 @@ class DorisCommittableSerializer implements SimpleVersionedSerializer<DorisCommi
             final String hostPort = in.readUTF();
             final String db = in.readUTF();
             final long txnId = in.readLong();
-            return new DorisCommittable(hostPort, db, txnId);
+            final long checkpointId = in.readLong();
+            return new DorisCommittable(hostPort, db, txnId, checkpointId);
         }
     }
 }

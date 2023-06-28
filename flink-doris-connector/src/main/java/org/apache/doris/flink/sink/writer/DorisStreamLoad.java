@@ -40,6 +40,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
@@ -187,6 +188,7 @@ public class DorisStreamLoad implements Serializable {
      * @throws IOException
      */
     public void writeRecord(byte[] record) throws IOException{
+        // TODO - once restart from fail when loading, need to hope for a while till old data processed notified
         if (loadBatchFirstRecord) {
             loadBatchFirstRecord = false;
         } else {
@@ -282,6 +284,51 @@ public class DorisStreamLoad implements Serializable {
         }
     }
 
+    private void abortTxn(long chkID) throws Exception {
+        while (true) {
+            try {
+                String label = labelGenerator.generateLabel(chkID);
+                HttpPutBuilder builder = new HttpPutBuilder();
+                builder.setUrl(loadUrlStr)
+                        .baseAuth(user, passwd)
+                        .addCommonHeader()
+                        .enable2PC()
+                        .setLabel(label)
+                        .setEmptyEntity()
+                        .addProperties(streamLoadProp);
+                RespContent respContent = handlePreCommitResponse(httpClient.execute(builder.build()));
+                Preconditions.checkState("true".equals(respContent.getTwoPhaseCommit()));
+                if (LABEL_ALREADY_EXIST.equals(respContent.getStatus())) {
+                    // label already exist and job finished
+                    if (JOB_EXIST_FINISHED.equals(respContent.getExistingJobStatus())) {
+                        throw new DorisException("Load status is " + LABEL_ALREADY_EXIST + " and load job finished, " +
+                                "change you label prefix or restore from latest savepoint!");
+
+                    }
+                    // job not finished, abort.
+                    Matcher matcher  = LABEL_EXIST_PATTERN.matcher(respContent.getMessage());
+                    if (matcher.find()) {
+                        Preconditions.checkState(label.equals(matcher.group(1)));
+                        long txnId = Long.parseLong(matcher.group(2));
+                        LOG.info("abort {} for exist label {}", txnId, label);
+                        abortTransaction(txnId);
+                    } else {
+                        LOG.error("response: {}", respContent.toString());
+                        throw new DorisException("Load Status is " + LABEL_ALREADY_EXIST + ", but no txnID associated with it!");
+                    }
+                } else {
+                    LOG.info("abort {} for check label {}.", respContent.getTxnId(), label);
+                    abortTransaction(respContent.getTxnId());
+                    break;
+                }
+            } catch (Exception e) {
+                LOG.warn("failed to stream load data", e);
+                throw e;
+            }
+        }
+        LOG.info("abort from checkpoint:{} finished", chkID);
+    }
+
     public void close() throws IOException {
         if (null != httpClient) {
             try {
@@ -294,4 +341,9 @@ public class DorisStreamLoad implements Serializable {
             executorService.shutdownNow();
         }
     }
+
+    public void writeOneBuffer(ByteBuffer buff) throws IOException {
+        recordStream.writeOneBuffer(buff);
+    }
+
 }

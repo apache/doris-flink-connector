@@ -17,6 +17,8 @@
 
 package org.apache.doris.flink.sink;
 
+import org.apache.doris.flink.sink.writer.DorisStreamLoadManager;
+
 import java.util.Objects;
 
 /**
@@ -26,11 +28,13 @@ public class DorisCommittable {
     private final String hostPort;
     private final String db;
     private final long txnID;
+    private final long checkpointId;
 
-    public DorisCommittable(String hostPort, String db, long txnID) {
+    public DorisCommittable(String hostPort, String db, long txnID, long checkpointId) {
         this.hostPort = hostPort;
         this.db = db;
         this.txnID = txnID;
+        this.checkpointId = checkpointId;
     }
 
     public String getHostPort() {
@@ -45,6 +49,14 @@ public class DorisCommittable {
         return txnID;
     }
 
+    public long getCheckpointId() {
+        return checkpointId;
+    }
+
+    public void removeCacheData() {
+        DorisStreamLoadManager.getDorisStreamLoadManager().remove(checkpointId);
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -55,13 +67,14 @@ public class DorisCommittable {
         }
         DorisCommittable that = (DorisCommittable) o;
         return txnID == that.txnID &&
+                checkpointId == that.checkpointId &&
                 Objects.equals(hostPort, that.hostPort) &&
                 Objects.equals(db, that.db);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(hostPort, db, txnID);
+        return Objects.hash(hostPort, db, txnID, checkpointId);
     }
 
     @Override
@@ -70,6 +83,7 @@ public class DorisCommittable {
                 "hostPort='" + hostPort + '\'' +
                 ", db='" + db + '\'' +
                 ", txnID=" + txnID +
+                ", checkpointID=" + checkpointId +
                 '}';
     }
 }

@@ -19,6 +19,8 @@ package org.apache.doris.flink.sink.writer;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.ByteBuffer;
+import java.util.Map;
 
 /**
  * Record Stream for writing record.
@@ -55,6 +57,14 @@ public class RecordStream extends InputStream {
     public void write(byte[] buff) throws IOException {
         try {
             recordBuffer.write(buff);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public void writeOneBuffer(ByteBuffer buff) throws IOException {
+        try {
+            recordBuffer.writeOneBuffer(buff);
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }

@@ -73,6 +73,8 @@ public class DorisCommitter implements Committer<DorisCommittable> {
     public List<DorisCommittable> commit(List<DorisCommittable> committableList) throws IOException {
         for (DorisCommittable committable : committableList) {
             commitTransaction(committable);
+            // after commit succeed, remove the cache data to release memory
+            committable.removeCacheData();
         }
         return Collections.emptyList();
     }
