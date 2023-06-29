@@ -21,11 +21,11 @@ import com.ververica.cdc.connectors.mysql.source.MySqlSourceBuilder;
 import com.ververica.cdc.connectors.mysql.source.config.MySqlSourceOptions;
 import com.ververica.cdc.connectors.mysql.source.offset.BinlogOffset;
 import com.ververica.cdc.connectors.mysql.source.offset.BinlogOffsetBuilder;
-import com.ververica.cdc.connectors.mysql.table.JdbcUrlUtils;
 import com.ververica.cdc.connectors.mysql.table.StartupOptions;
 import com.ververica.cdc.connectors.shaded.org.apache.kafka.connect.json.JsonConverterConfig;
 import com.ververica.cdc.debezium.JsonDebeziumDeserializationSchema;
 import com.ververica.cdc.debezium.table.DebeziumOptions;
+import com.ververica.cdc.debezium.utils.JdbcUrlUtils;
 import org.apache.doris.flink.tools.cdc.DatabaseSync;
 import org.apache.doris.flink.tools.cdc.DateToStringConverter;
 import org.apache.doris.flink.tools.cdc.SourceSchema;
@@ -80,7 +80,7 @@ public class MysqlDatabaseSync extends DatabaseSync {
                         continue;
                     }
                     SourceSchema sourceSchema =
-                            new SourceSchema(metaData, databaseName, tableName, tableComment);
+                            new MysqlSchema(metaData, databaseName, tableName, tableComment);
                     if (sourceSchema.primaryKeys.size() > 0) {
                         //Only sync tables with primary keys
                         schemaList.add(sourceSchema);

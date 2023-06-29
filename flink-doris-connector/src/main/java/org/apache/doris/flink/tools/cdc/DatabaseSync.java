@@ -58,6 +58,7 @@ public abstract class DatabaseSync {
     protected Map<String, String> tableConfig;
     protected Configuration sinkConfig;
     public StreamExecutionEnvironment env;
+    private boolean createTableOnly = false;
 
     public abstract Connection getConnection() throws SQLException;
 
@@ -65,10 +66,9 @@ public abstract class DatabaseSync {
 
     public abstract DataStreamSource<String> buildCdcSource(StreamExecutionEnvironment env);
 
-
     public void create(StreamExecutionEnvironment env, String database, Configuration config,
                        String tablePrefix, String tableSuffix, String includingTables,
-                       String excludingTables, Configuration sinkConfig, Map<String, String> tableConfig) {
+                       String excludingTables, Configuration sinkConfig, Map<String, String> tableConfig, boolean createTableOnly) {
         this.env = env;
         this.config = config;
         this.database = database;
@@ -81,6 +81,7 @@ public abstract class DatabaseSync {
         if(!this.tableConfig.containsKey(LIGHT_SCHEMA_CHANGE)){
             this.tableConfig.put(LIGHT_SCHEMA_CHANGE, "true");
         }
+        this.createTableOnly = createTableOnly;
     }
 
     public void build() throws Exception {
@@ -107,6 +108,11 @@ public abstract class DatabaseSync {
             }
             dorisTables.add(dorisTable);
         }
+        if(createTableOnly){
+            System.out.println("Create table finished.");
+            System.exit(0);
+        }
+
         Preconditions.checkState(!syncTables.isEmpty(), "No tables to be synchronized.");
         config.set(MySqlSourceOptions.TABLE_NAME, "(" + String.join("|", syncTables) + ")");
 

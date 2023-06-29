@@ -19,7 +19,6 @@ package org.apache.doris.flink.tools.cdc;
 import org.apache.doris.flink.catalog.doris.DataModel;
 import org.apache.doris.flink.catalog.doris.FieldSchema;
 import org.apache.doris.flink.catalog.doris.TableSchema;
-import org.apache.doris.flink.tools.cdc.mysql.MysqlType;
 
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
@@ -28,7 +27,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-public class SourceSchema {
+public abstract class SourceSchema {
     private final String databaseName;
     private final String tableName;
     private final String tableComment;
@@ -57,7 +56,7 @@ public class SourceSchema {
                 if (rs.wasNull()) {
                     scale = null;
                 }
-                String dorisTypeStr = MysqlType.toDorisType(fieldType, precision, scale);
+                String dorisTypeStr = convertToDorisType(fieldType, precision, scale);
                 fields.put(fieldName, new FieldSchema(fieldName, dorisTypeStr, comment));
             }
         }
@@ -70,6 +69,8 @@ public class SourceSchema {
             }
         }
     }
+
+    public abstract String convertToDorisType(String fieldType, Integer precision, Integer scale);
 
     public TableSchema convertTableSchema(Map<String, String> tableProps) {
         TableSchema tableSchema = new TableSchema();
