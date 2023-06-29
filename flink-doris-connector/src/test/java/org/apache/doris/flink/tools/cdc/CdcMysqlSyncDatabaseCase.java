@@ -65,7 +65,7 @@ public class CdcMysqlSyncDatabaseCase {
         String includingTables = "tbl1|tbl2|tbl3";
         String excludingTables = "";
         DatabaseSync databaseSync = new MysqlDatabaseSync();
-        databaseSync.create(env,database,config,tablePrefix,tableSuffix,includingTables,excludingTables,sinkConf,tableConfig);
+        databaseSync.create(env,database,config,tablePrefix,tableSuffix,includingTables,excludingTables,sinkConf,tableConfig, false);
         databaseSync.build();
         env.execute(String.format("MySQL-Doris Database Sync: %s", database));
 
