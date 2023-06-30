@@ -45,14 +45,14 @@ import java.util.Properties;
 public class OracleDatabaseSync extends DatabaseSync {
     private static final Logger LOG = LoggerFactory.getLogger(OracleDatabaseSync.class);
 
-    private static String JDBC_URL = "jdbc:oracle:thin:@%s:%d";
+    private static String JDBC_URL = "jdbc:oracle:thin:@%s:%d:%s";
 
     public OracleDatabaseSync() {
     }
 
     @Override
     public Connection getConnection() throws SQLException {
-        String jdbcUrl = String.format(JDBC_URL, config.get(OracleSourceOptions.HOSTNAME), config.get(OracleSourceOptions.PORT));
+        String jdbcUrl = String.format(JDBC_URL, config.get(OracleSourceOptions.HOSTNAME), config.get(OracleSourceOptions.PORT),config.get(OracleSourceOptions.DATABASE_NAME));
         Properties pro = new Properties();
         pro.setProperty("user", config.get(OracleSourceOptions.USERNAME));
         pro.setProperty("password", config.get(OracleSourceOptions.PASSWORD));
