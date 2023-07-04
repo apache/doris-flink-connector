@@ -17,6 +17,7 @@
 package org.apache.doris.flink.tools.cdc.oracle;
 
 import org.apache.doris.flink.catalog.doris.DorisType;
+import org.apache.flink.util.Preconditions;
 
 public class OracleType {
     private static final String VARCHAR2 = "VARCHAR2";
@@ -78,10 +79,16 @@ public class OracleType {
             case DATE:
                 // can save date and time with second precision
                 return DorisType.DATETIME_V2;
-            case VARCHAR2:
-            case NVARCHAR2:
             case CHAR:
+            case VARCHAR2:
+                //char(10),varchar(10) => 10 byte
+                Preconditions.checkNotNull(precision);
+                return precision > 65533 ? DorisType.STRING : String.format("%s(%s)", DorisType.VARCHAR, precision);
             case NCHAR:
+            case NVARCHAR2:
+                //nvarchar2(10) => 10 char
+                Preconditions.checkNotNull(precision);
+                return precision * 3 > 65533 ? DorisType.STRING : String.format("%s(%s)", DorisType.VARCHAR, precision * 3);
             case LONG:
             case RAW:
             case LONG_RAW:
