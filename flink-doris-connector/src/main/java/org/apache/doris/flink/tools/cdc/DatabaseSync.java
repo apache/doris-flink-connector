@@ -16,7 +16,6 @@
 // under the License.
 package org.apache.doris.flink.tools.cdc;
 
-import com.ververica.cdc.connectors.mysql.source.config.MySqlSourceOptions;
 import org.apache.doris.flink.catalog.doris.DorisSystem;
 import org.apache.doris.flink.catalog.doris.TableSchema;
 import org.apache.doris.flink.cfg.DorisConnectionOptions;
@@ -50,6 +49,7 @@ import java.util.regex.Pattern;
 public abstract class DatabaseSync {
     private static final Logger LOG = LoggerFactory.getLogger(DatabaseSync.class);
     private static final String LIGHT_SCHEMA_CHANGE = "light_schema_change";
+    private static final String TABLE_NAME_OPTIONS = "table-name";
     protected Configuration config;
     protected String database;
     protected TableNameConverter converter;
@@ -114,7 +114,7 @@ public abstract class DatabaseSync {
         }
 
         Preconditions.checkState(!syncTables.isEmpty(), "No tables to be synchronized.");
-        config.set(MySqlSourceOptions.TABLE_NAME, "(" + String.join("|", syncTables) + ")");
+        config.setString(TABLE_NAME_OPTIONS, "(" + String.join("|", syncTables) + ")");
 
         DataStreamSource<String> streamSource = buildCdcSource(env);
         SingleOutputStreamOperator<Void> parsedStream = streamSource.process(new ParsingProcessFunction(converter));
