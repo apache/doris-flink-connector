@@ -135,5 +135,4 @@ public class RecordBuffer {
     public int getReadQueueSize() {
         return readQueue.size();
     }
-
 }

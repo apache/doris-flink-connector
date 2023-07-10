@@ -19,8 +19,6 @@ package org.apache.doris.flink.sink.writer;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.ByteBuffer;
-import java.util.Map;
 
 /**
  * Record Stream for writing record.
