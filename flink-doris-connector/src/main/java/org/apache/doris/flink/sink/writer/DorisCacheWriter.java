@@ -17,8 +17,6 @@
 
 package org.apache.doris.flink.sink.writer;
 
-import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.util.Preconditions;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
@@ -26,13 +24,12 @@ import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.apache.doris.flink.rest.models.RespContent;
 import org.apache.doris.flink.sink.DorisCommittable;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
-
 import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
-
-import org.apache.flink.util.concurrent.ExecutorThreadFactory;
+import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,8 +41,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
-import static org.apache.doris.flink.sink.LoadStatus.*;
-
+import static org.apache.doris.flink.sink.LoadStatus.PUBLISH_TIMEOUT;
+import static org.apache.doris.flink.sink.LoadStatus.SUCCESS;
 
 /**
  * Doris Writer will load data to doris.
@@ -56,7 +53,6 @@ public class DorisCacheWriter<IN> implements SinkWriter<IN, DorisCommittable, Do
     private static final List<String> DORIS_SUCCESS_STATUS = new ArrayList<>(Arrays.asList(SUCCESS, PUBLISH_TIMEOUT));
     private final long lastCheckpointId;
     private DorisStreamLoadImpl dorisStreamLoadImpl;
-    private volatile boolean loading;
     private final String labelPrefix;
     private final LabelGenerator labelGenerator;
     private final DorisWriterState dorisWriterState;

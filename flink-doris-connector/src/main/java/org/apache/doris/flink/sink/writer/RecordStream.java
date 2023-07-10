@@ -61,12 +61,4 @@ public class RecordStream extends InputStream {
             throw new RuntimeException(e);
         }
     }
-
-    public void writeOneBuffer(ByteBuffer buff) throws IOException {
-        try {
-            recordBuffer.writeOneBuffer(buff);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
-    }
 }

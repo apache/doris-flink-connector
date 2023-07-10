@@ -125,13 +125,7 @@ public class RecordBuffer {
 
     private void recycleBuffer(ByteBuffer buffer) throws InterruptedException {
         buffer.clear();
-
-        if (writeQueue.size() + readQueue.size() <= queueSize) {
-            writeQueue.put(buffer);
-        } else {
-            // release to ByteBufferManager
-            ByteBufferManager.getByteBufferManager().recycle(buffer);
-        }
+        writeQueue.put(buffer);
     }
 
     public int getWriteQueueSize() {
@@ -140,10 +134,6 @@ public class RecordBuffer {
 
     public int getReadQueueSize() {
         return readQueue.size();
-    }
-
-    public void writeOneBuffer(ByteBuffer buff) throws InterruptedException {
-        readQueue.put(buff);
     }
 
 }

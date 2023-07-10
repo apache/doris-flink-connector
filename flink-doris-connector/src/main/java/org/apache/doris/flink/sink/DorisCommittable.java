@@ -17,7 +17,6 @@
 
 package org.apache.doris.flink.sink;
 
-import org.apache.doris.flink.sink.writer.DorisStreamLoadManager;
 
 import java.util.Objects;
 
@@ -51,10 +50,6 @@ public class DorisCommittable {
 
     public long getCheckpointId() {
         return checkpointId;
-    }
-
-    public void removeCacheData() {
-        DorisStreamLoadManager.getDorisStreamLoadManager().remove(checkpointId);
     }
 
     @Override

@@ -6,7 +6,6 @@ import org.apache.doris.flink.rest.models.RespContent;
 import org.apache.doris.flink.sink.HttpUtil;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
@@ -14,11 +13,9 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import static org.apache.doris.flink.sink.writer.LoadConstants.LINE_DELIMITER_DEFAULT;
-import static org.apache.doris.flink.sink.writer.LoadConstants.LINE_DELIMITER_KEY;
 
 public class DorisStreamLoadManager {
     private static final Logger LOG = LoggerFactory.getLogger(DorisStreamLoadManager.class);
