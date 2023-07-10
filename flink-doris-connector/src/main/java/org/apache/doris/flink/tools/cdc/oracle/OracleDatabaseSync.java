@@ -18,15 +18,18 @@ package org.apache.doris.flink.tools.cdc.oracle;
 
 
 import com.ververica.cdc.connectors.base.options.StartupOptions;
+import com.ververica.cdc.connectors.base.source.jdbc.JdbcIncrementalSource;
 import com.ververica.cdc.connectors.oracle.OracleSource;
+import com.ververica.cdc.connectors.oracle.source.OracleSourceBuilder;
 import com.ververica.cdc.connectors.oracle.source.config.OracleSourceOptions;
+import com.ververica.cdc.debezium.DebeziumSourceFunction;
 import com.ververica.cdc.debezium.JsonDebeziumDeserializationSchema;
 import com.ververica.cdc.debezium.table.DebeziumOptions;
 import org.apache.doris.flink.tools.cdc.DatabaseSync;
 import org.apache.doris.flink.tools.cdc.SourceSchema;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 import org.slf4j.Logger;
@@ -42,6 +45,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+
+import static com.ververica.cdc.connectors.base.options.JdbcSourceOptions.CONNECTION_POOL_SIZE;
+import static com.ververica.cdc.connectors.base.options.JdbcSourceOptions.CONNECT_MAX_RETRIES;
+import static com.ververica.cdc.connectors.base.options.JdbcSourceOptions.CONNECT_TIMEOUT;
+import static com.ververica.cdc.connectors.base.options.SourceOptions.CHUNK_META_GROUP_SIZE;
+import static com.ververica.cdc.connectors.base.options.SourceOptions.SCAN_INCREMENTAL_SNAPSHOT_CHUNK_SIZE;
+import static com.ververica.cdc.connectors.base.options.SourceOptions.SCAN_SNAPSHOT_FETCH_SIZE;
+import static com.ververica.cdc.connectors.base.options.SourceOptions.SPLIT_KEY_EVEN_DISTRIBUTION_FACTOR_LOWER_BOUND;
+import static com.ververica.cdc.connectors.base.options.SourceOptions.SPLIT_KEY_EVEN_DISTRIBUTION_FACTOR_UPPER_BOUND;
 
 public class OracleDatabaseSync extends DatabaseSync {
     private static final Logger LOG = LoggerFactory.getLogger(OracleDatabaseSync.class);
@@ -98,36 +110,28 @@ public class OracleDatabaseSync extends DatabaseSync {
 
     @Override
     public DataStreamSource<String> buildCdcSource(StreamExecutionEnvironment env) {
-        OracleSource.Builder<String> sourceBuilder = OracleSource.builder();
-
         String databaseName = config.get(OracleSourceOptions.DATABASE_NAME);
         String schemaName = config.get(OracleSourceOptions.SCHEMA_NAME);
         Preconditions.checkNotNull(databaseName, "database-name in oracle is required");
         Preconditions.checkNotNull(schemaName, "schema-name in oracle is required");
         String tableName = config.get(OracleSourceOptions.TABLE_NAME);
-        if(!StringUtils.isNullOrWhitespaceOnly(config.get(OracleSourceOptions.URL))){
-            sourceBuilder.url(config.get(OracleSourceOptions.URL));
-        } else {
-            sourceBuilder.hostname(config.get(OracleSourceOptions.HOSTNAME))
-                    .port(config.get(OracleSourceOptions.PORT));
-        }
+        String url = config.get(OracleSourceOptions.URL);
+        String hostname = config.get(OracleSourceOptions.HOSTNAME);
+        Integer port = config.get(OracleSourceOptions.PORT);
+        String username = config.get(OracleSourceOptions.USERNAME);
+        String password = config.get(OracleSourceOptions.PASSWORD);
 
-        sourceBuilder.username(config.get(OracleSourceOptions.USERNAME))
-                .password(config.get(OracleSourceOptions.PASSWORD))
-                .database(databaseName)
-                .schemaList(schemaName)
-                .tableList(schemaName + "." + tableName);
-
+        StartupOptions startupOptions = StartupOptions.initial();
         String startupMode = config.get(OracleSourceOptions.SCAN_STARTUP_MODE);
         if ("initial".equalsIgnoreCase(startupMode)) {
-            sourceBuilder.startupOptions(StartupOptions.initial());
+            startupOptions = StartupOptions.initial();
         } else if ("latest-offset".equalsIgnoreCase(startupMode)) {
-            sourceBuilder.startupOptions(StartupOptions.latest());
+            startupOptions = StartupOptions.latest();
         }
 
+        //debezium properties set
         Properties debeziumProperties = new Properties();
         debeziumProperties.put("decimal.handling.mode", "string");
-
         //date to string
         debeziumProperties.putAll(OracleDateConverter.DEFAULT_PROPS);
 
@@ -139,14 +143,48 @@ public class OracleDatabaseSync extends DatabaseSync {
                         key.substring(DebeziumOptions.DEBEZIUM_OPTIONS_PREFIX.length()), value);
             }
         }
-        sourceBuilder.debeziumProperties(debeziumProperties);
 
         Map<String, Object> customConverterConfigs = new HashMap<>();
         JsonDebeziumDeserializationSchema schema =
                 new JsonDebeziumDeserializationSchema(false, customConverterConfigs);
-        SourceFunction<String> oracleSource = sourceBuilder.deserializer(schema).build();
 
-        DataStreamSource<String> streamSource = env.addSource(oracleSource, "Oracle Source");
-        return streamSource;
+        if(config.getBoolean(OracleSourceOptions.SCAN_INCREMENTAL_SNAPSHOT_ENABLED, false)){
+            JdbcIncrementalSource<String> incrSource = OracleSourceBuilder.OracleIncrementalSource.<String>builder()
+                    .hostname(hostname)
+                    .url(url)
+                    .port(port)
+                    .databaseList(database)
+                    .schemaList(schemaName)
+                    .tableList(schemaName + "." + tableName)
+                    .username(username)
+                    .password(password)
+                    .startupOptions(startupOptions)
+                    .deserializer(schema)
+                    .debeziumProperties(debeziumProperties)
+                    .splitSize(config.get(SCAN_INCREMENTAL_SNAPSHOT_CHUNK_SIZE))
+                    .splitMetaGroupSize(config.get(CHUNK_META_GROUP_SIZE))
+                    .fetchSize(config.get(SCAN_SNAPSHOT_FETCH_SIZE))
+                    .connectTimeout(config.get(CONNECT_TIMEOUT))
+                    .connectionPoolSize(config.get(CONNECTION_POOL_SIZE))
+                    .connectMaxRetries(config.get(CONNECT_MAX_RETRIES))
+                    .distributionFactorUpper(config.get(SPLIT_KEY_EVEN_DISTRIBUTION_FACTOR_UPPER_BOUND))
+                    .distributionFactorLower(config.get(SPLIT_KEY_EVEN_DISTRIBUTION_FACTOR_LOWER_BOUND))
+                    .build();
+            return env.fromSource(incrSource,  WatermarkStrategy.noWatermarks(), "Oracle IncrSource");
+        }else{
+            DebeziumSourceFunction<String> oracleSource = OracleSource.<String>builder().url(url)
+                    .hostname(hostname)
+                    .port(port)
+                    .username(username)
+                    .password(password)
+                    .database(databaseName)
+                    .schemaList(schemaName)
+                    .tableList(schemaName + "." + tableName)
+                    .debeziumProperties(debeziumProperties)
+                    .startupOptions(startupOptions)
+                    .deserializer(schema)
+                    .build();
+            return env.addSource(oracleSource, "Oracle Source");
+        }
     }
 }
