@@ -99,7 +99,7 @@ public class CdcTools {
 
         Map<String, String> map = new HashMap<>();
         for (String param : params.getMultiParameter(key)) {
-            String[] kv = param.split("=");
+            String[] kv = param.split("=", 2);
             if (kv.length == 2) {
                 map.put(kv[0], kv[1]);
                 continue;

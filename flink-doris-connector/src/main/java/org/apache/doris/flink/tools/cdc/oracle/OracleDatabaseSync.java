@@ -28,6 +28,7 @@ import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,7 +53,12 @@ public class OracleDatabaseSync extends DatabaseSync {
 
     @Override
     public Connection getConnection() throws SQLException {
-        String jdbcUrl = String.format(JDBC_URL, config.get(OracleSourceOptions.HOSTNAME), config.get(OracleSourceOptions.PORT),config.get(OracleSourceOptions.DATABASE_NAME));
+        String jdbcUrl;
+        if(!StringUtils.isNullOrWhitespaceOnly(config.get(OracleSourceOptions.URL))){
+            jdbcUrl = config.get(OracleSourceOptions.URL);
+        }else{
+            jdbcUrl = String.format(JDBC_URL, config.get(OracleSourceOptions.HOSTNAME), config.get(OracleSourceOptions.PORT),config.get(OracleSourceOptions.DATABASE_NAME));
+        }
         Properties pro = new Properties();
         pro.setProperty("user", config.get(OracleSourceOptions.USERNAME));
         pro.setProperty("password", config.get(OracleSourceOptions.PASSWORD));
@@ -99,10 +105,14 @@ public class OracleDatabaseSync extends DatabaseSync {
         Preconditions.checkNotNull(databaseName, "database-name in oracle is required");
         Preconditions.checkNotNull(schemaName, "schema-name in oracle is required");
         String tableName = config.get(OracleSourceOptions.TABLE_NAME);
-        sourceBuilder
-                .hostname(config.get(OracleSourceOptions.HOSTNAME))
-                .port(config.get(OracleSourceOptions.PORT))
-                .username(config.get(OracleSourceOptions.USERNAME))
+        if(!StringUtils.isNullOrWhitespaceOnly(config.get(OracleSourceOptions.URL))){
+            sourceBuilder.url(config.get(OracleSourceOptions.URL));
+        } else {
+            sourceBuilder.hostname(config.get(OracleSourceOptions.HOSTNAME))
+                    .port(config.get(OracleSourceOptions.PORT));
+        }
+
+        sourceBuilder.username(config.get(OracleSourceOptions.USERNAME))
                 .password(config.get(OracleSourceOptions.PASSWORD))
                 .database(databaseName)
                 .schemaList(schemaName)
