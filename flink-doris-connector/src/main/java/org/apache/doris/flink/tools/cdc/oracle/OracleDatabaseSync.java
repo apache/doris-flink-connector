@@ -153,7 +153,7 @@ public class OracleDatabaseSync extends DatabaseSync {
                     .hostname(hostname)
                     .url(url)
                     .port(port)
-                    .databaseList(database)
+                    .databaseList(databaseName)
                     .schemaList(schemaName)
                     .tableList(schemaName + "." + tableName)
                     .username(username)
