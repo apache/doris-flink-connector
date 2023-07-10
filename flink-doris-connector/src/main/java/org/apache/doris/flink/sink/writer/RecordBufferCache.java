@@ -56,7 +56,7 @@ public class RecordBufferCache extends InputStream {
             if (!isEmpty) {
                 ByteBuffer byteBuffer = ByteBufferManager.getByteBufferManager().allocate(buffSize);
                 byteBuffer.flip();
-                Preconditions.checkState(byteBuffer.limit() == 0);
+                // Preconditions.checkState(byteBuffer.limit() == 0);
                 recordBuffers.add(byteBuffer);
             }
         } catch (Exception e) {

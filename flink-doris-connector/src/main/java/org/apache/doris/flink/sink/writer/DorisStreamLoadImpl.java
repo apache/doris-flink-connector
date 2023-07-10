@@ -195,11 +195,6 @@ public class DorisStreamLoadImpl implements Serializable {
         recordStream.write(record);
     }
 
-    @VisibleForTesting
-    public RecordStream getRecordStream() {
-        return recordStream;
-    }
-
     public RespContent handlePreCommitResponse(CloseableHttpResponse response) throws Exception{
         final int statusCode = response.getStatusLine().getStatusCode();
         if (statusCode == 200 && response.getEntity() != null) {
@@ -339,10 +334,6 @@ public class DorisStreamLoadImpl implements Serializable {
         if (null != executorService) {
             executorService.shutdownNow();
         }
-    }
-
-    public void writeOneBuffer(ByteBuffer buff) throws IOException {
-        recordStream.writeOneBuffer(buff);
     }
 
 }
