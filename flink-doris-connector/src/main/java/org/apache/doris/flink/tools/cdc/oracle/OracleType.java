@@ -81,12 +81,8 @@ public class OracleType {
                 return DorisType.DATETIME_V2;
             case CHAR:
             case VARCHAR2:
-                //char(10),varchar(10) => 10 byte
-                Preconditions.checkNotNull(precision);
-                return precision > 65533 ? DorisType.STRING : String.format("%s(%s)", DorisType.VARCHAR, precision);
             case NCHAR:
             case NVARCHAR2:
-                //nvarchar2(10) => 10 char
                 Preconditions.checkNotNull(precision);
                 return precision * 3 > 65533 ? DorisType.STRING : String.format("%s(%s)", DorisType.VARCHAR, precision * 3);
             case LONG:
