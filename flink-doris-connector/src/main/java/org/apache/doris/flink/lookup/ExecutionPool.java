@@ -103,9 +103,10 @@ public class ExecutionPool implements Closeable {
     @Override
     public void close() throws IOException {
         if (started.compareAndSet(true, false)) {
-            actionWatcherExecutorService.shutdown();
+            LOG.info("close executorService");
+            actionWatcherExecutorService.shutdownNow();
             workerStated.set(false);
-            workerExecutorService.shutdown();
+            workerExecutorService.shutdownNow();
             this.semaphore = null;
         }
     }
@@ -181,6 +182,7 @@ public class ExecutionPool implements Closeable {
                     }
                 }
             }
+            LOG.info("action watcher stop");
         }
 
         @Override
