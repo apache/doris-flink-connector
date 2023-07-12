@@ -107,6 +107,8 @@ public class ExecutionPool implements Closeable {
             actionWatcherExecutorService.shutdownNow();
             workerStated.set(false);
             workerExecutorService.shutdownNow();
+            this.actionWatcherExecutorService = null;
+            this.workerExecutorService = null;
             this.semaphore = null;
         }
     }
