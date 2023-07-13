@@ -153,6 +153,7 @@ public class Worker implements Runnable {
         for (int retry = 0; retry <= maxRetryTimes; retry++) {
             resultRecordMap = new HashMap<>();
             try {
+                long start = System.currentTimeMillis();
                 Connection conn = jdbcConnectionProvider.getOrEstablishConnection();
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
                     int paramIndex = 0;
@@ -174,6 +175,7 @@ public class Worker implements Runnable {
                         }
                     }
                 }
+                LOG.debug("query cost {}ms, batch {} records, sql is {}", System.currentTimeMillis()-start, recordList.size(), sql);
                 return resultRecordMap;
             } catch (Exception e) {
                 LOG.error(String.format("query doris error, retry times = %d", retry), e);
