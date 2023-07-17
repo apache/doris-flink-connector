@@ -68,6 +68,8 @@ public class DorisRowDataAsyncLookupFunction extends AsyncTableFunction<RowData>
     @Override
     public void open(FunctionContext context) throws Exception {
         super.open(context);
+        LOG.info("lookup options: threadSize {}, batchSize {}, queueSize {}",
+                lookupOptions.getJdbcReadThreadSize(), lookupOptions.getJdbcReadBatchSize(), lookupOptions.getJdbcReadBatchQueueSize());
         this.cache = cacheMaxSize == -1 || cacheExpireMs == -1
                 ? null
                 : CacheBuilder.newBuilder()
@@ -119,6 +121,9 @@ public class DorisRowDataAsyncLookupFunction extends AsyncTableFunction<RowData>
     @Override
     public void close() throws Exception {
         super.close();
+        if(lookupReader != null){
+            lookupReader.close();
+        }
     }
 
     @VisibleForTesting

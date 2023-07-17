@@ -129,4 +129,11 @@ public class DorisJdbcLookupReader extends DorisLookupReader {
             throw new IOException(e);
         }
     }
+
+    @Override
+    public void close() throws IOException {
+        if(this.pool != null){
+            this.pool.close();
+        }
+    }
 }
