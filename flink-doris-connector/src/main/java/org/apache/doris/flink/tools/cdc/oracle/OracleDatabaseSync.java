@@ -83,6 +83,7 @@ public class OracleDatabaseSync extends DatabaseSync {
         String databaseName = config.get(OracleSourceOptions.DATABASE_NAME);
         String schemaName = config.get(OracleSourceOptions.SCHEMA_NAME);
         List<SourceSchema> schemaList = new ArrayList<>();
+        LOG.info("database-name {}, schema-name {}", databaseName, schemaName);
         try (Connection conn = getConnection()) {
             DatabaseMetaData metaData = conn.getMetaData();
             try (ResultSet tables =
@@ -94,7 +95,7 @@ public class OracleDatabaseSync extends DatabaseSync {
                         continue;
                     }
                     SourceSchema sourceSchema =
-                            new OracleSchema(metaData, databaseName, tableName, tableComment);
+                            new OracleSchema(metaData, databaseName, schemaName, tableName, tableComment);
                     if (sourceSchema.primaryKeys.size() > 0) {
                         //Only sync tables with primary keys
                         schemaList.add(sourceSchema);

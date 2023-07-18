@@ -22,8 +22,8 @@ import java.sql.DatabaseMetaData;
 
 public class OracleSchema extends SourceSchema {
 
-    public OracleSchema(DatabaseMetaData metaData, String databaseName, String tableName, String tableComment) throws Exception {
-        super(metaData, databaseName, tableName, tableComment);
+    public OracleSchema(DatabaseMetaData metaData, String databaseName, String schemaName, String tableName, String tableComment) throws Exception {
+        super(metaData, databaseName, schemaName,  tableName, tableComment);
     }
 
     @Override

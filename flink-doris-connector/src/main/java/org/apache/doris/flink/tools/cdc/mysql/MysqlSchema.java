@@ -23,7 +23,7 @@ import java.sql.DatabaseMetaData;
 public class MysqlSchema extends SourceSchema {
 
     public MysqlSchema(DatabaseMetaData metaData, String databaseName, String tableName, String tableComment) throws Exception {
-        super(metaData, databaseName, tableName, tableComment);
+        super(metaData, databaseName, null, tableName, tableComment);
     }
 
     public String convertToDorisType(String fieldType, Integer precision, Integer scale){

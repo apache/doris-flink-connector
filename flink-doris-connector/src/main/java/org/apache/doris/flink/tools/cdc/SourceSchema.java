@@ -35,14 +35,14 @@ public abstract class SourceSchema {
     public final List<String> primaryKeys;
 
     public SourceSchema(
-            DatabaseMetaData metaData, String databaseName, String tableName, String tableComment)
+            DatabaseMetaData metaData, String databaseName, String schemaName, String tableName, String tableComment)
             throws Exception {
         this.databaseName = databaseName;
         this.tableName = tableName;
         this.tableComment = tableComment;
 
         fields = new LinkedHashMap<>();
-        try (ResultSet rs = metaData.getColumns(databaseName, null, tableName, null)) {
+        try (ResultSet rs = metaData.getColumns(databaseName, schemaName, tableName, null)) {
             while (rs.next()) {
                 String fieldName = rs.getString("COLUMN_NAME");
                 String comment = rs.getString("REMARKS");
@@ -62,7 +62,7 @@ public abstract class SourceSchema {
         }
 
         primaryKeys = new ArrayList<>();
-        try (ResultSet rs = metaData.getPrimaryKeys(databaseName, null, tableName)) {
+        try (ResultSet rs = metaData.getPrimaryKeys(databaseName, schemaName, tableName)) {
             while (rs.next()) {
                 String fieldName = rs.getString("COLUMN_NAME");
                 primaryKeys.add(fieldName);
