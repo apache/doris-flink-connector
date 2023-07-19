@@ -16,7 +16,6 @@
 // under the License.
 package org.apache.doris.flink.tools.cdc;
 
-import com.ververica.cdc.connectors.mysql.source.config.MySqlSourceOptions;
 import org.apache.doris.flink.catalog.doris.DorisSystem;
 import org.apache.doris.flink.catalog.doris.TableSchema;
 import org.apache.doris.flink.cfg.DorisConnectionOptions;
@@ -50,6 +49,7 @@ import java.util.regex.Pattern;
 public abstract class DatabaseSync {
     private static final Logger LOG = LoggerFactory.getLogger(DatabaseSync.class);
     private static final String LIGHT_SCHEMA_CHANGE = "light_schema_change";
+    private static final String TABLE_NAME_OPTIONS = "table-name";
     protected Configuration config;
     protected String database;
     protected TableNameConverter converter;
@@ -58,6 +58,7 @@ public abstract class DatabaseSync {
     protected Map<String, String> tableConfig;
     protected Configuration sinkConfig;
     public StreamExecutionEnvironment env;
+    private boolean createTableOnly = false;
 
     public abstract Connection getConnection() throws SQLException;
 
@@ -65,10 +66,9 @@ public abstract class DatabaseSync {
 
     public abstract DataStreamSource<String> buildCdcSource(StreamExecutionEnvironment env);
 
-
     public void create(StreamExecutionEnvironment env, String database, Configuration config,
                        String tablePrefix, String tableSuffix, String includingTables,
-                       String excludingTables, Configuration sinkConfig, Map<String, String> tableConfig) {
+                       String excludingTables, Configuration sinkConfig, Map<String, String> tableConfig, boolean createTableOnly) {
         this.env = env;
         this.config = config;
         this.database = database;
@@ -81,6 +81,7 @@ public abstract class DatabaseSync {
         if(!this.tableConfig.containsKey(LIGHT_SCHEMA_CHANGE)){
             this.tableConfig.put(LIGHT_SCHEMA_CHANGE, "true");
         }
+        this.createTableOnly = createTableOnly;
     }
 
     public void build() throws Exception {
@@ -107,8 +108,13 @@ public abstract class DatabaseSync {
             }
             dorisTables.add(dorisTable);
         }
+        if(createTableOnly){
+            System.out.println("Create table finished.");
+            System.exit(0);
+        }
+
         Preconditions.checkState(!syncTables.isEmpty(), "No tables to be synchronized.");
-        config.set(MySqlSourceOptions.TABLE_NAME, "(" + String.join("|", syncTables) + ")");
+        config.setString(TABLE_NAME_OPTIONS, "(" + String.join("|", syncTables) + ")");
 
         DataStreamSource<String> streamSource = buildCdcSource(env);
         SingleOutputStreamOperator<Void> parsedStream = streamSource.process(new ParsingProcessFunction(converter));

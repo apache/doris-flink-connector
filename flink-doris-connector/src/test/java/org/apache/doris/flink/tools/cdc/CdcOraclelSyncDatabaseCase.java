@@ -16,7 +16,7 @@
 // under the License.
 package org.apache.doris.flink.tools.cdc;
 
-import org.apache.doris.flink.tools.cdc.mysql.MysqlDatabaseSync;
+import org.apache.doris.flink.tools.cdc.oracle.OracleDatabaseSync;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
@@ -24,32 +24,38 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-public class CdcMysqlSyncDatabaseCase {
+public class CdcOraclelSyncDatabaseCase {
 
     public static void main(String[] args) throws Exception{
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-//        env.setParallelism(1);
+        env.setParallelism(1);
+        env.disableOperatorChaining();
+        env.enableCheckpointing(10000);
 
-        Map<String,String> flinkMap = new HashMap<>();
-        flinkMap.put("execution.checkpointing.interval","10s");
-        flinkMap.put("pipeline.operator-chaining","false");
-        flinkMap.put("parallelism.default","1");
-
-
-        Configuration configuration = Configuration.fromMap(flinkMap);
-        env.configure(configuration);
+//        Map<String,String> flinkMap = new HashMap<>();
+//        flinkMap.put("execution.checkpointing.interval","10s");
+//        flinkMap.put("pipeline.operator-chaining","false");
+//        flinkMap.put("parallelism.default","1");
+//
+//
+//        Configuration configuration = Configuration.fromMap(flinkMap);
+//        env.configure(configuration);
 
         String database = "db1";
         String tablePrefix = "";
         String tableSuffix = "";
-        Map<String,String> mysqlConfig = new HashMap<>();
-        mysqlConfig.put("database-name","db1");
-        mysqlConfig.put("hostname","127.0.0.1");
-        mysqlConfig.put("port","3306");
-        mysqlConfig.put("username","root");
-        mysqlConfig.put("password","");
-        Configuration config = Configuration.fromMap(mysqlConfig);
+        Map<String,String> sourceConfig = new HashMap<>();
+        sourceConfig.put("database-name","XE");
+        sourceConfig.put("schema-name","ADMIN");
+        sourceConfig.put("hostname","127.0.0.1");
+        sourceConfig.put("port","1521");
+        sourceConfig.put("username","admin");
+        sourceConfig.put("password","");
+//        sourceConfig.put("debezium.database.tablename.case.insensitive","false");
+        sourceConfig.put("debezium.log.mining.strategy","online_catalog");
+        sourceConfig.put("debezium.log.mining.continuous.mine","true");
+        Configuration config = Configuration.fromMap(sourceConfig);
 
         Map<String,String> sinkConfig = new HashMap<>();
         sinkConfig.put("fenodes","127.0.0.1:8030");
@@ -62,12 +68,12 @@ public class CdcMysqlSyncDatabaseCase {
         Map<String,String> tableConfig = new HashMap<>();
         tableConfig.put("replication_num", "1");
 
-        String includingTables = "tbl1|tbl2|tbl3";
+        String includingTables = "test.*";
         String excludingTables = "";
-        DatabaseSync databaseSync = new MysqlDatabaseSync();
+        DatabaseSync databaseSync = new OracleDatabaseSync();
         databaseSync.create(env,database,config,tablePrefix,tableSuffix,includingTables,excludingTables,sinkConf,tableConfig, false);
         databaseSync.build();
-        env.execute(String.format("MySQL-Doris Database Sync: %s", database));
+        env.execute(String.format("Oracle-Doris Database Sync: %s", database));
 
     }
 }
