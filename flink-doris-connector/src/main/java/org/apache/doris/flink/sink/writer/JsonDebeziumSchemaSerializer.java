@@ -43,9 +43,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.regex.Matcher;
@@ -64,19 +62,18 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
     private static final String OP_DELETE = "d"; // delete
 
     public static final String EXECUTE_DDL = "ALTER TABLE %s %s COLUMN %s %s"; //alter table tbl add cloumn aca int
-    private static final String addDropDDLRegex = "(?i)ALTER\\s+TABLE\\s+[^\\s]+\\s+(ADD|DROP)\\s+(COLUMN\\s+)?([^\\s]+)(\\s+([^\\s]+))?.*";
+    private static final String addDropDDLRegex = "ALTER\\s+TABLE\\s+[^\\s]+\\s+(ADD|DROP)\\s+(COLUMN\\s+)?([^\\s]+)(\\s+([^\\s]+))?.*";
+    private final Pattern addDropDDLPattern;
     private DorisOptions dorisOptions;
     private ObjectMapper objectMapper = new ObjectMapper();
     private String database;
     private String table;
     //table name of the cdc upstream, format is db.tbl
     private String sourceTableName;
-    private String ddlOp;
-    private String ddlColumn;
-    private boolean isDropColumn;
 
     public JsonDebeziumSchemaSerializer(DorisOptions dorisOptions, Pattern pattern, String sourceTableName) {
         this.dorisOptions = dorisOptions;
+        this.addDropDDLPattern = pattern == null ? Pattern.compile(addDropDDLRegex, Pattern.CASE_INSENSITIVE) : pattern;
         String[] tableInfo = dorisOptions.getTableIdentifier().split("\\.");
         this.database = tableInfo[0];
         this.table = tableInfo[1];
@@ -128,7 +125,7 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
                 LOG.info("ddl can not do schema change:{}", recordRoot);
                 return false;
             }
-            boolean doSchemaChange = checkSchemaChange();
+            boolean doSchemaChange = checkSchemaChange(ddl);
             status = doSchemaChange && execSchemaChange(ddl);
             LOG.info("schema change status:{}", status);
         }catch (Exception ex){
@@ -155,9 +152,9 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
         }
     }
 
-    private boolean checkSchemaChange() throws IOException, IllegalArgumentException {
+    private boolean checkSchemaChange(String ddl) throws IOException, IllegalArgumentException {
         String requestUrl = String.format(CHECK_SCHEMA_CHANGE_API, RestService.randomEndpoint(dorisOptions.getFenodes(), LOG), database, table);
-        Map<String,Object> param = buildRequestParam();
+        Map<String,Object> param = buildRequestParam(ddl);
         if(param.size() != 2){
             return false;
         }
@@ -178,10 +175,15 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
      * "columnName" : "column"
      * }
      */
-    protected Map<String, Object> buildRequestParam() {
+    protected Map<String, Object> buildRequestParam(String ddl) {
         Map<String,Object> params = new HashMap<>();
-        params.put("isDropColumn", this.isDropColumn);
-        params.put("columnName", this.ddlColumn);
+        Matcher matcher = addDropDDLPattern.matcher(ddl);
+        if(matcher.find()){
+            String op = matcher.group(1);
+            String col = matcher.group(3);
+            params.put("isDropColumn", op.equalsIgnoreCase("DROP"));
+            params.put("columnName", col);
+        }
         return params;
     }
 
@@ -193,7 +195,8 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
         httpPost.setHeader(HttpHeaders.AUTHORIZATION, authHeader());
         httpPost.setHeader(HttpHeaders.CONTENT_TYPE, "application/json");
         httpPost.setEntity(new StringEntity(objectMapper.writeValueAsString(param)));
-        return handleResponse(httpPost);
+        boolean success = handleResponse(httpPost);
+        return success;
     }
 
     protected String extractDatabase(JsonNode record) {
@@ -254,62 +257,20 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
         }
         String ddl = extractJsonNode(objectMapper.readTree(historyRecord), "ddl");
         LOG.debug("received debezium ddl :{}", ddl);
-        return parseDDL(ddl);
-    }
-
-    private String parseDDL(String ddl) {
-        // ADD or DROP column
-        if (!Pattern.matches(addDropDDLRegex, ddl)) {
-            return null;
-        }
-        // ADD or DROP multiple columns
-        if (Pattern.matches("([^\"']|\"[^\"]*\"|'[^']*')*,([^\"']|\"[^\"]*\"|'[^']*')*", ddl)) {
-            return null;
-        }
-
-        // Split according to spaces, excluding spaces within single quotes and double quotes
-        List<String> ddlList = Arrays.asList(ddl.split("\\s+(?=(?:[^'\"]*['\"][^'\"]*['\"])*[^'\"]*$)"));
-        String ddlOp = ddlList.get(3);
-        int columnIndex = 5;
-        if (!Pattern.compile("(ADD|DROP)\\s+COLUMN", Pattern.CASE_INSENSITIVE).matcher(ddl).find()) {
-            columnIndex = 4;
-        }
-        this.isDropColumn = ddlOp.equalsIgnoreCase("DROP");
-        this.ddlColumn = ddlList.get(columnIndex);
-        String defaultValue = "";
-        String commentValue = "";
-        String type = "";
-        if (!isDropColumn) {
-            type = handleType(ddlList.get(columnIndex + 1));
-            for (int i = 6; i < ddlList.size() - 1; i++) {
-                if (ddlList.get(i).equalsIgnoreCase("default")) {
-                    defaultValue = handleDefaultValue(type, ddlList.get(i + 1));
-                } else if (ddlList.get(i).equalsIgnoreCase("comment")) {
-                    commentValue = ddlList.get(i + 1);
-                }
+        if (!Objects.isNull(ddl)) {
+            //filter add/drop operation
+            Matcher matcher = addDropDDLPattern.matcher(ddl);
+            if(matcher.find()){
+                String op = matcher.group(1);
+                String col = matcher.group(3);
+                String type = matcher.group(5);
+                type = handleType(type);
+                ddl = String.format(EXECUTE_DDL, dorisOptions.getTableIdentifier(), op, col, type);
+                LOG.info("parse ddl:{}", ddl);
+                return ddl;
             }
         }
-
-        ddl = String.format(EXECUTE_DDL, dorisOptions.getTableIdentifier(), ddlOp, ddlColumn, type);
-        if (!defaultValue.isEmpty()) {
-            ddl = ddl + " default " + defaultValue;
-        }
-        if (!commentValue.isEmpty()) {
-            ddl = ddl + " comment " + commentValue;
-        }
-        LOG.info("parse ddl:{}", ddl);
-        return ddl;
-    }
-
-    /**
-     * Due to historical reasons, doris needs to add quotes to the default value of the new column.
-     */
-    private String handleDefaultValue(String type, String defaultValue) {
-        boolean containsQuotes = Pattern.matches("['\"].*?['\"]", defaultValue);
-        if (containsQuotes || defaultValue.equalsIgnoreCase("current_timestamp")) {
-            return defaultValue;
-        }
-        return "'" + defaultValue + "'";
+        return null;
     }
 
     private String authHeader() {
