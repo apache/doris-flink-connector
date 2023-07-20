@@ -213,8 +213,16 @@ public class DorisSystem {
                 .append(" ")
                 .append(field.getTypeString())
                 .append(" COMMENT '")
-                .append(field.getComment() == null ? "" : field.getComment())
+                .append(quoteComment(field.getComment()))
                 .append("',");
+    }
+
+    private String quoteComment(String comment){
+        if(comment == null){
+            return "";
+        } else {
+            return comment.replaceAll("'","\\\\'");
+        }
     }
 
     private List<String> identifier(List<String> name) {

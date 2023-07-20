@@ -14,19 +14,19 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+package org.apache.doris.flink.tools.cdc.mysql;
 
-package org.apache.doris.flink.lookup;
+import org.apache.doris.flink.tools.cdc.SourceSchema;
 
-import org.apache.flink.table.data.RowData;
+import java.sql.DatabaseMetaData;
 
-import java.io.Closeable;
-import java.io.IOException;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
+public class MysqlSchema extends SourceSchema {
 
-public abstract class DorisLookupReader implements Closeable {
+    public MysqlSchema(DatabaseMetaData metaData, String databaseName, String tableName, String tableComment) throws Exception {
+        super(metaData, databaseName, null, tableName, tableComment);
+    }
 
-    public abstract CompletableFuture<List<RowData>> asyncGet(RowData record) throws IOException;
-
-    public abstract List<RowData> get(RowData record) throws IOException;
+    public String convertToDorisType(String fieldType, Integer precision, Integer scale){
+        return MysqlType.toDorisType(fieldType, precision, scale);
+    }
 }
