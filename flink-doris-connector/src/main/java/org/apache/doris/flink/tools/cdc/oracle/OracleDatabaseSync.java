@@ -25,6 +25,7 @@ import com.ververica.cdc.connectors.oracle.source.config.OracleSourceOptions;
 import com.ververica.cdc.debezium.DebeziumSourceFunction;
 import com.ververica.cdc.debezium.JsonDebeziumDeserializationSchema;
 import com.ververica.cdc.debezium.table.DebeziumOptions;
+import org.apache.doris.flink.catalog.doris.DataModel;
 import org.apache.doris.flink.tools.cdc.DatabaseSync;
 import org.apache.doris.flink.tools.cdc.SourceSchema;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
@@ -96,13 +97,8 @@ public class OracleDatabaseSync extends DatabaseSync {
                     }
                     SourceSchema sourceSchema =
                             new OracleSchema(metaData, databaseName, schemaName, tableName, tableComment);
-                    if (sourceSchema.primaryKeys.size() > 0) {
-                        //Only sync tables with primary keys
-                        schemaList.add(sourceSchema);
-                    } else {
-                        LOG.warn("table {} has no primary key, skip", tableName);
-                        System.out.println("table " + tableName + " has no primary key, skip.");
-                    }
+                    sourceSchema.setModel(sourceSchema.primaryKeys.size() > 0 ? DataModel.UNIQUE : DataModel.DUPLICATE);
+                    schemaList.add(sourceSchema);
                 }
             }
         }

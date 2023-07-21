@@ -23,6 +23,7 @@ import org.apache.doris.flink.catalog.doris.TableSchema;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +34,7 @@ public abstract class SourceSchema {
     private final String tableComment;
     private final LinkedHashMap<String, FieldSchema> fields;
     public final List<String> primaryKeys;
+    public DataModel model = DataModel.UNIQUE;
 
     public SourceSchema(
             DatabaseMetaData metaData, String databaseName, String schemaName, String tableName, String tableComment)
@@ -74,13 +76,24 @@ public abstract class SourceSchema {
 
     public TableSchema convertTableSchema(Map<String, String> tableProps) {
         TableSchema tableSchema = new TableSchema();
-        tableSchema.setModel(DataModel.UNIQUE);
+        tableSchema.setModel(this.model);
         tableSchema.setFields(this.fields);
         tableSchema.setKeys(this.primaryKeys);
         tableSchema.setTableComment(this.tableComment);
-        tableSchema.setDistributeKeys(this.primaryKeys);
+        tableSchema.setDistributeKeys(buildDistributeKeys());
         tableSchema.setProperties(tableProps);
         return tableSchema;
+    }
+
+    private List<String> buildDistributeKeys(){
+        if(!this.primaryKeys.isEmpty()){
+            return primaryKeys;
+        }
+        if(!this.fields.isEmpty()){
+            Map.Entry<String, FieldSchema> firstField = this.fields.entrySet().iterator().next();
+            return Collections.singletonList(firstField.getKey());
+        }
+        return new ArrayList<>();
     }
 
     public String getDatabaseName() {
@@ -101,5 +114,13 @@ public abstract class SourceSchema {
 
     public String getTableComment() {
         return tableComment;
+    }
+
+    public DataModel getModel() {
+        return model;
+    }
+
+    public void setModel(DataModel model) {
+        this.model = model;
     }
 }
