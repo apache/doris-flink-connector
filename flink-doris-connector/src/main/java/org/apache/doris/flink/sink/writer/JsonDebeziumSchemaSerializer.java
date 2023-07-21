@@ -23,6 +23,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.NullNode;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.exception.IllegalArgumentException;
@@ -43,9 +44,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.regex.Matcher;
@@ -64,7 +63,8 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
     private static final String OP_DELETE = "d"; // delete
 
     public static final String EXECUTE_DDL = "ALTER TABLE %s %s COLUMN %s %s"; //alter table tbl add cloumn aca int
-    private static final String addDropDDLRegex = "(?i)ALTER\\s+TABLE\\s+[^\\s]+\\s+(ADD|DROP)\\s+(COLUMN\\s+)?([^\\s]+)(\\s+([^\\s]+))?.*";
+    private static final String addDropDDLRegex = "ALTER\\s+TABLE\\s+[^\\s]+\\s+(ADD|DROP)\\s+(COLUMN\\s+)?([^\\s]+)(\\s+([^\\s]+))?.*";
+    private final Pattern addDropDDLPattern;
     private DorisOptions dorisOptions;
     private ObjectMapper objectMapper = new ObjectMapper();
     private String database;
@@ -77,6 +77,7 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
 
     public JsonDebeziumSchemaSerializer(DorisOptions dorisOptions, Pattern pattern, String sourceTableName) {
         this.dorisOptions = dorisOptions;
+        this.addDropDDLPattern = pattern == null ? Pattern.compile(addDropDDLRegex, Pattern.CASE_INSENSITIVE) : pattern;
         String[] tableInfo = dorisOptions.getTableIdentifier().split("\\.");
         this.database = tableInfo[0];
         this.table = tableInfo[1];
@@ -91,6 +92,7 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
     public byte[] serialize(String record) throws IOException {
         LOG.debug("received debezium json data {} :", record);
         JsonNode recordRoot = objectMapper.readValue(record, JsonNode.class);
+        recordRoot = recordRoot.get("payload");
         String op = extractJsonNode(recordRoot, "op");
         if (Objects.isNull(op)) {
             //schema change ddl
@@ -230,7 +232,8 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
     }
 
     private String extractJsonNode(JsonNode record, String key) {
-        return record != null && record.get(key) != null ? record.get(key).asText() : null;
+        return record != null && record.get(key) != null && !(record.get(key) instanceof NullNode) ?
+                record.get(key).asText() : null;
     }
 
     private Map<String, String> extractBeforeRow(JsonNode record) {
@@ -248,66 +251,62 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
     }
 
     public String extractDDL(JsonNode record) throws JsonProcessingException {
-        String historyRecord = extractJsonNode(record, "historyRecord");
-        if (Objects.isNull(historyRecord)) {
+        JsonNode historyRecord = objectMapper.readTree(extractJsonNode(record, "historyRecord"));
+        JsonNode tableChanges = historyRecord.get("tableChanges").get(0);
+        if (!tableChanges.get("type").asText().equals("ALTER")) {
             return null;
         }
-        String ddl = extractJsonNode(objectMapper.readTree(historyRecord), "ddl");
+        String ddl = extractJsonNode(historyRecord, "ddl");
         LOG.debug("received debezium ddl :{}", ddl);
-        return parseDDL(ddl);
+        return parseDDL(ddl, tableChanges);
     }
 
-    private String parseDDL(String ddl) {
-        // ADD or DROP column
-        if (!Pattern.matches(addDropDDLRegex, ddl)) {
-            return null;
-        }
-        // ADD or DROP multiple columns
-        if (Pattern.matches("([^\"']|\"[^\"]*\"|'[^']*')*,([^\"']|\"[^\"]*\"|'[^']*')*", ddl)) {
-            return null;
+    private String parseDDL(String ddl, JsonNode tableChanges) {
+        // filter add/drop operation
+        Matcher matcher = addDropDDLPattern.matcher(ddl);
+        if (matcher.find()) {
+            this.ddlOp = matcher.group(1);
+            this.isDropColumn = ddlOp.equalsIgnoreCase("DROP");
         }
 
-        // Split according to spaces, excluding spaces within single quotes and double quotes
-        List<String> ddlList = Arrays.asList(ddl.split("\\s+(?=(?:[^'\"]*['\"][^'\"]*['\"])*[^'\"]*$)"));
-        String ddlOp = ddlList.get(3);
-        int columnIndex = 5;
-        if (!Pattern.compile("(ADD|DROP)\\s+COLUMN", Pattern.CASE_INSENSITIVE).matcher(ddl).find()) {
-            columnIndex = 4;
-        }
-        this.isDropColumn = ddlOp.equalsIgnoreCase("DROP");
-        this.ddlColumn = ddlList.get(columnIndex);
-        String defaultValue = "";
-        String commentValue = "";
-        String type = "";
         if (!isDropColumn) {
-            type = handleType(ddlList.get(columnIndex + 1));
-            for (int i = 6; i < ddlList.size() - 1; i++) {
-                if (ddlList.get(i).equalsIgnoreCase("default")) {
-                    defaultValue = handleDefaultValue(type, ddlList.get(i + 1));
-                } else if (ddlList.get(i).equalsIgnoreCase("comment")) {
-                    commentValue = ddlList.get(i + 1);
-                }
+            // Get the last changed ddl statement
+            JsonNode columns = tableChanges.get("table").get("columns");
+            JsonNode lastDDLNode = columns.get(columns.size() - 1);
+            this.ddlColumn = extractJsonNode(lastDDLNode, "name");
+            String typeName = extractJsonNode(lastDDLNode, "typeName");
+            if (typeName.equals("VARCHAR")) {
+                int length = Integer.parseInt(extractJsonNode(lastDDLNode, "length"));
+                typeName = "VARCHAR" + "(" + length * 3 + ")";
             }
-        }
+            String defaultValue = handleDefaultValue(extractJsonNode(lastDDLNode, "defaultValueExpression"));
+            String comment = extractJsonNode(lastDDLNode, "comment");
 
-        ddl = String.format(EXECUTE_DDL, dorisOptions.getTableIdentifier(), ddlOp, ddlColumn, type);
-        if (!defaultValue.isEmpty()) {
-            ddl = ddl + " default " + defaultValue;
+            String alterDDL = String.format(EXECUTE_DDL, dorisOptions.getTableIdentifier(), ddlOp, ddlColumn, typeName);
+            if (!StringUtils.isNullOrWhitespaceOnly(defaultValue)) {
+                alterDDL = alterDDL + " default " + defaultValue;
+            }
+            if (!StringUtils.isNullOrWhitespaceOnly(comment)) {
+                alterDDL = alterDDL + " comment " + comment;
+            }
+            LOG.info("parse ddl:{}", alterDDL);
+            return alterDDL;
         }
-        if (!commentValue.isEmpty()) {
-            ddl = ddl + " comment " + commentValue;
-        }
-        LOG.info("parse ddl:{}", ddl);
         return ddl;
     }
 
     /**
      * Due to historical reasons, doris needs to add quotes to the default value of the new column.
      */
-    private String handleDefaultValue(String type, String defaultValue) {
-        boolean containsQuotes = Pattern.matches("['\"].*?['\"]", defaultValue);
-        if (containsQuotes || defaultValue.equalsIgnoreCase("current_timestamp")) {
+    private String handleDefaultValue(String defaultValue) {
+        if (StringUtils.isNullOrWhitespaceOnly(defaultValue)) {
+            return null;
+        }
+        if (Pattern.matches("['\"].*?['\"]", defaultValue)) {
             return defaultValue;
+        } else if (defaultValue.equals("1970-01-01 00:00:00")) {
+            // The default value of setting the current time in CDC is 1970-01-01 00:00:00
+            return "current_timestamp";
         }
         return "'" + defaultValue + "'";
     }
@@ -347,23 +346,4 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
             return new JsonDebeziumSchemaSerializer(dorisOptions, addDropDDLPattern, sourceTableName);
         }
     }
-
-    private String handleType(String type) {
-
-        if (type == null || "".equals(type)) {
-            return "";
-        }
-
-        // varchar len * 3
-        Pattern pattern = Pattern.compile("varchar\\(([1-9][0-9]*)\\)", Pattern.CASE_INSENSITIVE);
-        Matcher matcher = pattern.matcher(type);
-        if (matcher.find()) {
-            String len = matcher.group(1);
-            return String.format("varchar(%d)", Math.min(Integer.parseInt(len) * 3, 65533));
-        }
-
-        return type;
-
-    }
-
 }

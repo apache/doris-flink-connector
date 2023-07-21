@@ -18,7 +18,6 @@
 package org.apache.doris.flink;
 
 import com.ververica.cdc.connectors.mysql.source.MySqlSource;
-import com.ververica.cdc.connectors.mysql.table.StartupOptions;
 import com.ververica.cdc.connectors.shaded.org.apache.kafka.connect.json.JsonConverterConfig;
 import com.ververica.cdc.debezium.JsonDebeziumDeserializationSchema;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
@@ -42,7 +41,7 @@ public class CDCSchemaChangeExample {
         Map<String, Object> customConverterConfigs = new HashMap<>();
         customConverterConfigs.put(JsonConverterConfig.DECIMAL_FORMAT_CONFIG, "numeric");
         JsonDebeziumDeserializationSchema schema =
-                new JsonDebeziumDeserializationSchema(false, customConverterConfigs);
+                new JsonDebeziumDeserializationSchema(true, customConverterConfigs);
 
         MySqlSource<String> mySqlSource = MySqlSource.<String>builder()
                 .hostname("127.0.0.1")
