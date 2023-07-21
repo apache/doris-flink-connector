@@ -14,19 +14,20 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+package org.apache.doris.flink.tools.cdc.oracle;
 
-package org.apache.doris.flink.lookup;
+import org.apache.doris.flink.tools.cdc.SourceSchema;
 
-import org.apache.flink.table.data.RowData;
+import java.sql.DatabaseMetaData;
 
-import java.io.Closeable;
-import java.io.IOException;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
+public class OracleSchema extends SourceSchema {
 
-public abstract class DorisLookupReader implements Closeable {
+    public OracleSchema(DatabaseMetaData metaData, String databaseName, String schemaName, String tableName, String tableComment) throws Exception {
+        super(metaData, databaseName, schemaName,  tableName, tableComment);
+    }
 
-    public abstract CompletableFuture<List<RowData>> asyncGet(RowData record) throws IOException;
-
-    public abstract List<RowData> get(RowData record) throws IOException;
+    @Override
+    public String convertToDorisType(String fieldType, Integer precision, Integer scale) {
+        return OracleType.toDorisType(fieldType, precision, scale);
+    }
 }

@@ -19,31 +19,32 @@ package org.apache.doris.flink.tools.cdc;
 import org.apache.doris.flink.catalog.doris.DataModel;
 import org.apache.doris.flink.catalog.doris.FieldSchema;
 import org.apache.doris.flink.catalog.doris.TableSchema;
-import org.apache.doris.flink.tools.cdc.mysql.MysqlType;
 
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-public class SourceSchema {
+public abstract class SourceSchema {
     private final String databaseName;
     private final String tableName;
     private final String tableComment;
     private final LinkedHashMap<String, FieldSchema> fields;
     public final List<String> primaryKeys;
+    public DataModel model = DataModel.UNIQUE;
 
     public SourceSchema(
-            DatabaseMetaData metaData, String databaseName, String tableName, String tableComment)
+            DatabaseMetaData metaData, String databaseName, String schemaName, String tableName, String tableComment)
             throws Exception {
         this.databaseName = databaseName;
         this.tableName = tableName;
         this.tableComment = tableComment;
 
         fields = new LinkedHashMap<>();
-        try (ResultSet rs = metaData.getColumns(databaseName, null, tableName, null)) {
+        try (ResultSet rs = metaData.getColumns(databaseName, schemaName, tableName, null)) {
             while (rs.next()) {
                 String fieldName = rs.getString("COLUMN_NAME");
                 String comment = rs.getString("REMARKS");
@@ -57,13 +58,13 @@ public class SourceSchema {
                 if (rs.wasNull()) {
                     scale = null;
                 }
-                String dorisTypeStr = MysqlType.toDorisType(fieldType, precision, scale);
+                String dorisTypeStr = convertToDorisType(fieldType, precision, scale);
                 fields.put(fieldName, new FieldSchema(fieldName, dorisTypeStr, comment));
             }
         }
 
         primaryKeys = new ArrayList<>();
-        try (ResultSet rs = metaData.getPrimaryKeys(databaseName, null, tableName)) {
+        try (ResultSet rs = metaData.getPrimaryKeys(databaseName, schemaName, tableName)) {
             while (rs.next()) {
                 String fieldName = rs.getString("COLUMN_NAME");
                 primaryKeys.add(fieldName);
@@ -71,15 +72,28 @@ public class SourceSchema {
         }
     }
 
+    public abstract String convertToDorisType(String fieldType, Integer precision, Integer scale);
+
     public TableSchema convertTableSchema(Map<String, String> tableProps) {
         TableSchema tableSchema = new TableSchema();
-        tableSchema.setModel(DataModel.UNIQUE);
+        tableSchema.setModel(this.model);
         tableSchema.setFields(this.fields);
         tableSchema.setKeys(this.primaryKeys);
         tableSchema.setTableComment(this.tableComment);
-        tableSchema.setDistributeKeys(this.primaryKeys);
+        tableSchema.setDistributeKeys(buildDistributeKeys());
         tableSchema.setProperties(tableProps);
         return tableSchema;
+    }
+
+    private List<String> buildDistributeKeys(){
+        if(!this.primaryKeys.isEmpty()){
+            return primaryKeys;
+        }
+        if(!this.fields.isEmpty()){
+            Map.Entry<String, FieldSchema> firstField = this.fields.entrySet().iterator().next();
+            return Collections.singletonList(firstField.getKey());
+        }
+        return new ArrayList<>();
     }
 
     public String getDatabaseName() {
@@ -100,5 +114,13 @@ public class SourceSchema {
 
     public String getTableComment() {
         return tableComment;
+    }
+
+    public DataModel getModel() {
+        return model;
+    }
+
+    public void setModel(DataModel model) {
+        this.model = model;
     }
 }

@@ -169,11 +169,13 @@ public class DorisSystem {
         }
         sb = sb.deleteCharAt(sb.length() -1);
         sb.append(" ) ");
-        //append model
-        sb.append(schema.getModel().name())
-                .append(" KEY(")
-                .append(String.join(",", identifier(schema.getKeys())))
-                .append(")");
+        //append uniq model
+        if(DataModel.UNIQUE.equals(schema.getModel())){
+            sb.append(schema.getModel().name())
+                    .append(" KEY(")
+                    .append(String.join(",", identifier(schema.getKeys())))
+                    .append(")");
+        }
 
         //append table comment
         if(!StringUtils.isNullOrWhitespaceOnly(schema.getTableComment())){
@@ -213,8 +215,16 @@ public class DorisSystem {
                 .append(" ")
                 .append(field.getTypeString())
                 .append(" COMMENT '")
-                .append(field.getComment() == null ? "" : field.getComment())
+                .append(quoteComment(field.getComment()))
                 .append("',");
+    }
+
+    private String quoteComment(String comment){
+        if(comment == null){
+            return "";
+        } else {
+            return comment.replaceAll("'","\\\\'");
+        }
     }
 
     private List<String> identifier(List<String> name) {

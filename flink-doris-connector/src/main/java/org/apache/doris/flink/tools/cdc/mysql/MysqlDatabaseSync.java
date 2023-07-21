@@ -23,8 +23,11 @@ import com.ververica.cdc.connectors.mysql.source.offset.BinlogOffset;
 import com.ververica.cdc.connectors.mysql.source.offset.BinlogOffsetBuilder;
 import com.ververica.cdc.connectors.mysql.table.StartupOptions;
 import com.ververica.cdc.connectors.shaded.org.apache.kafka.connect.json.JsonConverterConfig;
+import com.ververica.cdc.debezium.DebeziumDeserializationSchema;
 import com.ververica.cdc.debezium.JsonDebeziumDeserializationSchema;
 import com.ververica.cdc.debezium.table.DebeziumOptions;
+
+import org.apache.doris.flink.deserialization.DorisJsonDebeziumDeserializationSchema;
 import org.apache.doris.flink.tools.cdc.DatabaseSync;
 import org.apache.doris.flink.tools.cdc.DateToStringConverter;
 import org.apache.doris.flink.tools.cdc.SourceSchema;
@@ -50,8 +53,8 @@ import java.util.Properties;
 
 public class MysqlDatabaseSync extends DatabaseSync {
     private static final Logger LOG = LoggerFactory.getLogger(MysqlDatabaseSync.class);
-
     private static String JDBC_URL = "jdbc:mysql://%s:%d?useInformationSchema=true";
+    private static String PROPERTIES_PREFIX = "jdbc.properties.";
 
     public MysqlDatabaseSync() {
     }
@@ -81,7 +84,7 @@ public class MysqlDatabaseSync extends DatabaseSync {
                         continue;
                     }
                     SourceSchema sourceSchema =
-                            new SourceSchema(metaData, databaseName, tableName, tableComment);
+                            new MysqlSchema(metaData, databaseName, tableName, tableComment);
                     if (sourceSchema.primaryKeys.size() > 0) {
                         //Only sync tables with primary keys
                         schemaList.add(sourceSchema);
@@ -171,8 +174,8 @@ public class MysqlDatabaseSync extends DatabaseSync {
         for (Map.Entry<String, String> entry : config.toMap().entrySet()) {
             String key = entry.getKey();
             String value = entry.getValue();
-            if (key.startsWith(JdbcUrlUtils.PROPERTIES_PREFIX)) {
-                jdbcProperties.put(key.substring(JdbcUrlUtils.PROPERTIES_PREFIX.length()), value);
+            if (key.startsWith(PROPERTIES_PREFIX)) {
+                jdbcProperties.put(key.substring(PROPERTIES_PREFIX.length()), value);
             } else if (key.startsWith(DebeziumOptions.DEBEZIUM_OPTIONS_PREFIX)) {
                 debeziumProperties.put(
                         key.substring(DebeziumOptions.DEBEZIUM_OPTIONS_PREFIX.length()), value);
@@ -180,11 +183,14 @@ public class MysqlDatabaseSync extends DatabaseSync {
         }
         sourceBuilder.jdbcProperties(jdbcProperties);
         sourceBuilder.debeziumProperties(debeziumProperties);
-
-        Map<String, Object> customConverterConfigs = new HashMap<>();
-        customConverterConfigs.put(JsonConverterConfig.DECIMAL_FORMAT_CONFIG, "numeric");
-        JsonDebeziumDeserializationSchema schema =
-                new JsonDebeziumDeserializationSchema(false, customConverterConfigs);
+        DebeziumDeserializationSchema<String> schema;
+        if (ignoreDefaultValue) {
+            schema = new DorisJsonDebeziumDeserializationSchema();
+        } else {
+            Map<String, Object> customConverterConfigs = new HashMap<>();
+            customConverterConfigs.put(JsonConverterConfig.DECIMAL_FORMAT_CONFIG, "numeric");
+            schema = new JsonDebeziumDeserializationSchema(false, customConverterConfigs);
+        }
         MySqlSource<String> mySqlSource = sourceBuilder.deserializer(schema).includeSchemaChanges(true).build();
 
         DataStreamSource<String> streamSource = env.fromSource(
@@ -197,8 +203,8 @@ public class MysqlDatabaseSync extends DatabaseSync {
         for (Map.Entry<String, String> entry : config.toMap().entrySet()) {
             String key = entry.getKey();
             String value = entry.getValue();
-            if (key.startsWith(JdbcUrlUtils.PROPERTIES_PREFIX)) {
-                jdbcProps.put(key.substring(JdbcUrlUtils.PROPERTIES_PREFIX.length()), value);
+            if (key.startsWith(PROPERTIES_PREFIX)) {
+                jdbcProps.put(key.substring(PROPERTIES_PREFIX.length()), value);
             }
         }
         return jdbcProps;
