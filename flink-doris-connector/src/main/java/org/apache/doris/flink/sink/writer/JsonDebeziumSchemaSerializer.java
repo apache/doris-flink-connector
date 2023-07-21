@@ -275,10 +275,8 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
             JsonNode lastDDLNode = columns.get(columns.size() - 1);
             this.ddlColumn = extractJsonNode(lastDDLNode, "name");
             String typeName = extractJsonNode(lastDDLNode, "typeName");
-            if (typeName.equals("VARCHAR")) {
-                int length = Integer.parseInt(extractJsonNode(lastDDLNode, "length"));
-                typeName = "VARCHAR" + "(" + length * 3 + ")";
-            }
+            typeName = handleType(typeName, lastDDLNode);
+
             String defaultValue = handleDefaultValue(extractJsonNode(lastDDLNode, "defaultValueExpression"));
             String comment = extractJsonNode(lastDDLNode, "comment");
 
@@ -345,5 +343,16 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
         public JsonDebeziumSchemaSerializer build() {
             return new JsonDebeziumSchemaSerializer(dorisOptions, addDropDDLPattern, sourceTableName);
         }
+    }
+
+    private String handleType(String type, JsonNode lastDDLNode) {
+        if (StringUtils.isNullOrWhitespaceOnly(type)){
+            return "";
+        }
+        if (type.equals("VARCHAR")) {
+            int length = Math.min(Integer.parseInt(extractJsonNode(lastDDLNode, "length")) * 3, 65533);
+            type = "VARCHAR" + "(" + length + ")";
+        }
+        return type;
     }
 }
