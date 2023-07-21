@@ -70,8 +70,9 @@ public class CdcOraclelSyncDatabaseCase {
 
         String includingTables = "test.*";
         String excludingTables = "";
+        boolean ignoreDefaultValue = false;
         DatabaseSync databaseSync = new OracleDatabaseSync();
-        databaseSync.create(env,database,config,tablePrefix,tableSuffix,includingTables,excludingTables,sinkConf,tableConfig, false);
+        databaseSync.create(env,database,config,tablePrefix,tableSuffix,includingTables,excludingTables,ignoreDefaultValue,sinkConf,tableConfig, false);
         databaseSync.build();
         env.execute(String.format("Oracle-Doris Database Sync: %s", database));
 
