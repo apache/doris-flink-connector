@@ -92,7 +92,6 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
     public byte[] serialize(String record) throws IOException {
         LOG.debug("received debezium json data {} :", record);
         JsonNode recordRoot = objectMapper.readValue(record, JsonNode.class);
-        recordRoot = recordRoot.get("payload");
         String op = extractJsonNode(recordRoot, "op");
         if (Objects.isNull(op)) {
             //schema change ddl
