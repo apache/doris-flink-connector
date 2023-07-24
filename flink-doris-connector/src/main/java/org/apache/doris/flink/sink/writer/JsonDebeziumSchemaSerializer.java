@@ -253,7 +253,7 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
     public String extractDDL(JsonNode record) throws JsonProcessingException {
         JsonNode historyRecord = objectMapper.readTree(extractJsonNode(record, "historyRecord"));
         JsonNode tableChanges = historyRecord.get("tableChanges").get(0);
-        if (!tableChanges.get("type").asText().equals("ALTER")) {
+        if (Objects.isNull(tableChanges)|| !tableChanges.get("type").asText().equals("ALTER")) {
             return null;
         }
         String ddl = extractJsonNode(historyRecord, "ddl");

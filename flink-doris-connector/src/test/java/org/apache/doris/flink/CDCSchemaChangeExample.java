@@ -41,7 +41,7 @@ public class CDCSchemaChangeExample {
         Map<String, Object> customConverterConfigs = new HashMap<>();
         customConverterConfigs.put(JsonConverterConfig.DECIMAL_FORMAT_CONFIG, "numeric");
         JsonDebeziumDeserializationSchema schema =
-                new JsonDebeziumDeserializationSchema(true, customConverterConfigs);
+                new JsonDebeziumDeserializationSchema(false, customConverterConfigs);
 
         MySqlSource<String> mySqlSource = MySqlSource.<String>builder()
                 .hostname("127.0.0.1")
