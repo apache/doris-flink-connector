@@ -264,9 +264,12 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
 
     /**
      * currently not supported changing multiple columns.
-     * like: alter table test_tab add column c1 int, add column c2 varchar(10);
      */
     private String parseDDL(String ddl, JsonNode tableChanges) {
+        // filter multiple columns
+        if (Pattern.matches("([^\"']|\"[^\"]*\"|'[^']*')*,([^\"']|\"[^\"]*\"|'[^']*')*", ddl)) {
+            return null;
+        }
         Matcher matcher = addDropDDLPattern.matcher(ddl);
         if (matcher.find()) {
             this.ddlOp = matcher.group(1);
