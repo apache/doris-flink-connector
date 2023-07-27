@@ -266,10 +266,6 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
      * currently not supported changing multiple columns.
      */
     private String parseDDL(String ddl, JsonNode tableChanges) {
-        // filter multiple columns
-        if (Pattern.matches("([^\"']|\"[^\"]*\"|'[^']*')*,([^\"']|\"[^\"]*\"|'[^']*')*", ddl)) {
-            return null;
-        }
         Matcher matcher = addDropDDLPattern.matcher(ddl);
         if (matcher.find()) {
             this.ddlOp = matcher.group(1);
@@ -283,6 +279,7 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
         if (!isDropColumn) {
             JsonNode columns = tableChanges.get("table").get("columns");
             JsonNode lastDDLNode = columns.get(columns.size() - 1);
+            ddlColumnName = extractJsonNode(lastDDLNode, "name");
             type = extractJsonNode(lastDDLNode, "typeName");
             JsonNode length = lastDDLNode.get("length");
             JsonNode scale = lastDDLNode.get("scale");
