@@ -29,6 +29,8 @@ import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.exception.IllegalArgumentException;
 import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.sink.HttpGetWithEntity;
+import org.apache.doris.flink.tools.cdc.mysql.MysqlType;
+
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.StringUtils;
 import org.apache.http.HttpHeaders;
@@ -72,7 +74,7 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
     //table name of the cdc upstream, format is db.tbl
     private String sourceTableName;
     private String ddlOp;
-    private String ddlColumn;
+    private String ddlColumnName;
     private boolean isDropColumn;
 
     public JsonDebeziumSchemaSerializer(DorisOptions dorisOptions, Pattern pattern, String sourceTableName) {
@@ -182,7 +184,7 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
     protected Map<String, Object> buildRequestParam() {
         Map<String,Object> params = new HashMap<>();
         params.put("isDropColumn", this.isDropColumn);
-        params.put("columnName", this.ddlColumn);
+        params.put("columnName", this.ddlColumnName);
         return params;
     }
 
@@ -260,36 +262,41 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
         return parseDDL(ddl, tableChanges);
     }
 
+    /**
+     * currently not supported changing multiple columns.
+     * like: alter table test_tab add column c1 int, add column c2 varchar(10);
+     */
     private String parseDDL(String ddl, JsonNode tableChanges) {
-        // filter add/drop operation
         Matcher matcher = addDropDDLPattern.matcher(ddl);
         if (matcher.find()) {
             this.ddlOp = matcher.group(1);
+            this.ddlColumnName = matcher.group(3);
             this.isDropColumn = ddlOp.equalsIgnoreCase("DROP");
         }
 
+        String defaultValue = "";
+        String comment = "";
+        String type = "";
         if (!isDropColumn) {
-            // Get the last changed ddl statement
             JsonNode columns = tableChanges.get("table").get("columns");
             JsonNode lastDDLNode = columns.get(columns.size() - 1);
-            this.ddlColumn = extractJsonNode(lastDDLNode, "name");
-            String typeName = extractJsonNode(lastDDLNode, "typeName");
-            typeName = handleType(typeName, lastDDLNode);
-
-            String defaultValue = handleDefaultValue(extractJsonNode(lastDDLNode, "defaultValueExpression"));
-            String comment = extractJsonNode(lastDDLNode, "comment");
-
-            String alterDDL = String.format(EXECUTE_DDL, dorisOptions.getTableIdentifier(), ddlOp, ddlColumn, typeName);
-            if (!StringUtils.isNullOrWhitespaceOnly(defaultValue)) {
-                alterDDL = alterDDL + " default " + defaultValue;
-            }
-            if (!StringUtils.isNullOrWhitespaceOnly(comment)) {
-                alterDDL = alterDDL + " comment " + comment;
-            }
-            LOG.info("parse ddl:{}", alterDDL);
-            return alterDDL;
+            type = extractJsonNode(lastDDLNode, "typeName");
+            JsonNode length = lastDDLNode.get("length");
+            JsonNode scale = lastDDLNode.get("scale");
+            type = MysqlType.toDorisType(type, length == null ? 0 : length.asInt(), scale == null ? 0 : scale.asInt());
+            defaultValue = handleDefaultValue(extractJsonNode(lastDDLNode, "defaultValueExpression"));
+            comment = extractJsonNode(lastDDLNode, "comment");
         }
-        return ddl;
+
+        String alterDDL = String.format(EXECUTE_DDL, dorisOptions.getTableIdentifier(), ddlOp, ddlColumnName, type);
+        if (!StringUtils.isNullOrWhitespaceOnly(defaultValue)) {
+            alterDDL = alterDDL + " default " + defaultValue;
+        }
+        if (!StringUtils.isNullOrWhitespaceOnly(comment)) {
+            alterDDL = alterDDL + " comment " + comment;
+        }
+        LOG.info("parsed alterDDL:{}", alterDDL);
+        return alterDDL;
     }
 
     /**
@@ -342,16 +349,5 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
         public JsonDebeziumSchemaSerializer build() {
             return new JsonDebeziumSchemaSerializer(dorisOptions, addDropDDLPattern, sourceTableName);
         }
-    }
-
-    private String handleType(String type, JsonNode lastDDLNode) {
-        if (StringUtils.isNullOrWhitespaceOnly(type)){
-            return "";
-        }
-        if (type.equals("VARCHAR")) {
-            int length = Math.min(Integer.parseInt(extractJsonNode(lastDDLNode, "length")) * 3, 65533);
-            type = "VARCHAR" + "(" + length + ")";
-        }
-        return type;
     }
 }
