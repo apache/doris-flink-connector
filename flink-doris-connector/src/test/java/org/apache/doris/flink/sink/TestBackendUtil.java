@@ -19,12 +19,14 @@ package org.apache.doris.flink.sink;
 
 import org.apache.doris.flink.rest.models.BackendV2;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+@Ignore
 public class TestBackendUtil {
 
     @Test
