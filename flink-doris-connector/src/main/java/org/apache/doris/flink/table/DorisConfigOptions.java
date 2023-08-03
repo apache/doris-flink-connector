@@ -206,7 +206,7 @@ public class DorisConfigOptions {
             .key("sink.flush.queue-size")
             .intType()
             .defaultValue(2)
-            .withDescription("Queue length for async upload to object storage");
+            .withDescription("Queue length for async stream load, default is 2");
 
     public static final ConfigOption<Integer> SINK_BUFFER_FLUSH_MAX_ROWS = ConfigOptions
             .key("sink.buffer-flush.max-rows")
