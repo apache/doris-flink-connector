@@ -155,7 +155,7 @@ public class DorisSystem {
                 throw new CreateTableException("key " + key + " not found in column list");
             }
             FieldSchema field = fields.get(key);
-            buildColumn(sb, field);
+            buildColumn(sb, field, true);
         }
 
         //append values
@@ -164,7 +164,7 @@ public class DorisSystem {
                 continue;
             }
             FieldSchema field = entry.getValue();
-            buildColumn(sb, field);
+            buildColumn(sb, field, false);
 
         }
         sb = sb.deleteCharAt(sb.length() -1);
@@ -210,10 +210,14 @@ public class DorisSystem {
         return sb.toString();
     }
 
-    private void buildColumn(StringBuilder sql, FieldSchema field){
+    private void buildColumn(StringBuilder sql, FieldSchema field, boolean isKey){
+        String fieldType = field.getTypeString();
+        if(isKey && DorisType.STRING.equals(fieldType)){
+            fieldType = String.format("%s(%s)", DorisType.VARCHAR, 65533);
+        }
         sql.append(identifier(field.getName()))
                 .append(" ")
-                .append(field.getTypeString())
+                .append(fieldType)
                 .append(" COMMENT '")
                 .append(quoteComment(field.getComment()))
                 .append("',");
