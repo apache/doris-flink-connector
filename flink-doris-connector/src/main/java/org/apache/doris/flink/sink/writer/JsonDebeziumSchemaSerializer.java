@@ -23,11 +23,18 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.NullNode;
 import org.apache.commons.codec.binary.Base64;
+
+import org.apache.doris.flink.catalog.doris.FieldSchema;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.exception.IllegalArgumentException;
 import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.sink.HttpGetWithEntity;
+import org.apache.doris.flink.sink.writer.SchemaChangeHelper.DDLSchema;
+import org.apache.doris.flink.tools.cdc.mysql.MysqlType;
+
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.StringUtils;
 import org.apache.http.HttpHeaders;
@@ -44,8 +51,11 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -70,8 +80,12 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
     private String table;
     //table name of the cdc upstream, format is db.tbl
     private String sourceTableName;
+    private boolean firstLoad;
+    private boolean firstSchemaChange;
+    private Map<String, FieldSchema> originFieldSchemaMap;
+    private final boolean newSchemaChange;
 
-    public JsonDebeziumSchemaSerializer(DorisOptions dorisOptions, Pattern pattern, String sourceTableName) {
+    public JsonDebeziumSchemaSerializer(DorisOptions dorisOptions, Pattern pattern, String sourceTableName, boolean newSchemaChange) {
         this.dorisOptions = dorisOptions;
         this.addDropDDLPattern = pattern == null ? Pattern.compile(addDropDDLRegex, Pattern.CASE_INSENSITIVE) : pattern;
         String[] tableInfo = dorisOptions.getTableIdentifier().split("\\.");
@@ -82,6 +96,9 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
         this.objectMapper.enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS);
         JsonNodeFactory jsonNodeFactory = JsonNodeFactory.withExactBigDecimals(true);
         this.objectMapper.setNodeFactory(jsonNodeFactory);
+        this.newSchemaChange = newSchemaChange;
+        this.firstLoad = true;
+        this.firstSchemaChange = true;
     }
 
     @Override
@@ -91,8 +108,16 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
         String op = extractJsonNode(recordRoot, "op");
         if (Objects.isNull(op)) {
             //schema change ddl
-            schemaChange(recordRoot);
+            if (newSchemaChange) {
+                schemaChangeV2(recordRoot);
+            } else {
+                schemaChange(recordRoot);
+            }
             return null;
+        }
+
+        if (newSchemaChange && firstLoad) {
+            initOriginFieldSchema(recordRoot);
         }
         Map<String, String> valueMap;
         switch (op) {
@@ -111,6 +136,70 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
                 return null;
         }
         return objectMapper.writeValueAsString(valueMap).getBytes(StandardCharsets.UTF_8);
+    }
+
+    public boolean schemaChangeV2(JsonNode recordRoot) {
+        boolean status = false;
+        try {
+            if (!StringUtils.isNullOrWhitespaceOnly(sourceTableName) && !checkTable(recordRoot)) {
+                return false;
+            }
+            List<String> ddlSqlList = extractDDLList(recordRoot);
+            if (CollectionUtils.isEmpty(ddlSqlList)) {
+                LOG.info("ddl can not do schema change:{}", recordRoot);
+                return false;
+            }
+
+            List<DDLSchema> ddlSchemas = SchemaChangeHelper.getDdlSchemas();
+            for (int i = 0; i < ddlSqlList.size(); i++) {
+                DDLSchema ddlSchema = ddlSchemas.get(i);
+                String ddlSql = ddlSqlList.get(i);
+                boolean doSchemaChange = checkSchemaChange(ddlSchema);
+                status = doSchemaChange && execSchemaChange(ddlSql);
+                LOG.info("schema change status:{}", status);
+            }
+        } catch (Exception ex) {
+            LOG.warn("schema change error :", ex);
+        }
+        return status;
+    }
+
+    private boolean checkSchemaChange(DDLSchema ddlSchema) throws IOException, IllegalArgumentException {
+        String requestUrl = String.format(CHECK_SCHEMA_CHANGE_API, RestService.randomEndpoint(dorisOptions.getFenodes(), LOG), database, table);
+        Map<String,Object> param = buildRequestParam(ddlSchema);
+        HttpGetWithEntity httpGet = new HttpGetWithEntity(requestUrl);
+        httpGet.setHeader(HttpHeaders.AUTHORIZATION, authHeader());
+        httpGet.setEntity(new StringEntity(objectMapper.writeValueAsString(param)));
+        boolean success = handleResponse(httpGet);
+        if (!success) {
+            LOG.warn("schema change can not do table {}.{}",database,table);
+        }
+        return success;
+    }
+
+    @VisibleForTesting
+    public List<String> extractDDLList(JsonNode record) throws JsonProcessingException {
+        JsonNode historyRecord = objectMapper.readTree(extractJsonNode(record, "historyRecord"));
+        JsonNode tableChanges = historyRecord.get("tableChanges");
+        JsonNode tableChange = tableChanges.get(0);
+        String ddl = extractJsonNode(historyRecord, "ddl");
+        LOG.debug("received debezium ddl :{}", ddl);
+
+        Matcher matcher = addDropDDLPattern.matcher(ddl);
+        if (Objects.isNull(tableChange)|| !tableChange.get("type").asText().equals("ALTER") || !matcher.find()) {
+            return null;
+        }
+
+        JsonNode columns = tableChange.get("table").get("columns");
+        if (firstSchemaChange) {
+            fillOriginSchema(columns);
+        }
+        Map<String, FieldSchema> updateFiledSchema = new LinkedHashMap<>();
+        for (JsonNode column : columns) {
+            buildFieldSchema(updateFiledSchema, column);
+        }
+        SchemaChangeHelper.compareSchema(updateFiledSchema, originFieldSchemaMap);
+        return SchemaChangeHelper.generateDDLSql(dorisOptions.getTableIdentifier());
     }
 
     @VisibleForTesting
@@ -166,6 +255,13 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
             LOG.warn("schema change can not do table {}.{}",database,table);
         }
         return success;
+    }
+
+    protected Map<String, Object> buildRequestParam(DDLSchema ddlSchema) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("isDropColumn", ddlSchema.isDropColumn());
+        params.put("columnName", ddlSchema.getColumnName());
+        return params;
     }
 
     /**
@@ -233,7 +329,8 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
     }
 
     private String extractJsonNode(JsonNode record, String key) {
-        return record != null && record.get(key) != null ? record.get(key).asText() : null;
+        return record != null && record.get(key) != null &&
+                !(record.get(key) instanceof NullNode) ? record.get(key).asText() : null;
     }
 
     private Map<String, String> extractBeforeRow(JsonNode record) {
@@ -277,6 +374,76 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
         return "Basic " + new String(Base64.encodeBase64((dorisOptions.getUsername() + ":" + dorisOptions.getPassword()).getBytes(StandardCharsets.UTF_8)));
     }
 
+    @VisibleForTesting
+    public void fillOriginSchema(JsonNode columns) {
+        if (Objects.nonNull(originFieldSchemaMap)) {
+            for (JsonNode column : columns) {
+                String fieldName = column.get("name").asText();
+                if (originFieldSchemaMap.containsKey(fieldName)) {
+                    JsonNode length = column.get("length");
+                    JsonNode scale = column.get("scale");
+                    String type = MysqlType.toDorisType(column.get("typeName").asText(),
+                            length == null ? 0 : length.asInt(),
+                            scale == null ? 0 : scale.asInt());
+                    String defaultValue = handleDefaultValue(extractJsonNode(column, "defaultValueExpression"));
+                    String comment = extractJsonNode(column, "comment");
+                    FieldSchema fieldSchema = originFieldSchemaMap.get(fieldName);
+                    fieldSchema.setName(fieldName);
+                    fieldSchema.setTypeString(type);
+                    fieldSchema.setComment(comment);
+                    fieldSchema.setDefaultValue(defaultValue);
+                }
+            }
+        } else {
+            originFieldSchemaMap = new LinkedHashMap<>();
+            columns.forEach(column -> buildFieldSchema(originFieldSchemaMap, column));
+        }
+        firstSchemaChange = false;
+        firstLoad = false;
+    }
+
+    private void buildFieldSchema(Map<String, FieldSchema> filedSchemaMap, JsonNode column) {
+        String fieldName = column.get("name").asText();
+        JsonNode length = column.get("length");
+        JsonNode scale = column.get("scale");
+        String type = MysqlType.toDorisType(column.get("typeName").asText(),
+                length == null ? 0 : length.asInt(), scale == null ? 0 : scale.asInt());
+        String defaultValue = handleDefaultValue(extractJsonNode(column, "defaultValueExpression"));
+        String comment = extractJsonNode(column, "comment");
+        filedSchemaMap.put(fieldName, new FieldSchema(fieldName, type, defaultValue, comment));
+    }
+
+    private String handleDefaultValue(String defaultValue) {
+        if (StringUtils.isNullOrWhitespaceOnly(defaultValue)) {
+            return null;
+        }
+        // Due to historical reasons, doris needs to add quotes to the default value of the new column
+        // For example in mysql: alter table add column c1 int default 100
+        // In Doris: alter table add column c1 int default '100'
+        if (Pattern.matches("['\"].*?['\"]", defaultValue)) {
+            return defaultValue;
+        } else if (defaultValue.equals("1970-01-01 00:00:00")) {
+            // TODO: The default value of setting the current time in CDC is 1970-01-01 00:00:00
+            return "current_timestamp";
+        }
+        return "'" + defaultValue + "'";
+    }
+
+    private void initOriginFieldSchema(JsonNode recordRoot) {
+        originFieldSchemaMap = new LinkedHashMap<>();
+        Set<String> columnNameSet = extractAfterRow(recordRoot).keySet();
+        if (CollectionUtils.isEmpty(columnNameSet)) {
+            columnNameSet = extractBeforeRow(recordRoot).keySet();
+        }
+        columnNameSet.forEach(columnName -> originFieldSchemaMap.put(columnName, new FieldSchema()));
+        firstLoad = false;
+    }
+
+    @VisibleForTesting
+    public Map<String, FieldSchema> getOriginFieldSchemaMap() {
+        return originFieldSchemaMap;
+    }
+
     public static JsonDebeziumSchemaSerializer.Builder builder() {
         return new JsonDebeziumSchemaSerializer.Builder();
     }
@@ -288,9 +455,15 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
         private DorisOptions dorisOptions;
         private Pattern addDropDDLPattern;
         private String sourceTableName;
+        private boolean newSchemaChange;
 
         public JsonDebeziumSchemaSerializer.Builder setDorisOptions(DorisOptions dorisOptions) {
             this.dorisOptions = dorisOptions;
+            return this;
+        }
+
+        public JsonDebeziumSchemaSerializer.Builder setNewSchemaChange(boolean newSchemaChange) {
+            this.newSchemaChange = newSchemaChange;
             return this;
         }
 
@@ -305,7 +478,7 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
         }
 
         public JsonDebeziumSchemaSerializer build() {
-            return new JsonDebeziumSchemaSerializer(dorisOptions, addDropDDLPattern, sourceTableName);
+            return new JsonDebeziumSchemaSerializer(dorisOptions, addDropDDLPattern, sourceTableName, newSchemaChange);
         }
     }
 
