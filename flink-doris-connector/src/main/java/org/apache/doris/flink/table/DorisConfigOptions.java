@@ -223,9 +223,9 @@ public class DorisConfigOptions {
     public static final ConfigOption<Duration> SINK_BUFFER_FLUSH_INTERVAL = ConfigOptions
             .key("sink.buffer-flush.interval")
             .durationType()
-            .defaultValue(Duration.ofSeconds(1))
+            .defaultValue(Duration.ofSeconds(10))
             .withDescription("the flush interval mills, over this time, asynchronous threads will flush data. The " +
-                    "default value is 1s.");
+                    "default value is 10s.");
 
     // Prefix for Doris StreamLoad specific properties.
     public static final String STREAM_LOAD_PROP_PREFIX = "sink.properties.";
