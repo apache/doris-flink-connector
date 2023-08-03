@@ -55,7 +55,7 @@ public class DorisBatchSink<IN> implements Sink<IN> {
     }
 
     /**
-     * build for DorisSink.
+     * build for DorisBatchSink.
      * @param <IN> record type.
      */
     public static class Builder<IN> {

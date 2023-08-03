@@ -61,7 +61,7 @@ import static org.apache.doris.flink.sink.writer.LoadConstants.LINE_DELIMITER_DE
 import static org.apache.doris.flink.sink.writer.LoadConstants.LINE_DELIMITER_KEY;
 
 /**
- * load data to selectdb.
+ * async stream load
  **/
 public class DorisBatchStreamLoad implements Serializable {
     private static final long serialVersionUID = 1L;
