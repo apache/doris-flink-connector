@@ -177,20 +177,23 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
         return success;
     }
 
-    private List<String> extractDDLList(JsonNode record) throws JsonProcessingException {
+    @VisibleForTesting
+    public List<String> extractDDLList(JsonNode record) throws JsonProcessingException {
         JsonNode historyRecord = objectMapper.readTree(extractJsonNode(record, "historyRecord"));
         JsonNode tableChanges = historyRecord.get("tableChanges");
         JsonNode tableChange = tableChanges.get(0);
-        if (Objects.isNull(tableChange)|| !tableChange.get("type").asText().equals("ALTER")) {
+        String ddl = extractJsonNode(historyRecord, "ddl");
+        LOG.debug("received debezium ddl :{}", ddl);
+
+        Matcher matcher = addDropDDLPattern.matcher(ddl);
+        if (Objects.isNull(tableChange)|| !tableChange.get("type").asText().equals("ALTER") || !matcher.find()) {
             return null;
         }
+
         JsonNode columns = tableChange.get("table").get("columns");
         if (firstSchemaChange) {
             fillOriginSchema(columns);
         }
-        String ddl = extractJsonNode(historyRecord, "ddl");
-        LOG.debug("received debezium ddl :{}", ddl);
-
         Map<String, FieldSchema> updateFiledSchema = new LinkedHashMap<>();
         for (JsonNode column : columns) {
             buildFieldSchema(updateFiledSchema, column);
@@ -371,7 +374,8 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
         return "Basic " + new String(Base64.encodeBase64((dorisOptions.getUsername() + ":" + dorisOptions.getPassword()).getBytes(StandardCharsets.UTF_8)));
     }
 
-    private void fillOriginSchema(JsonNode columns) {
+    @VisibleForTesting
+    public void fillOriginSchema(JsonNode columns) {
         if (Objects.nonNull(originFieldSchemaMap)) {
             for (JsonNode column : columns) {
                 String fieldName = column.get("name").asText();
@@ -414,6 +418,8 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
             return null;
         }
         // Due to historical reasons, doris needs to add quotes to the default value of the new column
+        // For example in mysql: alter table add column c1 int default 100
+        // In Doris: alter table add column c1 int default '100'
         if (Pattern.matches("['\"].*?['\"]", defaultValue)) {
             return defaultValue;
         } else if (defaultValue.equals("1970-01-01 00:00:00")) {
@@ -431,6 +437,11 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
         }
         columnNameSet.forEach(columnName -> originFieldSchemaMap.put(columnName, new FieldSchema()));
         firstLoad = false;
+    }
+
+    @VisibleForTesting
+    public Map<String, FieldSchema> getOriginFieldSchemaMap() {
+        return originFieldSchemaMap;
     }
 
     public static JsonDebeziumSchemaSerializer.Builder builder() {

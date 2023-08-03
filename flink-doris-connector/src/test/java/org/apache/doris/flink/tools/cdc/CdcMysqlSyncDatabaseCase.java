@@ -65,7 +65,7 @@ public class CdcMysqlSyncDatabaseCase {
         String includingTables = "tbl1|tbl2|tbl3";
         String excludingTables = "";
         boolean ignoreDefaultValue = false;
-        boolean useNewSchemaChange = true;
+        boolean useNewSchemaChange = false;
         DatabaseSync databaseSync = new MysqlDatabaseSync();
         databaseSync.create(env,database,config,tablePrefix,tableSuffix,includingTables,excludingTables,ignoreDefaultValue,sinkConf,tableConfig, false, useNewSchemaChange);
         databaseSync.build();
