@@ -52,7 +52,7 @@ public class DorisSinkBatchExample {
         properties.setProperty("line_delimiter", "\n");
         properties.setProperty("format", "csv");
         DorisOptions.Builder dorisBuilder = DorisOptions.builder();
-        dorisBuilder.setFenodes("10.16.10.6:8737")
+        dorisBuilder.setFenodes("127.0.0.1:8030")
                 .setTableIdentifier("test.test_flink")
                 .setUsername("root")
                 .setPassword("");
