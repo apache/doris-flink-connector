@@ -222,9 +222,10 @@ public class DorisBatchStreamLoad implements Serializable {
         }
 
         /**
-         * load
+         * execute stream load
          */
         public void load(String label, BatchRecordBuffer buffer) throws IOException{
+            refreshLoadUrl();
             ByteBuffer data = buffer.getData();
             ByteArrayEntity entity = new ByteArrayEntity(data.array(), data.arrayOffset(), data.limit());
             HttpPutBuilder putBuilder = new HttpPutBuilder();
@@ -253,22 +254,23 @@ public class DorisBatchStreamLoad implements Serializable {
                         }
                     }
                     LOG.error("stream load failed with {}, reason {}, to retry", hostPort, response.getStatusLine().toString());
-                    refreshLoadUrl(putBuilder);
                 }catch (Exception ex){
                     if (retry == executionOptions.getMaxRetries()) {
                         throw new DorisBatchLoadException("stream load error: ", ex);
                     }
                     LOG.error("stream load error with {}, to retry, cause by", hostPort, ex);
-                    refreshLoadUrl(putBuilder);
+
                 }
                 retry++;
+                // get available backend retry
+                refreshLoadUrl();
+                putBuilder.setUrl(loadUrl);
             }
         }
 
-        private void refreshLoadUrl(HttpPutBuilder putBuilder){
+        private void refreshLoadUrl(){
             hostPort = backendUtil.getAvailableBackend();
             loadUrl = String.format(LOAD_URL_PATTERN, hostPort, db, table);
-            putBuilder.setUrl(loadUrl);
         }
     }
 
