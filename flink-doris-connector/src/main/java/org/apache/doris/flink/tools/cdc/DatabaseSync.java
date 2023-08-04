@@ -60,6 +60,7 @@ public abstract class DatabaseSync {
     protected boolean ignoreDefaultValue;
     public StreamExecutionEnvironment env;
     private boolean createTableOnly = false;
+    private boolean newSchemaChange;
 
     public abstract Connection getConnection() throws SQLException;
 
@@ -70,7 +71,7 @@ public abstract class DatabaseSync {
     public void create(StreamExecutionEnvironment env, String database, Configuration config,
                        String tablePrefix, String tableSuffix, String includingTables,
                        String excludingTables, boolean ignoreDefaultValue, Configuration sinkConfig,
-            Map<String, String> tableConfig, boolean createTableOnly) {
+            Map<String, String> tableConfig, boolean createTableOnly, boolean useNewSchemaChange) {
         this.env = env;
         this.config = config;
         this.database = database;
@@ -85,6 +86,7 @@ public abstract class DatabaseSync {
             this.tableConfig.put(LIGHT_SCHEMA_CHANGE, "true");
         }
         this.createTableOnly = createTableOnly;
+        this.newSchemaChange = useNewSchemaChange;
     }
 
     public void build() throws Exception {
@@ -185,7 +187,10 @@ public abstract class DatabaseSync {
         }
         builder.setDorisReadOptions(DorisReadOptions.builder().build())
                 .setDorisExecutionOptions(executionBuilder.build())
-                .setSerializer(JsonDebeziumSchemaSerializer.builder().setDorisOptions(dorisBuilder.build()).build())
+                .setSerializer(JsonDebeziumSchemaSerializer.builder()
+                        .setDorisOptions(dorisBuilder.build())
+                        .setNewSchemaChange(newSchemaChange)
+                        .build())
                 .setDorisOptions(dorisBuilder.build());
         return builder.build();
     }

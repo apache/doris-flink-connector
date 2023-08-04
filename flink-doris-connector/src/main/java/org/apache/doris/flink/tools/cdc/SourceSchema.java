@@ -78,11 +78,15 @@ public abstract class SourceSchema {
         TableSchema tableSchema = new TableSchema();
         tableSchema.setModel(this.model);
         tableSchema.setFields(this.fields);
-        tableSchema.setKeys(this.primaryKeys);
+        tableSchema.setKeys(buildKeys());
         tableSchema.setTableComment(this.tableComment);
         tableSchema.setDistributeKeys(buildDistributeKeys());
         tableSchema.setProperties(tableProps);
         return tableSchema;
+    }
+
+    private List<String> buildKeys(){
+        return buildDistributeKeys();
     }
 
     private List<String> buildDistributeKeys(){
