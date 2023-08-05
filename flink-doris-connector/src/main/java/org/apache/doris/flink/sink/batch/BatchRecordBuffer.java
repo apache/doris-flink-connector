@@ -29,7 +29,7 @@ import java.nio.ByteBuffer;
  * buffer to queue
  */
 public class BatchRecordBuffer {
-    private static final Logger LOG = LoggerFactory.getLogger(RecordBuffer.class);
+    private static final Logger LOG = LoggerFactory.getLogger(BatchRecordBuffer.class);
     public static final String LINE_SEPARATOR = "\n";
     private String labelName;
     private ByteBuffer buffer;
