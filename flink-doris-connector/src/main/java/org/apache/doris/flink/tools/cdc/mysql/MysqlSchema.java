@@ -14,27 +14,19 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
-package org.apache.doris.flink.sink.writer;
+package org.apache.doris.flink.tools.cdc.mysql;
 
-import java.util.UUID;
+import org.apache.doris.flink.tools.cdc.SourceSchema;
 
-/**
- * Generator label for stream load.
- */
-public class LabelGenerator {
-    private String labelPrefix;
-    private boolean enable2PC;
+import java.sql.DatabaseMetaData;
 
-    public LabelGenerator(String labelPrefix, boolean enable2PC) {
-        this.labelPrefix = labelPrefix;
-        this.enable2PC = enable2PC;
+public class MysqlSchema extends SourceSchema {
+
+    public MysqlSchema(DatabaseMetaData metaData, String databaseName, String tableName, String tableComment) throws Exception {
+        super(metaData, databaseName, null, tableName, tableComment);
     }
 
-    public String generateLabel(long chkId) {
-        return enable2PC ? labelPrefix + "_" + chkId : labelPrefix + "_" + UUID.randomUUID();
-    }
-
-    public String generateBatchLabel() {
-        return labelPrefix + "_" + UUID.randomUUID();
+    public String convertToDorisType(String fieldType, Integer precision, Integer scale){
+        return MysqlType.toDorisType(fieldType, precision, scale);
     }
 }

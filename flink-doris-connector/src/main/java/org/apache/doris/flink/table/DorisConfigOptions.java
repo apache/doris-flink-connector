@@ -195,6 +195,45 @@ public class DorisConfigOptions {
 
     public static final ConfigOption<Integer> SINK_PARALLELISM = FactoryUtil.SINK_PARALLELISM;
 
+
+    public static final ConfigOption<Boolean> SINK_ENABLE_BATCH_MODE = ConfigOptions
+            .key("sink.enable.batch-mode")
+            .booleanType()
+            .defaultValue(false)
+            .withDescription("Whether to enable batch write mode");
+
+    public static final ConfigOption<Integer> SINK_FLUSH_QUEUE_SIZE = ConfigOptions
+            .key("sink.flush.queue-size")
+            .intType()
+            .defaultValue(2)
+            .withDescription("Queue length for async stream load, default is 2");
+
+    public static final ConfigOption<Integer> SINK_BUFFER_FLUSH_MAX_ROWS = ConfigOptions
+            .key("sink.buffer-flush.max-rows")
+            .intType()
+            .defaultValue(50000)
+            .withDescription("The maximum number of flush items in each batch, the default is 5w");
+
+    public static final ConfigOption<Integer> SINK_BUFFER_FLUSH_MAX_BYTES = ConfigOptions
+            .key("sink.buffer-flush.max-bytes")
+            .intType()
+            .defaultValue(10 * 1024 * 1024)
+            .withDescription("The maximum number of bytes flushed in each batch, the default is 10MB");
+
+    public static final ConfigOption<Duration> SINK_BUFFER_FLUSH_INTERVAL = ConfigOptions
+            .key("sink.buffer-flush.interval")
+            .durationType()
+            .defaultValue(Duration.ofSeconds(10))
+            .withDescription("the flush interval mills, over this time, asynchronous threads will flush data. The " +
+                    "default value is 10s.");
+
+    public static final ConfigOption<Boolean> SINK_IGNORE_UPDATE_BEFORE = ConfigOptions
+            .key("sink.ignore.update-before")
+            .booleanType()
+            .defaultValue(true)
+            .withDescription("In the CDC scenario, when the primary key of the upstream is inconsistent with that of the downstream, the update-before data needs to be passed to the downstream as deleted data, otherwise the data cannot be deleted.\n" +
+                    "The default is to ignore, that is, perform upsert semantics.");
+
     // Prefix for Doris StreamLoad specific properties.
     public static final String STREAM_LOAD_PROP_PREFIX = "sink.properties.";
 

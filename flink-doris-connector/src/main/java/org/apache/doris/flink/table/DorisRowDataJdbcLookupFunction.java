@@ -111,6 +111,9 @@ public class DorisRowDataJdbcLookupFunction extends TableFunction<RowData> {
     @Override
     public void close() throws Exception {
         super.close();
+        if(lookupReader != null){
+            lookupReader.close();
+        }
     }
 
     @VisibleForTesting

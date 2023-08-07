@@ -19,6 +19,7 @@ package org.apache.doris.flink.catalog.doris;
 public class FieldSchema {
     private String name;
     private String typeString;
+    private String defaultValue;
     private String comment;
 
     public FieldSchema() {
@@ -27,6 +28,13 @@ public class FieldSchema {
     public FieldSchema(String name, String typeString, String comment) {
         this.name = name;
         this.typeString = typeString;
+        this.comment = comment;
+    }
+
+    public FieldSchema(String name, String typeString, String defaultValue, String comment) {
+        this.name = name;
+        this.typeString = typeString;
+        this.defaultValue = defaultValue;
         this.comment = comment;
     }
 
@@ -52,5 +60,13 @@ public class FieldSchema {
 
     public void setComment(String comment) {
         this.comment = comment;
+    }
+
+    public String getDefaultValue() {
+        return defaultValue;
+    }
+
+    public void setDefaultValue(String defaultValue) {
+        this.defaultValue = defaultValue;
     }
 }

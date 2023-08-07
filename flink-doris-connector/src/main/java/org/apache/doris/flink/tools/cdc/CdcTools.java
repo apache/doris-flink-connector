@@ -18,6 +18,7 @@ package org.apache.doris.flink.tools.cdc;
 
 
 import org.apache.doris.flink.tools.cdc.mysql.MysqlDatabaseSync;
+import org.apache.doris.flink.tools.cdc.oracle.OracleDatabaseSync;
 import org.apache.flink.api.java.utils.MultipleParameterTool;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -33,6 +34,7 @@ import java.util.Map;
  */
 public class CdcTools {
     private static final String MYSQL_SYNC_DATABASE = "mysql-sync-database";
+    private static final String ORACLE_SYNC_DATABASE = "oracle-sync-database";
     private static final List<String> EMPTY_KEYS = Arrays.asList("password");
 
     public static void main(String[] args) throws Exception {
@@ -43,6 +45,9 @@ public class CdcTools {
             case MYSQL_SYNC_DATABASE:
                 createMySQLSyncDatabase(opArgs);
                 break;
+            case ORACLE_SYNC_DATABASE:
+                createOracleSyncDatabase(opArgs);
+                break;
             default:
                 System.out.println("Unknown operation " + operation);
                 System.exit(1);
@@ -51,27 +56,40 @@ public class CdcTools {
 
     private static void createMySQLSyncDatabase(String[] opArgs) throws Exception {
         MultipleParameterTool params = MultipleParameterTool.fromArgs(opArgs);
+        Map<String, String> mysqlMap = getConfigMap(params, "mysql-conf");
+        Configuration mysqlConfig = Configuration.fromMap(mysqlMap);
+        DatabaseSync databaseSync = new MysqlDatabaseSync();
+        syncDatabase(params, databaseSync, mysqlConfig, "MySQL");
+    }
+
+    private static void createOracleSyncDatabase(String[] opArgs) throws Exception {
+        MultipleParameterTool params = MultipleParameterTool.fromArgs(opArgs);
+        Map<String, String> oracleMap = getConfigMap(params, "oracle-conf");
+        Configuration oracleConfig = Configuration.fromMap(oracleMap);
+        DatabaseSync databaseSync = new OracleDatabaseSync();
+        syncDatabase(params, databaseSync, oracleConfig, "Oracle");
+    }
+
+    private static void syncDatabase(MultipleParameterTool params, DatabaseSync databaseSync, Configuration config, String type) throws Exception {
         String jobName = params.get("job-name");
         String database = params.get("database");
         String tablePrefix = params.get("table-prefix");
         String tableSuffix = params.get("table-suffix");
         String includingTables = params.get("including-tables");
         String excludingTables = params.get("excluding-tables");
+        boolean createTableOnly = params.has("create-table-only");
+        boolean ignoreDefaultValue = params.has("ignore-default-value");
+        boolean useNewSchemaChange = params.has("use-new-schema-change");
 
-        Map<String, String> mysqlMap = getConfigMap(params, "mysql-conf");
         Map<String, String> sinkMap = getConfigMap(params, "sink-conf");
         Map<String, String> tableMap = getConfigMap(params, "table-conf");
-
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        Configuration mysqlConfig = Configuration.fromMap(mysqlMap);
         Configuration sinkConfig = Configuration.fromMap(sinkMap);
 
-        DatabaseSync databaseSync = new MysqlDatabaseSync();
-        databaseSync.create(env, database, mysqlConfig, tablePrefix, tableSuffix, includingTables, excludingTables, sinkConfig, tableMap);
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        databaseSync.create(env, database, config, tablePrefix, tableSuffix, includingTables, excludingTables, ignoreDefaultValue, sinkConfig, tableMap, createTableOnly, useNewSchemaChange);
         databaseSync.build();
-
         if(StringUtils.isNullOrWhitespaceOnly(jobName)){
-            jobName = String.format("MySQL-Doris Sync Database: %s", mysqlMap.get("database-name"));
+            jobName = String.format("%s-Doris Sync Database: %s", type, config.getString("database-name","db"));
         }
         env.execute(jobName);
     }
@@ -83,7 +101,7 @@ public class CdcTools {
 
         Map<String, String> map = new HashMap<>();
         for (String param : params.getMultiParameter(key)) {
-            String[] kv = param.split("=");
+            String[] kv = param.split("=", 2);
             if (kv.length == 2) {
                 map.put(kv[0], kv[1]);
                 continue;

@@ -14,27 +14,32 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
-package org.apache.doris.flink.sink.writer;
 
-import java.util.UUID;
+package org.apache.doris.flink.exception;
 
 /**
- * Generator label for stream load.
+ * Doris batch load run exception.
  */
-public class LabelGenerator {
-    private String labelPrefix;
-    private boolean enable2PC;
-
-    public LabelGenerator(String labelPrefix, boolean enable2PC) {
-        this.labelPrefix = labelPrefix;
-        this.enable2PC = enable2PC;
+public class DorisBatchLoadException extends RuntimeException {
+    public DorisBatchLoadException() {
+        super();
     }
 
-    public String generateLabel(long chkId) {
-        return enable2PC ? labelPrefix + "_" + chkId : labelPrefix + "_" + UUID.randomUUID();
+    public DorisBatchLoadException(String message) {
+        super(message);
     }
 
-    public String generateBatchLabel() {
-        return labelPrefix + "_" + UUID.randomUUID();
+    public DorisBatchLoadException(String message, Throwable cause) {
+        super(message, cause);
+    }
+
+    public DorisBatchLoadException(Throwable cause) {
+        super(cause);
+    }
+
+    protected DorisBatchLoadException(String message, Throwable cause,
+                                      boolean enableSuppression,
+                                      boolean writableStackTrace) {
+        super(message, cause, enableSuppression, writableStackTrace);
     }
 }

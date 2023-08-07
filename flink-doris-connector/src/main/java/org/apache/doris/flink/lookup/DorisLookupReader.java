@@ -19,11 +19,12 @@ package org.apache.doris.flink.lookup;
 
 import org.apache.flink.table.data.RowData;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-public abstract class DorisLookupReader {
+public abstract class DorisLookupReader implements Closeable {
 
     public abstract CompletableFuture<List<RowData>> asyncGet(RowData record) throws IOException;
 
