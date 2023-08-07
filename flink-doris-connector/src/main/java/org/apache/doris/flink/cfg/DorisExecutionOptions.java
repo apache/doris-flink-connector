@@ -50,11 +50,12 @@ public class DorisExecutionOptions implements Serializable {
     private final Boolean enable2PC;
 
     //batch mode param
-    private int flushQueueSize;
-    private int bufferFlushMaxRows;
-    private int bufferFlushMaxBytes;
-    private long bufferFlushIntervalMs;
-    private boolean enableBatchMode;
+    private final int flushQueueSize;
+    private final int bufferFlushMaxRows;
+    private final int bufferFlushMaxBytes;
+    private final long bufferFlushIntervalMs;
+    private final boolean enableBatchMode;
+    private final boolean ignoreUpdateBefore;
 
     public DorisExecutionOptions(int checkInterval,
                                  int maxRetries,
@@ -68,7 +69,8 @@ public class DorisExecutionOptions implements Serializable {
                                  int flushQueueSize,
                                  int bufferFlushMaxRows,
                                  int bufferFlushMaxBytes,
-                                 long bufferFlushIntervalMs) {
+                                 long bufferFlushIntervalMs,
+                                 boolean ignoreUpdateBefore) {
         Preconditions.checkArgument(maxRetries >= 0);
         this.checkInterval = checkInterval;
         this.maxRetries = maxRetries;
@@ -84,6 +86,8 @@ public class DorisExecutionOptions implements Serializable {
         this.bufferFlushMaxRows = bufferFlushMaxRows;
         this.bufferFlushMaxBytes = bufferFlushMaxBytes;
         this.bufferFlushIntervalMs = bufferFlushIntervalMs;
+
+        this.ignoreUpdateBefore = ignoreUpdateBefore;
     }
 
     public static Builder builder() {
@@ -160,6 +164,10 @@ public class DorisExecutionOptions implements Serializable {
         return enableBatchMode;
     }
 
+    public boolean getIgnoreUpdateBefore(){
+        return ignoreUpdateBefore;
+    }
+
     /**
      * Builder of {@link DorisExecutionOptions}.
      */
@@ -178,6 +186,8 @@ public class DorisExecutionOptions implements Serializable {
         private int bufferFlushMaxBytes = DEFAULT_BUFFER_FLUSH_MAX_BYTES;
         private long bufferFlushIntervalMs = DEFAULT_BUFFER_FLUSH_INTERVAL_MS;
         private boolean enableBatchMode = false;
+
+        private boolean ignoreUpdateBefore = true;
 
 
         public Builder setCheckInterval(Integer checkInterval) {
@@ -246,9 +256,15 @@ public class DorisExecutionOptions implements Serializable {
             return this;
         }
 
+        public Builder setIgnoreUpdateBefore(boolean ignoreUpdateBefore) {
+            this.ignoreUpdateBefore = ignoreUpdateBefore;
+            return this;
+        }
+
         public DorisExecutionOptions build() {
             return new DorisExecutionOptions(checkInterval, maxRetries, bufferSize, bufferCount, labelPrefix,
-                    streamLoadProp, enableDelete, enable2PC, enableBatchMode, flushQueueSize, bufferFlushMaxRows, bufferFlushMaxBytes, bufferFlushIntervalMs);
+                    streamLoadProp, enableDelete, enable2PC, enableBatchMode, flushQueueSize, bufferFlushMaxRows,
+                    bufferFlushMaxBytes, bufferFlushIntervalMs, ignoreUpdateBefore);
         }
     }
 }

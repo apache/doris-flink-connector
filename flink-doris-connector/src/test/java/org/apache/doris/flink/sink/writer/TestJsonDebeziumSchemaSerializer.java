@@ -22,6 +22,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.apache.doris.flink.catalog.doris.FieldSchema;
+import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.exception.DorisException;
@@ -91,6 +92,27 @@ public class TestJsonDebeziumSchemaSerializer {
         Assert.assertEquals("2022-01-01 10:01:03", valueMap.get("ts"));
         Assert.assertEquals("0", valueMap.get("__DORIS_DELETE_SIGN__"));
         Assert.assertEquals(6, valueMap.size());
+    }
+
+    @Test
+    public void testSerializeUpdateBefore() throws IOException {
+        serializer = JsonDebeziumSchemaSerializer.builder().setDorisOptions(dorisOptions)
+                .setExecutionOptions(DorisExecutionOptions.builderDefaults().setIgnoreUpdateBefore(false).build()).build();
+        //update t1 set name='doris-update' WHERE id =1;
+        byte[] serializedValue = serializer.serialize("{\"before\":{\"id\":1,\"name\":\"doris\",\"dt\":\"2022-01-01\",\"dtime\":\"2022-01-01 10:01:02\",\"ts\":\"2022-01-01 10:01:03\"},\"after\":{\"id\":1,\"name\":\"doris-update\",\"dt\":\"2022-01-01\",\"dtime\":\"2022-01-01 10:01:02\",\"ts\":\"2022-01-01 10:01:03\"},\"source\":{\"version\":\"1.5.4.Final\",\"connector\":\"mysql\",\"name\":\"mysql_binlog_source\",\"ts_ms\":1663924082000,\"snapshot\":\"false\",\"db\":\"test\",\"sequence\":null,\"table\":\"t1\",\"server_id\":1,\"gtid\":null,\"file\":\"binlog.000006\",\"pos\":12154,\"row\":0,\"thread\":null,\"query\":null},\"op\":\"u\",\"ts_ms\":1663924082186,\"transaction\":null}");
+        String row = new String(serializedValue, StandardCharsets.UTF_8);
+        String[] split = row.split("\n");
+        Map<String, String> valueMap = objectMapper.readValue(split[1], new TypeReference<Map<String, String>>(){});
+        Assert.assertEquals("1", valueMap.get("id"));
+        Assert.assertEquals("doris-update", valueMap.get("name"));
+        Assert.assertEquals("2022-01-01", valueMap.get("dt"));
+        Assert.assertEquals("2022-01-01 10:01:02", valueMap.get("dtime"));
+        Assert.assertEquals("2022-01-01 10:01:03", valueMap.get("ts"));
+        Assert.assertEquals("0", valueMap.get("__DORIS_DELETE_SIGN__"));
+        Assert.assertEquals(6, valueMap.size());
+
+        Map<String, String> beforeMap = objectMapper.readValue(split[0], new TypeReference<Map<String, String>>(){});
+        Assert.assertEquals("doris", beforeMap.get("name"));
     }
 
     @Test

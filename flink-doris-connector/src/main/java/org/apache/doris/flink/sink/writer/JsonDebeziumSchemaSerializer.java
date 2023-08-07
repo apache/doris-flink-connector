@@ -25,16 +25,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.NullNode;
 import org.apache.commons.codec.binary.Base64;
-
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.doris.flink.catalog.doris.FieldSchema;
+import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.exception.IllegalArgumentException;
 import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.sink.HttpGetWithEntity;
 import org.apache.doris.flink.sink.writer.SchemaChangeHelper.DDLSchema;
 import org.apache.doris.flink.tools.cdc.mysql.MysqlType;
-
-import org.apache.commons.collections.CollectionUtils;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.StringUtils;
 import org.apache.http.HttpHeaders;
@@ -60,6 +59,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static org.apache.doris.flink.sink.writer.LoadConstants.DORIS_DELETE_SIGN;
+import static org.apache.doris.flink.sink.writer.LoadConstants.LINE_DELIMITER_DEFAULT;
+import static org.apache.doris.flink.sink.writer.LoadConstants.LINE_DELIMITER_KEY;
 
 public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<String> {
 
@@ -84,8 +85,13 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
     private boolean firstSchemaChange;
     private Map<String, FieldSchema> originFieldSchemaMap;
     private final boolean newSchemaChange;
+    private String lineDelimiter = LINE_DELIMITER_DEFAULT;
+    private boolean ignoreUpdateBefore = true;
 
-    public JsonDebeziumSchemaSerializer(DorisOptions dorisOptions, Pattern pattern, String sourceTableName, boolean newSchemaChange) {
+    public JsonDebeziumSchemaSerializer(DorisOptions dorisOptions,
+                                        Pattern pattern,
+                                        String sourceTableName,
+                                        boolean newSchemaChange) {
         this.dorisOptions = dorisOptions;
         this.addDropDDLPattern = pattern == null ? Pattern.compile(addDropDDLRegex, Pattern.CASE_INSENSITIVE) : pattern;
         String[] tableInfo = dorisOptions.getTableIdentifier().split("\\.");
@@ -99,6 +105,18 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
         this.newSchemaChange = newSchemaChange;
         this.firstLoad = true;
         this.firstSchemaChange = true;
+    }
+
+    public JsonDebeziumSchemaSerializer(DorisOptions dorisOptions,
+                                        Pattern pattern,
+                                        String sourceTableName,
+                                        boolean newSchemaChange,
+                                        DorisExecutionOptions executionOptions){
+        this(dorisOptions, pattern, sourceTableName, newSchemaChange);
+        if(executionOptions != null){
+            this.lineDelimiter = executionOptions.getStreamLoadProp().getProperty(LINE_DELIMITER_KEY, LINE_DELIMITER_DEFAULT);
+            this.ignoreUpdateBefore = executionOptions.getIgnoreUpdateBefore();
+        }
     }
 
     @Override
@@ -123,10 +141,11 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
         switch (op) {
             case OP_READ:
             case OP_CREATE:
-            case OP_UPDATE:
                 valueMap = extractAfterRow(recordRoot);
                 addDeleteSign(valueMap, false);
                 break;
+            case OP_UPDATE:
+                return extractUpdate(recordRoot);
             case OP_DELETE:
                 valueMap = extractBeforeRow(recordRoot);
                 addDeleteSign(valueMap, true);
@@ -136,6 +155,28 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
                 return null;
         }
         return objectMapper.writeValueAsString(valueMap).getBytes(StandardCharsets.UTF_8);
+    }
+
+    /**
+     * Change the update event into two
+     * @param recordRoot
+     * @return
+     */
+    private byte[] extractUpdate(JsonNode recordRoot) throws JsonProcessingException {
+        StringBuilder updateRow = new StringBuilder();
+        if(!ignoreUpdateBefore){
+            //convert delete
+            Map<String, String> beforeRow = extractBeforeRow(recordRoot);
+            addDeleteSign(beforeRow, true);
+            updateRow.append(objectMapper.writeValueAsString(beforeRow))
+                    .append(this.lineDelimiter);
+        }
+
+        //convert insert
+        Map<String, String> afterRow = extractAfterRow(recordRoot);
+        addDeleteSign(afterRow, false);
+        updateRow.append(objectMapper.writeValueAsString(afterRow));
+        return updateRow.toString().getBytes(StandardCharsets.UTF_8);
     }
 
     public boolean schemaChangeV2(JsonNode recordRoot) {
@@ -456,6 +497,7 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
         private Pattern addDropDDLPattern;
         private String sourceTableName;
         private boolean newSchemaChange;
+        private DorisExecutionOptions executionOptions;
 
         public JsonDebeziumSchemaSerializer.Builder setDorisOptions(DorisOptions dorisOptions) {
             this.dorisOptions = dorisOptions;
@@ -477,8 +519,13 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
             return this;
         }
 
+        public Builder setExecutionOptions(DorisExecutionOptions executionOptions) {
+            this.executionOptions = executionOptions;
+            return this;
+        }
+
         public JsonDebeziumSchemaSerializer build() {
-            return new JsonDebeziumSchemaSerializer(dorisOptions, addDropDDLPattern, sourceTableName, newSchemaChange);
+            return new JsonDebeziumSchemaSerializer(dorisOptions, addDropDDLPattern, sourceTableName, newSchemaChange, executionOptions);
         }
     }
 
