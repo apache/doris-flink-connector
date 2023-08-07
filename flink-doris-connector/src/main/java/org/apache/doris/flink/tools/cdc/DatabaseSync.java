@@ -180,16 +180,19 @@ public abstract class DatabaseSync {
         sinkConfig.getOptional(DorisConfigOptions.SINK_BUFFER_SIZE).ifPresent(executionBuilder::setBufferSize);
         sinkConfig.getOptional(DorisConfigOptions.SINK_CHECK_INTERVAL).ifPresent(executionBuilder::setCheckInterval);
         sinkConfig.getOptional(DorisConfigOptions.SINK_MAX_RETRIES).ifPresent(executionBuilder::setMaxRetries);
+        sinkConfig.getOptional(DorisConfigOptions.SINK_IGNORE_UPDATE_BEFORE).ifPresent(executionBuilder::setIgnoreUpdateBefore);
 
         boolean enable2pc = sinkConfig.getBoolean(DorisConfigOptions.SINK_ENABLE_2PC);
         if(!enable2pc){
             executionBuilder.disable2PC();
         }
+        DorisExecutionOptions executionOptions = executionBuilder.build();
         builder.setDorisReadOptions(DorisReadOptions.builder().build())
-                .setDorisExecutionOptions(executionBuilder.build())
+                .setDorisExecutionOptions(executionOptions)
                 .setSerializer(JsonDebeziumSchemaSerializer.builder()
                         .setDorisOptions(dorisBuilder.build())
                         .setNewSchemaChange(newSchemaChange)
+                        .setExecutionOptions(executionOptions)
                         .build())
                 .setDorisOptions(dorisBuilder.build());
         return builder.build();

@@ -68,6 +68,7 @@ import static org.apache.doris.flink.table.DorisConfigOptions.SINK_ENABLE_2PC;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_ENABLE_BATCH_MODE;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_ENABLE_DELETE;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_FLUSH_QUEUE_SIZE;
+import static org.apache.doris.flink.table.DorisConfigOptions.SINK_IGNORE_UPDATE_BEFORE;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_LABEL_PREFIX;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_MAX_RETRIES;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_PARALLELISM;
@@ -134,6 +135,7 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
         options.add(SINK_BUFFER_SIZE);
         options.add(SINK_BUFFER_COUNT);
         options.add(SINK_PARALLELISM);
+        options.add(SINK_IGNORE_UPDATE_BEFORE);
 
         options.add(SINK_ENABLE_BATCH_MODE);
         options.add(SINK_BUFFER_FLUSH_MAX_ROWS);
@@ -203,6 +205,7 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
         builder.setLabelPrefix(readableConfig.get(SINK_LABEL_PREFIX));
         builder.setStreamLoadProp(streamLoadProp);
         builder.setDeletable(readableConfig.get(SINK_ENABLE_DELETE));
+        builder.setIgnoreUpdateBefore(readableConfig.get(SINK_IGNORE_UPDATE_BEFORE));
         if (!readableConfig.get(SINK_ENABLE_2PC)) {
             builder.disable2PC();
         }
