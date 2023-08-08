@@ -19,7 +19,6 @@ package org.apache.doris.flink;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
-import org.apache.flink.types.Row;
 
 public class DorisSourceExample {
 
@@ -58,7 +57,7 @@ public class DorisSourceExample {
         final Table result = tEnv.sqlQuery("SELECT * from doris_source  ");
 
         // print the result to the console
-        tEnv.toRetractStream(result, Row.class).print();
+        tEnv.toDataStream(result).print();
         env.execute();
     }
 }
