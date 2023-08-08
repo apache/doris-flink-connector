@@ -63,7 +63,6 @@ public class DorisSourceBuilder<OUT> {
     }
 
     public DorisSource<OUT> build() {
-
         if(readOptions == null) {
             readOptions = DorisReadOptions.builder().build();
         }
