@@ -124,7 +124,7 @@ public class DorisBatchStreamLoad implements Serializable {
      * @param record
      * @throws IOException
      */
-    public void writeRecord(byte[] record) throws InterruptedException {
+    public synchronized void writeRecord(byte[] record) throws InterruptedException {
         checkFlushException();
         if(buffer == null){
             buffer = takeRecordFromWriteQueue();
@@ -137,7 +137,7 @@ public class DorisBatchStreamLoad implements Serializable {
         }
     }
 
-    public void flush(boolean waitUtilDone) throws InterruptedException {
+    public synchronized void flush(boolean waitUtilDone) throws InterruptedException {
         checkFlushException();
         if (buffer == null) {
             LOG.debug("buffer is empty, skip flush.");
