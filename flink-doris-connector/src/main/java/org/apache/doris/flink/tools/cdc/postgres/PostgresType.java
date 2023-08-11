@@ -88,6 +88,9 @@ public class PostgresType {
                 return DorisType.BOOLEAN;
             case BIT:
                 return precision == 1 ? DorisType.BOOLEAN : DorisType.STRING;
+            case VARCHAR:
+                Preconditions.checkNotNull(precision);
+                return precision * 3 > 65533 ? DorisType.STRING : String.format("%s(%s)", DorisType.VARCHAR, precision * 3);
             case POINT:
             case LINE:
             case LSEG:
@@ -95,7 +98,6 @@ public class PostgresType {
             case PATH:
             case POLYGON:
             case CIRCLE:
-            case VARCHAR:
             case TEXT:
             case TIME:
             case TIMETZ:

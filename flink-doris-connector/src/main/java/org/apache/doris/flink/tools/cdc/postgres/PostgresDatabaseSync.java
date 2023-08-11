@@ -62,7 +62,7 @@ import static com.ververica.cdc.connectors.postgres.source.config.PostgresSource
 public class PostgresDatabaseSync extends DatabaseSync {
     private static final Logger LOG = LoggerFactory.getLogger(PostgresDatabaseSync.class);
 
-    private static String JDBC_URL = "jdbc:postgresql://%s:%d/";
+    private static String JDBC_URL = "jdbc:postgresql://%s:%d/%s";
 
     public PostgresDatabaseSync() {
     }
