@@ -55,6 +55,15 @@ public class PostgresType {
     private static final String BYTEA = "bytea";
     private static final String JSON = "json";
     private static final String JSONB = "jsonb";
+    private static final String _INT2 = "_int2";
+    private static final String _INT4 = "_int4";
+    private static final String _INT8 = "_int8";
+    private static final String _FLOAT4 = "_float4";
+    private static final String _FLOAT8 = "_float8";
+    private static final String _DATE = "_date";
+    private static final String _TIMESTAMP = "_timestamp";
+    private static final String _BOOL = "_bool";
+    private static final String _TEXT = "_text";
 
     public static String toDorisType(String postgresType, Integer precision, Integer scale) {
         postgresType = postgresType.toLowerCase();
@@ -112,6 +121,24 @@ public class PostgresType {
             case JSON:
             case JSONB:
                 return DorisType.JSONB;
+            case _BOOL:
+                return String.format("%s<%s>", DorisType.ARRAY, DorisType.BOOLEAN);
+            case _INT2:
+                return String.format("%s<%s>", DorisType.ARRAY, DorisType.TINYINT);
+            case _INT4:
+                return String.format("%s<%s>", DorisType.ARRAY, DorisType.INT);
+            case _INT8:
+                return String.format("%s<%s>", DorisType.ARRAY, DorisType.BIGINT);
+            case _FLOAT4:
+                return String.format("%s<%s>", DorisType.ARRAY, DorisType.FLOAT);
+            case _FLOAT8:
+                return String.format("%s<%s>", DorisType.ARRAY, DorisType.DOUBLE);
+            case _TEXT:
+                return String.format("%s<%s>", DorisType.ARRAY, DorisType.STRING);
+            case _DATE:
+                return String.format("%s<%s>", DorisType.ARRAY, DorisType.DATE_V2);
+            case _TIMESTAMP:
+                return String.format("%s<%s>", DorisType.ARRAY, DorisType.DATETIME_V2);
             default:
                 throw new UnsupportedOperationException("Unsupported Postgres Type: " + postgresType);
         }

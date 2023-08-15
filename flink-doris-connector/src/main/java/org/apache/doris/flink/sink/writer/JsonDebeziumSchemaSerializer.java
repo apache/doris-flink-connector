@@ -137,7 +137,7 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
         if (newSchemaChange && firstLoad) {
             initOriginFieldSchema(recordRoot);
         }
-        Map<String, String> valueMap;
+        Map<String, Object> valueMap;
         switch (op) {
             case OP_READ:
             case OP_CREATE:
@@ -166,14 +166,14 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
         StringBuilder updateRow = new StringBuilder();
         if(!ignoreUpdateBefore){
             //convert delete
-            Map<String, String> beforeRow = extractBeforeRow(recordRoot);
+            Map<String, Object> beforeRow = extractBeforeRow(recordRoot);
             addDeleteSign(beforeRow, true);
             updateRow.append(objectMapper.writeValueAsString(beforeRow))
                     .append(this.lineDelimiter);
         }
 
         //convert insert
-        Map<String, String> afterRow = extractAfterRow(recordRoot);
+        Map<String, Object> afterRow = extractAfterRow(recordRoot);
         addDeleteSign(afterRow, false);
         updateRow.append(objectMapper.writeValueAsString(afterRow));
         return updateRow.toString().getBytes(StandardCharsets.UTF_8);
@@ -274,7 +274,7 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
         return sourceTableName.equals(dbTbl);
     }
 
-    private void addDeleteSign(Map<String, String> valueMap, boolean delete) {
+    private void addDeleteSign(Map<String, Object> valueMap, boolean delete) {
         if(delete){
             valueMap.put(DORIS_DELETE_SIGN, "1");
         }else{
@@ -374,16 +374,16 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
                 !(record.get(key) instanceof NullNode) ? record.get(key).asText() : null;
     }
 
-    private Map<String, String> extractBeforeRow(JsonNode record) {
+    private Map<String, Object> extractBeforeRow(JsonNode record) {
         return extractRow(record.get("before"));
     }
 
-    private Map<String, String> extractAfterRow(JsonNode record) {
+    private Map<String, Object> extractAfterRow(JsonNode record) {
         return extractRow(record.get("after"));
     }
 
-    private Map<String, String> extractRow(JsonNode recordRow) {
-        Map<String, String> recordMap = objectMapper.convertValue(recordRow, new TypeReference<Map<String, String>>() {
+    private Map<String, Object> extractRow(JsonNode recordRow) {
+        Map<String, Object> recordMap = objectMapper.convertValue(recordRow, new TypeReference<Map<String, Object>>() {
         });
         return recordMap != null ? recordMap : new HashMap<>();
     }
