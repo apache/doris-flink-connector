@@ -31,18 +31,18 @@ under the License.
 
     <!-- Suppress some rules except doris-flink-connector -->
     <!-- Java doc -->
-    <suppress files="org[\\/]apache[\\/]doris[\\/]flink/[^/]+" checks="AtclauseOrder" />
-    <suppress files="org[\\/]apache[\\/]doris[\\/]flink/[^/]" checks="JavadocMethod" />
-    <suppress files="org[\\/]apache[\\/]doris[\\/]flink/[^/]" checks="JavadocParagraph" />
-    <suppress files="org[\\/]apache[\\/]doris[\\/]flink/[^/]" checks="JavadocStyle" />
-    <suppress files="org[\\/]apache[\\/]doris[\\/]flink/[^/]" checks="JavadocTagContinuationIndentation" />
-    <suppress files="org[\\/]apache[\\/]doris[\\/]flink/[^/]" checks="InvalidJavadocPosition" />
-    <suppress files="org[\\/]apache[\\/]doris[\\/]flink/[^/]" checks="MissingJavadocMethod" />
-    <suppress files="org[\\/]apache[\\/]doris[\\/]flink/[^/]" checks="MissingJavadocType" />
-    <suppress files="org[\\/]apache[\\/]doris[\\/]flink/[^/]" checks="NonEmptyAtclauseDescription" />
-    <suppress files="org[\\/]apache[\\/]doris[\\/]flink/[^/]" checks="RequireEmptyLineBeforeBlockTagGroup" />
-    <suppress files="org[\\/]apache[\\/]doris[\\/]flink/[^/]" checks="SummaryJavadoc" />
-    <suppress files="org[\\/]apache[\\/]doris[\\/]flink/[^/]" checks="SingleLineJavadoc" />
+    <suppress files="org[\\/]apache[\\/]doris[\\/]flink[/].*" checks="AtclauseOrder" />
+    <suppress files="org[\\/]apache[\\/]doris[\\/]flink[/].*" checks="JavadocMethod" />
+    <suppress files="org[\\/]apache[\\/]doris[\\/]flink[/].*" checks="JavadocParagraph" />
+    <suppress files="org[\\/]apache[\\/]doris[\\/]flink[/].*" checks="JavadocStyle" />
+    <suppress files="org[\\/]apache[\\/]doris[\\/]flink[/].*" checks="JavadocTagContinuationIndentation" />
+    <suppress files="org[\\/]apache[\\/]doris[\\/]flink[/].*" checks="InvalidJavadocPosition" />
+    <suppress files="org[\\/]apache[\\/]doris[\\/]flink[/].*" checks="MissingJavadocMethod" />
+    <suppress files="org[\\/]apache[\\/]doris[\\/]flink[/].*" checks="MissingJavadocType" />
+    <suppress files="org[\\/]apache[\\/]doris[\\/]flink[/].*" checks="NonEmptyAtclauseDescription" />
+    <suppress files="org[\\/]apache[\\/]doris[\\/]flink[/].*" checks="RequireEmptyLineBeforeBlockTagGroup" />
+    <suppress files="org[\\/]apache[\\/]doris[\\/]flink[/].*" checks="SummaryJavadoc" />
+    <suppress files="org[\\/]apache[\\/]doris[\\/]flink[/].*" checks="SingleLineJavadoc" />
 
     <!-- exclude rules for special files -->
     <suppress files="org[\\/]apache[\\/]doris[\\/]flink[\\/]rest[\\/]models[\\/]RespContent\.java" checks="MemberName" />
