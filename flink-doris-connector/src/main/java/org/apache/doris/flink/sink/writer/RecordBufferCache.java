@@ -1,25 +1,33 @@
 package org.apache.doris.flink.sink.writer;
 
+import org.apache.arrow.util.Preconditions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class RecordBufferCache extends InputStream {
-
+    private static final Logger LOG = LoggerFactory.getLogger(RecordBufferCache.class);
     private List<ByteBuffer> recordBuffers;
     private int buffSize;
     private ByteBuffer currentWriteBuffer;
     private ByteBuffer currentReadBuffer;
-    private boolean loadBatchFirstRecord;
     private volatile int curReadInd;
+
+    private final Lock lock = new ReentrantLock();
+    private final Condition condition = lock.newCondition();
 
     public RecordBufferCache(int bufferSize) {
         buffSize = bufferSize;
-        recordBuffers = new LinkedList<ByteBuffer>();
+        recordBuffers = new LinkedList<>();
         currentWriteBuffer = null;
-        loadBatchFirstRecord = true;
         curReadInd = 0;
         currentReadBuffer = null;
     }
@@ -29,38 +37,45 @@ public class RecordBufferCache extends InputStream {
             buff.clear();
             ByteBufferManager.getByteBufferManager().recycle(buff);
         }
-
-        currentWriteBuffer.clear();
-        ByteBufferManager.getByteBufferManager().recycle(currentWriteBuffer);
     }
 
     public void startInput() {
-        // if the cache have data, that should be restart from previous error
+        // if the cache have data, that should be restarted from previous error
         // reset the position for each record buffer
         for (ByteBuffer buff: recordBuffers) {
-            buff.position(0);
+            buff.rewind();
         }
+        curReadInd = 0;
+        currentReadBuffer = null;
     }
 
     public void endInput() throws IOException {
-        try {
-            // add Empty buffer as finish flag.
-            boolean isEmpty = false;
-            if (currentWriteBuffer != null) {
-                currentWriteBuffer.flip();
-                // check if the current write buffer is empty.
-                isEmpty = currentWriteBuffer.limit() == 0;
+        // add Empty buffer as finish flag.
+        boolean isEmpty = false;
+        if (currentWriteBuffer != null) {
+            currentWriteBuffer.flip();
+            // check if the current write buffer is empty.
+            isEmpty = currentWriteBuffer.limit() == 0;
+            lock.lock();
+            try {
                 recordBuffers.add(currentWriteBuffer);
-                currentWriteBuffer = null;
+                condition.signal();
+            } finally {
+                lock.unlock();
             }
-            if (!isEmpty) {
-                ByteBuffer byteBuffer = ByteBufferManager.getByteBufferManager().allocate(buffSize);
-                byteBuffer.flip();
-                // Preconditions.checkState(byteBuffer.limit() == 0);
+            currentWriteBuffer = null;
+        }
+        if (!isEmpty) {
+            ByteBuffer byteBuffer = ByteBufferManager.getByteBufferManager().allocate(buffSize);
+            byteBuffer.flip();
+            Preconditions.checkState(byteBuffer.limit() == 0);
+            lock.lock();
+            try {
                 recordBuffers.add(byteBuffer);
+                condition.signal();
+            } finally {
+                lock.unlock();
             }
-        } catch (Exception e) {
-            throw new IOException(e);
         }
     }
 
@@ -71,18 +86,19 @@ public class RecordBufferCache extends InputStream {
 
     @Override
     public int read(byte[] buf) throws IOException {
-        if (recordBuffers.size()==0 || recordBuffers.size() <= curReadInd) {
-            // waiting for new data
-            try {
-                wait();
-            } catch (InterruptedException e) {
-                // get new buffer
+        lock.lock();
+        try {
+            if (recordBuffers.isEmpty() || recordBuffers.size() <= curReadInd) {
+                condition.await();
             }
-        }
-
-        if(currentReadBuffer == null) {
-            currentReadBuffer = recordBuffers.get(curReadInd);
-            curReadInd++;
+            if(currentReadBuffer == null) {
+                currentReadBuffer = recordBuffers.get(curReadInd);
+                curReadInd++;
+            }
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        } finally {
+            lock.unlock();
         }
 
         // add empty buffer as end flag
@@ -113,28 +129,16 @@ public class RecordBufferCache extends InputStream {
             wPos += nWrite;
             if (currentWriteBuffer.remaining() == 0) {
                 currentWriteBuffer.flip();
-                recordBuffers.add(currentWriteBuffer);
-                // notify have new buffer for reading
-                notify();
+                lock.lock();
+                try {
+                    recordBuffers.add(currentWriteBuffer);
+                    condition.signal();
+                } finally {
+                    lock.unlock();
+                }
+
                 currentWriteBuffer = null;
             }
         } while (wPos != buf.length);
-    }
-
-    public void writeRecord(byte[] buf, byte[] lineDelimiter) {
-        if (loadBatchFirstRecord) {
-            loadBatchFirstRecord = false;
-        } else {
-            write(lineDelimiter);
-        }
-        write(buf);
-    }
-
-    public List<ByteBuffer> getRecordBuffers() {
-        return this.recordBuffers;
-    }
-
-    public ByteBuffer getCurrentWriteBuffer() {
-        return this.currentWriteBuffer;
     }
 }

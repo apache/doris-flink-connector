@@ -22,19 +22,12 @@ public class DorisStreamLoadManager {
 
     private ConcurrentHashMap<Long, RecordBufferCache> cpkDataCache;
     private DorisStreamLoadImpl dorisStreamLoadImpl;
-    private boolean loadBatchFirstRecord;
     private volatile boolean loading;
     private StreamLoadPara para;
     private String labelPrefix;
     private LabelGenerator labelGenerator;
     private transient ScheduledExecutorService scheduledExecutorService;
-    private volatile boolean stopReceiveData = false;
-    // current committed checkpoint
-    private long curCheckpointId = -1;
-    // current checkpoint id which is writing
     private long curLoadingCheckpoint = -1;
-    // used to interrupt the thread when the error is Fatal
-    private transient Thread executorThread;
     private boolean init = false;
 
     private static class SingletonHolder {
@@ -49,14 +42,13 @@ public class DorisStreamLoadManager {
 
     }
 
-    public void init(long taskId, StreamLoadPara para){
-        cpkDataCache = new ConcurrentHashMap<Long, RecordBufferCache>();
-        loadBatchFirstRecord = true;
+    public void init(StreamLoadPara para){
+        cpkDataCache = new ConcurrentHashMap<>();
         this.para = para;
-        this.labelPrefix = para.labelPrefix + "_" + taskId;
+        this.labelPrefix = para.labelPrefix;
         this.labelGenerator = new LabelGenerator(labelPrefix, para.executionOptions.enabled2PC());
         this.scheduledExecutorService = new ScheduledThreadPoolExecutor(1, new ExecutorThreadFactory("stream-load-check"));
-        this.curCheckpointId = para.lastCheckpointId;
+        this.curLoadingCheckpoint = para.lastCheckpointId + 1;
         this.init = true;
     }
 
@@ -81,16 +73,13 @@ public class DorisStreamLoadManager {
             // TODO: we need check and abort all pending transaction.
             //  Discard transactions that may cause the job to fail.
             if(para.executionOptions.enabled2PC()) {
-                dorisStreamLoadImpl.abortPreCommit(labelPrefix, curCheckpointId + 1);
+                dorisStreamLoadImpl.abortPreCommit(labelPrefix,  curLoadingCheckpoint);
             }
         } catch (Exception e) {
             throw new DorisRuntimeException(e);
         }
-        // get main work thread.
-        executorThread = Thread.currentThread();
-        dorisStreamLoadImpl.startLoad(labelGenerator.generateLabel(curCheckpointId + 1),
-                                          getCurrentStreamDataCache(curCheckpointId + 1));
-        curLoadingCheckpoint = curCheckpointId + 1;
+        dorisStreamLoadImpl.startLoad(labelGenerator.generateLabel(curLoadingCheckpoint),
+                                          getStreamDataCache(curLoadingCheckpoint), false);
         // when uploading data in streaming mode, we need to regularly detect whether there are exceptions.
         scheduledExecutorService.scheduleWithFixedDelay(this::checkDone, 200,
                                                             para.executionOptions.checkInterval(),
@@ -113,7 +102,7 @@ public class DorisStreamLoadManager {
      * @throws IOException
      */
     public void startLoad(String label, long checkpointId) throws IOException{
-        dorisStreamLoadImpl.startLoad(label, getCurrentStreamDataCache(checkpointId));
+        dorisStreamLoadImpl.startLoad(label, getStreamDataCache(checkpointId),false);
     }
 
     public void close() throws IOException {
@@ -131,27 +120,18 @@ public class DorisStreamLoadManager {
                 return;
             }
 
-            // double check the future, to avoid getting the old future
+            // double-check the future, to avoid getting the old future
             if (dorisStreamLoadImpl.getPendingLoadFuture() != null
                     && dorisStreamLoadImpl.getPendingLoadFuture().isDone()) {
                 // error happened when loading, now we should stop receive data
                 // and abort previous txn(stream load) and start a new txn(stream load)
                 // use send cached data to new txn, then notify to restart the stream
                 try {
-                    // abort previous txn(stream load)
-                    abortUnCommittedTxn();
-
-                    // use anther be to load
-
-                    this.dorisStreamLoadImpl = new DorisStreamLoadImpl(
-                            RestService.getBackend(para.dorisOptions, para.dorisReadOptions, LOG),
-                            para.dorisOptions,
-                            para.executionOptions,
-                            labelGenerator, new HttpUtil().getHttpClient());
+                    this.dorisStreamLoadImpl.setHostPort(RestService.getBackend(para.dorisOptions, para.dorisReadOptions, LOG));
                     // TODO: we need check and abort all pending transaction.
                     //  Discard transactions that may cause the job to fail.
                     if(para.executionOptions.enabled2PC()) {
-                        dorisStreamLoadImpl.abortPreCommit(labelPrefix, curCheckpointId + 1);
+                        dorisStreamLoadImpl.abortPreCommit(labelPrefix, curLoadingCheckpoint);
                     }
                 } catch (Exception e) {
                     throw new DorisRuntimeException(e);
@@ -159,32 +139,24 @@ public class DorisStreamLoadManager {
 
                 try {
                     // start a new txn(stream load)
-                    dorisStreamLoadImpl.startLoad(labelGenerator.generateLabel(curCheckpointId + 1),
-                                                      getCurrentStreamDataCache(curCheckpointId + 1));
-                    curLoadingCheckpoint = curCheckpointId + 1;
+                    LOG.info("getting exception, breakpoint resume for checkpoint ID: {}", curLoadingCheckpoint);
+                    dorisStreamLoadImpl.startLoad(labelGenerator.generateLabel(curLoadingCheckpoint),
+                                                      getStreamDataCache(curLoadingCheckpoint), true);
                 } catch (Exception e) {
                     throw new DorisRuntimeException(e);
                 }
-                // now restart the data stream
-                stopReceiveData = false;
             }
         }
     }
 
 
-    public void writeRecord(byte[] buf, long cpk) throws IOException {
+    public void writeRecord(byte[] buf) throws IOException {
         dorisStreamLoadImpl.writeRecord(buf);
     }
 
-    public RecordBufferCache getCurrentStreamDataCache(long cpk) {
-        if (!cpkDataCache.contains(cpk)) {
-            cpkDataCache.put(cpk, new RecordBufferCache(para.executionOptions.getBufferSize()));
-        }
-        return cpkDataCache.get(cpk);
-    }
-
     public RecordBufferCache getStreamDataCache(long cpk) {
-        if (!cpkDataCache.contains(cpk)) {
+        if (!cpkDataCache.containsKey(cpk)) {
+            LOG.info("create data cache for checkpoint ID: {}", cpk);
             cpkDataCache.put(cpk, new RecordBufferCache(para.executionOptions.getBufferSize()));
         }
         return cpkDataCache.get(cpk);
@@ -192,28 +164,13 @@ public class DorisStreamLoadManager {
 
     public void remove(long cpk) {
         // TODO recycle the RecordBufferCache
-        if(cpkDataCache.contains(cpk)) {
+        if (cpkDataCache.containsKey(cpk)) {
+            LOG.info("cleaning cache for checkpoint ID: {}", cpk);
             //recycle all buffer to ByteBufferManager
             cpkDataCache.get(cpk).recycle();
             cpkDataCache.remove(cpk);
-            // update current committed checkpoint id
-            this.curCheckpointId = cpk;
         }
-    }
-
-    public void abortUnCommittedTxn() throws Exception {
-        long leastCheckpointId = -1;
-        for(Long cpk: cpkDataCache.keySet()) {
-            if (leastCheckpointId == -1) {
-                leastCheckpointId = cpk.longValue();
-            }
-
-            if(leastCheckpointId>cpk.longValue()) {
-                leastCheckpointId = cpk.longValue();
-            }
-        }
-
-        dorisStreamLoadImpl.abortPreCommit("", leastCheckpointId);
+        curLoadingCheckpoint = cpk + 1;
     }
 
     public void setLoading(boolean loading) {
@@ -222,10 +179,6 @@ public class DorisStreamLoadManager {
 
     public boolean enabled2PC() {
         return this.para.executionOptions.enabled2PC();
-    }
-
-    public boolean isStopReceiveData() {
-        return this.stopReceiveData;
     }
 
     public String getDb() {

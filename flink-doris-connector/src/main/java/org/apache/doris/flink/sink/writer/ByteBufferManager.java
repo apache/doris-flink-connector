@@ -17,12 +17,12 @@ public class ByteBufferManager {
     }
 
     private ByteBufferManager() {
-        this.bufferList = new HashMap<Integer,LinkedList<ByteBuffer>>();
+        this.bufferList = new HashMap<>();
     }
 
     public ByteBuffer allocate(int bufferSize) {
         if(!bufferList.containsKey(bufferSize)) {
-            bufferList.put(bufferSize, new LinkedList<ByteBuffer>());
+            bufferList.put(bufferSize, new LinkedList<>());
         }
         if(bufferList.get(bufferSize).size() > 0) {
             return bufferList.get(bufferSize).removeFirst();
@@ -33,7 +33,7 @@ public class ByteBufferManager {
 
     public void recycle(ByteBuffer buff) {
         if(!bufferList.containsKey(buff.capacity())) {
-            bufferList.put(buff.capacity(), new LinkedList<ByteBuffer>());
+            bufferList.put(buff.capacity(), new LinkedList<>());
         }
         bufferList.get(buff.capacity()).addLast(buff);
     }
