@@ -14,15 +14,25 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.catalog;
 
-import org.apache.commons.compress.utils.Lists;
 import org.apache.doris.flink.catalog.doris.DataModel;
 import org.apache.doris.flink.catalog.doris.DorisSystem;
 import org.apache.doris.flink.catalog.doris.FieldSchema;
 import org.apache.doris.flink.catalog.doris.TableSchema;
 import org.apache.doris.flink.cfg.DorisConnectionOptions;
 import org.apache.doris.flink.table.DorisDynamicTableFactory;
+
+import org.apache.commons.compress.utils.Lists;
+import static org.apache.doris.flink.catalog.DorisCatalogOptions.DEFAULT_DATABASE;
+import static org.apache.doris.flink.catalog.DorisCatalogOptions.getCreateTableProps;
+import static org.apache.doris.flink.table.DorisConfigOptions.FENODES;
+import static org.apache.doris.flink.table.DorisConfigOptions.IDENTIFIER;
+import static org.apache.doris.flink.table.DorisConfigOptions.PASSWORD;
+import static org.apache.doris.flink.table.DorisConfigOptions.SINK_LABEL_PREFIX;
+import static org.apache.doris.flink.table.DorisConfigOptions.TABLE_IDENTIFIER;
+import static org.apache.doris.flink.table.DorisConfigOptions.USERNAME;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.catalog.AbstractCatalog;
@@ -51,8 +61,11 @@ import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.factories.Factory;
+import static org.apache.flink.table.factories.FactoryUtil.CONNECTOR;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Preconditions;
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 import org.apache.flink.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -70,27 +83,15 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.StringJoiner;
 
-import static org.apache.doris.flink.catalog.DorisCatalogOptions.DEFAULT_DATABASE;
-import static org.apache.doris.flink.catalog.DorisCatalogOptions.getCreateTableProps;
-import static org.apache.doris.flink.table.DorisConfigOptions.FENODES;
-import static org.apache.doris.flink.table.DorisConfigOptions.IDENTIFIER;
-import static org.apache.doris.flink.table.DorisConfigOptions.PASSWORD;
-import static org.apache.doris.flink.table.DorisConfigOptions.SINK_LABEL_PREFIX;
-import static org.apache.doris.flink.table.DorisConfigOptions.TABLE_IDENTIFIER;
-import static org.apache.doris.flink.table.DorisConfigOptions.USERNAME;
-import static org.apache.flink.table.factories.FactoryUtil.CONNECTOR;
-import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.apache.flink.util.Preconditions.checkNotNull;
-
 /**
  * catalog for flink
  */
 public class DorisCatalog extends AbstractCatalog {
 
     private static final Logger LOG = LoggerFactory.getLogger(DorisCatalog.class);
+    private final Map<String, String> properties;
     private DorisSystem dorisSystem;
     private DorisConnectionOptions connectionOptions;
-    private final Map<String, String> properties;
 
     public DorisCatalog(
             String catalogName,
@@ -100,6 +101,11 @@ public class DorisCatalog extends AbstractCatalog {
         super(catalogName, defaultDatabase);
         this.connectionOptions = connectionOptions;
         this.properties = Collections.unmodifiableMap(properties);
+    }
+
+    @Override
+    public Optional<Factory> getFactory() {
+        return Optional.of(new DorisDynamicTableFactory());
     }
 
     @Override
@@ -114,11 +120,6 @@ public class DorisCatalog extends AbstractCatalog {
         } catch (Exception e) {
             throw new CatalogException(String.format("Closing catalog %s failed.", getName()), e);
         }
-    }
-
-    @Override
-    public Optional<Factory> getFactory() {
-        return Optional.of(new DorisDynamicTableFactory());
     }
 
     // ------------- databases -------------
@@ -147,12 +148,12 @@ public class DorisCatalog extends AbstractCatalog {
     @Override
     public void createDatabase(String name, CatalogDatabase database, boolean ignoreIfExists)
             throws DatabaseAlreadyExistException, CatalogException {
-        if(databaseExists(name)){
-            if(ignoreIfExists){
+        if (databaseExists(name)) {
+            if (ignoreIfExists) {
                 return;
             }
             throw new DatabaseAlreadyExistException(getName(), name);
-        }else {
+        } else {
             dorisSystem.createDatabase(name);
         }
     }
@@ -160,7 +161,7 @@ public class DorisCatalog extends AbstractCatalog {
     @Override
     public void dropDatabase(String name, boolean ignoreIfNotExists, boolean cascade)
             throws DatabaseNotEmptyException, CatalogException, DatabaseNotExistException {
-        if(!databaseExists(name)){
+        if (!databaseExists(name)) {
             if (ignoreIfNotExists) {
                 return;
             }
@@ -168,7 +169,7 @@ public class DorisCatalog extends AbstractCatalog {
         }
 
         if (!cascade && listTables(name).size() > 0) {
-            throw new DatabaseNotEmptyException(getName(),name);
+            throw new DatabaseNotEmptyException(getName(), name);
         }
         dorisSystem.dropDatabase(name);
     }
@@ -220,61 +221,12 @@ public class DorisCatalog extends AbstractCatalog {
         props.put(PASSWORD.key(), connectionOptions.getPassword());
         props.put(TABLE_IDENTIFIER.key(), databaseName + "." + tableName);
 
-        String labelPrefix = props.getOrDefault(SINK_LABEL_PREFIX.key(),"");
-        props.put(SINK_LABEL_PREFIX.key(), String.join("_",labelPrefix,databaseName,tableName));
-        //remove catalog option
+        String labelPrefix = props.getOrDefault(SINK_LABEL_PREFIX.key(), "");
+        props.put(SINK_LABEL_PREFIX.key(), String.join("_", labelPrefix, databaseName, tableName));
+        // remove catalog option
         props.remove(DEFAULT_DATABASE.key());
         return CatalogTable.of(createTableSchema(databaseName, tableName), null, Lists.newArrayList(), props);
 
-    }
-
-    @VisibleForTesting
-    protected String queryFenodes() {
-        try (Connection conn = DriverManager.getConnection(connectionOptions.getJdbcUrl(),
-                connectionOptions.getUsername(),
-                connectionOptions.getPassword())) {
-            StringJoiner fenodes = new StringJoiner(",");
-            PreparedStatement ps = conn.prepareStatement("SHOW FRONTENDS");
-            ResultSet resultSet = ps.executeQuery();
-            while (resultSet.next()) {
-                String ip = resultSet.getString("IP");
-                String port = resultSet.getString("HttpPort");
-                fenodes.add(ip + ":" + port);
-            }
-            return fenodes.toString();
-        } catch (Exception e) {
-            throw new CatalogException("Failed getting fenodes", e);
-        }
-    }
-
-    private Schema createTableSchema(String databaseName, String tableName) {
-        try (Connection conn = DriverManager.getConnection(connectionOptions.getJdbcUrl(),
-                connectionOptions.getUsername(),
-                connectionOptions.getPassword())) {
-            PreparedStatement ps =
-                    conn.prepareStatement(
-                            String.format("SELECT COLUMN_NAME,DATA_TYPE,COLUMN_SIZE,DECIMAL_DIGITS FROM `information_schema`.`COLUMNS` WHERE `TABLE_SCHEMA`= '%s' AND `TABLE_NAME`= '%s'", databaseName, tableName));
-
-            List<String> columnNames = new ArrayList<>();
-            List<DataType> columnTypes = new ArrayList<>();
-            ResultSet resultSet = ps.executeQuery();
-            while (resultSet.next()) {
-                String columnName = resultSet.getString("COLUMN_NAME");
-                String columnType = resultSet.getString("DATA_TYPE");
-                long columnSize = resultSet.getLong("COLUMN_SIZE");
-                long columnDigit = resultSet.getLong("DECIMAL_DIGITS");
-
-                DataType flinkType = DorisTypeMapper.toFlinkType(columnName, columnType, (int) columnSize, (int) columnDigit);
-                columnNames.add(columnName);
-                columnTypes.add(flinkType);
-            }
-            Schema.Builder schemaBuilder = Schema.newBuilder().fromFields(columnNames, columnTypes);
-            Schema tableSchema = schemaBuilder.build();
-            return tableSchema;
-        } catch (Exception e) {
-            throw new CatalogException(
-                    String.format("Failed getting catalog %s database %s table %s", getName(), databaseName, tableName), e);
-        }
     }
 
     @Override
@@ -290,8 +242,8 @@ public class DorisCatalog extends AbstractCatalog {
     @Override
     public void dropTable(ObjectPath tablePath, boolean ignoreIfNotExists)
             throws TableNotExistException, CatalogException {
-        if(!tableExists(tablePath)){
-            if(ignoreIfNotExists){
+        if (!tableExists(tablePath)) {
+            if (ignoreIfNotExists) {
                 return;
             }
             throw new TableNotExistException(getName(), tablePath);
@@ -312,11 +264,11 @@ public class DorisCatalog extends AbstractCatalog {
         checkNotNull(tablePath, "tablePath cannot be null");
         checkNotNull(table, "table cannot be null");
 
-        if(!databaseExists(tablePath.getDatabaseName())) {
+        if (!databaseExists(tablePath.getDatabaseName())) {
             throw new DatabaseNotExistException(getName(), tablePath.getDatabaseName());
         }
-        if(tableExists(tablePath)){
-            if(ignoreIfExists){
+        if (tableExists(tablePath)) {
+            if (ignoreIfExists) {
                 return;
             }
             throw new TableAlreadyExistException(getName(), tablePath);
@@ -341,34 +293,12 @@ public class DorisCatalog extends AbstractCatalog {
         dorisSystem.createTable(schema);
     }
 
-    public List<String> getCreateDorisKeys(org.apache.flink.table.api.TableSchema schema){
-        Preconditions.checkState(schema.getPrimaryKey().isPresent(),"primary key cannot be null");
-        return schema.getPrimaryKey().get().getColumns();
-    }
-
-    public Map<String, FieldSchema> getCreateDorisColumns(org.apache.flink.table.api.TableSchema schema){
-        String[] fieldNames = schema.getFieldNames();
-        DataType[] fieldTypes = schema.getFieldDataTypes();
-
-        Map<String, FieldSchema> fields = new LinkedHashMap<>();
-        for (int i = 0; i < fieldNames.length; i++) {
-            fields.put(fieldNames[i],
-                    new FieldSchema(
-                            fieldNames[i],
-                            DorisTypeMapper.toDorisType(fieldTypes[i]),
-                            null));
-        }
-        return fields;
-    }
-
     @Override
     public void alterTable(
             ObjectPath tablePath, CatalogBaseTable newTable, boolean ignoreIfNotExists)
             throws TableNotExistException, CatalogException {
         throw new UnsupportedOperationException();
     }
-
-    // ------------- partitions -------------
 
     @Override
     public List<CatalogPartitionSpec> listPartitions(ObjectPath tablePath)
@@ -396,6 +326,8 @@ public class DorisCatalog extends AbstractCatalog {
             throws PartitionNotExistException, CatalogException {
         throw new PartitionNotExistException(getName(), tablePath, partitionSpec);
     }
+
+    // ------------- partitions -------------
 
     @Override
     public boolean partitionExists(ObjectPath tablePath, CatalogPartitionSpec partitionSpec)
@@ -432,8 +364,6 @@ public class DorisCatalog extends AbstractCatalog {
         throw new UnsupportedOperationException();
     }
 
-    // ------------- functions -------------
-
     @Override
     public List<String> listFunctions(String dbName)
             throws DatabaseNotExistException, CatalogException {
@@ -458,6 +388,8 @@ public class DorisCatalog extends AbstractCatalog {
         throw new UnsupportedOperationException();
     }
 
+    // ------------- functions -------------
+
     @Override
     public void alterFunction(
             ObjectPath functionPath, CatalogFunction newFunction, boolean ignoreIfNotExists)
@@ -470,8 +402,6 @@ public class DorisCatalog extends AbstractCatalog {
             throws FunctionNotExistException, CatalogException {
         throw new UnsupportedOperationException();
     }
-
-    // ------------- statistics -------------
 
     @Override
     public CatalogTableStatistics getTableStatistics(ObjectPath tablePath)
@@ -498,6 +428,8 @@ public class DorisCatalog extends AbstractCatalog {
             throws PartitionNotExistException, CatalogException {
         return CatalogColumnStatistics.UNKNOWN;
     }
+
+    // ------------- statistics -------------
 
     @Override
     public void alterTableStatistics(
@@ -533,5 +465,80 @@ public class DorisCatalog extends AbstractCatalog {
             boolean ignoreIfNotExists)
             throws PartitionNotExistException, CatalogException {
         throw new UnsupportedOperationException();
+    }
+
+    @VisibleForTesting
+    protected String queryFenodes() {
+        try (Connection conn = DriverManager.getConnection(connectionOptions.getJdbcUrl(),
+                connectionOptions.getUsername(),
+                connectionOptions.getPassword())) {
+            StringJoiner fenodes = new StringJoiner(",");
+            PreparedStatement ps = conn.prepareStatement("SHOW FRONTENDS");
+            ResultSet resultSet = ps.executeQuery();
+            while (resultSet.next()) {
+                String ip = resultSet.getString("IP");
+                String port = resultSet.getString("HttpPort");
+                fenodes.add(ip + ":" + port);
+            }
+            return fenodes.toString();
+        } catch (Exception e) {
+            throw new CatalogException("Failed getting fenodes", e);
+        }
+    }
+
+    private Schema createTableSchema(String databaseName, String tableName) {
+        try (Connection conn = DriverManager.getConnection(connectionOptions.getJdbcUrl(),
+                connectionOptions.getUsername(),
+                connectionOptions.getPassword())) {
+            PreparedStatement ps =
+                    conn.prepareStatement(
+                            String.format(
+                                    "SELECT COLUMN_NAME,DATA_TYPE,COLUMN_SIZE,DECIMAL_DIGITS FROM "
+                                            + "`information_schema`.`COLUMNS` WHERE `TABLE_SCHEMA`= '%s' "
+                                            + "AND `TABLE_NAME`= '%s'",
+                                    databaseName, tableName));
+
+            List<String> columnNames = new ArrayList<>();
+            List<DataType> columnTypes = new ArrayList<>();
+            ResultSet resultSet = ps.executeQuery();
+            while (resultSet.next()) {
+                String columnName = resultSet.getString("COLUMN_NAME");
+                String columnType = resultSet.getString("DATA_TYPE");
+                long columnSize = resultSet.getLong("COLUMN_SIZE");
+                long columnDigit = resultSet.getLong("DECIMAL_DIGITS");
+
+                DataType flinkType = DorisTypeMapper.toFlinkType(columnName, columnType, (int) columnSize,
+                        (int) columnDigit);
+                columnNames.add(columnName);
+                columnTypes.add(flinkType);
+            }
+            Schema.Builder schemaBuilder = Schema.newBuilder().fromFields(columnNames, columnTypes);
+            Schema tableSchema = schemaBuilder.build();
+            return tableSchema;
+        } catch (Exception e) {
+            throw new CatalogException(
+                    String.format("Failed getting catalog %s database %s table %s", getName(), databaseName, tableName),
+                    e);
+        }
+    }
+
+    public List<String> getCreateDorisKeys(org.apache.flink.table.api.TableSchema schema) {
+        Preconditions.checkState(schema.getPrimaryKey().isPresent(), "primary key cannot be null");
+        return schema.getPrimaryKey().get().getColumns();
+    }
+
+    public Map<String, FieldSchema> getCreateDorisColumns(org.apache.flink.table.api.TableSchema schema) {
+        String[] fieldNames = schema.getFieldNames();
+        DataType[] fieldTypes = schema.getFieldDataTypes();
+
+        Map<String, FieldSchema> fields = new LinkedHashMap<>();
+        for (int i = 0; i < fieldNames.length; i++) {
+            fields.put(fieldNames[i],
+                    new FieldSchema(
+                            fieldNames[i],
+                            DorisTypeMapper.toDorisType(fieldTypes[i]),
+                            null));
+        }
+        return fields;
     }
 }

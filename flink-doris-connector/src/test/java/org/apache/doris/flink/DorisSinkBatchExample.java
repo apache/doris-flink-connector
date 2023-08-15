@@ -14,6 +14,7 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink;
 
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
@@ -29,15 +30,14 @@ import java.util.Arrays;
 import java.util.Properties;
 import java.util.UUID;
 
-
 public class DorisSinkBatchExample {
     public static void main(String[] args) throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
-//        env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+        //        env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
         env.enableCheckpointing(5000);
-//        env.getCheckpointConfig().enableExternalizedCheckpoints(CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
-//        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(5, Time.milliseconds(30000)));
+        //        env.getCheckpointConfig().enableExternalizedCheckpoints(CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
+        //        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(5, Time.milliseconds(30000)));
         DorisBatchSink.Builder<String> builder = DorisBatchSink.builder();
         final DorisReadOptions.Builder readOptionBuilder = DorisReadOptions.builder();
         readOptionBuilder.setDeserializeArrowAsync(false)

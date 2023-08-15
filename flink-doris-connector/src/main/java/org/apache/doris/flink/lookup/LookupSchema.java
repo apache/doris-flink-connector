@@ -30,7 +30,8 @@ public class LookupSchema implements Serializable {
     private DataType[] fieldTypes;
     private int[] keyIndex;
 
-    public LookupSchema(String tableIdentifier, String[] selectFields, DataType[] fieldTypes, String[] conditionFields, int[] keyIndex) {
+    public LookupSchema(String tableIdentifier, String[] selectFields, DataType[] fieldTypes, String[] conditionFields,
+            int[] keyIndex) {
         this.tableIdentifier = tableIdentifier;
         this.selectFields = selectFields;
         this.fieldTypes = fieldTypes;
@@ -80,12 +81,12 @@ public class LookupSchema implements Serializable {
 
     @Override
     public String toString() {
-        return "LookupSchema{" +
-                "tableIdentifier='" + tableIdentifier + '\'' +
-                ", selectFields=" + Arrays.toString(selectFields) +
-                ", conditionFields=" + Arrays.toString(conditionFields) +
-                ", fieldTypes=" + Arrays.toString(fieldTypes) +
-                ", keyIndex=" + Arrays.toString(keyIndex) +
-                '}';
+        return "LookupSchema{"
+                + "tableIdentifier='" + tableIdentifier + '\''
+                + ", selectFields=" + Arrays.toString(selectFields)
+                + ", conditionFields=" + Arrays.toString(conditionFields)
+                + ", fieldTypes=" + Arrays.toString(fieldTypes)
+                + ", keyIndex=" + Arrays.toString(keyIndex)
+                + '}';
     }
 }

@@ -14,7 +14,13 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.tools.cdc.mysql;
+
+import org.apache.doris.flink.deserialization.DorisJsonDebeziumDeserializationSchema;
+import org.apache.doris.flink.tools.cdc.DatabaseSync;
+import org.apache.doris.flink.tools.cdc.DateToStringConverter;
+import org.apache.doris.flink.tools.cdc.SourceSchema;
 
 import com.ververica.cdc.connectors.mysql.source.MySqlSource;
 import com.ververica.cdc.connectors.mysql.source.MySqlSourceBuilder;
@@ -26,11 +32,6 @@ import com.ververica.cdc.connectors.shaded.org.apache.kafka.connect.json.JsonCon
 import com.ververica.cdc.debezium.DebeziumDeserializationSchema;
 import com.ververica.cdc.debezium.JsonDebeziumDeserializationSchema;
 import com.ververica.cdc.debezium.table.DebeziumOptions;
-
-import org.apache.doris.flink.deserialization.DorisJsonDebeziumDeserializationSchema;
-import org.apache.doris.flink.tools.cdc.DatabaseSync;
-import org.apache.doris.flink.tools.cdc.DateToStringConverter;
-import org.apache.doris.flink.tools.cdc.SourceSchema;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -62,9 +63,11 @@ public class MysqlDatabaseSync extends DatabaseSync {
         Properties jdbcProperties = getJdbcProperties();
         StringBuilder jdbcUrlSb = new StringBuilder(JDBC_URL);
         jdbcProperties.forEach((key, value) -> jdbcUrlSb.append("&").append(key).append("=").append(value));
-        String jdbcUrl = String.format(jdbcUrlSb.toString(), config.get(MySqlSourceOptions.HOSTNAME), config.get(MySqlSourceOptions.PORT));
+        String jdbcUrl = String.format(jdbcUrlSb.toString(), config.get(MySqlSourceOptions.HOSTNAME),
+                config.get(MySqlSourceOptions.PORT));
 
-        return DriverManager.getConnection(jdbcUrl,config.get(MySqlSourceOptions.USERNAME),config.get(MySqlSourceOptions.PASSWORD));
+        return DriverManager.getConnection(jdbcUrl, config.get(MySqlSourceOptions.USERNAME),
+                config.get(MySqlSourceOptions.PASSWORD));
     }
 
     @Override
@@ -74,7 +77,7 @@ public class MysqlDatabaseSync extends DatabaseSync {
         try (Connection conn = getConnection()) {
             DatabaseMetaData metaData = conn.getMetaData();
             try (ResultSet tables =
-                         metaData.getTables(databaseName, null, "%", new String[]{"TABLE"})) {
+                    metaData.getTables(databaseName, null, "%", new String[] {"TABLE"})) {
                 while (tables.next()) {
                     String tableName = tables.getString("TABLE_NAME");
                     String tableComment = tables.getString("REMARKS");
@@ -84,7 +87,7 @@ public class MysqlDatabaseSync extends DatabaseSync {
                     SourceSchema sourceSchema =
                             new MysqlSchema(metaData, databaseName, tableName, tableComment);
                     if (sourceSchema.primaryKeys.size() > 0) {
-                        //Only sync tables with primary keys
+                        // Only sync tables with primary keys
                         schemaList.add(sourceSchema);
                     } else {
                         LOG.warn("table {} has no primary key, skip", tableName);
@@ -172,7 +175,7 @@ public class MysqlDatabaseSync extends DatabaseSync {
 
         Properties jdbcProperties = new Properties();
         Properties debeziumProperties = new Properties();
-        //date to string
+        // date to string
         debeziumProperties.putAll(DateToStringConverter.DEFAULT_PROPS);
 
         for (Map.Entry<String, String> entry : config.toMap().entrySet()) {
@@ -202,7 +205,7 @@ public class MysqlDatabaseSync extends DatabaseSync {
         return streamSource;
     }
 
-    private Properties getJdbcProperties(){
+    private Properties getJdbcProperties() {
         Properties jdbcProps = new Properties();
         for (Map.Entry<String, String> entry : config.toMap().entrySet()) {
             String key = entry.getKey();

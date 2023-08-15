@@ -14,11 +14,13 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.source.enumerator;
 
 import org.apache.doris.flink.sink.OptionUtils;
 import org.apache.doris.flink.source.split.DorisSourceSplit;
 import org.apache.doris.flink.source.split.DorisSourceSplitSerializer;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -41,7 +43,8 @@ public class PendingSplitsCheckpointSerializerTest {
                 new DorisSourceSplit(OptionUtils.buildPartitionDef());
         PendingSplitsCheckpoint checkpoint = new PendingSplitsCheckpoint(Arrays.asList(split));
 
-        final PendingSplitsCheckpointSerializer splitSerializer = new PendingSplitsCheckpointSerializer(DorisSourceSplitSerializer.INSTANCE);
+        final PendingSplitsCheckpointSerializer splitSerializer = new PendingSplitsCheckpointSerializer(
+                DorisSourceSplitSerializer.INSTANCE);
         byte[] serialized = splitSerializer.serialize(checkpoint);
         PendingSplitsCheckpoint deserialize = splitSerializer.deserialize(splitSerializer.getVersion(), serialized);
 

@@ -63,8 +63,8 @@ public class DorisJsonDebeziumDeserializationSchema implements DebeziumDeseriali
 
     private JsonNode convertToJson(Schema schema, Object value) throws DorisException {
         if (value == null) {
-            if (schema == null) // Any schema is valid and we don't have a default, so treat this as an optional schema
-            {
+            // Any schema is valid and we don't have a default, so treat this as an optional schema
+            if (schema == null) {
                 return null;
             }
             if (schema.isOptional()) {
@@ -170,8 +170,9 @@ public class DorisJsonDebeziumDeserializationSchema implements DebeziumDeseriali
                     }
                     return obj;
                 }
+                default:
+                    throw new DorisException("Couldn't convert " + value + " to JSON.");
             }
-            throw new DorisException("Couldn't convert " + value + " to JSON.");
         } catch (ClassCastException e) {
             String schemaTypeStr = (schema != null) ? schema.type().toString() : "unknown schema";
             throw new DorisException("Invalid type for " + schemaTypeStr + ": " + value.getClass());

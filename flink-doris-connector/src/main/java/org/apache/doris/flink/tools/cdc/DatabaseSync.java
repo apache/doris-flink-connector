@@ -14,6 +14,7 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.tools.cdc;
 
 import org.apache.doris.flink.catalog.doris.DorisSystem;
@@ -26,6 +27,7 @@ import org.apache.doris.flink.sink.DorisSink;
 import org.apache.doris.flink.sink.writer.JsonDebeziumSchemaSerializer;
 import org.apache.doris.flink.table.DorisConfigOptions;
 import org.apache.doris.flink.tools.cdc.mysql.ParsingProcessFunction;
+
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
@@ -58,7 +60,7 @@ public abstract class DatabaseSync {
     protected Map<String, String> tableConfig;
     protected Configuration sinkConfig;
     protected boolean ignoreDefaultValue;
-    public StreamExecutionEnvironment env;
+    protected StreamExecutionEnvironment env;
     private boolean createTableOnly = false;
     private boolean newSchemaChange;
 
@@ -69,8 +71,8 @@ public abstract class DatabaseSync {
     public abstract DataStreamSource<String> buildCdcSource(StreamExecutionEnvironment env);
 
     public void create(StreamExecutionEnvironment env, String database, Configuration config,
-                       String tablePrefix, String tableSuffix, String includingTables,
-                       String excludingTables, boolean ignoreDefaultValue, Configuration sinkConfig,
+            String tablePrefix, String tableSuffix, String includingTables,
+            String excludingTables, boolean ignoreDefaultValue, Configuration sinkConfig,
             Map<String, String> tableConfig, boolean createTableOnly, boolean useNewSchemaChange) {
         this.env = env;
         this.config = config;
@@ -81,8 +83,8 @@ public abstract class DatabaseSync {
         this.ignoreDefaultValue = ignoreDefaultValue;
         this.sinkConfig = sinkConfig;
         this.tableConfig = tableConfig == null ? new HashMap<>() : tableConfig;
-        //default enable light schema change
-        if(!this.tableConfig.containsKey(LIGHT_SCHEMA_CHANGE)){
+        // default enable light schema change
+        if (!this.tableConfig.containsKey(LIGHT_SCHEMA_CHANGE)) {
             this.tableConfig.put(LIGHT_SCHEMA_CHANGE, "true");
         }
         this.createTableOnly = createTableOnly;
@@ -106,14 +108,14 @@ public abstract class DatabaseSync {
             String dorisTable = converter.convert(schema.getTableName());
             if (!dorisSystem.tableExists(database, dorisTable)) {
                 TableSchema dorisSchema = schema.convertTableSchema(tableConfig);
-                //set doris target database
+                // set doris target database
                 dorisSchema.setDatabase(database);
                 dorisSchema.setTable(dorisTable);
                 dorisSystem.createTable(dorisSchema);
             }
             dorisTables.add(dorisTable);
         }
-        if(createTableOnly){
+        if (createTableOnly) {
             System.out.println("Create table finished.");
             System.exit(0);
         }
@@ -140,7 +142,8 @@ public abstract class DatabaseSync {
         Preconditions.checkNotNull(fenodes, "fenodes is empty in sink-conf");
         Preconditions.checkNotNull(user, "username is empty in sink-conf");
         Preconditions.checkNotNull(jdbcUrl, "jdbcurl is empty in sink-conf");
-        DorisConnectionOptions.DorisConnectionOptionsBuilder builder = new DorisConnectionOptions.DorisConnectionOptionsBuilder()
+        DorisConnectionOptions.DorisConnectionOptionsBuilder builder
+                = new DorisConnectionOptions.DorisConnectionOptionsBuilder()
                 .withFenodes(fenodes)
                 .withUsername(user)
                 .withPassword(passwd)
@@ -165,10 +168,10 @@ public abstract class DatabaseSync {
                 .setPassword(passwd);
 
         Properties pro = new Properties();
-        //default json data format
+        // default json data format
         pro.setProperty("format", "json");
         pro.setProperty("read_json_by_line", "true");
-        //customer stream load properties
+        // customer stream load properties
         Properties streamLoadProp = DorisConfigOptions.getStreamLoadProp(sinkConfig.toMap());
         pro.putAll(streamLoadProp);
         DorisExecutionOptions.Builder executionBuilder = DorisExecutionOptions.builder()
@@ -180,10 +183,11 @@ public abstract class DatabaseSync {
         sinkConfig.getOptional(DorisConfigOptions.SINK_BUFFER_SIZE).ifPresent(executionBuilder::setBufferSize);
         sinkConfig.getOptional(DorisConfigOptions.SINK_CHECK_INTERVAL).ifPresent(executionBuilder::setCheckInterval);
         sinkConfig.getOptional(DorisConfigOptions.SINK_MAX_RETRIES).ifPresent(executionBuilder::setMaxRetries);
-        sinkConfig.getOptional(DorisConfigOptions.SINK_IGNORE_UPDATE_BEFORE).ifPresent(executionBuilder::setIgnoreUpdateBefore);
+        sinkConfig.getOptional(DorisConfigOptions.SINK_IGNORE_UPDATE_BEFORE)
+                .ifPresent(executionBuilder::setIgnoreUpdateBefore);
 
         boolean enable2pc = sinkConfig.getBoolean(DorisConfigOptions.SINK_ENABLE_2PC);
-        if(!enable2pc){
+        if (!enable2pc) {
             executionBuilder.disable2PC();
         }
         DorisExecutionOptions executionOptions = executionBuilder.build();
@@ -218,8 +222,8 @@ public abstract class DatabaseSync {
         private final String prefix;
         private final String suffix;
 
-        TableNameConverter(){
-            this("","");
+        TableNameConverter() {
+            this("", "");
         }
 
         TableNameConverter(String prefix, String suffix) {

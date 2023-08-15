@@ -14,19 +14,19 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.deserialization;
 
+import static org.apache.doris.flink.utils.FactoryMocks.PHYSICAL_TYPE;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.util.Collector;
+import static org.junit.Assert.assertEquals;
 import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
-
-import static org.apache.doris.flink.utils.FactoryMocks.PHYSICAL_TYPE;
-import static org.junit.Assert.assertEquals;
 
 public class RowDataDeserializationSchemaTest {
 

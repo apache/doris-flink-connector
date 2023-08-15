@@ -17,8 +17,9 @@
 
 package org.apache.doris.flink.sink;
 
-import org.apache.commons.codec.binary.Base64;
 import org.apache.doris.flink.sink.writer.LoadConstants;
+
+import org.apache.commons.codec.binary.Base64;
 import org.apache.flink.util.Preconditions;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHeaders;
@@ -37,6 +38,7 @@ public class HttpPutBuilder {
     String url;
     Map<String, String> header;
     HttpEntity httpEntity;
+
     public HttpPutBuilder() {
         header = new HashMap<>();
     }
@@ -52,7 +54,7 @@ public class HttpPutBuilder {
     }
 
     public HttpPutBuilder addHiddenColumns(boolean add) {
-        if(add){
+        if (add) {
             header.put("hidden_columns", LoadConstants.DORIS_DELETE_SIGN);
         }
         return this;

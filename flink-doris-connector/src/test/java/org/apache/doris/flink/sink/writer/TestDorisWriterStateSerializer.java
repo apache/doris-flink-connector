@@ -28,7 +28,7 @@ public class TestDorisWriterStateSerializer {
     public void testSerialize() throws Exception {
         DorisWriterState expectDorisWriterState = new DorisWriterState("doris");
         DorisWriterStateSerializer serializer = new DorisWriterStateSerializer();
-        DorisWriterState dorisWriterState =  serializer.deserialize(1, serializer.serialize(expectDorisWriterState));
+        DorisWriterState dorisWriterState = serializer.deserialize(1, serializer.serialize(expectDorisWriterState));
         Assert.assertEquals(expectDorisWriterState, dorisWriterState);
     }
 }

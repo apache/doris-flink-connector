@@ -14,9 +14,21 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.tools.cdc.oracle;
 
+import org.apache.doris.flink.catalog.doris.DataModel;
+import org.apache.doris.flink.tools.cdc.DatabaseSync;
+import org.apache.doris.flink.tools.cdc.SourceSchema;
 
+import static com.ververica.cdc.connectors.base.options.JdbcSourceOptions.CONNECTION_POOL_SIZE;
+import static com.ververica.cdc.connectors.base.options.JdbcSourceOptions.CONNECT_MAX_RETRIES;
+import static com.ververica.cdc.connectors.base.options.JdbcSourceOptions.CONNECT_TIMEOUT;
+import static com.ververica.cdc.connectors.base.options.SourceOptions.CHUNK_META_GROUP_SIZE;
+import static com.ververica.cdc.connectors.base.options.SourceOptions.SCAN_INCREMENTAL_SNAPSHOT_CHUNK_SIZE;
+import static com.ververica.cdc.connectors.base.options.SourceOptions.SCAN_SNAPSHOT_FETCH_SIZE;
+import static com.ververica.cdc.connectors.base.options.SourceOptions.SPLIT_KEY_EVEN_DISTRIBUTION_FACTOR_LOWER_BOUND;
+import static com.ververica.cdc.connectors.base.options.SourceOptions.SPLIT_KEY_EVEN_DISTRIBUTION_FACTOR_UPPER_BOUND;
 import com.ververica.cdc.connectors.base.options.StartupOptions;
 import com.ververica.cdc.connectors.base.source.jdbc.JdbcIncrementalSource;
 import com.ververica.cdc.connectors.oracle.OracleSource;
@@ -25,9 +37,6 @@ import com.ververica.cdc.connectors.oracle.source.config.OracleSourceOptions;
 import com.ververica.cdc.debezium.DebeziumSourceFunction;
 import com.ververica.cdc.debezium.JsonDebeziumDeserializationSchema;
 import com.ververica.cdc.debezium.table.DebeziumOptions;
-import org.apache.doris.flink.catalog.doris.DataModel;
-import org.apache.doris.flink.tools.cdc.DatabaseSync;
-import org.apache.doris.flink.tools.cdc.SourceSchema;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -47,15 +56,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
-import static com.ververica.cdc.connectors.base.options.JdbcSourceOptions.CONNECTION_POOL_SIZE;
-import static com.ververica.cdc.connectors.base.options.JdbcSourceOptions.CONNECT_MAX_RETRIES;
-import static com.ververica.cdc.connectors.base.options.JdbcSourceOptions.CONNECT_TIMEOUT;
-import static com.ververica.cdc.connectors.base.options.SourceOptions.CHUNK_META_GROUP_SIZE;
-import static com.ververica.cdc.connectors.base.options.SourceOptions.SCAN_INCREMENTAL_SNAPSHOT_CHUNK_SIZE;
-import static com.ververica.cdc.connectors.base.options.SourceOptions.SCAN_SNAPSHOT_FETCH_SIZE;
-import static com.ververica.cdc.connectors.base.options.SourceOptions.SPLIT_KEY_EVEN_DISTRIBUTION_FACTOR_LOWER_BOUND;
-import static com.ververica.cdc.connectors.base.options.SourceOptions.SPLIT_KEY_EVEN_DISTRIBUTION_FACTOR_UPPER_BOUND;
-
 public class OracleDatabaseSync extends DatabaseSync {
     private static final Logger LOG = LoggerFactory.getLogger(OracleDatabaseSync.class);
 
@@ -67,10 +67,11 @@ public class OracleDatabaseSync extends DatabaseSync {
     @Override
     public Connection getConnection() throws SQLException {
         String jdbcUrl;
-        if(!StringUtils.isNullOrWhitespaceOnly(config.get(OracleSourceOptions.URL))){
+        if (!StringUtils.isNullOrWhitespaceOnly(config.get(OracleSourceOptions.URL))) {
             jdbcUrl = config.get(OracleSourceOptions.URL);
-        }else{
-            jdbcUrl = String.format(JDBC_URL, config.get(OracleSourceOptions.HOSTNAME), config.get(OracleSourceOptions.PORT),config.get(OracleSourceOptions.DATABASE_NAME));
+        } else {
+            jdbcUrl = String.format(JDBC_URL, config.get(OracleSourceOptions.HOSTNAME),
+                    config.get(OracleSourceOptions.PORT), config.get(OracleSourceOptions.DATABASE_NAME));
         }
         Properties pro = new Properties();
         pro.setProperty("user", config.get(OracleSourceOptions.USERNAME));
@@ -88,7 +89,7 @@ public class OracleDatabaseSync extends DatabaseSync {
         try (Connection conn = getConnection()) {
             DatabaseMetaData metaData = conn.getMetaData();
             try (ResultSet tables =
-                         metaData.getTables(databaseName, schemaName, "%", new String[]{"TABLE"})) {
+                    metaData.getTables(databaseName, schemaName, "%", new String[] {"TABLE"})) {
                 while (tables.next()) {
                     String tableName = tables.getString("TABLE_NAME");
                     String tableComment = tables.getString("REMARKS");
@@ -126,10 +127,10 @@ public class OracleDatabaseSync extends DatabaseSync {
             startupOptions = StartupOptions.latest();
         }
 
-        //debezium properties set
+        // debezium properties set
         Properties debeziumProperties = new Properties();
         debeziumProperties.put("decimal.handling.mode", "string");
-        //date to string
+        // date to string
         debeziumProperties.putAll(OracleDateConverter.DEFAULT_PROPS);
 
         for (Map.Entry<String, String> entry : config.toMap().entrySet()) {
@@ -145,7 +146,7 @@ public class OracleDatabaseSync extends DatabaseSync {
         JsonDebeziumDeserializationSchema schema =
                 new JsonDebeziumDeserializationSchema(false, customConverterConfigs);
 
-        if(config.getBoolean(OracleSourceOptions.SCAN_INCREMENTAL_SNAPSHOT_ENABLED, false)){
+        if (config.getBoolean(OracleSourceOptions.SCAN_INCREMENTAL_SNAPSHOT_ENABLED, false)) {
             JdbcIncrementalSource<String> incrSource = OracleSourceBuilder.OracleIncrementalSource.<String>builder()
                     .hostname(hostname)
                     .url(url)
@@ -167,8 +168,8 @@ public class OracleDatabaseSync extends DatabaseSync {
                     .distributionFactorUpper(config.get(SPLIT_KEY_EVEN_DISTRIBUTION_FACTOR_UPPER_BOUND))
                     .distributionFactorLower(config.get(SPLIT_KEY_EVEN_DISTRIBUTION_FACTOR_LOWER_BOUND))
                     .build();
-            return env.fromSource(incrSource,  WatermarkStrategy.noWatermarks(), "Oracle IncrSource");
-        }else{
+            return env.fromSource(incrSource, WatermarkStrategy.noWatermarks(), "Oracle IncrSource");
+        } else {
             DebeziumSourceFunction<String> oracleSource = OracleSource.<String>builder().url(url)
                     .hostname(hostname)
                     .port(port)

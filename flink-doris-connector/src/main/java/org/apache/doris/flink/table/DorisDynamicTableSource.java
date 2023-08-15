@@ -26,6 +26,7 @@ import org.apache.doris.flink.rest.PartitionDefinition;
 import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.source.DorisSource;
 import org.apache.doris.flink.source.DorisSourceBuilder;
+
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.table.api.TableSchema;
@@ -53,7 +54,8 @@ import java.util.stream.Collectors;
  * The {@link DorisDynamicTableSource} is used during planning.
  *
  * <p>In our example, we don't implement any of the available ability interfaces such as {@link SupportsFilterPushDown}
- * or {@link SupportsProjectionPushDown}. Therefore, the main logic can be found in {@link #getScanRuntimeProvider(ScanContext)}
+ * or {@link SupportsProjectionPushDown}.
+ * Therefore, the main logic can be found in {@link #getScanRuntimeProvider(ScanContext)}
  * where we instantiate the required {@link SourceFunction} and its {@link DeserializationSchema} for
  * runtime. Both instances are parameterized to return internal data structures (i.e. {@link RowData}).
  */
@@ -62,22 +64,20 @@ public final class DorisDynamicTableSource implements ScanTableSource, LookupTab
     private static final Logger LOG = LoggerFactory.getLogger(DorisDynamicTableSource.class);
     private final DorisOptions options;
     private final DorisReadOptions readOptions;
-    private  DorisLookupOptions lookupOptions;
+    private DorisLookupOptions lookupOptions;
     private TableSchema physicalSchema;
 
     public DorisDynamicTableSource(DorisOptions options,
-                                   DorisReadOptions readOptions,
-                                   DorisLookupOptions lookupOptions,
-                                   TableSchema physicalSchema) {
+            DorisReadOptions readOptions,
+            DorisLookupOptions lookupOptions,
+            TableSchema physicalSchema) {
         this.options = options;
         this.lookupOptions = lookupOptions;
         this.readOptions = readOptions;
         this.physicalSchema = physicalSchema;
     }
 
-    public DorisDynamicTableSource(DorisOptions options,
-                                   DorisReadOptions readOptions,
-                                   TableSchema physicalSchema) {
+    public DorisDynamicTableSource(DorisOptions options, DorisReadOptions readOptions, TableSchema physicalSchema) {
         this.options = options;
         this.readOptions = readOptions;
         this.physicalSchema = physicalSchema;
@@ -93,7 +93,7 @@ public final class DorisDynamicTableSource implements ScanTableSource, LookupTab
     @Override
     public ScanRuntimeProvider getScanRuntimeProvider(ScanContext runtimeProviderContext) {
         readOptions.setReadFields(Arrays.stream(physicalSchema.getFieldNames())
-                .map(item->String.format("`%s`", item.trim().replace("`", "")))
+                .map(item -> String.format("`%s`", item.trim().replace("`", "")))
                 .collect(Collectors.joining(", ")));
 
         if (readOptions.getUseOldApi()) {
@@ -113,11 +113,12 @@ public final class DorisDynamicTableSource implements ScanTableSource, LookupTab
                     .setRowType((RowType) physicalSchema.toRowDataType().getLogicalType());
             return InputFormatProvider.of(builder.build());
         } else {
-            //Read data using the interface of the FLIP-27 specification
+            // Read data using the interface of the FLIP-27 specification
             DorisSource<RowData> build = DorisSourceBuilder.<RowData>builder()
                     .setDorisReadOptions(readOptions)
                     .setDorisOptions(options)
-                    .setDeserializer(new RowDataDeserializationSchema((RowType) physicalSchema.toRowDataType().getLogicalType()))
+                    .setDeserializer(
+                            new RowDataDeserializationSchema((RowType) physicalSchema.toRowDataType().getLogicalType()))
                     .build();
             return SourceProvider.of(build);
         }

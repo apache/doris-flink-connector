@@ -14,9 +14,11 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.tools.cdc.postgres;
 
 import org.apache.doris.flink.catalog.doris.DorisType;
+
 import org.apache.flink.util.Preconditions;
 
 public class PostgresType {
@@ -67,7 +69,7 @@ public class PostgresType {
 
     public static String toDorisType(String postgresType, Integer precision, Integer scale) {
         postgresType = postgresType.toLowerCase();
-        switch (postgresType){
+        switch (postgresType) {
             case INT2:
             case SMALLSERIAL:
                 return DorisType.TINYINT;
@@ -79,7 +81,8 @@ public class PostgresType {
                 return DorisType.BIGINT;
             case NUMERIC:
                 return precision != null && precision <= 38
-                        ? String.format("%s(%s,%s)", DorisType.DECIMAL_V3, precision, scale != null && scale >= 0 ? scale : 0)
+                        ? String.format("%s(%s,%s)", DorisType.DECIMAL_V3, precision,
+                        scale != null && scale >= 0 ? scale : 0)
                         : DorisType.STRING;
             case FLOAT4:
                 return DorisType.FLOAT;
@@ -99,7 +102,8 @@ public class PostgresType {
                 return precision == 1 ? DorisType.BOOLEAN : DorisType.STRING;
             case VARCHAR:
                 Preconditions.checkNotNull(precision);
-                return precision * 3 > 65533 ? DorisType.STRING : String.format("%s(%s)", DorisType.VARCHAR, precision * 3);
+                return precision * 3 > 65533 ? DorisType.STRING
+                        : String.format("%s(%s)", DorisType.VARCHAR, precision * 3);
             case POINT:
             case LINE:
             case LSEG:

@@ -14,15 +14,17 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.source.split;
 
 import org.apache.doris.flink.source.reader.DorisValueReader;
+
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 
-import javax.annotation.Nullable;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import javax.annotation.Nullable;
 
 /**
  * An implementation of {@link RecordsWithSplitIds}.
@@ -36,8 +38,8 @@ public class DorisSplitRecords implements RecordsWithSplitIds<List> {
     private String splitId;
 
     public DorisSplitRecords(String splitId,
-                             DorisValueReader valueReader,
-                             Set<String> finishedSplits) {
+            DorisValueReader valueReader,
+            Set<String> finishedSplits) {
         this.splitId = splitId;
         this.valueReader = valueReader;
         this.finishedSplits = finishedSplits;

@@ -26,21 +26,8 @@ import java.io.InputStream;
 public class RecordStream extends InputStream {
     private final RecordBuffer recordBuffer;
 
-    @Override
-    public int read() throws IOException {
-        return 0;
-    }
-
     public RecordStream(int bufferSize, int bufferCount) {
         this.recordBuffer = new RecordBuffer(bufferSize, bufferCount);
-    }
-
-    public void startInput() {
-        recordBuffer.startBufferData();
-    }
-
-    public void endInput() throws IOException{
-        recordBuffer.stopBufferData();
     }
 
     @Override
@@ -50,6 +37,19 @@ public class RecordStream extends InputStream {
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    @Override
+    public int read() throws IOException {
+        return 0;
+    }
+
+    public void startInput() {
+        recordBuffer.startBufferData();
+    }
+
+    public void endInput() throws IOException {
+        recordBuffer.stopBufferData();
     }
 
     public void write(byte[] buff) throws IOException {

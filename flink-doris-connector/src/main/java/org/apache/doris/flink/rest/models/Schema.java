@@ -86,8 +86,8 @@ public class Schema {
             return false;
         }
         Schema schema = (Schema) o;
-        return status == schema.status &&
-                Objects.equals(properties, schema.properties);
+        return status == schema.status
+                && Objects.equals(properties, schema.properties);
     }
 
     @Override
@@ -97,9 +97,9 @@ public class Schema {
 
     @Override
     public String toString() {
-        return "Schema{" +
-                "status=" + status +
-                ", properties=" + properties +
-                '}';
+        return "Schema{"
+                + "status=" + status
+                + ", properties=" + properties
+                + '}';
     }
 }

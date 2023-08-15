@@ -17,16 +17,16 @@
 
 package org.apache.doris.flink;
 
-import com.ververica.cdc.connectors.mysql.source.MySqlSource;
-import com.ververica.cdc.connectors.mysql.table.StartupOptions;
-import com.ververica.cdc.connectors.shaded.org.apache.kafka.connect.json.JsonConverterConfig;
-import com.ververica.cdc.debezium.JsonDebeziumDeserializationSchema;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.sink.DorisSink;
 import org.apache.doris.flink.sink.writer.JsonDebeziumSchemaSerializer;
 import org.apache.doris.flink.utils.DateToStringConverter;
+
+import com.ververica.cdc.connectors.mysql.source.MySqlSource;
+import com.ververica.cdc.connectors.shaded.org.apache.kafka.connect.json.JsonConverterConfig;
+import com.ververica.cdc.debezium.JsonDebeziumDeserializationSchema;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
@@ -60,7 +60,7 @@ public class CDCSchemaChangeExample {
         env.setParallelism(1);
         // enable checkpoint
         env.enableCheckpointing(10000);
-//
+
         Properties props = new Properties();
         props.setProperty("format", "json");
         props.setProperty("read_json_by_line", "true");
@@ -69,8 +69,8 @@ public class CDCSchemaChangeExample {
                 .setTableIdentifier("test.t1")
                 .setUsername("root")
                 .setPassword("").build();
-//
-        DorisExecutionOptions.Builder  executionBuilder = DorisExecutionOptions.builder();
+
+        DorisExecutionOptions.Builder executionBuilder = DorisExecutionOptions.builder();
         executionBuilder.setLabelPrefix("label-doris" + UUID.randomUUID())
                 .setStreamLoadProp(props).setDeletable(true);
 
@@ -78,7 +78,9 @@ public class CDCSchemaChangeExample {
         builder.setDorisReadOptions(DorisReadOptions.builder().build())
                 .setDorisExecutionOptions(executionBuilder.build())
                 .setDorisOptions(dorisOptions)
-                .setSerializer(JsonDebeziumSchemaSerializer.builder().setDorisOptions(dorisOptions).setNewSchemaChange(true).build());
+                .setSerializer(
+                        JsonDebeziumSchemaSerializer.builder().setDorisOptions(dorisOptions).setNewSchemaChange(true)
+                                .build());
 
         env.fromSource(mySqlSource, WatermarkStrategy.noWatermarks(), "MySQL Source")//.print();
                 .sinkTo(builder.build());

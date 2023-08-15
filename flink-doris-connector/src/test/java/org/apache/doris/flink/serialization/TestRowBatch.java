@@ -17,6 +17,12 @@
 
 package org.apache.doris.flink.serialization;
 
+import org.apache.doris.flink.rest.RestService;
+import org.apache.doris.flink.rest.models.Schema;
+import org.apache.doris.sdk.thrift.TScanBatchResult;
+import org.apache.doris.sdk.thrift.TStatus;
+import org.apache.doris.sdk.thrift.TStatusCode;
+
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;
@@ -36,12 +42,8 @@ import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
-import org.apache.doris.flink.rest.RestService;
-import org.apache.doris.flink.rest.models.Schema;
-import org.apache.doris.sdk.thrift.TScanBatchResult;
-import org.apache.doris.sdk.thrift.TStatus;
-import org.apache.doris.sdk.thrift.TStatusCode;
 import org.apache.flink.table.data.DecimalData;
+import static org.hamcrest.core.StringStartsWith.startsWith;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -58,8 +60,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.NoSuchElementException;
 
-import static org.hamcrest.core.StringStartsWith.startsWith;
-
 public class TestRowBatch {
     private static Logger logger = LoggerFactory.getLogger(TestRowBatch.class);
 
@@ -75,11 +75,13 @@ public class TestRowBatch {
         childrenBuilder.add(new Field("k2", FieldType.nullable(new ArrowType.Int(16, true)), null));
         childrenBuilder.add(new Field("k3", FieldType.nullable(new ArrowType.Int(32, true)), null));
         childrenBuilder.add(new Field("k4", FieldType.nullable(new ArrowType.Int(64, true)), null));
-        childrenBuilder.add(new Field("k9", FieldType.nullable(new ArrowType.FloatingPoint(FloatingPointPrecision.SINGLE)), null));
-        childrenBuilder.add(new Field("k8", FieldType.nullable(new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)), null));
+        childrenBuilder.add(
+                new Field("k9", FieldType.nullable(new ArrowType.FloatingPoint(FloatingPointPrecision.SINGLE)), null));
+        childrenBuilder.add(
+                new Field("k8", FieldType.nullable(new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)), null));
         childrenBuilder.add(new Field("k10", FieldType.nullable(new ArrowType.Utf8()), null));
         childrenBuilder.add(new Field("k11", FieldType.nullable(new ArrowType.Utf8()), null));
-        childrenBuilder.add(new Field("k5", FieldType.nullable(new ArrowType.Decimal(9,2)), null));
+        childrenBuilder.add(new Field("k5", FieldType.nullable(new ArrowType.Decimal(9, 2)), null));
         childrenBuilder.add(new Field("k6", FieldType.nullable(new ArrowType.Utf8()), null));
 
         VectorSchemaRoot root = VectorSchemaRoot.create(
@@ -95,7 +97,7 @@ public class TestRowBatch {
         root.setRowCount(3);
 
         FieldVector vector = root.getVector("k0");
-        BitVector bitVector = (BitVector)vector;
+        BitVector bitVector = (BitVector) vector;
         bitVector.setInitialCapacity(3);
         bitVector.allocateNew(3);
         bitVector.setSafe(0, 1);
@@ -104,7 +106,7 @@ public class TestRowBatch {
         vector.setValueCount(3);
 
         vector = root.getVector("k1");
-        TinyIntVector tinyIntVector = (TinyIntVector)vector;
+        TinyIntVector tinyIntVector = (TinyIntVector) vector;
         tinyIntVector.setInitialCapacity(3);
         tinyIntVector.allocateNew(3);
         tinyIntVector.setSafe(0, 1);
@@ -113,7 +115,7 @@ public class TestRowBatch {
         vector.setValueCount(3);
 
         vector = root.getVector("k2");
-        SmallIntVector smallIntVector = (SmallIntVector)vector;
+        SmallIntVector smallIntVector = (SmallIntVector) vector;
         smallIntVector.setInitialCapacity(3);
         smallIntVector.allocateNew(3);
         smallIntVector.setSafe(0, 1);
@@ -122,7 +124,7 @@ public class TestRowBatch {
         vector.setValueCount(3);
 
         vector = root.getVector("k3");
-        IntVector intVector = (IntVector)vector;
+        IntVector intVector = (IntVector) vector;
         intVector.setInitialCapacity(3);
         intVector.allocateNew(3);
         intVector.setSafe(0, 1);
@@ -131,7 +133,7 @@ public class TestRowBatch {
         vector.setValueCount(3);
 
         vector = root.getVector("k4");
-        BigIntVector bigIntVector = (BigIntVector)vector;
+        BigIntVector bigIntVector = (BigIntVector) vector;
         bigIntVector.setInitialCapacity(3);
         bigIntVector.allocateNew(3);
         bigIntVector.setSafe(0, 1);
@@ -140,7 +142,7 @@ public class TestRowBatch {
         vector.setValueCount(3);
 
         vector = root.getVector("k5");
-        DecimalVector decimalVector = (DecimalVector)vector;
+        DecimalVector decimalVector = (DecimalVector) vector;
         decimalVector.setInitialCapacity(3);
         decimalVector.allocateNew();
         decimalVector.setIndexDefined(0);
@@ -152,7 +154,7 @@ public class TestRowBatch {
         vector.setValueCount(3);
 
         vector = root.getVector("k6");
-        VarCharVector charVector = (VarCharVector)vector;
+        VarCharVector charVector = (VarCharVector) vector;
         charVector.setInitialCapacity(3);
         charVector.allocateNew();
         charVector.setIndexDefined(0);
@@ -167,7 +169,7 @@ public class TestRowBatch {
         vector.setValueCount(3);
 
         vector = root.getVector("k8");
-        Float8Vector float8Vector = (Float8Vector)vector;
+        Float8Vector float8Vector = (Float8Vector) vector;
         float8Vector.setInitialCapacity(3);
         float8Vector.allocateNew(3);
         float8Vector.setSafe(0, 1.1);
@@ -176,7 +178,7 @@ public class TestRowBatch {
         vector.setValueCount(3);
 
         vector = root.getVector("k9");
-        Float4Vector float4Vector = (Float4Vector)vector;
+        Float4Vector float4Vector = (Float4Vector) vector;
         float4Vector.setInitialCapacity(3);
         float4Vector.allocateNew(3);
         float4Vector.setSafe(0, 1.1f);
@@ -185,7 +187,7 @@ public class TestRowBatch {
         vector.setValueCount(3);
 
         vector = root.getVector("k10");
-        VarCharVector datecharVector = (VarCharVector)vector;
+        VarCharVector datecharVector = (VarCharVector) vector;
         datecharVector.setInitialCapacity(3);
         datecharVector.allocateNew();
         datecharVector.setIndexDefined(0);
@@ -200,7 +202,7 @@ public class TestRowBatch {
         vector.setValueCount(3);
 
         vector = root.getVector("k11");
-        VarCharVector timecharVector = (VarCharVector)vector;
+        VarCharVector timecharVector = (VarCharVector) vector;
         timecharVector.setInitialCapacity(3);
         timecharVector.allocateNew();
         timecharVector.setIndexDefined(0);
@@ -249,7 +251,7 @@ public class TestRowBatch {
                 (float) 1.1,
                 (double) 1.1,
                 LocalDate.of(2008, 8, 8),
-                LocalDateTime.of(2008,8,8,0,0,0),
+                LocalDateTime.of(2008, 8, 8, 0, 0, 0),
                 DecimalData.fromBigDecimal(new BigDecimal(12.34), 4, 2),
                 "char1"
         );
@@ -263,7 +265,7 @@ public class TestRowBatch {
                 (float) 2.2,
                 (double) 2.2,
                 LocalDate.of(1900, 8, 8),
-                LocalDateTime.of(1900,8,8,0,0,0),
+                LocalDateTime.of(1900, 8, 8, 0, 0, 0),
                 DecimalData.fromBigDecimal(new BigDecimal(88.88), 4, 2),
                 "char2"
         );
@@ -277,7 +279,7 @@ public class TestRowBatch {
                 (float) 3.3,
                 (double) 3.3,
                 LocalDate.of(2100, 8, 8),
-                LocalDateTime.of(2100,8,8,0,0,0),
+                LocalDateTime.of(2100, 8, 8, 0, 0, 0),
                 DecimalData.fromBigDecimal(new BigDecimal(10.22), 4, 2),
                 "char3"
         );
@@ -309,7 +311,7 @@ public class TestRowBatch {
         byte[] binaryRow1 = {'d', 'e', 'f'};
         byte[] binaryRow2 = {'g', 'h', 'i'};
 
-        List <Field> childrenBuilder = new ArrayList<>();
+        List<Field> childrenBuilder = new ArrayList<>();
         childrenBuilder.add(new Field("k7", FieldType.nullable(new ArrowType.Binary()), null));
 
         VectorSchemaRoot root = VectorSchemaRoot.create(
@@ -359,15 +361,15 @@ public class TestRowBatch {
 
         Assert.assertTrue(rowBatch.hasNext());
         List<Object> actualRow0 = rowBatch.next();
-        Assert.assertArrayEquals(binaryRow0, (byte[])actualRow0.get(0));
+        Assert.assertArrayEquals(binaryRow0, (byte[]) actualRow0.get(0));
 
         Assert.assertTrue(rowBatch.hasNext());
         List<Object> actualRow1 = rowBatch.next();
-        Assert.assertArrayEquals(binaryRow1, (byte[])actualRow1.get(0));
+        Assert.assertArrayEquals(binaryRow1, (byte[]) actualRow1.get(0));
 
         Assert.assertTrue(rowBatch.hasNext());
         List<Object> actualRow2 = rowBatch.next();
-        Assert.assertArrayEquals(binaryRow2, (byte[])actualRow2.get(0));
+        Assert.assertArrayEquals(binaryRow2, (byte[]) actualRow2.get(0));
 
         Assert.assertFalse(rowBatch.hasNext());
         thrown.expect(NoSuchElementException.class);
@@ -424,17 +426,17 @@ public class TestRowBatch {
         Assert.assertTrue(rowBatch.hasNext());
         List<Object> actualRow0 = rowBatch.next();
         Assert.assertEquals(DecimalData.fromBigDecimal(new BigDecimal(12.340000000), 11, 9),
-            DecimalData.fromBigDecimal((BigDecimal) actualRow0.get(0), 11, 9));
+                DecimalData.fromBigDecimal((BigDecimal) actualRow0.get(0), 11, 9));
 
         Assert.assertTrue(rowBatch.hasNext());
         List<Object> actualRow1 = rowBatch.next();
         Assert.assertEquals(DecimalData.fromBigDecimal(new BigDecimal(88.880000000), 11, 9),
-            DecimalData.fromBigDecimal((BigDecimal) actualRow1.get(0), 11, 9));
+                DecimalData.fromBigDecimal((BigDecimal) actualRow1.get(0), 11, 9));
 
         Assert.assertTrue(rowBatch.hasNext());
         List<Object> actualRow2 = rowBatch.next();
         Assert.assertEquals(DecimalData.fromBigDecimal(new BigDecimal(10.000000000), 11, 9),
-            DecimalData.fromBigDecimal((BigDecimal) actualRow2.get(0), 11, 9));
+                DecimalData.fromBigDecimal((BigDecimal) actualRow2.get(0), 11, 9));
 
         Assert.assertFalse(rowBatch.hasNext());
         thrown.expect(NoSuchElementException.class);

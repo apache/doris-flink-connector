@@ -14,9 +14,11 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.source.split;
 
 import org.apache.doris.flink.rest.PartitionDefinition;
+
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataInputView;
@@ -76,8 +78,8 @@ public class DorisSourceSplitSerializer
         out.writeUTF(partDef.getDatabase());
         out.writeUTF(partDef.getTable());
         out.writeUTF(partDef.getBeAddress());
-        writeLongArray(out, partDef.getTabletIds().toArray(new Long[]{}));
-        //writeUTF has a length limit, but the query plan is sometimes very long
+        writeLongArray(out, partDef.getTabletIds().toArray(new Long[] {}));
+        // writeUTF has a length limit, but the query plan is sometimes very long
         final byte[] queryPlanBytes = partDef.getQueryPlan().getBytes(StandardCharsets.UTF_8);
         out.writeInt(queryPlanBytes.length);
         out.write(queryPlanBytes);
@@ -108,7 +110,7 @@ public class DorisSourceSplitSerializer
         Long[] vals = readLongArray(in);
         final Set<Long> tabletIds = new HashSet<>(Arrays.asList(vals));
 
-        //read query plan
+        // read query plan
         final int len = in.readInt();
         final byte[] bytes = new byte[len];
         in.read(bytes);

@@ -14,6 +14,7 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.cfg;
 
 import org.apache.flink.util.Preconditions;
@@ -38,8 +39,8 @@ public class DorisConnectionOptions implements Serializable {
         this.password = password;
     }
 
-    public DorisConnectionOptions(String fenodes, String username, String password, String jdbcUrl){
-        this(fenodes,username,password);
+    public DorisConnectionOptions(String fenodes, String username, String password, String jdbcUrl) {
+        this(fenodes, username, password);
         this.jdbcUrl = jdbcUrl;
     }
 
@@ -55,7 +56,7 @@ public class DorisConnectionOptions implements Serializable {
         return password;
     }
 
-    public String getJdbcUrl(){
+    public String getJdbcUrl() {
         return jdbcUrl;
     }
 

@@ -14,6 +14,7 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.table;
 
 import org.apache.doris.flink.cfg.DorisOptions;
@@ -21,6 +22,7 @@ import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.deserialization.converter.DorisRowConverter;
 import org.apache.doris.flink.rest.PartitionDefinition;
 import org.apache.doris.flink.source.reader.DorisValueReader;
+
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.io.DefaultInputSplitAssigner;
 import org.apache.flink.api.common.io.InputFormat;
@@ -44,7 +46,8 @@ import java.util.List;
  * InputFormat for {@link DorisDynamicTableSource}.
  */
 @Internal
-public class DorisRowDataInputFormat extends RichInputFormat<RowData, DorisTableInputSplit> implements ResultTypeQueryable<RowData> {
+public class DorisRowDataInputFormat extends RichInputFormat<RowData, DorisTableInputSplit>
+        implements ResultTypeQueryable<RowData> {
 
     private static final long serialVersionUID = 1L;
     private static final Logger LOG = LoggerFactory.getLogger(DorisRowDataInputFormat.class);
@@ -60,9 +63,9 @@ public class DorisRowDataInputFormat extends RichInputFormat<RowData, DorisTable
     private final DorisRowConverter rowConverter;
 
     public DorisRowDataInputFormat(DorisOptions options,
-                                   List<PartitionDefinition> dorisPartitions,
-                                   DorisReadOptions readOptions,
-                                   RowType rowType) {
+            List<PartitionDefinition> dorisPartitions,
+            DorisReadOptions readOptions,
+            RowType rowType) {
         this.options = options;
         this.dorisPartitions = dorisPartitions;
         this.readOptions = readOptions;
@@ -71,17 +74,17 @@ public class DorisRowDataInputFormat extends RichInputFormat<RowData, DorisTable
 
     @Override
     public void configure(Configuration parameters) {
-        //do nothing here
+        // do nothing here
     }
 
     @Override
     public void openInputFormat() {
-        //called once per inputFormat (on open)
+        // called once per inputFormat (on open)
     }
 
     @Override
     public void closeInputFormat() {
-        //called once per inputFormat (on close)
+        // called once per inputFormat (on close)
     }
 
     /**
@@ -93,9 +96,9 @@ public class DorisRowDataInputFormat extends RichInputFormat<RowData, DorisTable
      * fashion</b> otherwise.
      *
      * @param inputSplit which is ignored if this InputFormat is executed as a
-     *                   non-parallel source,
-     *                   a "hook" to the query parameters otherwise (using its
-     *                   <i>splitNumber</i>)
+     *         non-parallel source,
+     *         a "hook" to the query parameters otherwise (using its
+     *         <i>splitNumber</i>)
      * @throws IOException if there's an error during the execution of the query
      */
     @Override
@@ -123,7 +126,6 @@ public class DorisRowDataInputFormat extends RichInputFormat<RowData, DorisTable
      * Checks whether all data has been read.
      *
      * @return boolean value indication whether all data has been read.
-     * @throws IOException
      */
     @Override
     public boolean reachedEnd() throws IOException {
@@ -135,7 +137,6 @@ public class DorisRowDataInputFormat extends RichInputFormat<RowData, DorisTable
      *
      * @param reuse row to be reused.
      * @return row containing next {@link RowData}
-     * @throws IOException
      */
     @Override
     public RowData nextRecord(RowData reuse) throws IOException {
@@ -144,7 +145,7 @@ public class DorisRowDataInputFormat extends RichInputFormat<RowData, DorisTable
         }
         List next = valueReader.next();
         RowData genericRowData = rowConverter.convertInternal(next);
-        //update hasNext after we've read the record
+        // update hasNext after we've read the record
         hasNext = valueReader.hasNext();
         return genericRowData;
     }
@@ -187,7 +188,6 @@ public class DorisRowDataInputFormat extends RichInputFormat<RowData, DorisTable
         private List<PartitionDefinition> partitions;
         private DorisReadOptions readOptions;
         private RowType rowType;
-
 
         public Builder() {
             this.optionsBuilder = DorisOptions.builder();

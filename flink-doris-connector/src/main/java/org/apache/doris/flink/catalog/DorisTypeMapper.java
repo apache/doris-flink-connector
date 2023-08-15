@@ -14,9 +14,29 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.catalog;
 
 import org.apache.doris.flink.catalog.doris.DorisType;
+
+import static org.apache.doris.flink.catalog.doris.DorisType.BIGINT;
+import static org.apache.doris.flink.catalog.doris.DorisType.BOOLEAN;
+import static org.apache.doris.flink.catalog.doris.DorisType.CHAR;
+import static org.apache.doris.flink.catalog.doris.DorisType.DATE;
+import static org.apache.doris.flink.catalog.doris.DorisType.DATETIME;
+import static org.apache.doris.flink.catalog.doris.DorisType.DATETIME_V2;
+import static org.apache.doris.flink.catalog.doris.DorisType.DATE_V2;
+import static org.apache.doris.flink.catalog.doris.DorisType.DECIMAL;
+import static org.apache.doris.flink.catalog.doris.DorisType.DECIMAL_V3;
+import static org.apache.doris.flink.catalog.doris.DorisType.DOUBLE;
+import static org.apache.doris.flink.catalog.doris.DorisType.FLOAT;
+import static org.apache.doris.flink.catalog.doris.DorisType.INT;
+import static org.apache.doris.flink.catalog.doris.DorisType.JSONB;
+import static org.apache.doris.flink.catalog.doris.DorisType.LARGEINT;
+import static org.apache.doris.flink.catalog.doris.DorisType.SMALLINT;
+import static org.apache.doris.flink.catalog.doris.DorisType.STRING;
+import static org.apache.doris.flink.catalog.doris.DorisType.TINYINT;
+import static org.apache.doris.flink.catalog.doris.DorisType.VARCHAR;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.ArrayType;
@@ -38,25 +58,6 @@ import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeDefaultVisitor;
 
-import static org.apache.doris.flink.catalog.doris.DorisType.BIGINT;
-import static org.apache.doris.flink.catalog.doris.DorisType.BOOLEAN;
-import static org.apache.doris.flink.catalog.doris.DorisType.CHAR;
-import static org.apache.doris.flink.catalog.doris.DorisType.DATE;
-import static org.apache.doris.flink.catalog.doris.DorisType.DATETIME;
-import static org.apache.doris.flink.catalog.doris.DorisType.DATETIME_V2;
-import static org.apache.doris.flink.catalog.doris.DorisType.DATE_V2;
-import static org.apache.doris.flink.catalog.doris.DorisType.DECIMAL;
-import static org.apache.doris.flink.catalog.doris.DorisType.DECIMAL_V3;
-import static org.apache.doris.flink.catalog.doris.DorisType.DOUBLE;
-import static org.apache.doris.flink.catalog.doris.DorisType.FLOAT;
-import static org.apache.doris.flink.catalog.doris.DorisType.INT;
-import static org.apache.doris.flink.catalog.doris.DorisType.JSONB;
-import static org.apache.doris.flink.catalog.doris.DorisType.LARGEINT;
-import static org.apache.doris.flink.catalog.doris.DorisType.SMALLINT;
-import static org.apache.doris.flink.catalog.doris.DorisType.STRING;
-import static org.apache.doris.flink.catalog.doris.DorisType.TINYINT;
-import static org.apache.doris.flink.catalog.doris.DorisType.VARCHAR;
-
 public class DorisTypeMapper {
 
     public static DataType toFlinkType(String columnName, String columnType, int precision, int scale) {
@@ -66,7 +67,7 @@ public class DorisTypeMapper {
                 return DataTypes.BOOLEAN();
             case TINYINT:
                 if (precision == 0) {
-                    //The boolean type will become tinyint when queried in information_schema, and precision=0
+                    // The boolean type will become tinyint when queried in information_schema, and precision=0
                     return DataTypes.BOOLEAN();
                 } else {
                     return DataTypes.TINYINT();
@@ -105,7 +106,7 @@ public class DorisTypeMapper {
         }
     }
 
-    public static String toDorisType(DataType flinkType){
+    public static String toDorisType(DataType flinkType) {
         LogicalType logicalType = flinkType.getLogicalType();
         return logicalType.accept(new LogicalTypeVisitor(logicalType));
     }
@@ -139,7 +140,7 @@ public class DorisTypeMapper {
         }
 
         @Override
-        public String  visit(DecimalType decimalType) {
+        public String visit(DecimalType decimalType) {
             int precision = decimalType.getPrecision();
             int scale = decimalType.getScale();
             return precision <= 38

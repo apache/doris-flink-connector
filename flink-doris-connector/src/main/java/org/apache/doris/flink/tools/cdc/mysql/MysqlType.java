@@ -14,9 +14,11 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.tools.cdc.mysql;
 
 import org.apache.doris.flink.catalog.doris.DorisType;
+
 import org.apache.flink.util.Preconditions;
 
 public class MysqlType {
@@ -132,7 +134,8 @@ public class MysqlType {
             case DECIMAL_UNSIGNED:
             case DECIMAL_UNSIGNED_ZEROFILL:
                 return length != null && length <= 38
-                        ? String.format("%s(%s,%s)", DorisType.DECIMAL_V3, length, scale != null && scale >= 0 ? scale : 0)
+                        ? String.format("%s(%s,%s)", DorisType.DECIMAL_V3, length,
+                        scale != null && scale >= 0 ? scale : 0)
                         : DorisType.STRING;
             case DATE:
                 return DorisType.DATE_V2;

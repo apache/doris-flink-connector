@@ -36,14 +36,13 @@ import java.util.Properties;
 import java.util.function.Consumer;
 
 public class DateToStringConverter implements CustomConverter<SchemaBuilder, RelationalColumn> {
+    public static Properties DEFAULT_PROPS = new Properties();
     private static final Logger log = LoggerFactory.getLogger(DateToStringConverter.class);
     private DateTimeFormatter dateFormatter = DateTimeFormatter.ISO_DATE;
     private DateTimeFormatter timeFormatter = DateTimeFormatter.ISO_TIME;
     private DateTimeFormatter datetimeFormatter = DateTimeFormatter.ISO_DATE_TIME;
     private DateTimeFormatter timestampFormatter = DateTimeFormatter.ISO_DATE_TIME;
     private ZoneId timestampZoneId = ZoneId.systemDefault();
-
-    public static Properties DEFAULT_PROPS = new Properties();
 
     static {
         DEFAULT_PROPS.setProperty("converters", "date");

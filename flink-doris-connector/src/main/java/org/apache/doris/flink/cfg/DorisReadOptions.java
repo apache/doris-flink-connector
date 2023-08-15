@@ -14,8 +14,8 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
-package org.apache.doris.flink.cfg;
 
+package org.apache.doris.flink.cfg;
 
 import java.io.Serializable;
 
@@ -39,9 +39,10 @@ public class DorisReadOptions implements Serializable {
     private Boolean deserializeArrowAsync;
     private boolean useOldApi;
 
-    public DorisReadOptions(String readFields, String filterQuery, Integer requestTabletSize, Integer requestConnectTimeoutMs, Integer requestReadTimeoutMs,
-                            Integer requestQueryTimeoutS, Integer requestRetries, Integer requestBatchSize, Long execMemLimit,
-                            Integer deserializeQueueSize, Boolean deserializeArrowAsync, boolean useOldApi) {
+    public DorisReadOptions(String readFields, String filterQuery, Integer requestTabletSize,
+            Integer requestConnectTimeoutMs, Integer requestReadTimeoutMs,
+            Integer requestQueryTimeoutS, Integer requestRetries, Integer requestBatchSize, Long execMemLimit,
+            Integer deserializeQueueSize, Boolean deserializeArrowAsync, boolean useOldApi) {
         this.readFields = readFields;
         this.filterQuery = filterQuery;
         this.requestTabletSize = requestTabletSize;
@@ -138,7 +139,6 @@ public class DorisReadOptions implements Serializable {
         private Boolean deserializeArrowAsync;
         private Boolean useOldApi = false;
 
-
         public Builder setReadFields(String readFields) {
             this.readFields = readFields;
             return this;
@@ -200,10 +200,11 @@ public class DorisReadOptions implements Serializable {
         }
 
         public DorisReadOptions build() {
-            return new DorisReadOptions(readFields, filterQuery, requestTabletSize, requestConnectTimeoutMs, requestReadTimeoutMs, requestQueryTimeoutS, requestRetries, requestBatchSize, execMemLimit, deserializeQueueSize, deserializeArrowAsync, useOldApi);
+            return new DorisReadOptions(readFields, filterQuery, requestTabletSize, requestConnectTimeoutMs,
+                    requestReadTimeoutMs, requestQueryTimeoutS, requestRetries, requestBatchSize, execMemLimit,
+                    deserializeQueueSize, deserializeArrowAsync, useOldApi);
         }
 
     }
-
 
 }

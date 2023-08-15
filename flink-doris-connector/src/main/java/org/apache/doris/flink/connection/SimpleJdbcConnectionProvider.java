@@ -18,6 +18,7 @@
 package org.apache.doris.flink.connection;
 
 import org.apache.doris.flink.cfg.DorisConnectionOptions;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,7 +37,7 @@ public class SimpleJdbcConnectionProvider implements JdbcConnectionProvider, Ser
 
     private transient Connection connection;
 
-    public SimpleJdbcConnectionProvider(DorisConnectionOptions options){
+    public SimpleJdbcConnectionProvider(DorisConnectionOptions options) {
         this.options = options;
     }
 
@@ -52,7 +53,8 @@ public class SimpleJdbcConnectionProvider implements JdbcConnectionProvider, Ser
             Class.forName("com.mysql.jdbc.Driver");
         }
         if (!Objects.isNull(options.getUsername())) {
-            connection = DriverManager.getConnection(options.getJdbcUrl(), options.getUsername(), options.getPassword());
+            connection = DriverManager.getConnection(options.getJdbcUrl(), options.getUsername(),
+                    options.getPassword());
         } else {
             connection = DriverManager.getConnection(options.getJdbcUrl());
         }

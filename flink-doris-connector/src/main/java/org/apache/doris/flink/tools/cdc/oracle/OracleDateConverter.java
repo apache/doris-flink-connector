@@ -14,6 +14,7 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.tools.cdc.oracle;
 
 import com.ververica.cdc.connectors.shaded.org.apache.kafka.connect.data.SchemaBuilder;
@@ -35,21 +36,12 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class OracleDateConverter implements CustomConverter<SchemaBuilder, RelationalColumn> {
+    public static Properties DEFAULT_PROPS = new Properties();
     private static final Logger log = LoggerFactory.getLogger(OracleDateConverter.class);
     private static final Pattern TO_DATE = Pattern.compile("TO_DATE\\('(.*)',[ ]*'(.*)'\\)", Pattern.CASE_INSENSITIVE);
     private static final Pattern TO_TIMESTAMP = Pattern.compile("TO_TIMESTAMP\\('(.*)'\\)", Pattern.CASE_INSENSITIVE);
-    private static final Pattern TIMESTAMP_OR_DATE_REGEX = Pattern.compile("^TIMESTAMP[(]\\d[)]$|^DATE$", Pattern.CASE_INSENSITIVE);
-    private ZoneId timestampZoneId = ZoneId.systemDefault();
-    public static Properties DEFAULT_PROPS = new Properties();
-    private final String DATETIME_PATTERN = "yyyy-MM-dd HH:mm:ss";
-    private final String DATETIMEV2_PATTERN = "yyyy-MM-dd HH:mm:ss.SSSSSS";
-    private final DateTimeFormatter dateTimeV2Formatter = DateTimeFormatter.ofPattern(DATETIMEV2_PATTERN);
-
-    static {
-        DEFAULT_PROPS.setProperty("converters", "oracleDate");
-        DEFAULT_PROPS.setProperty("oracleDate.type", "org.apache.doris.flink.tools.cdc.oracle.OracleDateConverter");
-    }
-
+    private static final Pattern TIMESTAMP_OR_DATE_REGEX = Pattern.compile("^TIMESTAMP[(]\\d[)]$|^DATE$",
+            Pattern.CASE_INSENSITIVE);
     private static final DateTimeFormatter TIMESTAMP_FORMATTER = new DateTimeFormatterBuilder()
             .parseCaseInsensitive()
             .appendPattern("yyyy-MM-dd HH:mm:ss")
@@ -58,6 +50,15 @@ public class OracleDateConverter implements CustomConverter<SchemaBuilder, Relat
             .appendFraction(ChronoField.NANO_OF_SECOND, 0, 9, false)
             .optionalEnd()
             .toFormatter();
+    private ZoneId timestampZoneId = ZoneId.systemDefault();
+    private final String DATETIME_PATTERN = "yyyy-MM-dd HH:mm:ss";
+    private final String DATETIMEV2_PATTERN = "yyyy-MM-dd HH:mm:ss.SSSSSS";
+    private final DateTimeFormatter dateTimeV2Formatter = DateTimeFormatter.ofPattern(DATETIMEV2_PATTERN);
+
+    static {
+        DEFAULT_PROPS.setProperty("converters", "oracleDate");
+        DEFAULT_PROPS.setProperty("oracleDate.type", "org.apache.doris.flink.tools.cdc.oracle.OracleDateConverter");
+    }
 
     @Override
     public void configure(Properties props) {
@@ -79,18 +80,18 @@ public class OracleDateConverter implements CustomConverter<SchemaBuilder, Relat
                 }
 
                 if (value instanceof String) {
-                    return  convertStringTimestamp((String) value);
+                    return convertStringTimestamp((String) value);
                 }
-                if(value instanceof Timestamp){
+                if (value instanceof Timestamp) {
                     return dateTimeV2Formatter.format(((Timestamp) value).toLocalDateTime());
                 }
 
-                //oracle timestamp
-                try{
-                    if (value instanceof TIMESTAMP){
+                // oracle timestamp
+                try {
+                    if (value instanceof TIMESTAMP) {
                         return dateTimeV2Formatter.format(((TIMESTAMP) value).timestampValue().toLocalDateTime());
                     }
-                }catch (SQLException ex){
+                } catch (SQLException ex) {
                     log.error("convert timestamp failed, values is {}", value);
                 }
 
@@ -119,14 +120,14 @@ public class OracleDateConverter implements CustomConverter<SchemaBuilder, Relat
     }
 
     private String completeMilliseconds(String stringValue) {
-        if(stringValue.length() == DATETIMEV2_PATTERN.length()){
+        if (stringValue.length() == DATETIMEV2_PATTERN.length()) {
             return stringValue;
         }
         StringBuilder sb = new StringBuilder(stringValue);
-        if(stringValue.length() == DATETIME_PATTERN.length()){
+        if (stringValue.length() == DATETIME_PATTERN.length()) {
             sb.append(".");
         }
-        while (sb.toString().length() < DATETIMEV2_PATTERN.length()){
+        while (sb.toString().length() < DATETIMEV2_PATTERN.length()) {
             sb.append(0);
         }
         return sb.toString();

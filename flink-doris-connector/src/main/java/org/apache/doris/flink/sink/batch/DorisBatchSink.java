@@ -21,6 +21,7 @@ import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.sink.writer.DorisRecordSerializer;
+
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.util.Preconditions;
@@ -34,9 +35,9 @@ public class DorisBatchSink<IN> implements Sink<IN> {
     private final DorisRecordSerializer<IN> serializer;
 
     public DorisBatchSink(DorisOptions dorisOptions,
-                          DorisReadOptions dorisReadOptions,
-                          DorisExecutionOptions dorisExecutionOptions,
-                          DorisRecordSerializer<IN> serializer) {
+            DorisReadOptions dorisReadOptions,
+            DorisExecutionOptions dorisExecutionOptions,
+            DorisRecordSerializer<IN> serializer) {
         this.dorisOptions = dorisOptions;
         this.dorisReadOptions = dorisReadOptions;
         this.dorisExecutionOptions = dorisExecutionOptions;
@@ -45,7 +46,8 @@ public class DorisBatchSink<IN> implements Sink<IN> {
 
     @Override
     public SinkWriter<IN> createWriter(InitContext initContext) throws IOException {
-        DorisBatchWriter<IN> dorisBatchWriter = new DorisBatchWriter<IN>(initContext, serializer, dorisOptions, dorisReadOptions, dorisExecutionOptions);
+        DorisBatchWriter<IN> dorisBatchWriter = new DorisBatchWriter<IN>(initContext, serializer, dorisOptions,
+                dorisReadOptions, dorisExecutionOptions);
         dorisBatchWriter.initializeLoad();
         return dorisBatchWriter;
     }
@@ -56,6 +58,7 @@ public class DorisBatchSink<IN> implements Sink<IN> {
 
     /**
      * build for DorisBatchSink.
+     *
      * @param <IN> record type.
      */
     public static class Builder<IN> {
@@ -88,7 +91,7 @@ public class DorisBatchSink<IN> implements Sink<IN> {
             Preconditions.checkNotNull(dorisOptions);
             Preconditions.checkNotNull(dorisExecutionOptions);
             Preconditions.checkNotNull(serializer);
-            if(dorisReadOptions == null) {
+            if (dorisReadOptions == null) {
                 dorisReadOptions = DorisReadOptions.builder().build();
             }
             return new DorisBatchSink<>(dorisOptions, dorisReadOptions, dorisExecutionOptions, serializer);

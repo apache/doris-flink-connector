@@ -25,6 +25,7 @@ import org.apache.doris.flink.exception.DorisException;
 import org.apache.doris.flink.rest.PartitionDefinition;
 import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.source.reader.DorisValueReader;
+
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.shaded.guava30.com.google.common.cache.Cache;
 import org.apache.flink.shaded.guava30.com.google.common.cache.CacheBuilder;
@@ -57,11 +58,11 @@ public class DorisRowDataLookupFunction extends TableFunction<RowData> {
     private transient Cache<RowData, List<RowData>> cache;
 
     public DorisRowDataLookupFunction(DorisOptions options,
-                                      DorisReadOptions readOptions,
-                                      DorisLookupOptions lookupOptions,
-                                      String[] selectFields,
-                                      DataType[] fieldTypes,
-                                      String[] conditionFields) {
+            DorisReadOptions readOptions,
+            DorisLookupOptions lookupOptions,
+            String[] selectFields,
+            DataType[] fieldTypes,
+            String[] conditionFields) {
         this.options = options;
         this.readOptions = readOptions;
         this.selectFields = selectFields;
@@ -78,9 +79,9 @@ public class DorisRowDataLookupFunction extends TableFunction<RowData> {
         this.cache = cacheMaxSize == -1 || cacheExpireMs == -1
                 ? null
                 : CacheBuilder.newBuilder()
-                .expireAfterWrite(cacheExpireMs, TimeUnit.MILLISECONDS)
-                .maximumSize(cacheMaxSize)
-                .build();
+                        .expireAfterWrite(cacheExpireMs, TimeUnit.MILLISECONDS)
+                        .maximumSize(cacheMaxSize)
+                        .build();
     }
 
     /**
@@ -114,7 +115,7 @@ public class DorisRowDataLookupFunction extends TableFunction<RowData> {
                         }
                     }
                 }
-                if(cache != null){
+                if (cache != null) {
                     rows.trimToSize();
                     cache.put(keyRow, rows);
                 }

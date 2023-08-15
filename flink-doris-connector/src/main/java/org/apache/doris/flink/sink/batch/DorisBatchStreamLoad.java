@@ -17,7 +17,6 @@
 
 package org.apache.doris.flink.sink.batch;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
@@ -29,6 +28,12 @@ import org.apache.doris.flink.sink.EscapeHandler;
 import org.apache.doris.flink.sink.HttpPutBuilder;
 import org.apache.doris.flink.sink.HttpUtil;
 import org.apache.doris.flink.sink.writer.LabelGenerator;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import static org.apache.doris.flink.sink.LoadStatus.PUBLISH_TIMEOUT;
+import static org.apache.doris.flink.sink.LoadStatus.SUCCESS;
+import static org.apache.doris.flink.sink.writer.LoadConstants.LINE_DELIMITER_DEFAULT;
+import static org.apache.doris.flink.sink.writer.LoadConstants.LINE_DELIMITER_KEY;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -55,22 +60,17 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.apache.doris.flink.sink.LoadStatus.PUBLISH_TIMEOUT;
-import static org.apache.doris.flink.sink.LoadStatus.SUCCESS;
-import static org.apache.doris.flink.sink.writer.LoadConstants.LINE_DELIMITER_DEFAULT;
-import static org.apache.doris.flink.sink.writer.LoadConstants.LINE_DELIMITER_KEY;
-
 /**
  * async stream load
  **/
 public class DorisBatchStreamLoad implements Serializable {
+    private static final String LOAD_URL_PATTERN = "http://%s/api/%s/%s/_stream_load";
     private static final long serialVersionUID = 1L;
     private static final Logger LOG = LoggerFactory.getLogger(DorisBatchStreamLoad.class);
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final List<String> DORIS_SUCCESS_STATUS = new ArrayList<>(Arrays.asList(SUCCESS, PUBLISH_TIMEOUT));
     private final LabelGenerator labelGenerator;
     private final byte[] lineDelimiter;
-    private static final String LOAD_URL_PATTERN = "http://%s/api/%s/%s/_stream_load";
     private String loadUrl;
     private String hostPort;
     private final String username;
@@ -89,10 +89,8 @@ public class DorisBatchStreamLoad implements Serializable {
     private CloseableHttpClient httpClient = new HttpUtil().getHttpClient();
     private BackendUtil backendUtil;
 
-    public DorisBatchStreamLoad(DorisOptions dorisOptions,
-                                DorisReadOptions dorisReadOptions,
-                                DorisExecutionOptions executionOptions,
-                                LabelGenerator labelGenerator) {
+    public DorisBatchStreamLoad(DorisOptions dorisOptions, DorisReadOptions dorisReadOptions,
+            DorisExecutionOptions executionOptions, LabelGenerator labelGenerator) {
         this.backendUtil = new BackendUtil(RestService.getBackendsV2(dorisOptions, dorisReadOptions, LOG));
         this.hostPort = backendUtil.getAvailableBackend();
         String[] tableInfo = dorisOptions.getTableIdentifier().split("\\.");
@@ -103,36 +101,38 @@ public class DorisBatchStreamLoad implements Serializable {
         this.loadUrl = String.format(LOAD_URL_PATTERN, hostPort, db, table);
         this.loadProps = executionOptions.getStreamLoadProp();
         this.labelGenerator = labelGenerator;
-        this.lineDelimiter = EscapeHandler.escapeString(loadProps.getProperty(LINE_DELIMITER_KEY, LINE_DELIMITER_DEFAULT)).getBytes();
+        this.lineDelimiter = EscapeHandler.escapeString(
+                loadProps.getProperty(LINE_DELIMITER_KEY, LINE_DELIMITER_DEFAULT)).getBytes();
         this.executionOptions = executionOptions;
-        //init queue
+        // init queue
         this.writeQueue = new ArrayBlockingQueue<>(executionOptions.getFlushQueueSize());
-        LOG.info("init RecordBuffer capacity {}, count {}", executionOptions.getBufferFlushMaxBytes(), executionOptions.getFlushQueueSize());
+        LOG.info("init RecordBuffer capacity {}, count {}", executionOptions.getBufferFlushMaxBytes(),
+                executionOptions.getFlushQueueSize());
         for (int index = 0; index < executionOptions.getFlushQueueSize(); index++) {
             this.writeQueue.add(new BatchRecordBuffer(this.lineDelimiter, executionOptions.getBufferFlushMaxBytes()));
         }
         readQueue = new LinkedBlockingDeque<>();
 
-        this.loadAsyncExecutor= new LoadAsyncExecutor();
-        this.loadExecutorService = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>(1), new DefaultThreadFactory("streamload-executor"), new ThreadPoolExecutor.AbortPolicy());
+        this.loadAsyncExecutor = new LoadAsyncExecutor();
+        this.loadExecutorService = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>(1),
+                new DefaultThreadFactory("streamload-executor"), new ThreadPoolExecutor.AbortPolicy());
         this.started = new AtomicBoolean(true);
         this.loadExecutorService.execute(loadAsyncExecutor);
     }
 
     /**
      * write record into cache.
-     * @param record
-     * @throws IOException
      */
     public synchronized void writeRecord(byte[] record) throws InterruptedException {
         checkFlushException();
-        if(buffer == null){
+        if (buffer == null) {
             buffer = takeRecordFromWriteQueue();
         }
         buffer.insert(record);
-        //When it exceeds 80% of the byteSize,to flush, to avoid triggering bytebuffer expansion
-        if (buffer.getBufferSizeBytes() >= executionOptions.getBufferFlushMaxBytes() * 0.8
-                || (executionOptions.getBufferFlushMaxRows() != 0 && buffer.getNumOfRecords() >= executionOptions.getBufferFlushMaxRows())) {
+        // When it exceeds 80% of the byteSize,to flush, to avoid triggering bytebuffer expansion
+        if (buffer.getBufferSizeBytes() >= executionOptions.getBufferFlushMaxBytes() * 0.8 || (
+                executionOptions.getBufferFlushMaxRows() != 0
+                        && buffer.getNumOfRecords() >= executionOptions.getBufferFlushMaxRows())) {
             flush(false);
         }
     }
@@ -151,7 +151,7 @@ public class DorisBatchStreamLoad implements Serializable {
         }
     }
 
-    private void putRecordToWriteQueue(BatchRecordBuffer buffer){
+    private void putRecordToWriteQueue(BatchRecordBuffer buffer) {
         try {
             writeQueue.put(buffer);
         } catch (InterruptedException e) {
@@ -159,7 +159,7 @@ public class DorisBatchStreamLoad implements Serializable {
         }
     }
 
-    private BatchRecordBuffer takeRecordFromWriteQueue(){
+    private BatchRecordBuffer takeRecordFromWriteQueue() {
         checkFlushException();
         try {
             return writeQueue.take();
@@ -175,18 +175,18 @@ public class DorisBatchStreamLoad implements Serializable {
     }
 
     private void waitAsyncLoadFinish() throws InterruptedException {
-        for(int i = 0; i < executionOptions.getFlushQueueSize() + 1 ; i++){
+        for (int i = 0; i < executionOptions.getFlushQueueSize() + 1; i++) {
             BatchRecordBuffer empty = takeRecordFromWriteQueue();
             readQueue.put(empty);
         }
     }
 
-    public void close(){
-        //close async executor
+    public void close() {
+        // close async executor
         this.loadExecutorService.shutdown();
         this.started.set(false);
 
-        //clear buffer
+        // clear buffer
         this.writeQueue.clear();
         this.readQueue.clear();
     }
@@ -199,7 +199,7 @@ public class DorisBatchStreamLoad implements Serializable {
                 BatchRecordBuffer buffer = null;
                 try {
                     buffer = readQueue.poll(2000L, TimeUnit.MILLISECONDS);
-                    if(buffer == null){
+                    if (buffer == null) {
                         continue;
                     }
                     if (buffer.getLabelName() != null) {
@@ -210,8 +210,8 @@ public class DorisBatchStreamLoad implements Serializable {
                     exception.set(e);
                     break;
                 } finally {
-                    //Recycle buffer to avoid writer thread blocking
-                    if(buffer != null){
+                    // Recycle buffer to avoid writer thread blocking
+                    if (buffer != null) {
                         buffer.clear();
                         putRecordToWriteQueue(buffer);
                     }
@@ -223,16 +223,12 @@ public class DorisBatchStreamLoad implements Serializable {
         /**
          * execute stream load
          */
-        public void load(String label, BatchRecordBuffer buffer) throws IOException{
+        public void load(String label, BatchRecordBuffer buffer) throws IOException {
             refreshLoadUrl();
             ByteBuffer data = buffer.getData();
             ByteArrayEntity entity = new ByteArrayEntity(data.array(), data.arrayOffset(), data.limit());
             HttpPutBuilder putBuilder = new HttpPutBuilder();
-            putBuilder.setUrl(loadUrl)
-                    .baseAuth(username, password)
-                    .setLabel(label)
-                    .addCommonHeader()
-                    .setEntity(entity)
+            putBuilder.setUrl(loadUrl).baseAuth(username, password).setLabel(label).addCommonHeader().setEntity(entity)
                     .addHiddenColumns(executionOptions.getDeletable())
                     .addProperties(executionOptions.getStreamLoadProp());
 
@@ -246,14 +242,16 @@ public class DorisBatchStreamLoad implements Serializable {
                         LOG.info("load Result {}", loadResult);
                         RespContent respContent = OBJECT_MAPPER.readValue(loadResult, RespContent.class);
                         if (!DORIS_SUCCESS_STATUS.contains(respContent.getStatus())) {
-                            String errMsg = String.format("stream load error: %s, see more in %s", respContent.getMessage(), respContent.getErrorURL());
+                            String errMsg = String.format("stream load error: %s, see more in %s",
+                                    respContent.getMessage(), respContent.getErrorURL());
                             throw new DorisBatchLoadException(errMsg);
-                        }else{
+                        } else {
                             return;
                         }
                     }
-                    LOG.error("stream load failed with {}, reason {}, to retry", hostPort, response.getStatusLine().toString());
-                }catch (Exception ex){
+                    LOG.error("stream load failed with {}, reason {}, to retry", hostPort,
+                            response.getStatusLine().toString());
+                } catch (Exception ex) {
                     if (retry == executionOptions.getMaxRetries()) {
                         throw new DorisBatchLoadException("stream load error: ", ex);
                     }
@@ -267,7 +265,7 @@ public class DorisBatchStreamLoad implements Serializable {
             }
         }
 
-        private void refreshLoadUrl(){
+        private void refreshLoadUrl() {
             hostPort = backendUtil.getAvailableBackend();
             loadUrl = String.format(LOAD_URL_PATTERN, hostPort, db, table);
         }

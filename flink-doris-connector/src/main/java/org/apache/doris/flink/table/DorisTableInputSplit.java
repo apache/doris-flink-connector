@@ -14,29 +14,28 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.table;
 
 import org.apache.doris.flink.rest.PartitionDefinition;
+
 import org.apache.flink.core.io.InputSplit;
 
 /**
  * DorisTableInputSplit
  **/
 public class DorisTableInputSplit implements InputSplit, java.io.Serializable {
-
+    protected final PartitionDefinition partition;
     /**
      * The number of the split.
      */
     private final int splitNumber;
-
-    protected final PartitionDefinition partition;
 
     public DorisTableInputSplit(int splitNumber, PartitionDefinition partition) {
         super();
         this.splitNumber = splitNumber;
         this.partition = partition;
     }
-
 
     @Override
     public int getSplitNumber() {

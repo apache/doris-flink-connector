@@ -71,7 +71,7 @@ public class BackendV2 {
             isAlive = alive;
         }
 
-        public String toBackendString(){
+        public String toBackendString() {
             return ip + ":" + httpPort;
         }
 

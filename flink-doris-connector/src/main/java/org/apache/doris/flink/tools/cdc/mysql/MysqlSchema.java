@@ -14,6 +14,7 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.tools.cdc.mysql;
 
 import org.apache.doris.flink.tools.cdc.SourceSchema;
@@ -22,11 +23,12 @@ import java.sql.DatabaseMetaData;
 
 public class MysqlSchema extends SourceSchema {
 
-    public MysqlSchema(DatabaseMetaData metaData, String databaseName, String tableName, String tableComment) throws Exception {
+    public MysqlSchema(DatabaseMetaData metaData, String databaseName, String tableName, String tableComment)
+            throws Exception {
         super(metaData, databaseName, null, tableName, tableComment);
     }
 
-    public String convertToDorisType(String fieldType, Integer precision, Integer scale){
+    public String convertToDorisType(String fieldType, Integer precision, Integer scale) {
         return MysqlType.toDorisType(fieldType, precision, scale);
     }
 }

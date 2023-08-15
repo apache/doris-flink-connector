@@ -14,13 +14,14 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.cfg;
 
 import org.apache.doris.flink.util.IOUtils;
 
-import java.util.Properties;
-
 import static org.apache.flink.util.Preconditions.checkNotNull;
+
+import java.util.Properties;
 
 /**
  * Options for the Doris connector.
@@ -30,7 +31,6 @@ public class DorisOptions extends DorisConnectionOptions {
     private static final long serialVersionUID = 1L;
 
     private String tableIdentifier;
-
 
     public DorisOptions(String fenodes, String username, String password, String tableIdentifier) {
         super(fenodes, username, password);
@@ -112,6 +112,5 @@ public class DorisOptions extends DorisConnectionOptions {
             return new DorisOptions(fenodes, username, password, tableIdentifier, jdbcUrl);
         }
     }
-
 
 }

@@ -73,9 +73,9 @@ public class Record implements Serializable {
 
     @Override
     public String toString() {
-        return "Record{" +
-                "schema=" + schema +
-                ", values=" + Arrays.toString(values) +
-                '}';
+        return "Record{"
+                + "schema=" + schema
+                + ", values=" + Arrays.toString(values)
+                + '}';
     }
 }

@@ -28,41 +28,6 @@ public class RecordKey {
         keys = record.getKeyIndex();
     }
 
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-        if (o == null || getClass() != o.getClass()) {
-            return false;
-        }
-
-        RecordKey recordKey = (RecordKey) o;
-        if (record == recordKey.record) {
-            return true;
-        }
-
-        if (record.getKeyIndex().length != recordKey.record.getKeyIndex().length) {
-            return false;
-        }
-        if (record.getKeyIndex().length == 0) {
-            return false;
-        }
-        for (int i : record.getKeyIndex()) {
-            Object left = record.getObject(i);
-            Object right = recordKey.record.getObject(i);
-            if (!equals(left, right)) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    @Override
-    public int hashCode() {
-        return hash(record, keys);
-    }
-
     public static boolean equals(Object obj0, Object obj1) {
         if (obj0 == null) {
             if (obj1 != null) {
@@ -104,20 +69,35 @@ public class RecordKey {
         return true;
     }
 
-    public static int hash(Record record, int[] indexes) {
-        int hash = 0;
-        boolean first = true;
-        for (int i : indexes) {
-            if (first) {
-                hash = hashCode(record.getObject(i));
-            } else {
-                hash ^= hashCode(record.getObject(i));
-            }
-            first = false;
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
         }
-        return hash;
-    }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
 
+        RecordKey recordKey = (RecordKey) o;
+        if (record == recordKey.record) {
+            return true;
+        }
+
+        if (record.getKeyIndex().length != recordKey.record.getKeyIndex().length) {
+            return false;
+        }
+        if (record.getKeyIndex().length == 0) {
+            return false;
+        }
+        for (int i : record.getKeyIndex()) {
+            Object left = record.getObject(i);
+            Object right = recordKey.record.getObject(i);
+            if (!equals(left, right)) {
+                return false;
+            }
+        }
+        return true;
+    }
 
     public static int hashCode(Object obj) {
         if (obj == null) {
@@ -134,5 +114,24 @@ public class RecordKey {
         } else {
             return obj.hashCode();
         }
+    }
+
+    @Override
+    public int hashCode() {
+        return hash(record, keys);
+    }
+
+    public static int hash(Record record, int[] indexes) {
+        int hash = 0;
+        boolean first = true;
+        for (int i : indexes) {
+            if (first) {
+                hash = hashCode(record.getObject(i));
+            } else {
+                hash ^= hashCode(record.getObject(i));
+            }
+            first = false;
+        }
+        return hash;
     }
 }

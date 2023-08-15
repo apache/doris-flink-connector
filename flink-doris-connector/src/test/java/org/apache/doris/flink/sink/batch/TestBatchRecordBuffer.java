@@ -29,8 +29,8 @@ import java.nio.charset.StandardCharsets;
 public class TestBatchRecordBuffer {
 
     @Test
-    public void testInsert(){
-        BatchRecordBuffer recordBuffer = new BatchRecordBuffer("\n".getBytes(StandardCharsets.UTF_8),1);
+    public void testInsert() {
+        BatchRecordBuffer recordBuffer = new BatchRecordBuffer("\n".getBytes(StandardCharsets.UTF_8), 1);
         recordBuffer.insert("doris,1".getBytes(StandardCharsets.UTF_8));
 
         Assert.assertEquals(1, recordBuffer.getNumOfRecords());
@@ -38,12 +38,13 @@ public class TestBatchRecordBuffer {
 
         recordBuffer.insert("doris,2".getBytes(StandardCharsets.UTF_8));
         Assert.assertEquals(2, recordBuffer.getNumOfRecords());
-        Assert.assertEquals("doris,1\ndoris,2".getBytes(StandardCharsets.UTF_8).length - "\n".getBytes(StandardCharsets.UTF_8).length, recordBuffer.getBufferSizeBytes());
+        Assert.assertEquals("doris,1\ndoris,2".getBytes(StandardCharsets.UTF_8).length - "\n".getBytes(
+                StandardCharsets.UTF_8).length, recordBuffer.getBufferSizeBytes());
 
         ByteBuffer data = recordBuffer.getData();
         Assert.assertEquals("doris,1\ndoris,2", new String(data.array(), data.arrayOffset(), data.limit()));
 
-        //mock flush
+        // mock flush
         recordBuffer.clear();
         recordBuffer.insert("doris,3".getBytes(StandardCharsets.UTF_8));
         Assert.assertEquals(1, recordBuffer.getNumOfRecords());
@@ -51,8 +52,8 @@ public class TestBatchRecordBuffer {
     }
 
     @Test
-    public void testGrowCapacity(){
-        BatchRecordBuffer recordBuffer = new BatchRecordBuffer("\n".getBytes(StandardCharsets.UTF_8),1);
+    public void testGrowCapacity() {
+        BatchRecordBuffer recordBuffer = new BatchRecordBuffer("\n".getBytes(StandardCharsets.UTF_8), 1);
         recordBuffer.ensureCapacity(10);
 
         Assert.assertEquals(recordBuffer.getBuffer().capacity(), 10 + 1);
@@ -63,7 +64,7 @@ public class TestBatchRecordBuffer {
         recordBuffer.ensureCapacity(1024);
         Assert.assertEquals(recordBuffer.getBuffer().capacity(), 1024 + 111);
 
-        recordBuffer = new BatchRecordBuffer("\n".getBytes(StandardCharsets.UTF_8),16);
+        recordBuffer = new BatchRecordBuffer("\n".getBytes(StandardCharsets.UTF_8), 16);
         recordBuffer.ensureCapacity(16);
         Assert.assertEquals(recordBuffer.getBuffer().capacity(), 16);
 

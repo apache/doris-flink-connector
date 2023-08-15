@@ -17,16 +17,16 @@
 
 package org.apache.doris.flink.sink.writer;
 
+import static org.apache.doris.flink.sink.writer.LoadConstants.CSV;
+import static org.apache.doris.flink.sink.writer.LoadConstants.JSON;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.conversion.RowRowConverter;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
-import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Preconditions;
+
 import java.io.IOException;
-import static org.apache.doris.flink.sink.writer.LoadConstants.CSV;
-import static org.apache.doris.flink.sink.writer.LoadConstants.JSON;
 
 /**
  * Serializer for {@link Row}.
@@ -41,7 +41,7 @@ public class RowSerializer implements DorisRecordSerializer<Row> {
     private final RowDataSerializer rowDataSerializer;
 
     private RowSerializer(String[] fieldNames, DataType[] dataTypes, String type, String fieldDelimiter,
-                          boolean enableDelete) {
+            boolean enableDelete) {
         this.rowRowConverter = RowRowConverter.create(DataTypes.ROW(dataTypes));
         this.rowDataSerializer = RowDataSerializer.builder()
                 .setFieldNames(fieldNames)
@@ -53,7 +53,7 @@ public class RowSerializer implements DorisRecordSerializer<Row> {
     }
 
     @Override
-    public byte[] serialize(Row record) throws IOException{
+    public byte[] serialize(Row record) throws IOException {
         RowData rowDataRecord = this.rowRowConverter.toInternal(record);
         return this.rowDataSerializer.serialize(rowDataRecord);
     }

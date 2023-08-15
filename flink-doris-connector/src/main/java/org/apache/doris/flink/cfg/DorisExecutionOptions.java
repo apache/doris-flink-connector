@@ -14,8 +14,8 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
-package org.apache.doris.flink.cfg;
 
+package org.apache.doris.flink.cfg;
 
 import org.apache.flink.util.Preconditions;
 
@@ -28,11 +28,11 @@ import java.util.Properties;
 public class DorisExecutionOptions implements Serializable {
 
     private static final long serialVersionUID = 1L;
-    public static final int DEFAULT_CHECK_INTERVAL = 10000;
-    public static final int DEFAULT_MAX_RETRY_TIMES = 1;
+    private static final int DEFAULT_CHECK_INTERVAL = 10000;
+    private static final int DEFAULT_MAX_RETRY_TIMES = 1;
     private static final int DEFAULT_BUFFER_SIZE = 1024 * 1024;
     private static final int DEFAULT_BUFFER_COUNT = 3;
-    //batch flush
+    // batch flush
     private static final int DEFAULT_FLUSH_QUEUE_SIZE = 2;
     private static final int DEFAULT_BUFFER_FLUSH_MAX_ROWS = 50000;
     private static final int DEFAULT_BUFFER_FLUSH_MAX_BYTES = 10 * 1024 * 1024;
@@ -49,7 +49,7 @@ public class DorisExecutionOptions implements Serializable {
     private final Boolean enableDelete;
     private final Boolean enable2PC;
 
-    //batch mode param
+    // batch mode param
     private final int flushQueueSize;
     private final int bufferFlushMaxRows;
     private final int bufferFlushMaxBytes;
@@ -58,19 +58,19 @@ public class DorisExecutionOptions implements Serializable {
     private final boolean ignoreUpdateBefore;
 
     public DorisExecutionOptions(int checkInterval,
-                                 int maxRetries,
-                                 int bufferSize,
-                                 int bufferCount,
-                                 String labelPrefix,
-                                 Properties streamLoadProp,
-                                 Boolean enableDelete,
-                                 Boolean enable2PC,
-                                 boolean enableBatchMode,
-                                 int flushQueueSize,
-                                 int bufferFlushMaxRows,
-                                 int bufferFlushMaxBytes,
-                                 long bufferFlushIntervalMs,
-                                 boolean ignoreUpdateBefore) {
+            int maxRetries,
+            int bufferSize,
+            int bufferCount,
+            String labelPrefix,
+            Properties streamLoadProp,
+            Boolean enableDelete,
+            Boolean enable2PC,
+            boolean enableBatchMode,
+            int flushQueueSize,
+            int bufferFlushMaxRows,
+            int bufferFlushMaxBytes,
+            long bufferFlushIntervalMs,
+            boolean ignoreUpdateBefore) {
         Preconditions.checkArgument(maxRetries >= 0);
         this.checkInterval = checkInterval;
         this.maxRetries = maxRetries;
@@ -100,7 +100,7 @@ public class DorisExecutionOptions implements Serializable {
         properties.setProperty("read_json_by_line", "true");
         return new Builder().setStreamLoadProp(properties);
     }
-    
+
     public static DorisExecutionOptions defaults() {
         Properties properties = new Properties();
         properties.setProperty("format", "json");
@@ -164,7 +164,7 @@ public class DorisExecutionOptions implements Serializable {
         return enableBatchMode;
     }
 
-    public boolean getIgnoreUpdateBefore(){
+    public boolean getIgnoreUpdateBefore() {
         return ignoreUpdateBefore;
     }
 
@@ -188,7 +188,6 @@ public class DorisExecutionOptions implements Serializable {
         private boolean enableBatchMode = false;
 
         private boolean ignoreUpdateBefore = true;
-
 
         public Builder setCheckInterval(Integer checkInterval) {
             this.checkInterval = checkInterval;
@@ -241,7 +240,8 @@ public class DorisExecutionOptions implements Serializable {
         }
 
         public Builder setBufferFlushIntervalMs(long bufferFlushIntervalMs) {
-            Preconditions.checkState(bufferFlushIntervalMs >= 1000, "bufferFlushIntervalMs must be greater than or equal to 1 second");
+            Preconditions.checkState(bufferFlushIntervalMs >= 1000,
+                    "bufferFlushIntervalMs must be greater than or equal to 1 second");
             this.bufferFlushIntervalMs = bufferFlushIntervalMs;
             return this;
         }

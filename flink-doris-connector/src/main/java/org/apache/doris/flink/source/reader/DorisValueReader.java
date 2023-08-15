@@ -33,6 +33,14 @@ import org.apache.doris.sdk.thrift.TScanCloseParams;
 import org.apache.doris.sdk.thrift.TScanNextBatchParams;
 import org.apache.doris.sdk.thrift.TScanOpenParams;
 import org.apache.doris.sdk.thrift.TScanOpenResult;
+
+import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_BATCH_SIZE_DEFAULT;
+import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_DEFAULT_CLUSTER;
+import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_DESERIALIZE_ARROW_ASYNC_DEFAULT;
+import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_DESERIALIZE_QUEUE_SIZE_DEFAULT;
+import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_EXEC_MEM_LIMIT_DEFAULT;
+import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_REQUEST_QUERY_TIMEOUT_S_DEFAULT;
+import static org.apache.doris.flink.util.ErrorMessages.SHOULD_NOT_HAPPEN_MESSAGE;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,14 +51,6 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-
-import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_BATCH_SIZE_DEFAULT;
-import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_DEFAULT_CLUSTER;
-import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_DESERIALIZE_ARROW_ASYNC_DEFAULT;
-import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_DESERIALIZE_QUEUE_SIZE_DEFAULT;
-import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_EXEC_MEM_LIMIT_DEFAULT;
-import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_REQUEST_QUERY_TIMEOUT_S_DEFAULT;
-import static org.apache.doris.flink.util.ErrorMessages.SHOULD_NOT_HAPPEN_MESSAGE;
 
 public class DorisValueReader implements AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(DorisValueReader.class);
@@ -79,9 +79,11 @@ public class DorisValueReader implements AutoCloseable {
         this.options = options;
         this.readOptions = readOptions;
         this.client = backendClient();
-        this.deserializeArrowToRowBatchAsync = readOptions.getDeserializeArrowAsync() == null ? DORIS_DESERIALIZE_ARROW_ASYNC_DEFAULT : readOptions.getDeserializeArrowAsync();
+        this.deserializeArrowToRowBatchAsync = readOptions.getDeserializeArrowAsync() == null
+                ? DORIS_DESERIALIZE_ARROW_ASYNC_DEFAULT : readOptions.getDeserializeArrowAsync();
 
-        Integer blockingQueueSize = readOptions.getDeserializeQueueSize() == null ? DORIS_DESERIALIZE_QUEUE_SIZE_DEFAULT : readOptions.getDeserializeQueueSize();
+        Integer blockingQueueSize = readOptions.getDeserializeQueueSize() == null ? DORIS_DESERIALIZE_QUEUE_SIZE_DEFAULT
+                : readOptions.getDeserializeQueueSize();
         if (this.deserializeArrowToRowBatchAsync) {
             this.rowBatchBlockingQueue = new ArrayBlockingQueue(blockingQueueSize);
         }
@@ -117,19 +119,26 @@ public class DorisValueReader implements AutoCloseable {
         params.database = partition.getDatabase();
         params.table = partition.getTable();
 
-        params.tablet_ids = Arrays.asList(partition.getTabletIds().toArray(new Long[]{}));
+        params.tablet_ids = Arrays.asList(partition.getTabletIds().toArray(new Long[] {}));
         params.opaqued_query_plan = partition.getQueryPlan();
         // max row number of one read batch
-        Integer batchSize = readOptions.getRequestBatchSize() == null ? DORIS_BATCH_SIZE_DEFAULT : readOptions.getRequestBatchSize();
-        Integer queryDorisTimeout = readOptions.getRequestQueryTimeoutS() == null ? DORIS_REQUEST_QUERY_TIMEOUT_S_DEFAULT : readOptions.getRequestQueryTimeoutS();
-        Long execMemLimit = readOptions.getExecMemLimit() == null ? DORIS_EXEC_MEM_LIMIT_DEFAULT : readOptions.getExecMemLimit();
+        Integer batchSize = readOptions.getRequestBatchSize() == null ? DORIS_BATCH_SIZE_DEFAULT
+                : readOptions.getRequestBatchSize();
+        Integer queryDorisTimeout = readOptions.getRequestQueryTimeoutS() == null
+                ? DORIS_REQUEST_QUERY_TIMEOUT_S_DEFAULT : readOptions.getRequestQueryTimeoutS();
+        Long execMemLimit = readOptions.getExecMemLimit() == null ? DORIS_EXEC_MEM_LIMIT_DEFAULT
+                : readOptions.getExecMemLimit();
         params.setBatchSize(batchSize);
         params.setQueryTimeout(queryDorisTimeout);
         params.setMemLimit(execMemLimit);
         params.setUser(options.getUsername());
         params.setPasswd(options.getPassword());
-        LOG.debug("Open scan params is,cluster:{},database:{},table:{},tabletId:{},batch size:{},query timeout:{},execution memory limit:{},user:{},query plan: {}",
-                params.getCluster(), params.getDatabase(), params.getTable(), params.getTabletIds(), params.getBatchSize(), params.getQueryTimeout(), params.getMemLimit(), params.getUser(), params.getOpaquedQueryPlan());
+        LOG.debug(
+                "Open scan params is,cluster:{},database:{},table:{},tabletId:{},batch size:{},"
+                        + "query timeout:{},execution memory limit:{},user:{},query plan: {}",
+                params.getCluster(), params.getDatabase(), params.getTable(), params.getTabletIds(),
+                params.getBatchSize(), params.getQueryTimeout(), params.getMemLimit(), params.getUser(),
+                params.getOpaquedQueryPlan());
         return params;
     }
 
@@ -137,7 +146,7 @@ public class DorisValueReader implements AutoCloseable {
         @Override
         public void run() {
             clientLock.lock();
-            try{
+            try {
                 TScanNextBatchParams nextBatchParams = new TScanNextBatchParams();
                 nextBatchParams.setContextId(contextId);
                 while (!eos.get()) {
@@ -194,7 +203,9 @@ public class DorisValueReader implements AutoCloseable {
                         try {
                             Thread.sleep(5);
                         } catch (InterruptedException e) {
+                            throw new RuntimeException(e);
                         }
+
                     }
                 }
             } else {
@@ -202,7 +213,7 @@ public class DorisValueReader implements AutoCloseable {
             }
         } else {
             clientLock.lock();
-            try{
+            try {
                 // Arrow data was acquired synchronously during the iterative process
                 if (!eos.get() && (rowBatch == null || !rowBatch.hasNext())) {
                     if (rowBatch != null) {

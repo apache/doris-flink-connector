@@ -14,10 +14,12 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.source;
 
 import org.apache.doris.flink.deserialization.SimpleListDeserializationSchema;
 import org.apache.doris.flink.sink.OptionUtils;
+
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
@@ -39,7 +41,6 @@ public class DorisSourceExampleTest {
                 .setDorisReadOptions(OptionUtils.buildDorisReadOptions())
                 .setDeserializer(new SimpleListDeserializationSchema())
                 .build();
-
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);

@@ -14,10 +14,9 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.catalog.doris;
 
-
-import org.apache.commons.compress.utils.Lists;
 import org.apache.doris.flink.cfg.DorisConnectionOptions;
 import org.apache.doris.flink.connection.JdbcConnectionProvider;
 import org.apache.doris.flink.connection.SimpleJdbcConnectionProvider;
@@ -25,7 +24,10 @@ import org.apache.doris.flink.exception.CreateTableException;
 import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.apache.doris.flink.exception.DorisSystemException;
 import org.apache.doris.flink.tools.cdc.DatabaseSync;
+
+import org.apache.commons.compress.utils.Lists;
 import org.apache.flink.annotation.Public;
+import static org.apache.flink.util.Preconditions.checkArgument;
 import org.apache.flink.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,16 +42,14 @@ import java.util.Objects;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.util.Preconditions.checkArgument;
-
 /**
  * Doris System Operate
  */
 @Public
 public class DorisSystem {
     private static final Logger LOG = LoggerFactory.getLogger(DatabaseSync.class);
-    private JdbcConnectionProvider jdbcConnectionProvider;
     private static final List<String> builtinDatabases = Arrays.asList("information_schema");
+    private JdbcConnectionProvider jdbcConnectionProvider;
 
     public DorisSystem(DorisConnectionOptions options) {
         this.jdbcConnectionProvider = new SimpleJdbcConnectionProvider(options);
@@ -77,7 +77,7 @@ public class DorisSystem {
         return true;
     }
 
-    public boolean tableExists(String database, String table){
+    public boolean tableExists(String database, String table) {
         return databaseExists(database)
                 && listTables(database).contains(table);
     }
@@ -106,7 +106,7 @@ public class DorisSystem {
     public void execute(String sql) {
         try (Statement statement = jdbcConnectionProvider.getOrEstablishConnection().createStatement()) {
             statement.execute(sql);
-        } catch (Exception e){
+        } catch (Exception e) {
             throw new DorisSystemException(String.format("SQL query could not be executed: %s", sql), e);
         }
     }
@@ -149,47 +149,47 @@ public class DorisSystem {
 
         Map<String, FieldSchema> fields = schema.getFields();
         List<String> keys = schema.getKeys();
-        //append keys
-        for(String key : keys){
-            if(!fields.containsKey(key)){
+        // append keys
+        for (String key : keys) {
+            if (!fields.containsKey(key)) {
                 throw new CreateTableException("key " + key + " not found in column list");
             }
             FieldSchema field = fields.get(key);
             buildColumn(sb, field, true);
         }
 
-        //append values
+        // append values
         for (Map.Entry<String, FieldSchema> entry : fields.entrySet()) {
-            if(keys.contains(entry.getKey())){
+            if (keys.contains(entry.getKey())) {
                 continue;
             }
             FieldSchema field = entry.getValue();
             buildColumn(sb, field, false);
 
         }
-        sb = sb.deleteCharAt(sb.length() -1);
+        sb = sb.deleteCharAt(sb.length() - 1);
         sb.append(" ) ");
-        //append uniq model
-        if(DataModel.UNIQUE.equals(schema.getModel())){
+        // append uniq model
+        if (DataModel.UNIQUE.equals(schema.getModel())) {
             sb.append(schema.getModel().name())
                     .append(" KEY(")
                     .append(String.join(",", identifier(schema.getKeys())))
                     .append(")");
         }
 
-        //append table comment
-        if(!StringUtils.isNullOrWhitespaceOnly(schema.getTableComment())){
+        // append table comment
+        if (!StringUtils.isNullOrWhitespaceOnly(schema.getTableComment())) {
             sb.append(" COMMENT '")
                     .append(schema.getTableComment())
                     .append("' ");
         }
 
-        //append distribute key
+        // append distribute key
         sb.append(" DISTRIBUTED BY HASH(")
                 .append(String.join(",", identifier(schema.getDistributeKeys())))
                 .append(") BUCKETS AUTO ");
 
-        //append properties
+        // append properties
         int index = 0;
         for (Map.Entry<String, String> entry : schema.getProperties().entrySet()) {
             if (index == 0) {
@@ -210,9 +210,9 @@ public class DorisSystem {
         return sb.toString();
     }
 
-    private void buildColumn(StringBuilder sql, FieldSchema field, boolean isKey){
+    private void buildColumn(StringBuilder sql, FieldSchema field, boolean isKey) {
         String fieldType = field.getTypeString();
-        if(isKey && DorisType.STRING.equals(fieldType)){
+        if (isKey && DorisType.STRING.equals(fieldType)) {
             fieldType = String.format("%s(%s)", DorisType.VARCHAR, 65533);
         }
         sql.append(identifier(field.getName()))
@@ -223,11 +223,11 @@ public class DorisSystem {
                 .append("',");
     }
 
-    private String quoteComment(String comment){
-        if(comment == null){
+    private String quoteComment(String comment) {
+        if (comment == null) {
             return "";
         } else {
-            return comment.replaceAll("'","\\\\'");
+            return comment.replaceAll("'", "\\\\'");
         }
     }
 

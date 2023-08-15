@@ -14,11 +14,13 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.deserialization.converter;
+
+import org.apache.doris.flink.serialization.RowBatch;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.doris.flink.serialization.RowBatch;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.GenericArrayData;
@@ -41,6 +43,7 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.ZonedTimestampType;
 import org.apache.flink.util.Preconditions;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
@@ -53,16 +56,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
-
 public class DorisRowConverter implements Serializable {
 
     private static final long serialVersionUID = 1L;
+    private static final ObjectMapper objectMapper = new ObjectMapper();
     private DeserializationConverter[] deserializationConverters;
     private SerializationConverter[] serializationConverters;
-    private static final ObjectMapper objectMapper = new ObjectMapper();
 
-    public DorisRowConverter(){}
+    public DorisRowConverter() {
+    }
 
     public DorisRowConverter(RowType rowType) {
         checkNotNull(rowType);
@@ -102,7 +104,7 @@ public class DorisRowConverter implements Serializable {
      */
     public GenericRowData convertInternal(List record) {
         GenericRowData rowData = new GenericRowData(deserializationConverters.length);
-        for (int i = 0; i < deserializationConverters.length ; i++) {
+        for (int i = 0; i < deserializationConverters.length; i++) {
             rowData.setField(i, deserializationConverters[i].deserialize(record.get(i)));
         }
         return rowData;
@@ -110,6 +112,7 @@ public class DorisRowConverter implements Serializable {
 
     /**
      * Convert data from {@link RowData} to {@link RowBatch}
+     *
      * @param rowData record from flink rowdata
      * @param index the field index
      * @return java type value.
@@ -117,7 +120,6 @@ public class DorisRowConverter implements Serializable {
     public Object convertExternal(RowData rowData, int index) {
         return serializationConverters[index].serialize(index, rowData);
     }
-
 
     /**
      * Create a nullable runtime {@link DeserializationConverter} from given {@link
@@ -152,7 +154,9 @@ public class DorisRowConverter implements Serializable {
         };
     }
 
-    /** Runtime converter to convert doris field to {@link RowData} type object. */
+    /**
+     * Runtime converter to convert doris field to {@link RowData} type object.
+     */
     @FunctionalInterface
     interface DeserializationConverter extends Serializable {
         /**
@@ -196,19 +200,22 @@ public class DorisRowConverter implements Serializable {
                     if (val instanceof LocalDateTime) {
                         return TimestampData.fromLocalDateTime((LocalDateTime) val);
                     } else {
-                        throw new UnsupportedOperationException("timestamp type must be java.time.LocalDateTime, the actual type is: " + val.getClass().getName());
+                        throw new UnsupportedOperationException(
+                                "timestamp type must be java.time.LocalDateTime, the actual type is: " + val.getClass()
+                                        .getName());
                     }
                 };
             case DATE:
                 return val -> {
                     if (val instanceof LocalDate) {
-                        //doris source
+                        // doris source
                         return (int) ((LocalDate) val).toEpochDay();
                     } else if (val instanceof Date) {
-                        //doris lookup
+                        // doris lookup
                         return (int) ((Date) val).toLocalDate().toEpochDay();
                     } else {
-                        throw new UnsupportedOperationException("timestamp type must be java.time.LocalDate, the actual type is: " + val.getClass());
+                        throw new UnsupportedOperationException(
+                                "timestamp type must be java.time.LocalDate, the actual type is: " + val.getClass());
                     }
                 };
             case CHAR:
@@ -298,18 +305,20 @@ public class DorisRowConverter implements Serializable {
         return arrayData;
     }
 
-    private List<Object> convertArrayData(ArrayData array, LogicalType type){
-        if(array instanceof GenericArrayData){
-            return Arrays.asList(((GenericArrayData)array).toObjectArray());
+    private List<Object> convertArrayData(ArrayData array, LogicalType type) {
+        if (array instanceof GenericArrayData) {
+            return Arrays.asList(((GenericArrayData) array).toObjectArray());
         }
-        if(array instanceof BinaryArrayData){
-            LogicalType elementType = ((ArrayType)type).getElementType();
+        if (array instanceof BinaryArrayData) {
+            LogicalType elementType = ((ArrayType) type).getElementType();
             List<Object> values = Arrays.asList(((BinaryArrayData) array).toObjectArray(elementType));
-            if(LogicalTypeRoot.DATE.equals(elementType.getTypeRoot())) {
-                return values.stream().map(date -> Date.valueOf(LocalDate.ofEpochDay((Integer)date))).collect(Collectors.toList());
+            if (LogicalTypeRoot.DATE.equals(elementType.getTypeRoot())) {
+                return values.stream().map(date -> Date.valueOf(LocalDate.ofEpochDay((Integer) date)))
+                        .collect(Collectors.toList());
             }
             if (LogicalTypeRoot.ARRAY.equals(elementType.getTypeRoot())) {
-                return values.stream().map(arr -> convertArrayData((ArrayData)arr, elementType)).collect(Collectors.toList());
+                return values.stream().map(arr -> convertArrayData((ArrayData) arr, elementType))
+                        .collect(Collectors.toList());
             }
             return values;
         }
@@ -319,27 +328,27 @@ public class DorisRowConverter implements Serializable {
     private Object convertMapData(MapData map, LogicalType type) {
         Map<Object, Object> result = new HashMap<>();
         if (map instanceof GenericMapData) {
-            GenericMapData gMap = (GenericMapData)map;
-            for (Object key : ((GenericArrayData)gMap.keyArray()).toObjectArray()) {
+            GenericMapData gMap = (GenericMapData) map;
+            for (Object key : ((GenericArrayData) gMap.keyArray()).toObjectArray()) {
                 result.put(key, gMap.get(key));
             }
             return result;
         }
         if (map instanceof BinaryMapData) {
-            BinaryMapData bMap = (BinaryMapData)map;
-            LogicalType valueType = ((MapType)type).getValueType();
+            BinaryMapData bMap = (BinaryMapData) map;
+            LogicalType valueType = ((MapType) type).getValueType();
             Map<?, ?> javaMap = bMap.toJavaMap(((MapType) type).getKeyType(), valueType);
-            for (Map.Entry<?,?> entry : javaMap.entrySet()) {
+            for (Map.Entry<?, ?> entry : javaMap.entrySet()) {
                 String key = entry.getKey().toString();
                 if (LogicalTypeRoot.MAP.equals(valueType.getTypeRoot())) {
-                    result.put(key, convertMapData((MapData)entry.getValue(), valueType));
-                }else if (LogicalTypeRoot.DATE.equals(valueType.getTypeRoot())) {
-                    result.put(key, Date.valueOf(LocalDate.ofEpochDay((Integer)entry.getValue())).toString());
-                }else if (LogicalTypeRoot.ARRAY.equals(valueType.getTypeRoot())) {
-                    result.put(key, convertArrayData((ArrayData)entry.getValue(), valueType));
-                }else if(entry.getValue() instanceof TimestampData){
-                    result.put(key, ((TimestampData)entry.getValue()).toTimestamp().toString());
-                }else{
+                    result.put(key, convertMapData((MapData) entry.getValue(), valueType));
+                } else if (LogicalTypeRoot.DATE.equals(valueType.getTypeRoot())) {
+                    result.put(key, Date.valueOf(LocalDate.ofEpochDay((Integer) entry.getValue())).toString());
+                } else if (LogicalTypeRoot.ARRAY.equals(valueType.getTypeRoot())) {
+                    result.put(key, convertArrayData((ArrayData) entry.getValue(), valueType));
+                } else if (entry.getValue() instanceof TimestampData) {
+                    result.put(key, ((TimestampData) entry.getValue()).toTimestamp().toString());
+                } else {
                     result.put(key, entry.getValue().toString());
                 }
             }
@@ -349,12 +358,12 @@ public class DorisRowConverter implements Serializable {
     }
 
     private Object convertRowData(RowData val, int index, LogicalType type) {
-        RowType rowType = (RowType)type;
+        RowType rowType = (RowType) type;
         Map<String, Object> value = new HashMap<>();
         RowData row = val.getRow(index, rowType.getFieldCount());
 
         List<RowType.RowField> fields = rowType.getFields();
-        for(int i = 0;i< fields.size(); i++){
+        for (int i = 0; i < fields.size(); i++) {
             RowType.RowField rowField = fields.get(i);
             SerializationConverter converter = createNullableExternalConverter(rowField.getType());
             Object valTmp = converter.serialize(i, row);
@@ -363,7 +372,7 @@ public class DorisRowConverter implements Serializable {
         return value;
     }
 
-    private String writeValueAsString(Object object){
+    private String writeValueAsString(Object object) {
         try {
             return objectMapper.writeValueAsString(object);
         } catch (JsonProcessingException e) {

@@ -32,6 +32,7 @@ import java.nio.charset.StandardCharsets;
  */
 public class HttpEntityMock implements HttpEntity {
     private String value;
+
     public HttpEntityMock() {
     }
 

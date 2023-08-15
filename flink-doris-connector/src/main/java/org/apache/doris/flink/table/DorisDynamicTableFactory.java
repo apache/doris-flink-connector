@@ -14,27 +14,13 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.table;
 
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisLookupOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
-import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.connector.sink.DynamicTableSink;
-import org.apache.flink.table.connector.source.DynamicTableSource;
-import org.apache.flink.table.factories.DynamicTableSinkFactory;
-import org.apache.flink.table.factories.DynamicTableSourceFactory;
-import org.apache.flink.table.factories.FactoryUtil;
-import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.utils.TableSchemaUtils;
-
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Properties;
-import java.util.Set;
 
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_BATCH_SIZE;
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_DESERIALIZE_ARROW_ASYNC;
@@ -76,7 +62,20 @@ import static org.apache.doris.flink.table.DorisConfigOptions.SOURCE_USE_OLD_API
 import static org.apache.doris.flink.table.DorisConfigOptions.STREAM_LOAD_PROP_PREFIX;
 import static org.apache.doris.flink.table.DorisConfigOptions.TABLE_IDENTIFIER;
 import static org.apache.doris.flink.table.DorisConfigOptions.USERNAME;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.connector.sink.DynamicTableSink;
+import org.apache.flink.table.connector.source.DynamicTableSource;
+import org.apache.flink.table.factories.DynamicTableSinkFactory;
+import org.apache.flink.table.factories.DynamicTableSourceFactory;
+import org.apache.flink.table.factories.FactoryUtil;
+import org.apache.flink.table.utils.TableSchemaUtils;
 
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Properties;
+import java.util.Set;
 
 /**
  * The {@link DorisDynamicTableFactory} translates the catalog table to a table source.
@@ -154,10 +153,6 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
         final FactoryUtil.TableFactoryHelper helper = FactoryUtil.createTableFactoryHelper(this, context);
         // validate all options
         helper.validateExcept(STREAM_LOAD_PROP_PREFIX);
-        // get the validated options
-        final ReadableConfig options = helper.getOptions();
-        // derive the produced data type (excluding computed columns) from the catalog table
-        final DataType producedDataType = context.getCatalogTable().getSchema().toPhysicalRowDataType();
         TableSchema physicalSchema = TableSchemaUtils.getPhysicalSchema(context.getCatalogTable().getSchema());
         // create and return dynamic table source
         return new DorisDynamicTableSource(
@@ -210,7 +205,7 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
             builder.disable2PC();
         }
 
-        if(readableConfig.get(SINK_ENABLE_BATCH_MODE)) {
+        if (readableConfig.get(SINK_ENABLE_BATCH_MODE)) {
             builder.enableBatchMode();
         }
 
@@ -233,7 +228,7 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
         return streamLoadProp;
     }
 
-    private DorisLookupOptions getDorisLookupOptions(ReadableConfig readableConfig){
+    private DorisLookupOptions getDorisLookupOptions(ReadableConfig readableConfig) {
         final DorisLookupOptions.Builder builder = DorisLookupOptions.builder();
         builder.setCacheExpireMs(readableConfig.get(LOOKUP_CACHE_TTL).toMillis());
         builder.setCacheMaxSize(readableConfig.get(LOOKUP_CACHE_MAX_ROWS));

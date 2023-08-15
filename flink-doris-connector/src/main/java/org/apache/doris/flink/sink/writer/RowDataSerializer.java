@@ -17,9 +17,14 @@
 
 package org.apache.doris.flink.sink.writer;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.doris.flink.deserialization.converter.DorisRowConverter;
 import org.apache.doris.flink.sink.EscapeHandler;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import static org.apache.doris.flink.sink.writer.LoadConstants.CSV;
+import static org.apache.doris.flink.sink.writer.LoadConstants.DORIS_DELETE_SIGN;
+import static org.apache.doris.flink.sink.writer.LoadConstants.JSON;
+import static org.apache.doris.flink.sink.writer.LoadConstants.NULL_VALUE;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.RowKind;
@@ -30,11 +35,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.StringJoiner;
-
-import static org.apache.doris.flink.sink.writer.LoadConstants.CSV;
-import static org.apache.doris.flink.sink.writer.LoadConstants.DORIS_DELETE_SIGN;
-import static org.apache.doris.flink.sink.writer.LoadConstants.JSON;
-import static org.apache.doris.flink.sink.writer.LoadConstants.NULL_VALUE;
 
 /**
  * Serializer for RowData.
@@ -47,7 +47,8 @@ public class RowDataSerializer implements DorisRecordSerializer<RowData> {
     private final boolean enableDelete;
     private final DorisRowConverter rowConverter;
 
-    private RowDataSerializer(String[] fieldNames, DataType[] dataTypes, String type, String fieldDelimiter, boolean enableDelete) {
+    private RowDataSerializer(String[] fieldNames, DataType[] dataTypes, String type, String fieldDelimiter,
+            boolean enableDelete) {
         this.fieldNames = fieldNames;
         this.type = type;
         this.fieldDelimiter = fieldDelimiter;
@@ -59,7 +60,7 @@ public class RowDataSerializer implements DorisRecordSerializer<RowData> {
     }
 
     @Override
-    public byte[] serialize(RowData record) throws IOException{
+    public byte[] serialize(RowData record) throws IOException {
         int maxIndex = Math.min(record.getArity(), fieldNames.length);
         String valString;
         if (JSON.equals(type)) {

@@ -19,6 +19,7 @@ package org.apache.doris.flink.sink;
 
 import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.apache.doris.flink.rest.models.BackendV2;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,7 +42,7 @@ public class BackendUtil {
         while (pos < tmp) {
             BackendV2.BackendRowV2 backend = backends.get((int) (pos % backends.size()));
             String res = backend.toBackendString();
-            if(tryHttpConnection(res)){
+            if (tryHttpConnection(res)) {
                 pos++;
                 return res;
             }
@@ -53,7 +54,7 @@ public class BackendUtil {
         try {
             backend = "http://" + backend;
             URL url = new URL(backend);
-            HttpURLConnection co =  (HttpURLConnection) url.openConnection();
+            HttpURLConnection co = (HttpURLConnection) url.openConnection();
             co.setConnectTimeout(60000);
             co.connect();
             co.disconnect();

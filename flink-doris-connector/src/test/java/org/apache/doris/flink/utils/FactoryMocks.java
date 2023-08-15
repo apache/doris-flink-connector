@@ -14,6 +14,7 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.utils;
 
 import org.apache.flink.table.api.DataTypes;
@@ -24,7 +25,9 @@ import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 
-/** Utilities for testing instances usually created by {@link FactoryUtil}. */
+/**
+ * Utilities for testing instances usually created by {@link FactoryUtil}.
+ */
 public final class FactoryMocks {
 
     public static final ResolvedSchema SCHEMA =

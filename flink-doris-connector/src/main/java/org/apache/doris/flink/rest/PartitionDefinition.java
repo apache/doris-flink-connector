@@ -35,7 +35,7 @@ public class PartitionDefinition implements Serializable, Comparable<PartitionDe
     private final String queryPlan;
 
     public PartitionDefinition(String database, String table,
-                               String beAddress, Set<Long> tabletIds, String queryPlan)
+            String beAddress, Set<Long> tabletIds, String queryPlan)
             throws IllegalArgumentException {
         this.database = database;
         this.table = table;
@@ -110,11 +110,11 @@ public class PartitionDefinition implements Serializable, Comparable<PartitionDe
             return false;
         }
         PartitionDefinition that = (PartitionDefinition) o;
-        return Objects.equals(database, that.database) &&
-                Objects.equals(table, that.table) &&
-                Objects.equals(beAddress, that.beAddress) &&
-                Objects.equals(tabletIds, that.tabletIds) &&
-                Objects.equals(queryPlan, that.queryPlan) ;
+        return Objects.equals(database, that.database)
+                && Objects.equals(table, that.table)
+                && Objects.equals(beAddress, that.beAddress)
+                && Objects.equals(tabletIds, that.tabletIds)
+                && Objects.equals(queryPlan, that.queryPlan);
     }
 
     @Override
@@ -129,12 +129,12 @@ public class PartitionDefinition implements Serializable, Comparable<PartitionDe
 
     @Override
     public String toString() {
-        return "PartitionDefinition{" +
-                ", database='" + database + '\'' +
-                ", table='" + table + '\'' +
-                ", beAddress='" + beAddress + '\'' +
-                ", tabletIds=" + tabletIds +
-                ", queryPlan='" + queryPlan + '\'' +
-                '}';
+        return "PartitionDefinition{"
+                + ", database='" + database + '\''
+                + ", table='" + table + '\''
+                + ", beAddress='" + beAddress + '\''
+                + ", tabletIds=" + tabletIds
+                + ", queryPlan='" + queryPlan + '\''
+                + '}';
     }
 }

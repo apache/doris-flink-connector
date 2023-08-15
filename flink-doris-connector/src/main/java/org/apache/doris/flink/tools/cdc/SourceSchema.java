@@ -14,6 +14,7 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.tools.cdc;
 
 import org.apache.doris.flink.catalog.doris.DataModel;
@@ -29,12 +30,12 @@ import java.util.List;
 import java.util.Map;
 
 public abstract class SourceSchema {
+    public final List<String> primaryKeys;
+    public DataModel model = DataModel.UNIQUE;
     private final String databaseName;
     private final String tableName;
     private final String tableComment;
     private final LinkedHashMap<String, FieldSchema> fields;
-    public final List<String> primaryKeys;
-    public DataModel model = DataModel.UNIQUE;
 
     public SourceSchema(
             DatabaseMetaData metaData, String databaseName, String schemaName, String tableName, String tableComment)
@@ -85,15 +86,15 @@ public abstract class SourceSchema {
         return tableSchema;
     }
 
-    private List<String> buildKeys(){
+    private List<String> buildKeys() {
         return buildDistributeKeys();
     }
 
-    private List<String> buildDistributeKeys(){
-        if(!this.primaryKeys.isEmpty()){
+    private List<String> buildDistributeKeys() {
+        if (!this.primaryKeys.isEmpty()) {
             return primaryKeys;
         }
-        if(!this.fields.isEmpty()){
+        if (!this.fields.isEmpty()) {
             Map.Entry<String, FieldSchema> firstField = this.fields.entrySet().iterator().next();
             return Collections.singletonList(firstField.getKey());
         }

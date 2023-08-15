@@ -14,14 +14,15 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.source.assigners;
 
 import org.apache.doris.flink.source.enumerator.PendingSplitsCheckpoint;
 import org.apache.doris.flink.source.split.DorisSourceSplit;
 
-import javax.annotation.Nullable;
 import java.util.Collection;
 import java.util.Optional;
+import javax.annotation.Nullable;
 
 /**
  * The {@code DorisSplitAssigner} is responsible for deciding what split should be processed. It

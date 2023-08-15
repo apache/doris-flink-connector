@@ -17,11 +17,11 @@
 
 package org.apache.doris.flink.serialization;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.apache.doris.flink.exception.IllegalArgumentException;
 
 import static org.apache.doris.flink.util.ErrorMessages.PARSE_NUMBER_FAILED_MESSAGE;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * present an Doris BE address.
@@ -62,9 +62,9 @@ public class Routing {
 
     @Override
     public String toString() {
-        return "Doris BE{" +
-                "host='" + host + '\'' +
-                ", port=" + port +
-                '}';
+        return "Doris BE{"
+                + "host='" + host + '\''
+                + ", port=" + port
+                + '}';
     }
 }

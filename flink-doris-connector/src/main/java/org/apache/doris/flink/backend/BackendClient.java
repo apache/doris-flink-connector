@@ -31,6 +31,7 @@ import org.apache.doris.sdk.thrift.TScanNextBatchParams;
 import org.apache.doris.sdk.thrift.TScanOpenParams;
 import org.apache.doris.sdk.thrift.TScanOpenResult;
 import org.apache.doris.sdk.thrift.TStatusCode;
+
 import org.apache.thrift.TConfiguration;
 import org.apache.thrift.TException;
 import org.apache.thrift.protocol.TBinaryProtocol;
@@ -59,9 +60,13 @@ public class BackendClient {
 
     public BackendClient(Routing routing, DorisReadOptions readOptions) {
         this.routing = routing;
-        this.connectTimeout = readOptions.getRequestConnectTimeoutMs() == null ? ConfigurationOptions.DORIS_REQUEST_CONNECT_TIMEOUT_MS_DEFAULT : readOptions.getRequestConnectTimeoutMs();
-        this.socketTimeout = readOptions.getRequestReadTimeoutMs() == null ? ConfigurationOptions.DORIS_REQUEST_READ_TIMEOUT_MS_DEFAULT : readOptions.getRequestReadTimeoutMs();
-        this.retries = readOptions.getRequestRetries() == null ? ConfigurationOptions.DORIS_REQUEST_RETRIES_DEFAULT : readOptions.getRequestRetries();
+        this.connectTimeout = readOptions.getRequestConnectTimeoutMs() == null
+                ? ConfigurationOptions.DORIS_REQUEST_CONNECT_TIMEOUT_MS_DEFAULT
+                : readOptions.getRequestConnectTimeoutMs();
+        this.socketTimeout = readOptions.getRequestReadTimeoutMs() == null
+                ? ConfigurationOptions.DORIS_REQUEST_READ_TIMEOUT_MS_DEFAULT : readOptions.getRequestReadTimeoutMs();
+        this.retries = readOptions.getRequestRetries() == null ? ConfigurationOptions.DORIS_REQUEST_RETRIES_DEFAULT
+                : readOptions.getRequestRetries();
         logger.trace("connect timeout set to '{}'. socket timeout set to '{}'. retries set to '{}'.",
                 this.connectTimeout, this.socketTimeout, this.retries);
         open();
@@ -74,7 +79,8 @@ public class BackendClient {
             logger.debug("Attempt {} to connect {}.", attempt, routing);
             try {
                 TBinaryProtocol.Factory factory = new TBinaryProtocol.Factory();
-                transport = new TSocket(new TConfiguration(), routing.getHost(), routing.getPort(), socketTimeout, connectTimeout);
+                transport = new TSocket(new TConfiguration(), routing.getHost(), routing.getPort(), socketTimeout,
+                        connectTimeout);
                 TProtocol protocol = factory.getProtocol(transport);
                 client = new TDorisExternalService.Client(protocol);
                 logger.trace("Connect status before open transport to {} is '{}'.", routing, isConnected);

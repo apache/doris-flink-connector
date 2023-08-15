@@ -20,6 +20,7 @@ package org.apache.doris.flink.lookup;
 import org.apache.doris.flink.cfg.DorisLookupOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.deserialization.converter.DorisRowConverter;
+
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
@@ -76,7 +77,7 @@ public class DorisJdbcLookupReader extends DorisLookupReader {
                                 if (resultRow == null) {
                                     result.complete(new ArrayList<>());
                                 } else {
-                                    //convert Record to RowData
+                                    // convert Record to RowData
                                     List<RowData> rowDatas = convertRowDataList(resultRow);
                                     result.complete(rowDatas);
                                 }
@@ -132,7 +133,7 @@ public class DorisJdbcLookupReader extends DorisLookupReader {
 
     @Override
     public void close() throws IOException {
-        if(this.pool != null){
+        if (this.pool != null) {
             this.pool.close();
         }
     }

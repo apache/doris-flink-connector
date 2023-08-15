@@ -24,6 +24,7 @@ import java.util.Objects;
  */
 public class DorisWriterState {
     String labelPrefix;
+
     public DorisWriterState(String labelPrefix) {
         this.labelPrefix = labelPrefix;
     }
@@ -51,8 +52,8 @@ public class DorisWriterState {
 
     @Override
     public String toString() {
-        return "DorisWriterState{" +
-                "labelPrefix='" + labelPrefix + '\'' +
-                '}';
+        return "DorisWriterState{"
+                + "labelPrefix='" + labelPrefix + '\''
+                + '}';
     }
 }

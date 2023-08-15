@@ -14,6 +14,7 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.source;
 
 import org.apache.doris.flink.cfg.DorisOptions;
@@ -30,6 +31,7 @@ import org.apache.doris.flink.source.reader.DorisRecordEmitter;
 import org.apache.doris.flink.source.reader.DorisSourceReader;
 import org.apache.doris.flink.source.split.DorisSourceSplit;
 import org.apache.doris.flink.source.split.DorisSourceSplitSerializer;
+
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
@@ -62,9 +64,9 @@ public class DorisSource<OUT> implements Source<OUT, DorisSourceSplit, PendingSp
     private final DorisDeserializationSchema<OUT> deserializer;
 
     public DorisSource(DorisOptions options,
-                       DorisReadOptions readOptions,
-                       Boundedness boundedness,
-                       DorisDeserializationSchema<OUT> deserializer) {
+            DorisReadOptions readOptions,
+            Boundedness boundedness,
+            DorisDeserializationSchema<OUT> deserializer) {
         this.options = options;
         this.readOptions = readOptions;
         this.boundedness = boundedness;
@@ -88,7 +90,8 @@ public class DorisSource<OUT> implements Source<OUT, DorisSourceSplit, PendingSp
     }
 
     @Override
-    public SplitEnumerator<DorisSourceSplit, PendingSplitsCheckpoint> createEnumerator(SplitEnumeratorContext<DorisSourceSplit> context) throws Exception {
+    public SplitEnumerator<DorisSourceSplit, PendingSplitsCheckpoint> createEnumerator(
+            SplitEnumeratorContext<DorisSourceSplit> context) throws Exception {
         List<DorisSourceSplit> dorisSourceSplits = new ArrayList<>();
         List<PartitionDefinition> partitions = RestService.findPartitions(options, readOptions, LOG);
         partitions.forEach(m -> dorisSourceSplits.add(new DorisSourceSplit(m)));

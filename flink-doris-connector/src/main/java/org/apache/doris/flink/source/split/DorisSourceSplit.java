@@ -14,20 +14,20 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.source.split;
 
 import org.apache.doris.flink.rest.PartitionDefinition;
+
 import org.apache.flink.api.connector.source.SourceSplit;
 
-import javax.annotation.Nullable;
 import java.util.Objects;
+import javax.annotation.Nullable;
 
 /**
  * A {@link SourceSplit} that represents a {@link PartitionDefinition}.
  **/
 public class DorisSourceSplit implements SourceSplit {
-
-    private final PartitionDefinition partitionDefinition;
 
     /**
      * The splits are frequently serialized into checkpoints. Caching the byte representation makes
@@ -35,6 +35,7 @@ public class DorisSourceSplit implements SourceSplit {
      */
     @Nullable
     transient byte[] serializedFormCache;
+    private final PartitionDefinition partitionDefinition;
 
     public DorisSourceSplit(PartitionDefinition partitionDefinition) {
         this.partitionDefinition = partitionDefinition;

@@ -14,6 +14,7 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink;
 
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
@@ -21,6 +22,7 @@ import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.sink.DorisSink;
 import org.apache.doris.flink.sink.writer.LoadConstants;
 import org.apache.doris.flink.sink.writer.RowDataSerializer;
+
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
@@ -39,46 +41,46 @@ import org.apache.flink.util.Collector;
 import java.util.Properties;
 import java.util.UUID;
 
-
 public class DorisSinkExampleRowData {
 
-    public static void main(String[] args) throws Exception{
+    public static void main(String[] args) throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
         env.enableCheckpointing(10000);
         env.setParallelism(1);
-        env.getCheckpointConfig().enableExternalizedCheckpoints(CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
+        env.getCheckpointConfig()
+                .enableExternalizedCheckpoints(CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
         env.setRestartStrategy(RestartStrategies.fixedDelayRestart(5, Time.milliseconds(30000)));
         DorisSink.Builder<RowData> builder = DorisSink.builder();
 
         Properties properties = new Properties();
         properties.setProperty("column_separator", ",");
         properties.setProperty("line_delimiter", "\n");
-//        properties.setProperty("read_json_by_line", "true");
-//        properties.setProperty("format", "json");
+        //        properties.setProperty("read_json_by_line", "true");
+        //        properties.setProperty("format", "json");
         DorisOptions.Builder dorisBuilder = DorisOptions.builder();
         dorisBuilder.setFenodes("127.0.0.1:8030")
                 .setTableIdentifier("db.tbl")
                 .setUsername("root")
                 .setPassword("");
-        DorisExecutionOptions.Builder  executionBuilder = DorisExecutionOptions.builder();
+        DorisExecutionOptions.Builder executionBuilder = DorisExecutionOptions.builder();
         executionBuilder.setLabelPrefix(UUID.randomUUID().toString())
                 .setStreamLoadProp(properties);
 
-        //flink rowdata‘s schema
+        // flink rowdata‘s schema
         String[] fields = {"name", "age"};
         DataType[] types = {DataTypes.VARCHAR(256), DataTypes.INT()};
 
         builder.setDorisExecutionOptions(executionBuilder.build())
-                .setSerializer(RowDataSerializer.builder()  //serialize according to rowdata
+                .setSerializer(RowDataSerializer.builder()  // serialize according to rowdata
                         .setType(LoadConstants.CSV) //.setType(LoadConstants.CSV)
                         .setFieldDelimiter(",")
                         .setFieldNames(fields) //.setFieldDelimiter(",")
                         .setFieldType(types).build())
                 .setDorisOptions(dorisBuilder.build());
 
-        //mock rowdata source
+        // mock rowdata source
         DataStream<RowData> source = env.fromElements("")
                 .flatMap(new FlatMapFunction<String, RowData>() {
                     @Override

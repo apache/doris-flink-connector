@@ -35,11 +35,10 @@ import java.util.Properties;
 import java.util.function.Consumer;
 
 public class PostgresDateConverter implements CustomConverter<SchemaBuilder, RelationalColumn> {
+    public static Properties DEFAULT_PROPS = new Properties();
     private static final Logger log = LoggerFactory.getLogger(PostgresDateConverter.class);
     private DateTimeFormatter dateFormatter = DateTimeFormatter.ISO_DATE;
     private DateTimeFormatter timestampFormatter = DateTimeFormatter.ISO_DATE_TIME;
-
-    public static Properties DEFAULT_PROPS = new Properties();
 
     static {
         DEFAULT_PROPS.setProperty("converters", "date");
@@ -95,7 +94,7 @@ public class PostgresDateConverter implements CustomConverter<SchemaBuilder, Rel
         } else if (input instanceof Integer) {
             LocalDate date = LocalDate.ofEpochDay((Integer) input);
             return dateFormatter.format(date);
-        } else if (input instanceof Date){
+        } else if (input instanceof Date) {
             return dateFormatter.format(((Date) input).toLocalDate());
         }
         return null;
@@ -111,8 +110,8 @@ public class PostgresDateConverter implements CustomConverter<SchemaBuilder, Rel
     private String convertTimestamp(Object input) {
         if (input instanceof Timestamp) {
             return timestampFormatter.format(((Timestamp) input).toLocalDateTime());
-        } else if (input instanceof Instant){
-            LocalDateTime ldt =  LocalDateTime.ofInstant(((Instant) input), ZoneOffset.UTC);
+        } else if (input instanceof Instant) {
+            LocalDateTime ldt = LocalDateTime.ofInstant(((Instant) input), ZoneOffset.UTC);
             return timestampFormatter.format(ldt);
         }
         return null;

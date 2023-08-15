@@ -14,20 +14,12 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.catalog;
 
 import org.apache.doris.flink.cfg.DorisConnectionOptions;
-import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.table.catalog.Catalog;
-import org.apache.flink.table.factories.CatalogFactory;
-import org.apache.flink.table.factories.FactoryUtil;
-
-import java.util.HashSet;
-import java.util.Set;
 
 import static org.apache.doris.flink.catalog.DorisCatalogOptions.DEFAULT_DATABASE;
-import static org.apache.doris.flink.table.DorisConfigOptions.JDBC_URL;
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_BATCH_SIZE;
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_DESERIALIZE_ARROW_ASYNC;
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_DESERIALIZE_QUEUE_SIZE;
@@ -41,6 +33,7 @@ import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_REQUEST_RETR
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_TABLET_SIZE;
 import static org.apache.doris.flink.table.DorisConfigOptions.FENODES;
 import static org.apache.doris.flink.table.DorisConfigOptions.IDENTIFIER;
+import static org.apache.doris.flink.table.DorisConfigOptions.JDBC_URL;
 import static org.apache.doris.flink.table.DorisConfigOptions.PASSWORD;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_BUFFER_COUNT;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_BUFFER_SIZE;
@@ -54,6 +47,14 @@ import static org.apache.doris.flink.table.DorisConfigOptions.SOURCE_USE_OLD_API
 import static org.apache.doris.flink.table.DorisConfigOptions.STREAM_LOAD_PROP_PREFIX;
 import static org.apache.doris.flink.table.DorisConfigOptions.TABLE_IDENTIFIER;
 import static org.apache.doris.flink.table.DorisConfigOptions.USERNAME;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.catalog.Catalog;
+import org.apache.flink.table.factories.CatalogFactory;
+import org.apache.flink.table.factories.FactoryUtil;
+
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * Factory for {@link DorisCatalog}.
@@ -112,21 +113,15 @@ public class DorisCatalogFactory implements CatalogFactory {
 
     @Override
     public Catalog createCatalog(Context context) {
-        final FactoryUtil.CatalogFactoryHelper helper =
-                FactoryUtil.createCatalogFactoryHelper(this, context);
+        final FactoryUtil.CatalogFactoryHelper helper = FactoryUtil.createCatalogFactoryHelper(this, context);
         helper.validateExcept(STREAM_LOAD_PROP_PREFIX);
 
-        DorisConnectionOptions connectionOptions =
-                new DorisConnectionOptions.DorisConnectionOptionsBuilder()
-                        .withFenodes(helper.getOptions().get(FENODES))
-                        .withJdbcUrl(helper.getOptions().get(JDBC_URL))
-                        .withUsername(helper.getOptions().get(USERNAME))
-                        .withPassword(helper.getOptions().get(PASSWORD))
-                        .build();
-        return new DorisCatalog(
-                context.getName(),
-                connectionOptions,
-                helper.getOptions().get(DEFAULT_DATABASE),
+        DorisConnectionOptions connectionOptions
+                = new DorisConnectionOptions.DorisConnectionOptionsBuilder().withFenodes(
+                        helper.getOptions().get(FENODES)).withJdbcUrl(helper.getOptions().get(JDBC_URL))
+                .withUsername(helper.getOptions().get(USERNAME)).withPassword(helper.getOptions().get(PASSWORD))
+                .build();
+        return new DorisCatalog(context.getName(), connectionOptions, helper.getOptions().get(DEFAULT_DATABASE),
                 ((Configuration) helper.getOptions()).toMap());
     }
 }

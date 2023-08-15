@@ -17,20 +17,18 @@
 
 package org.apache.doris.flink.sink.batch;
 
-import org.apache.doris.flink.sink.writer.RecordBuffer;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 
-
 /**
  * buffer to queue
  */
 public class BatchRecordBuffer {
     private static final Logger LOG = LoggerFactory.getLogger(BatchRecordBuffer.class);
-    public static final String LINE_SEPARATOR = "\n";
+    private static final String LINE_SEPARATOR = "\n";
     private String labelName;
     private ByteBuffer buffer;
     private byte[] lineDelimiter;
@@ -38,7 +36,8 @@ public class BatchRecordBuffer {
     private int bufferSizeBytes = 0;
     private boolean loadBatchFirstRecord = true;
 
-    public BatchRecordBuffer(){}
+    public BatchRecordBuffer() {
+    }
 
     public BatchRecordBuffer(byte[] lineDelimiter, int bufferSize) {
         super();
@@ -48,7 +47,7 @@ public class BatchRecordBuffer {
 
     public void insert(byte[] record) {
         ensureCapacity(record.length);
-        if(loadBatchFirstRecord){
+        if (loadBatchFirstRecord) {
             loadBatchFirstRecord = false;
         } else {
             this.buffer.put(this.lineDelimiter);
@@ -60,7 +59,7 @@ public class BatchRecordBuffer {
 
     @VisibleForTesting
     public void ensureCapacity(int length) {
-        if(buffer.remaining() >= length){
+        if (buffer.remaining() >= length) {
             return;
         }
         int currentRemain = buffer.remaining();
@@ -68,14 +67,15 @@ public class BatchRecordBuffer {
 
         int target = buffer.remaining() + length;
         int capacity = buffer.capacity();
-        //grow 512kb each time
+        // grow 512kb each time
         target = Math.max(target, Math.min(capacity + 512 * 1024, capacity * 2));
         ByteBuffer tmp = ByteBuffer.allocate(target);
         buffer.flip();
         tmp.put(buffer);
         buffer.clear();
         buffer = tmp;
-        LOG.info("record length {},buffer remain {} ,grow capacity {} to {}", length, currentRemain, currentCapacity, target);
+        LOG.info("record length {},buffer remain {} ,grow capacity {} to {}", length, currentRemain, currentCapacity,
+                target);
     }
 
     public String getLabelName() {
@@ -94,13 +94,13 @@ public class BatchRecordBuffer {
     }
 
     public ByteBuffer getData() {
-        //change mode
+        // change mode
         buffer.flip();
-        LOG.debug("flush buffer: {} records, {} bytes",getNumOfRecords(),getBufferSizeBytes());
+        LOG.debug("flush buffer: {} records, {} bytes", getNumOfRecords(), getBufferSizeBytes());
         return buffer;
     }
 
-    public void clear(){
+    public void clear() {
         this.buffer.clear();
         this.numOfRecords = 0;
         this.bufferSizeBytes = 0;
@@ -108,9 +108,10 @@ public class BatchRecordBuffer {
         this.loadBatchFirstRecord = true;
     }
 
-    public ByteBuffer getBuffer(){
+    public ByteBuffer getBuffer() {
         return buffer;
     }
+
     /**
      * @return Number of records in this buffer
      */

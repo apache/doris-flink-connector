@@ -14,13 +14,13 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.source.split;
 
+import static org.junit.Assert.assertEquals;
 import org.junit.Test;
 
 import java.util.Collections;
-
-import static org.junit.Assert.assertEquals;
 
 /**
  * Unit tests for the {@link DorisSplitRecords} class.

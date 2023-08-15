@@ -14,12 +14,13 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.source.split;
 
 import org.apache.doris.flink.sink.OptionUtils;
-import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
+import org.junit.Test;
 
 /**
  * Unit tests for the {@link DorisSourceSplitSerializer}.

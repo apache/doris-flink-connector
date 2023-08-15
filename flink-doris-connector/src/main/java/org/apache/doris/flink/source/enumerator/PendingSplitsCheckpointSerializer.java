@@ -14,18 +14,19 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.source.enumerator;
 
 import org.apache.doris.flink.source.split.DorisSourceSplit;
+
 import org.apache.flink.core.io.SimpleVersionedSerializer;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Collection;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A serializer for the {@link PendingSplitsCheckpoint}.
@@ -110,7 +111,7 @@ public class PendingSplitsCheckpointSerializer
         final int splitSerializerVersion = bb.getInt();
         final int numSplits = bb.getInt();
 
-        SimpleVersionedSerializer<DorisSourceSplit> splitSerializer = this.splitSerializer;// stack cache
+        SimpleVersionedSerializer<DorisSourceSplit> splitSerializer = this.splitSerializer; // stack cache
         final ArrayList<DorisSourceSplit> splits = new ArrayList<>(numSplits);
 
         for (int remaining = numSplits; remaining > 0; remaining--) {

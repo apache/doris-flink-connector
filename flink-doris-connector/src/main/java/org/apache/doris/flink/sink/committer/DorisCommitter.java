@@ -17,10 +17,6 @@
 
 package org.apache.doris.flink.sink.committer;
 
-import org.apache.flink.api.connector.sink.Committer;
-
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.exception.DorisRuntimeException;
@@ -29,6 +25,11 @@ import org.apache.doris.flink.sink.DorisCommittable;
 import org.apache.doris.flink.sink.HttpPutBuilder;
 import org.apache.doris.flink.sink.HttpUtil;
 import org.apache.doris.flink.sink.ResponseUtil;
+
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import static org.apache.doris.flink.sink.LoadStatus.FAIL;
+import org.apache.flink.api.connector.sink.Committer;
 import org.apache.http.StatusLine;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPut;
@@ -43,8 +44,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.apache.doris.flink.sink.LoadStatus.FAIL;
-
 /**
  * The committer to commit transaction.
  */
@@ -56,13 +55,14 @@ public class DorisCommitter implements Committer<DorisCommittable> {
     private final DorisReadOptions dorisReadOptions;
     private final ObjectMapper jsonMapper = new ObjectMapper();
 
-    int maxRetry;
+    private final int maxRetry;
 
     public DorisCommitter(DorisOptions dorisOptions, DorisReadOptions dorisReadOptions, int maxRetry) {
         this(dorisOptions, dorisReadOptions, maxRetry, new HttpUtil().getHttpClient());
     }
 
-    public DorisCommitter(DorisOptions dorisOptions, DorisReadOptions dorisReadOptions, int maxRetry, CloseableHttpClient client) {
+    public DorisCommitter(DorisOptions dorisOptions, DorisReadOptions dorisReadOptions, int maxRetry,
+            CloseableHttpClient client) {
         this.dorisOptions = dorisOptions;
         this.dorisReadOptions = dorisReadOptions;
         this.maxRetry = maxRetry;
@@ -78,20 +78,20 @@ public class DorisCommitter implements Committer<DorisCommittable> {
     }
 
     private void commitTransaction(DorisCommittable committable) throws IOException {
-        //basic params
+        // basic params
         HttpPutBuilder builder = new HttpPutBuilder()
                 .addCommonHeader()
                 .baseAuth(dorisOptions.getUsername(), dorisOptions.getPassword())
                 .addTxnId(committable.getTxnID())
                 .commit();
 
-        //hostPort
+        // hostPort
         String hostPort = committable.getHostPort();
 
         LOG.info("commit txn {} to host {}", committable.getTxnID(), hostPort);
         int retry = 0;
         while (retry++ <= maxRetry) {
-            //get latest-url
+            // get latest-url
             String url = String.format(commitPattern, hostPort, committable.getDb());
             HttpPut httpPut = builder.setUrl(url).setEmptyEntity().build();
 
@@ -101,8 +101,9 @@ public class DorisCommitter implements Committer<DorisCommittable> {
                 if (200 == statusLine.getStatusCode()) {
                     if (response.getEntity() != null) {
                         String loadResult = EntityUtils.toString(response.getEntity());
-                        Map<String, String> res = jsonMapper.readValue(loadResult, new TypeReference<HashMap<String, String>>() {
-                        });
+                        Map<String, String> res = jsonMapper.readValue(loadResult,
+                                new TypeReference<HashMap<String, String>>() {
+                                });
                         if (res.get("status").equals(FAIL) && !ResponseUtil.isCommitted(res.get("msg"))) {
                             throw new DorisRuntimeException("Commit failed " + loadResult);
                         } else {

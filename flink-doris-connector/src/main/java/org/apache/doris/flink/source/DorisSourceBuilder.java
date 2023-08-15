@@ -14,11 +14,13 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.source;
 
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.deserialization.DorisDeserializationSchema;
+
 import org.apache.flink.api.connector.source.Boundedness;
 
 /**
@@ -63,7 +65,7 @@ public class DorisSourceBuilder<OUT> {
     }
 
     public DorisSource<OUT> build() {
-        if(readOptions == null){
+        if (readOptions == null) {
             readOptions = DorisReadOptions.builder().build();
         }
         return new DorisSource<>(options, readOptions, boundedness, deserializer);

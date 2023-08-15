@@ -22,15 +22,16 @@ import org.apache.http.client.methods.HttpEntityEnclosingRequestBase;
 import java.net.URI;
 
 public class HttpGetWithEntity extends HttpEntityEnclosingRequestBase {
-    private final static String METHOD_NAME = "GET";
+    private static final String METHOD_NAME = "GET";
+
+    public HttpGetWithEntity(final String uri) {
+        super();
+        setURI(URI.create(uri));
+    }
 
     @Override
     public String getMethod() {
         return METHOD_NAME;
     }
 
-    public HttpGetWithEntity(final String uri) {
-        super();
-        setURI(URI.create(uri));
-    }
 }

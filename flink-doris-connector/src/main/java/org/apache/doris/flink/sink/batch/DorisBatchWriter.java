@@ -22,6 +22,7 @@ import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.sink.writer.DorisRecordSerializer;
 import org.apache.doris.flink.sink.writer.LabelGenerator;
+
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
@@ -48,14 +49,15 @@ public class DorisBatchWriter<IN> implements SinkWriter<IN> {
     private transient volatile Exception flushException = null;
 
     public DorisBatchWriter(Sink.InitContext initContext,
-                            DorisRecordSerializer<IN> serializer,
-                            DorisOptions dorisOptions,
-                            DorisReadOptions dorisReadOptions,
-                            DorisExecutionOptions executionOptions) {
+            DorisRecordSerializer<IN> serializer,
+            DorisOptions dorisOptions,
+            DorisReadOptions dorisReadOptions,
+            DorisExecutionOptions executionOptions) {
         LOG.info("labelPrefix " + executionOptions.getLabelPrefix());
         this.labelPrefix = executionOptions.getLabelPrefix() + "_" + initContext.getSubtaskId();
         this.labelGenerator = new LabelGenerator(labelPrefix, false);
-        this.scheduledExecutorService = new ScheduledThreadPoolExecutor(1, new ExecutorThreadFactory("stream-load-flush-interval"));
+        this.scheduledExecutorService = new ScheduledThreadPoolExecutor(1,
+                new ExecutorThreadFactory("stream-load-flush-interval"));
         this.serializer = serializer;
         this.dorisOptions = dorisOptions;
         this.dorisReadOptions = dorisReadOptions;
@@ -64,9 +66,11 @@ public class DorisBatchWriter<IN> implements SinkWriter<IN> {
     }
 
     public void initializeLoad() throws IOException {
-        this.batchStreamLoad = new DorisBatchStreamLoad(dorisOptions, dorisReadOptions, executionOptions, labelGenerator);
+        this.batchStreamLoad = new DorisBatchStreamLoad(dorisOptions, dorisReadOptions, executionOptions,
+                labelGenerator);
         // when uploading data in streaming mode, we need to regularly detect whether there are exceptions.
-        scheduledExecutorService.scheduleWithFixedDelay(this::intervalFlush, flushIntervalMs, flushIntervalMs, TimeUnit.MILLISECONDS);
+        scheduledExecutorService.scheduleWithFixedDelay(this::intervalFlush, flushIntervalMs, flushIntervalMs,
+                TimeUnit.MILLISECONDS);
     }
 
     private void intervalFlush() {
@@ -82,12 +86,13 @@ public class DorisBatchWriter<IN> implements SinkWriter<IN> {
     public void write(IN in, Context context) throws IOException, InterruptedException {
         checkFlushException();
         byte[] serialize = serializer.serialize(in);
-        if(Objects.isNull(serialize)){
-            //ddl record
+        if (Objects.isNull(serialize)) {
+            // ddl record
             return;
         }
         batchStreamLoad.writeRecord(serialize);
     }
+
     @Override
     public void flush(boolean flush) throws IOException, InterruptedException {
         checkFlushException();

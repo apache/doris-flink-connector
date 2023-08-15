@@ -24,6 +24,13 @@ import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.sink.DorisSink;
 import org.apache.doris.flink.sink.batch.DorisBatchSink;
 import org.apache.doris.flink.sink.writer.RowDataSerializer;
+
+import static org.apache.doris.flink.sink.writer.LoadConstants.COLUMNS_KEY;
+import static org.apache.doris.flink.sink.writer.LoadConstants.CSV;
+import static org.apache.doris.flink.sink.writer.LoadConstants.DORIS_DELETE_SIGN;
+import static org.apache.doris.flink.sink.writer.LoadConstants.FIELD_DELIMITER_DEFAULT;
+import static org.apache.doris.flink.sink.writer.LoadConstants.FIELD_DELIMITER_KEY;
+import static org.apache.doris.flink.sink.writer.LoadConstants.FORMAT_KEY;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
@@ -38,13 +45,6 @@ import java.util.Arrays;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
-import static org.apache.doris.flink.sink.writer.LoadConstants.COLUMNS_KEY;
-import static org.apache.doris.flink.sink.writer.LoadConstants.CSV;
-import static org.apache.doris.flink.sink.writer.LoadConstants.DORIS_DELETE_SIGN;
-import static org.apache.doris.flink.sink.writer.LoadConstants.FIELD_DELIMITER_DEFAULT;
-import static org.apache.doris.flink.sink.writer.LoadConstants.FIELD_DELIMITER_KEY;
-import static org.apache.doris.flink.sink.writer.LoadConstants.FORMAT_KEY;
-
 /**
  * DorisDynamicTableSink
  **/
@@ -57,10 +57,10 @@ public class DorisDynamicTableSink implements DynamicTableSink {
     private final Integer sinkParallelism;
 
     public DorisDynamicTableSink(DorisOptions options,
-                                 DorisReadOptions readOptions,
-                                 DorisExecutionOptions executionOptions,
-                                 TableSchema tableSchema,
-                                 Integer sinkParallelism) {
+            DorisReadOptions readOptions,
+            DorisExecutionOptions executionOptions,
+            TableSchema tableSchema,
+            Integer sinkParallelism) {
         this.options = options;
         this.readOptions = readOptions;
         this.executionOptions = executionOptions;
@@ -70,9 +70,9 @@ public class DorisDynamicTableSink implements DynamicTableSink {
 
     @Override
     public ChangelogMode getChangelogMode(ChangelogMode changelogMode) {
-        if(executionOptions.getIgnoreUpdateBefore()){
+        if (executionOptions.getIgnoreUpdateBefore()) {
             return ChangelogMode.upsert();
-        }else{
+        } else {
             return ChangelogMode.all();
         }
     }
@@ -84,7 +84,9 @@ public class DorisDynamicTableSink implements DynamicTableSink {
         if (!loadProperties.containsKey(COLUMNS_KEY)) {
             String[] fieldNames = tableSchema.getFieldNames();
             Preconditions.checkState(fieldNames != null && fieldNames.length > 0);
-            String columns = String.join(",", Arrays.stream(fieldNames).map(item -> String.format("`%s`", item.trim().replace("`", ""))).collect(Collectors.toList()));
+            String columns = String.join(",",
+                    Arrays.stream(fieldNames).map(item -> String.format("`%s`", item.trim().replace("`", "")))
+                            .collect(Collectors.toList()));
             if (deletable) {
                 columns = String.format("%s,%s", columns, DORIS_DELETE_SIGN);
             }
@@ -98,14 +100,14 @@ public class DorisDynamicTableSink implements DynamicTableSink {
                 .enableDelete(deletable)
                 .setFieldDelimiter(loadProperties.getProperty(FIELD_DELIMITER_KEY, FIELD_DELIMITER_DEFAULT));
 
-        if(!executionOptions.enableBatchMode()){
+        if (!executionOptions.enableBatchMode()) {
             DorisSink.Builder<RowData> dorisSinkBuilder = DorisSink.builder();
             dorisSinkBuilder.setDorisOptions(options)
                     .setDorisReadOptions(readOptions)
                     .setDorisExecutionOptions(executionOptions)
                     .setSerializer(serializerBuilder.build());
             return SinkProvider.of(dorisSinkBuilder.build(), sinkParallelism);
-        }else{
+        } else {
             DorisBatchSink.Builder<RowData> dorisBatchSinkBuilder = DorisBatchSink.builder();
             dorisBatchSinkBuilder.setDorisOptions(options)
                     .setDorisReadOptions(readOptions)

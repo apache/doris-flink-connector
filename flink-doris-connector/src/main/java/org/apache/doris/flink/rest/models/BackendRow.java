@@ -59,10 +59,10 @@ public class BackendRow {
 
     @Override
     public String toString() {
-        return "BackendRow{" +
-                "HttpPort='" + HttpPort + '\'' +
-                ", IP='" + IP + '\'' +
-                ", Alive=" + Alive +
-                '}';
+        return "BackendRow{"
+                + "HttpPort='" + HttpPort + '\''
+                + ", IP='" + IP + '\''
+                + ", Alive=" + Alive
+                + '}';
     }
 }

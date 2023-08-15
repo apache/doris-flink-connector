@@ -22,6 +22,7 @@ import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.connection.JdbcConnectionProvider;
 import org.apache.doris.flink.connection.SimpleJdbcConnectionProvider;
 import org.apache.doris.flink.exception.DorisRuntimeException;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -67,9 +68,9 @@ public class Worker implements Runnable {
             try {
                 GetAction action = queue.poll(2000L, TimeUnit.MILLISECONDS);
                 if (action != null) {
-                    try{
+                    try {
                         handle(action);
-                    }finally {
+                    } finally {
                         if (action.getSemaphore() != null) {
                             action.getSemaphore().release();
                         }
@@ -132,7 +133,7 @@ public class Worker implements Runnable {
         }
     }
 
-    private void appendSelect(StringBuilder sb, LookupSchema schema){
+    private void appendSelect(StringBuilder sb, LookupSchema schema) {
         String[] selectFields = schema.getSelectFields();
         sb.append("select ");
         for (int i = 0; i < selectFields.length; i++) {
@@ -146,10 +147,10 @@ public class Worker implements Runnable {
     }
 
     private Map<RecordKey, List<Record>> executeQuery(String sql,
-                                                      List<Get> recordList,
-                                                      LookupSchema schema) {
+            List<Get> recordList,
+            LookupSchema schema) {
         Map<RecordKey, List<Record>> resultRecordMap = new HashMap<>();
-        //retry strategy
+        // retry strategy
         for (int retry = 0; retry <= maxRetryTimes; retry++) {
             resultRecordMap = new HashMap<>();
             try {
@@ -170,12 +171,14 @@ public class Worker implements Runnable {
                             for (int index = 0; index < schema.getFieldTypes().length; index++) {
                                 record.setObject(index, rs.getObject(index + 1));
                             }
-                            List<Record> records = resultRecordMap.computeIfAbsent(new RecordKey(record), m -> new ArrayList<>());
+                            List<Record> records = resultRecordMap.computeIfAbsent(new RecordKey(record),
+                                    m -> new ArrayList<>());
                             records.add(record);
                         }
                     }
                 }
-                LOG.debug("query cost {}ms, batch {} records, sql is {}", System.currentTimeMillis()-start, recordList.size(), sql);
+                LOG.debug("query cost {}ms, batch {} records, sql is {}", System.currentTimeMillis() - start,
+                        recordList.size(), sql);
                 return resultRecordMap;
             } catch (Exception e) {
                 LOG.error(String.format("query doris error, retry times = %d", retry), e);

@@ -20,6 +20,7 @@ package org.apache.doris.flink.table;
 import org.apache.doris.flink.cfg.DorisLookupOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
+
 import org.apache.flink.shaded.guava30.com.google.common.cache.Cache;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.GenericRowData;
@@ -27,6 +28,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Collector;
+import static org.junit.Assert.assertEquals;
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -35,8 +37,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
-
-import static org.junit.Assert.assertEquals;
 
 @Ignore
 public class DorisRowDataLookupFunctionTest {
@@ -101,18 +101,17 @@ public class DorisRowDataLookupFunctionTest {
         Cache<RowData, List<RowData>> cache = lookupFunction.getCache();
         // empty data should cache
         assertEquals(cache.getIfPresent(keyRow),
-                        Arrays.asList(GenericRowData.of(
-                                4,
-                                StringData.fromString("D"),
-                                StringData.fromString("zhangsanD"),
-                                4.12)));
+                Arrays.asList(GenericRowData.of(
+                        4,
+                        StringData.fromString("D"),
+                        StringData.fromString("zhangsanD"),
+                        4.12)));
         assertEquals(cache.getIfPresent(keyRowNoExist), Collections.<RowData>emptyList());
 
-        //cache data expire
+        // cache data expire
         Thread.sleep(cacheExpireMs);
         assert cache.getIfPresent(keyRow) == null;
     }
-
 
     private DorisRowDataLookupFunction buildRowDataLookupFunction(DorisLookupOptions lookupOptions) {
         DorisOptions dorisOptions = DorisOptions.builder().setFenodes(TEST_FENODES)
@@ -145,7 +144,8 @@ public class DorisRowDataLookupFunctionTest {
         }
 
         @Override
-        public void close() {}
+        public void close() {
+        }
 
         public List<RowData> getOutputs() {
             return output;

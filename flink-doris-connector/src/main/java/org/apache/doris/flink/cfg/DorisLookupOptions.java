@@ -79,7 +79,9 @@ public class DorisLookupOptions implements Serializable {
         return new Builder();
     }
 
-    /** Builder of {@link DorisLookupOptions}. */
+    /**
+     * Builder of {@link DorisLookupOptions}.
+     */
     public static class Builder {
         private long cacheMaxSize = -1L;
         private long cacheExpireMs = -1L;
@@ -89,44 +91,49 @@ public class DorisLookupOptions implements Serializable {
         private int jdbcReadThreadSize;
         private boolean async;
 
-        /** optional, lookup cache max size, over this value, the old data will be eliminated. */
+        /**
+         * optional, lookup cache max size, over this value, the old data will be eliminated.
+         */
         public Builder setCacheMaxSize(long cacheMaxSize) {
             this.cacheMaxSize = cacheMaxSize;
             return this;
         }
 
-        /** optional, lookup cache expire mills, over this time, the old data will expire. */
+        /**
+         * optional, lookup cache expire mills, over this time, the old data will expire.
+         */
         public Builder setCacheExpireMs(long cacheExpireMs) {
             this.cacheExpireMs = cacheExpireMs;
             return this;
         }
 
-        /** optional, max retry times. */
+        /**
+         * optional, max retry times.
+         */
         public Builder setMaxRetryTimes(int maxRetryTimes) {
             this.maxRetryTimes = maxRetryTimes;
             return this;
         }
 
-        public Builder setJdbcReadBatchSize(int jdbcReadBatchSize){
+        public Builder setJdbcReadBatchSize(int jdbcReadBatchSize) {
             this.jdbcReadBatchSize = jdbcReadBatchSize;
             return this;
         }
 
-        public Builder setJdbcReadBatchQueueSize(int jdbcReadBatchQueueSize){
+        public Builder setJdbcReadBatchQueueSize(int jdbcReadBatchQueueSize) {
             this.jdbcReadBatchQueueSize = jdbcReadBatchQueueSize;
             return this;
         }
 
-        public Builder setJdbcReadThreadSize(int jdbcReadThreadSize){
+        public Builder setJdbcReadThreadSize(int jdbcReadThreadSize) {
             this.jdbcReadThreadSize = jdbcReadThreadSize;
             return this;
         }
 
-        public Builder setAsync(boolean async){
+        public Builder setAsync(boolean async) {
             this.async = async;
             return this;
         }
-
 
         public DorisLookupOptions build() {
             return new DorisLookupOptions(

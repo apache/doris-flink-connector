@@ -23,9 +23,10 @@ import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.sink.committer.DorisCommitter;
 import org.apache.doris.flink.sink.writer.DorisRecordSerializer;
 import org.apache.doris.flink.sink.writer.DorisWriter;
-import org.apache.flink.api.connector.sink.Committer;
 import org.apache.doris.flink.sink.writer.DorisWriterState;
 import org.apache.doris.flink.sink.writer.DorisWriterStateSerializer;
+
+import org.apache.flink.api.connector.sink.Committer;
 import org.apache.flink.api.connector.sink.GlobalCommitter;
 import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.api.connector.sink.SinkWriter;
@@ -39,6 +40,7 @@ import java.util.Optional;
 /**
  * Load data into Doris based on 2PC.
  * see {@link DorisWriter} and {@link DorisCommitter}.
+ *
  * @param <IN> type of record.
  */
 public class DorisSink<IN> implements Sink<IN, DorisCommittable, DorisWriterState, DorisCommittable> {
@@ -49,9 +51,9 @@ public class DorisSink<IN> implements Sink<IN, DorisCommittable, DorisWriterStat
     private final DorisRecordSerializer<IN> serializer;
 
     public DorisSink(DorisOptions dorisOptions,
-                     DorisReadOptions dorisReadOptions,
-                     DorisExecutionOptions dorisExecutionOptions,
-                     DorisRecordSerializer<IN> serializer) {
+            DorisReadOptions dorisReadOptions,
+            DorisExecutionOptions dorisExecutionOptions,
+            DorisRecordSerializer<IN> serializer) {
         this.dorisOptions = dorisOptions;
         this.dorisReadOptions = dorisReadOptions;
         this.dorisExecutionOptions = dorisExecutionOptions;
@@ -59,8 +61,10 @@ public class DorisSink<IN> implements Sink<IN, DorisCommittable, DorisWriterStat
     }
 
     @Override
-    public SinkWriter<IN, DorisCommittable, DorisWriterState> createWriter(InitContext initContext, List<DorisWriterState> state) throws IOException {
-        DorisWriter<IN> dorisWriter = new DorisWriter<IN>(initContext, state, serializer, dorisOptions, dorisReadOptions, dorisExecutionOptions);
+    public SinkWriter<IN, DorisCommittable, DorisWriterState> createWriter(InitContext initContext,
+            List<DorisWriterState> state) throws IOException {
+        DorisWriter<IN> dorisWriter = new DorisWriter<IN>(initContext, state, serializer, dorisOptions,
+                dorisReadOptions, dorisExecutionOptions);
         dorisWriter.initializeLoad(state);
         return dorisWriter;
     }
@@ -96,6 +100,7 @@ public class DorisSink<IN> implements Sink<IN, DorisCommittable, DorisWriterStat
 
     /**
      * build for DorisSink.
+     *
      * @param <IN> record type.
      */
     public static class Builder<IN> {
@@ -128,7 +133,7 @@ public class DorisSink<IN> implements Sink<IN, DorisCommittable, DorisWriterStat
             Preconditions.checkNotNull(dorisOptions);
             Preconditions.checkNotNull(dorisExecutionOptions);
             Preconditions.checkNotNull(serializer);
-            if(dorisReadOptions == null) {
+            if (dorisReadOptions == null) {
                 dorisReadOptions = DorisReadOptions.builder().build();
             }
             return new DorisSink<>(dorisOptions, dorisReadOptions, dorisExecutionOptions, serializer);

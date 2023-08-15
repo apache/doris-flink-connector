@@ -14,6 +14,7 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.sink;
 
 import org.junit.Assert;
@@ -28,10 +29,13 @@ public class TestResponseUtil {
     public void testIsCommitted() {
         String committedMsg = "errCode = 2, detailMessage = transaction [2] is already committed, not pre-committed.";
         String visibleMsg = "errCode = 2, detailMessage = transaction [2] is already visible, not pre-committed.";
-        String committedMsgWhenAbort = "errCode = 2, detailMessage = transaction [2] is already VISIBLE, not pre-committed.";
-        String visibleMsgWhenAbort = "errCode = 2, detailMessage = transaction [2] is already COMMITTED, not pre-committed.";
+        String committedMsgWhenAbort
+                = "errCode = 2, detailMessage = transaction [2] is already VISIBLE, not pre-committed.";
+        String visibleMsgWhenAbort
+                = "errCode = 2, detailMessage = transaction [2] is already COMMITTED, not pre-committed.";
         String commitMsg = "errCode = 2, detailMessage = transaction [2] is already COMMIT, not pre-committed.";
-        String abortedMsg = "errCode = 2, detailMessage = transaction [25] is already aborted. abort reason: User Abort";
+        String abortedMsg
+                = "errCode = 2, detailMessage = transaction [25] is already aborted. abort reason: User Abort";
         Assert.assertTrue(ResponseUtil.isCommitted(committedMsg));
         Assert.assertTrue(ResponseUtil.isCommitted(visibleMsg));
         Assert.assertTrue(ResponseUtil.isCommitted(committedMsgWhenAbort));
