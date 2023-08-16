@@ -139,17 +139,16 @@ public class DorisBatchStreamLoad implements Serializable {
 
     public synchronized void flush(boolean waitUtilDone) throws InterruptedException {
         checkFlushException();
-        if (buffer == null) {
-            LOG.debug("buffer is empty, skip flush.");
-            return;
+        if (buffer != null && !buffer.isEmpty()) {
+            buffer.setLabelName(labelGenerator.generateBatchLabel());
+            BatchRecordBuffer tmpBuff = buffer;
+            readQueue.put(tmpBuff);
+            this.buffer = null;
         }
-        buffer.setLabelName(labelGenerator.generateBatchLabel());
-        BatchRecordBuffer tmpBuff = buffer;
-        readQueue.put(tmpBuff);
-        if(waitUtilDone){
+
+        if (waitUtilDone) {
             waitAsyncLoadFinish();
         }
-        this.buffer = null;
     }
 
     private void putRecordToWriteQueue(BatchRecordBuffer buffer){
