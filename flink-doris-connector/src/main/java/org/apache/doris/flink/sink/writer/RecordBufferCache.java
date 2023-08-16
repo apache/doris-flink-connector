@@ -1,67 +1,63 @@
 package org.apache.doris.flink.sink.writer;
 
-import org.apache.arrow.util.Preconditions;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.doris.flink.exception.DorisRuntimeException;
+import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.LinkedBlockingDeque;
 
 public class RecordBufferCache extends InputStream {
-    private static final Logger LOG = LoggerFactory.getLogger(RecordBufferCache.class);
-    private List<ByteBuffer> recordBuffers;
+    LinkedBlockingDeque<ByteBuffer> readQueue;
+    LinkedBlockingDeque<ByteBuffer> cacheQueue;
     private int buffSize;
     private ByteBuffer currentWriteBuffer;
     private ByteBuffer currentReadBuffer;
-    private volatile int curReadInd;
-
-    private final Lock lock = new ReentrantLock();
-    private final Condition condition = lock.newCondition();
 
     public RecordBufferCache(int bufferSize) {
         buffSize = bufferSize;
-        recordBuffers = new LinkedList<>();
-        currentWriteBuffer = null;
-        curReadInd = 0;
-        currentReadBuffer = null;
+        readQueue = new LinkedBlockingDeque<>();
+        cacheQueue = new LinkedBlockingDeque<>();
     }
 
     public void recycle() {
-        for(ByteBuffer buff: recordBuffers) {
+        Preconditions.checkState(readQueue.poll() == null);
+        ByteBuffer buff = cacheQueue.poll();
+        while (buff != null) {
             buff.clear();
             ByteBufferManager.getByteBufferManager().recycle(buff);
+            buff = cacheQueue.poll();
         }
     }
 
     public void startInput() {
         // if the cache have data, that should be restarted from previous error
-        // reset the position for each record buffer
-        for (ByteBuffer buff: recordBuffers) {
-            buff.rewind();
+        // re-read the data in cacheQueue
+        if (currentReadBuffer != null) {
+            currentReadBuffer.rewind();
+            readQueue.addFirst(currentReadBuffer);
+            currentReadBuffer = null;
         }
-        curReadInd = 0;
-        currentReadBuffer = null;
+        ByteBuffer buffer = cacheQueue.pollLast();
+        while (buffer != null) {
+            buffer.rewind();
+            readQueue.addFirst(buffer);
+            buffer = cacheQueue.pollLast();
+        }
     }
 
-    public void endInput() throws IOException {
+    public void endInput() {
         // add Empty buffer as finish flag.
         boolean isEmpty = false;
         if (currentWriteBuffer != null) {
             currentWriteBuffer.flip();
             // check if the current write buffer is empty.
             isEmpty = currentWriteBuffer.limit() == 0;
-            lock.lock();
             try {
-                recordBuffers.add(currentWriteBuffer);
-                condition.signal();
-            } finally {
-                lock.unlock();
+                readQueue.put(currentWriteBuffer);
+            } catch (InterruptedException e) {
+                throw new DorisRuntimeException(e);
             }
             currentWriteBuffer = null;
         }
@@ -69,13 +65,7 @@ public class RecordBufferCache extends InputStream {
             ByteBuffer byteBuffer = ByteBufferManager.getByteBufferManager().allocate(buffSize);
             byteBuffer.flip();
             Preconditions.checkState(byteBuffer.limit() == 0);
-            lock.lock();
-            try {
-                recordBuffers.add(byteBuffer);
-                condition.signal();
-            } finally {
-                lock.unlock();
-            }
+            readQueue.add(byteBuffer);
         }
     }
 
@@ -85,36 +75,29 @@ public class RecordBufferCache extends InputStream {
     }
 
     @Override
-    public int read(byte[] buf) throws IOException {
-        lock.lock();
+    public int read(byte[] buf) throws IOException{
         try {
-            if (recordBuffers.isEmpty() || recordBuffers.size() <= curReadInd) {
-                condition.await();
+            if (currentReadBuffer == null) {
+                currentReadBuffer = readQueue.take();
             }
-            if(currentReadBuffer == null) {
-                currentReadBuffer = recordBuffers.get(curReadInd);
-                curReadInd++;
+            // add empty buffer as end flag
+            if (currentReadBuffer.limit() == 0) {
+                cacheQueue.put(currentReadBuffer);
+                currentReadBuffer = null;
+                return -1;
             }
+
+            int available = currentReadBuffer.remaining();
+            int nRead = Math.min(available, buf.length);
+            currentReadBuffer.get(buf, 0, nRead);
+            if (currentReadBuffer.remaining() == 0) {
+                cacheQueue.put(currentReadBuffer);
+                currentReadBuffer = null;
+            }
+            return nRead;
         } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        } finally {
-            lock.unlock();
+            throw new DorisRuntimeException(e);
         }
-
-        // add empty buffer as end flag
-        if (currentReadBuffer.limit() == 0) {
-            currentReadBuffer = null;
-            return -1;
-        }
-
-        int available = currentReadBuffer.remaining();
-        int nRead = Math.min(available, buf.length);
-        currentReadBuffer.get(buf, 0, nRead);
-        if (currentReadBuffer.remaining() == 0) {
-            currentReadBuffer = null;
-        }
-
-        return nRead;
     }
 
     public void write(byte[] buf) {
@@ -129,14 +112,11 @@ public class RecordBufferCache extends InputStream {
             wPos += nWrite;
             if (currentWriteBuffer.remaining() == 0) {
                 currentWriteBuffer.flip();
-                lock.lock();
                 try {
-                    recordBuffers.add(currentWriteBuffer);
-                    condition.signal();
-                } finally {
-                    lock.unlock();
+                    readQueue.put(currentWriteBuffer);
+                } catch (InterruptedException e) {
+                    throw new DorisRuntimeException(e);
                 }
-
                 currentWriteBuffer = null;
             }
         } while (wPos != buf.length);
