@@ -72,7 +72,7 @@ public class DorisOptions extends DorisConnectionOptions {
         private String username;
         private String password;
         private String tableIdentifier;
-        private Boolean useCacheWriter;
+        private boolean useCacheWriter;
 
         /**
          * required, tableIdentifier
