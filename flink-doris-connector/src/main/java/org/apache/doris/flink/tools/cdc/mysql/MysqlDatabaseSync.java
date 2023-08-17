@@ -133,6 +133,12 @@ public class MysqlDatabaseSync extends DatabaseSync {
         config
                 .getOptional(MySqlSourceOptions.SCAN_NEWLY_ADDED_TABLE_ENABLED)
                 .ifPresent(sourceBuilder::scanNewlyAddedTableEnabled);
+        config
+                .getOptional(MySqlSourceOptions.SCAN_INCREMENTAL_SNAPSHOT_CHUNK_SIZE)
+                .ifPresent(sourceBuilder::splitSize);
+        config
+                .getOptional(MySqlSourceOptions.SCAN_INCREMENTAL_CLOSE_IDLE_READER_ENABLED)
+                .ifPresent(sourceBuilder::closeIdleReaders);
 
         String startupMode = config.get(MySqlSourceOptions.SCAN_STARTUP_MODE);
         if ("initial".equalsIgnoreCase(startupMode)) {
