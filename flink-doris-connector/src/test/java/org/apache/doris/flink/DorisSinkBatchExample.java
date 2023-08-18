@@ -115,7 +115,7 @@ public class DorisSinkBatchExample {
         properties.setProperty("line_delimiter", "\n");
         properties.setProperty("format", "csv");
         DorisOptions.Builder dorisBuilder = DorisOptions.builder();
-        dorisBuilder.setFenodes("172.16.32.2:8030")
+        dorisBuilder.setFenodes("127.0.0.1:8030")
                 .setTableIdentifier("test.testd")
                 .setUsername("root")
                 .setPassword("");
