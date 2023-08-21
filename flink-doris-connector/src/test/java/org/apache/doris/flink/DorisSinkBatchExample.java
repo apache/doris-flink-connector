@@ -22,6 +22,7 @@ import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.sink.batch.DorisBatchSink;
 import org.apache.doris.flink.sink.writer.SimpleStringSerializer;
+
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -134,9 +135,9 @@ public class DorisSinkBatchExample {
                 .setSerializer(new SimpleStringSerializer())
                 .setDorisOptions(dorisBuilder.build());
 
-
         DataStreamSource<String> stringDataStreamSource = env.fromCollection(
-                Arrays.asList("1,-74159.9193252453", "2,-74159.9193252453", "3,-19.7004480979", "4,43385.2170333507", "5,-16.2602598554"));
+                Arrays.asList("1,-74159.9193252453", "2,-74159.9193252453", "3,-19.7004480979", "4,43385.2170333507",
+                        "5,-16.2602598554"));
         stringDataStreamSource.sinkTo(builder.build());
 
         env.execute("doris batch test");
