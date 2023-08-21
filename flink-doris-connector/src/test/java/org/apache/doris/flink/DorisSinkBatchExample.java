@@ -21,15 +21,17 @@ import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.sink.batch.DorisBatchSink;
 import org.apache.doris.flink.sink.writer.SimpleStringSerializer;
+import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 
+import java.util.Arrays;
 import java.util.Properties;
 import java.util.UUID;
 
 
 public class DorisSinkBatchExample {
-    public static void main(String[] args) throws Exception{
+    public static void main(String[] args) throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
 //        env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
@@ -56,11 +58,11 @@ public class DorisSinkBatchExample {
                 .setTableIdentifier("test.test_flink")
                 .setUsername("root")
                 .setPassword("");
-        DorisExecutionOptions.Builder  executionBuilder = DorisExecutionOptions.builder();
+        DorisExecutionOptions.Builder executionBuilder = DorisExecutionOptions.builder();
         executionBuilder.setLabelPrefix("label")
                 .setStreamLoadProp(properties)
                 .setDeletable(false)
-                .setBufferFlushMaxBytes(8*1024)
+                .setBufferFlushMaxBytes(8 * 1024)
                 .setBufferFlushMaxRows(900)
                 .setBufferFlushIntervalMs(1000 * 10);
 
@@ -71,15 +73,17 @@ public class DorisSinkBatchExample {
 
         env.addSource(new SourceFunction<String>() {
             private Long id = 0L;
+
             @Override
             public void run(SourceContext<String> out) throws Exception {
-                while(true){
-                    id=id+1;
+                while (true) {
+                    id = id + 1;
                     String record = id + "," + UUID.randomUUID() + "," + id + "";
                     out.collect(record);
                     Thread.sleep(500);
                 }
             }
+
             @Override
             public void cancel() {
 
@@ -87,5 +91,55 @@ public class DorisSinkBatchExample {
         }).sinkTo(builder.build());
 
         env.execute("doris batch test");
+    }
+
+    public void testBatchFlush() throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(1);
+
+        DorisBatchSink.Builder<String> builder = DorisBatchSink.builder();
+        final DorisReadOptions.Builder readOptionBuilder = DorisReadOptions.builder();
+
+        readOptionBuilder.setDeserializeArrowAsync(false)
+                .setDeserializeQueueSize(64)
+                .setExecMemLimit(2147483648L)
+                .setRequestQueryTimeoutS(3600)
+                .setRequestBatchSize(1000)
+                .setRequestConnectTimeoutMs(10000)
+                .setRequestReadTimeoutMs(10000)
+                .setRequestRetries(3)
+                .setRequestTabletSize(1024 * 1024);
+
+        Properties properties = new Properties();
+        properties.setProperty("column_separator", ",");
+        properties.setProperty("line_delimiter", "\n");
+        properties.setProperty("format", "csv");
+        DorisOptions.Builder dorisBuilder = DorisOptions.builder();
+        dorisBuilder.setFenodes("127.0.0.1:8030")
+                .setTableIdentifier("test.testd")
+                .setUsername("root")
+                .setPassword("");
+
+        DorisExecutionOptions.Builder executionBuilder = DorisExecutionOptions.builder();
+
+        executionBuilder.setLabelPrefix("label")
+                .setStreamLoadProp(properties)
+                .setDeletable(false)
+                .setBufferFlushMaxBytes(8 * 1024)
+                .setBufferFlushMaxRows(1)
+                .setBufferFlushIntervalMs(1000 * 10);
+
+        builder.setDorisReadOptions(readOptionBuilder.build())
+                .setDorisExecutionOptions(executionBuilder.build())
+                .setSerializer(new SimpleStringSerializer())
+                .setDorisOptions(dorisBuilder.build());
+
+
+        DataStreamSource<String> stringDataStreamSource = env.fromCollection(
+                Arrays.asList("1,-74159.9193252453", "2,-74159.9193252453", "3,-19.7004480979", "4,43385.2170333507", "5,-16.2602598554"));
+        stringDataStreamSource.sinkTo(builder.build());
+
+        env.execute("doris batch test");
+
     }
 }
