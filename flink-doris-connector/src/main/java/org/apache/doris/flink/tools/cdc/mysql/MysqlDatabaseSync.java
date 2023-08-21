@@ -136,9 +136,12 @@ public class MysqlDatabaseSync extends DatabaseSync {
         config
                 .getOptional(MySqlSourceOptions.SCAN_INCREMENTAL_SNAPSHOT_CHUNK_SIZE)
                 .ifPresent(sourceBuilder::splitSize);
-        config
+
+        //Compatible with flink cdc mysql 2.3.0, close this option first
+        /* config
                 .getOptional(MySqlSourceOptions.SCAN_INCREMENTAL_CLOSE_IDLE_READER_ENABLED)
                 .ifPresent(sourceBuilder::closeIdleReaders);
+         **/
 
         String startupMode = config.get(MySqlSourceOptions.SCAN_STARTUP_MODE);
         if ("initial".equalsIgnoreCase(startupMode)) {
