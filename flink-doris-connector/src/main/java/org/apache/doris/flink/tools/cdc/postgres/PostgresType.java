@@ -78,7 +78,7 @@ public class PostgresType {
             case BIGSERIAL:
                 return DorisType.BIGINT;
             case NUMERIC:
-                return precision != null && precision <= 38
+                return precision != null && precision > 0 && precision <= 38
                         ? String.format("%s(%s,%s)", DorisType.DECIMAL_V3, precision, scale != null && scale >= 0 ? scale : 0)
                         : DorisType.STRING;
             case FLOAT4:
