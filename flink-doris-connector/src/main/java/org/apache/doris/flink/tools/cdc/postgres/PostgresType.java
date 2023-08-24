@@ -67,6 +67,9 @@ public class PostgresType {
 
     public static String toDorisType(String postgresType, Integer precision, Integer scale) {
         postgresType = postgresType.toLowerCase();
+        if(postgresType.startsWith("_")){
+          return DorisType.STRING;
+        }
         switch (postgresType){
             case INT2:
             case SMALLSERIAL:
@@ -121,6 +124,8 @@ public class PostgresType {
             case JSON:
             case JSONB:
                 return DorisType.JSONB;
+            /* Compatible with doris1.2 array type can only be used in dup table,
+               and then converted to array in the next version
             case _BOOL:
                 return String.format("%s<%s>", DorisType.ARRAY, DorisType.BOOLEAN);
             case _INT2:
@@ -139,6 +144,7 @@ public class PostgresType {
                 return String.format("%s<%s>", DorisType.ARRAY, DorisType.DATE_V2);
             case _TIMESTAMP:
                 return String.format("%s<%s>", DorisType.ARRAY, DorisType.DATETIME_V2);
+            **/
             default:
                 throw new UnsupportedOperationException("Unsupported Postgres Type: " + postgresType);
         }
