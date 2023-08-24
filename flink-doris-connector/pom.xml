@@ -261,6 +261,12 @@ under the License.
             <scope>provided</scope>
         </dependency>
         <dependency>
+            <groupId>com.ververica</groupId>
+            <artifactId>flink-sql-connector-sqlserver-cdc</artifactId>
+            <version>2.4.1</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
             <groupId>org.apache.flink</groupId>
             <artifactId>flink-runtime-web</artifactId>
             <version>${flink.version}</version>

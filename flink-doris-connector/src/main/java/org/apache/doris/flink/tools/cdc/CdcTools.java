@@ -20,6 +20,7 @@ package org.apache.doris.flink.tools.cdc;
 import org.apache.doris.flink.tools.cdc.mysql.MysqlDatabaseSync;
 import org.apache.doris.flink.tools.cdc.oracle.OracleDatabaseSync;
 import org.apache.doris.flink.tools.cdc.postgres.PostgresDatabaseSync;
+import org.apache.doris.flink.tools.cdc.sqlserver.SqlServerDatabaseSync;
 import org.apache.flink.api.java.utils.MultipleParameterTool;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -37,6 +38,7 @@ public class CdcTools {
     private static final String MYSQL_SYNC_DATABASE = "mysql-sync-database";
     private static final String ORACLE_SYNC_DATABASE = "oracle-sync-database";
     private static final String POSTGRES_SYNC_DATABASE = "postgres-sync-database";
+    private static final String SQLSERVER_SYNC_DATABASE = "sqlserver-sync-database";
     private static final List<String> EMPTY_KEYS = Arrays.asList("password");
 
     public static void main(String[] args) throws Exception {
@@ -52,6 +54,9 @@ public class CdcTools {
                 break;
             case POSTGRES_SYNC_DATABASE:
                 createPostgresSyncDatabase(opArgs);
+                break;
+            case SQLSERVER_SYNC_DATABASE:
+                createSqlServerSyncDatabase(opArgs);
                 break;
             default:
                 System.out.println("Unknown operation " + operation);
@@ -81,6 +86,14 @@ public class CdcTools {
         Configuration postgresConfig = Configuration.fromMap(postgresMap);
         DatabaseSync databaseSync = new PostgresDatabaseSync();
         syncDatabase(params, databaseSync, postgresConfig, "Postgres");
+    }
+
+    private static void createSqlServerSyncDatabase(String[] opArgs) throws Exception {
+        MultipleParameterTool params = MultipleParameterTool.fromArgs(opArgs);
+        Map<String, String> postgresMap = getConfigMap(params, "sqlserver-conf");
+        Configuration postgresConfig = Configuration.fromMap(postgresMap);
+        DatabaseSync databaseSync = new SqlServerDatabaseSync();
+        syncDatabase(params, databaseSync, postgresConfig, "SqlServer");
     }
 
     private static void syncDatabase(MultipleParameterTool params, DatabaseSync databaseSync, Configuration config, String type) throws Exception {
