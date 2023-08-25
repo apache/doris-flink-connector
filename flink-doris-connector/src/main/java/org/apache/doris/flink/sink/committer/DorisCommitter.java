@@ -17,6 +17,7 @@
 
 package org.apache.doris.flink.sink.committer;
 
+import org.apache.doris.flink.sink.writer.DorisStreamLoadManager;
 import org.apache.flink.api.connector.sink.Committer;
 
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -73,6 +74,10 @@ public class DorisCommitter implements Committer<DorisCommittable> {
     public List<DorisCommittable> commit(List<DorisCommittable> committableList) throws IOException {
         for (DorisCommittable committable : committableList) {
             commitTransaction(committable);
+            if (committable.getCheckpointId() != -1) {
+                // after commit succeed, remove the cache data to release memory
+                DorisStreamLoadManager.getDorisStreamLoadManager().remove(committable.getCheckpointId());
+            }
         }
         return Collections.emptyList();
     }

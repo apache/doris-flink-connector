@@ -21,11 +21,12 @@ import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.sink.committer.DorisCommitter;
+import org.apache.doris.flink.sink.writer.DorisCacheWriter;
 import org.apache.doris.flink.sink.writer.DorisRecordSerializer;
 import org.apache.doris.flink.sink.writer.DorisWriter;
-import org.apache.flink.api.connector.sink.Committer;
 import org.apache.doris.flink.sink.writer.DorisWriterState;
 import org.apache.doris.flink.sink.writer.DorisWriterStateSerializer;
+import org.apache.flink.api.connector.sink.Committer;
 import org.apache.flink.api.connector.sink.GlobalCommitter;
 import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.api.connector.sink.SinkWriter;
@@ -38,7 +39,7 @@ import java.util.Optional;
 
 /**
  * Load data into Doris based on 2PC.
- * see {@link DorisWriter} and {@link DorisCommitter}.
+ * see {@link DorisCacheWriter}, {@link DorisWriter} and {@link DorisCommitter}.
  * @param <IN> type of record.
  */
 public class DorisSink<IN> implements Sink<IN, DorisCommittable, DorisWriterState, DorisCommittable> {
@@ -60,9 +61,15 @@ public class DorisSink<IN> implements Sink<IN, DorisCommittable, DorisWriterStat
 
     @Override
     public SinkWriter<IN, DorisCommittable, DorisWriterState> createWriter(InitContext initContext, List<DorisWriterState> state) throws IOException {
-        DorisWriter<IN> dorisWriter = new DorisWriter<IN>(initContext, state, serializer, dorisOptions, dorisReadOptions, dorisExecutionOptions);
-        dorisWriter.initializeLoad(state);
-        return dorisWriter;
+        if (dorisOptions.isUseCacheWriter()) {
+            DorisCacheWriter<IN> dorisCacheWriter = new DorisCacheWriter<IN>(initContext, state, serializer, dorisOptions, dorisReadOptions, dorisExecutionOptions);
+            dorisCacheWriter.initializeLoad(state);
+            return dorisCacheWriter;
+        } else {
+            DorisWriter<IN> dorisWriter = new DorisWriter<IN>(initContext, state, serializer, dorisOptions, dorisReadOptions, dorisExecutionOptions);
+            dorisWriter.initializeLoad(state);
+            return dorisWriter;
+        }
     }
 
     @Override

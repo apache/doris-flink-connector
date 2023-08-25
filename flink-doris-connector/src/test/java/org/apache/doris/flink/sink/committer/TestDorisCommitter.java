@@ -50,7 +50,7 @@ public class TestDorisCommitter {
     public void setUp() throws Exception{
         DorisOptions dorisOptions = OptionUtils.buildDorisOptions();
         DorisReadOptions readOptions = OptionUtils.buildDorisReadOptions();
-        dorisCommittable = new DorisCommittable("127.0.0.1:8710", "test", 0);
+        dorisCommittable = new DorisCommittable("127.0.0.1:8710", "test", 0, 0);
         CloseableHttpClient httpClient = mock(CloseableHttpClient.class);
         entityMock = new HttpEntityMock();
         CloseableHttpResponse httpResponse = mock(CloseableHttpResponse.class);

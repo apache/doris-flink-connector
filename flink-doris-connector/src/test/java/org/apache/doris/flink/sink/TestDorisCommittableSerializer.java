@@ -26,7 +26,7 @@ import org.junit.Test;
 public class TestDorisCommittableSerializer {
     @Test
     public void testSerialize() throws Exception {
-        DorisCommittable expectCommittable = new DorisCommittable("fe:8040", "test", 100);
+        DorisCommittable expectCommittable = new DorisCommittable("fe:8040", "test", 100, 1);
         DorisCommittableSerializer serializer = new DorisCommittableSerializer();
         DorisCommittable committable = serializer.deserialize(1, serializer.serialize(expectCommittable));
         Assert.assertEquals(expectCommittable, committable);

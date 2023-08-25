@@ -156,7 +156,7 @@ public class DorisWriter<IN> implements SinkWriter<IN, DorisCommittable, DorisWr
             return Collections.emptyList();
         }
         long txnId = respContent.getTxnId();
-        return ImmutableList.of(new DorisCommittable(dorisStreamLoad.getHostPort(), dorisStreamLoad.getDb(), txnId));
+        return ImmutableList.of(new DorisCommittable(dorisStreamLoad.getHostPort(), dorisStreamLoad.getDb(), txnId, -1));
     }
 
     @Override
