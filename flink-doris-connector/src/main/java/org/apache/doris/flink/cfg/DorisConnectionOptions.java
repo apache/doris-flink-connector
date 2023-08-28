@@ -27,10 +27,12 @@ public class DorisConnectionOptions implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    protected final String fenodes;
+    protected String fenodes;
     protected final String username;
     protected final String password;
     protected String jdbcUrl;
+    protected String beNodes;
+    protected boolean enableIntranetAccess;
 
     public DorisConnectionOptions(String fenodes, String username, String password) {
         this.fenodes = Preconditions.checkNotNull(fenodes, "fenodes  is empty");
@@ -38,8 +40,17 @@ public class DorisConnectionOptions implements Serializable {
         this.password = password;
     }
 
-    public DorisConnectionOptions(String fenodes, String username, String password, String jdbcUrl){
-        this(fenodes,username,password);
+    public DorisConnectionOptions(String fenodes, String username, String password, String jdbcUrl) {
+        this(fenodes, username, password);
+        this.jdbcUrl = jdbcUrl;
+    }
+
+    public DorisConnectionOptions(String beNodes, boolean enableIntranetAccess, String username, String password,
+            String jdbcUrl) {
+        this.beNodes = beNodes;
+        this.enableIntranetAccess = enableIntranetAccess;
+        this.username = username;
+        this.password = password;
         this.jdbcUrl = jdbcUrl;
     }
 
@@ -53,6 +64,14 @@ public class DorisConnectionOptions implements Serializable {
 
     public String getPassword() {
         return password;
+    }
+
+    public String getBeNodes() {
+        return beNodes;
+    }
+
+    public boolean enableIntranetAccess() {
+        return enableIntranetAccess;
     }
 
     public String getJdbcUrl(){

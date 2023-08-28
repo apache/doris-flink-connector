@@ -27,6 +27,7 @@ import org.apache.doris.flink.rest.models.RespContent;
 import org.apache.doris.flink.sink.BackendUtil;
 import org.apache.doris.flink.sink.DorisCommittable;
 import org.apache.doris.flink.sink.HttpUtil;
+
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.api.connector.sink.SinkWriter;
@@ -99,8 +100,8 @@ public class DorisWriter<IN> implements SinkWriter<IN, DorisCommittable, DorisWr
     }
 
     public void initializeLoad(List<DorisWriterState> state) throws IOException {
-        //cache backend
-        backendUtil = new BackendUtil(RestService.getBackendsV2(dorisOptions, dorisReadOptions, LOG));
+        this.backendUtil = dorisOptions.enableIntranetAccess() ? new BackendUtil(dorisOptions.getBeNodes())
+                : new BackendUtil(RestService.getBackendsV2(dorisOptions, dorisReadOptions, LOG));
         try {
             this.dorisStreamLoad = new DorisStreamLoad(
                     backendUtil.getAvailableBackend(),

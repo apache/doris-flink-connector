@@ -42,6 +42,12 @@ public class DorisOptions extends DorisConnectionOptions {
         this.tableIdentifier = tableIdentifier;
     }
 
+    public DorisOptions(String beNodes, boolean enableIntranetAccess, String username, String password,
+            String tableIdentifier, String jdbcUrl) {
+        super(beNodes, enableIntranetAccess, username, password, jdbcUrl);
+        this.tableIdentifier = tableIdentifier;
+    }
+
     public String getTableIdentifier() {
         return tableIdentifier;
     }
@@ -60,11 +66,12 @@ public class DorisOptions extends DorisConnectionOptions {
      */
     public static class Builder {
         private String fenodes;
-
+        private String beNodes;
         private String jdbcUrl;
         private String username;
         private String password;
         private String tableIdentifier;
+        private boolean enableIntranetAccess;
 
         /**
          * required, tableIdentifier
@@ -99,6 +106,22 @@ public class DorisOptions extends DorisConnectionOptions {
         }
 
         /**
+         * optional, Backend Http Port
+         */
+        public Builder setBeNodes(String beNodes) {
+            this.beNodes = beNodes;
+            return this;
+        }
+
+        /**
+         * optional, allow access to be through the intranet
+         */
+        public Builder enableIntranetAccess() {
+            this.enableIntranetAccess = true;
+            return this;
+        }
+
+        /**
          * not required, fe jdbc url, for lookup query
          */
         public Builder setJdbcUrl(String jdbcUrl) {
@@ -107,11 +130,13 @@ public class DorisOptions extends DorisConnectionOptions {
         }
 
         public DorisOptions build() {
-            checkNotNull(fenodes, "No fenodes supplied.");
             checkNotNull(tableIdentifier, "No tableIdentifier supplied.");
-            return new DorisOptions(fenodes, username, password, tableIdentifier, jdbcUrl);
+            if (!enableIntranetAccess) {
+                checkNotNull(fenodes, "No fenodes supplied.");
+                return new DorisOptions(fenodes, username, password, tableIdentifier, jdbcUrl);
+            }
+            return new DorisOptions(beNodes, enableIntranetAccess, username, password, tableIdentifier, jdbcUrl);
         }
     }
-
 
 }
