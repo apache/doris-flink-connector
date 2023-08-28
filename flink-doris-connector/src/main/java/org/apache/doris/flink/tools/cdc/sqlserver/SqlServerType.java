@@ -41,6 +41,7 @@ public class SqlServerType {
     private static final String TEXT = "text";
     private static final String NTEXT = "ntext";
     private static final String TIME = "time";
+    private static final String TIMESTAMP = "timestamp";
     private static final String DATETIMEOFFSET = "datetimeoffset";
     private static final String IMAGE = "image";
     private static final String BINARY = "binary";
@@ -67,6 +68,7 @@ public class SqlServerType {
                 return String.format("%s(%s,%s)", DorisType.DECIMAL_V3, 19, 4);
             case SMALLMONEY:
                 return String.format("%s(%s,%s)", DorisType.DECIMAL_V3, 10, 4);
+            case DECIMAL:
             case NUMERIC:
                 return precision != null && precision > 0 && precision <= 38
                         ? String.format("%s(%s,%s)", DorisType.DECIMAL_V3, precision, scale != null && scale >= 0 ? scale : 0)
@@ -86,6 +88,7 @@ public class SqlServerType {
             case NTEXT:
             case TIME:
             case DATETIMEOFFSET:
+            case TIMESTAMP:
                 return DorisType.STRING;
             default:
                 throw new UnsupportedOperationException("Unsupported SqlServer Type: " + sqlServerType);

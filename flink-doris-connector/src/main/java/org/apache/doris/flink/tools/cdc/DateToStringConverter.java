@@ -139,7 +139,7 @@ public class DateToStringConverter implements CustomConverter<SchemaBuilder, Rel
             LocalDateTime localDateTime = zonedDateTime.withZoneSameInstant(timestampZoneId).toLocalDateTime();
             return timestampFormatter.format(localDateTime);
         } else if (input instanceof Timestamp) {
-            return timestampFormatter.format(((Timestamp) input).toLocalDateTime());
+            return timestampFormatter.format(((Timestamp) input).toInstant().atZone(timestampZoneId).toLocalDateTime());
         }
         return null;
     }
