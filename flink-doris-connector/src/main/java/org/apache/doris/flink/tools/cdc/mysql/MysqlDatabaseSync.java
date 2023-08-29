@@ -26,7 +26,7 @@ import com.ververica.cdc.connectors.shaded.org.apache.kafka.connect.json.JsonCon
 import com.ververica.cdc.debezium.DebeziumDeserializationSchema;
 import com.ververica.cdc.debezium.JsonDebeziumDeserializationSchema;
 import com.ververica.cdc.debezium.table.DebeziumOptions;
-
+import org.apache.doris.flink.catalog.doris.DataModel;
 import org.apache.doris.flink.deserialization.DorisJsonDebeziumDeserializationSchema;
 import org.apache.doris.flink.tools.cdc.DatabaseSync;
 import org.apache.doris.flink.tools.cdc.DateToStringConverter;
@@ -34,7 +34,9 @@ import org.apache.doris.flink.tools.cdc.SourceSchema;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,6 +50,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class MysqlDatabaseSync extends DatabaseSync {
     private static final Logger LOG = LoggerFactory.getLogger(MysqlDatabaseSync.class);
@@ -83,13 +87,8 @@ public class MysqlDatabaseSync extends DatabaseSync {
                     }
                     SourceSchema sourceSchema =
                             new MysqlSchema(metaData, databaseName, tableName, tableComment);
-                    if (sourceSchema.primaryKeys.size() > 0) {
-                        //Only sync tables with primary keys
-                        schemaList.add(sourceSchema);
-                    } else {
-                        LOG.warn("table {} has no primary key, skip", tableName);
-                        System.out.println("table " + tableName + " has no primary key, skip.");
-                    }
+                    sourceSchema.setModel(sourceSchema.primaryKeys.size() > 0 ? DataModel.UNIQUE : DataModel.DUPLICATE);
+                    schemaList.add(sourceSchema);
                 }
             }
         }
@@ -136,13 +135,11 @@ public class MysqlDatabaseSync extends DatabaseSync {
         config
                 .getOptional(MySqlSourceOptions.SCAN_INCREMENTAL_SNAPSHOT_CHUNK_SIZE)
                 .ifPresent(sourceBuilder::splitSize);
-
-        //Compatible with flink cdc mysql 2.3.0, close this option first
-        /* config
+        config
                 .getOptional(MySqlSourceOptions.SCAN_INCREMENTAL_CLOSE_IDLE_READER_ENABLED)
                 .ifPresent(sourceBuilder::closeIdleReaders);
-         **/
 
+        setChunkColumns(sourceBuilder);
         String startupMode = config.get(MySqlSourceOptions.SCAN_STARTUP_MODE);
         if ("initial".equalsIgnoreCase(startupMode)) {
             sourceBuilder.startupOptions(StartupOptions.initial());
@@ -203,6 +200,36 @@ public class MysqlDatabaseSync extends DatabaseSync {
         DataStreamSource<String> streamSource = env.fromSource(
                 mySqlSource, WatermarkStrategy.noWatermarks(), "MySQL Source");
         return streamSource;
+    }
+
+    /**
+     * set chunkkeyColumn,eg: db.table1:column1,db.table2:column2
+     * @param sourceBuilder
+     */
+    private void setChunkColumns(MySqlSourceBuilder<String> sourceBuilder) {
+        Map<ObjectPath, String> chunkColumnMap = getChunkColumnMap();
+        for(Map.Entry<ObjectPath, String> entry : chunkColumnMap.entrySet()){
+            sourceBuilder.chunkKeyColumn(entry.getKey(), entry.getValue());
+        }
+    }
+
+    private Map<ObjectPath, String> getChunkColumnMap(){
+        Map<ObjectPath, String> chunkMap = new HashMap<>();
+        String chunkColumn = config.getString(MySqlSourceOptions.SCAN_INCREMENTAL_SNAPSHOT_CHUNK_KEY_COLUMN);
+        if(!StringUtils.isNullOrWhitespaceOnly(chunkColumn)){
+            final Pattern chunkPattern = Pattern.compile("(\\S+)\\.(\\S+):(\\S+)");
+            String[] tblColumns = chunkColumn.split(",");
+            for(String tblCol : tblColumns){
+                Matcher matcher = chunkPattern.matcher(tblCol);
+                if(matcher.find()){
+                    String db = matcher.group(1);
+                    String table = matcher.group(2);
+                    String col = matcher.group(3);
+                    chunkMap.put(new ObjectPath(db, table), col);
+                }
+            }
+        }
+        return chunkMap;
     }
 
     private Properties getJdbcProperties(){
