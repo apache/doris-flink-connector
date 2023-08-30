@@ -115,9 +115,52 @@ public class DorisSource<OUT> implements Source<OUT, DorisSourceSplit, PendingSp
     public SimpleVersionedSerializer<PendingSplitsCheckpoint> getEnumeratorCheckpointSerializer() {
         return new PendingSplitsCheckpointSerializer(getSplitSerializer());
     }
-
+    public static <OUT> Builder<OUT> builder() {
+        return new Builder<>();
+    }
     @Override
     public TypeInformation<OUT> getProducedType() {
         return deserializer.getProducedType();
+    }
+    /**
+     * The builder class for {@link DorisSource} to make it easier for the users to construct a {@link
+     * DorisSource}.
+     **/
+    public static class Builder<OUT> {
+
+        private DorisOptions options;
+        private DorisReadOptions readOptions;
+
+        // Boundedness
+        private Boundedness boundedness;
+        private DorisDeserializationSchema<OUT> deserializer;
+
+        Builder() {
+            boundedness = Boundedness.BOUNDED;
+        }
+
+        public Builder<OUT> setDorisOptions(DorisOptions options) {
+            this.options = options;
+            return this;
+        }
+
+        public Builder<OUT> setDorisReadOptions(DorisReadOptions readOptions) {
+            this.readOptions = readOptions;
+            return this;
+        }
+
+        public Builder<OUT> setBoundedness(Boundedness boundedness) {
+            this.boundedness = boundedness;
+            return this;
+        }
+
+        public Builder<OUT> setDeserializer(DorisDeserializationSchema<OUT> deserializer) {
+            this.deserializer = deserializer;
+            return this;
+        }
+
+        public DorisSource<OUT> build() {
+            return new DorisSource<>(options, readOptions, boundedness, deserializer);
+        }
     }
 }

@@ -22,9 +22,11 @@ import org.apache.doris.flink.deserialization.DorisDeserializationSchema;
 import org.apache.flink.api.connector.source.Boundedness;
 
 /**
- * The builder class for {@link DorisSource} to make it easier for the users to construct a {@link
- * DorisSource}.
+ * <p>NOTE: Add a static inner builder class to DorisSource  so that users may follow the same pattern when creating Doris sources&sinks
+ * @deprecated Use {@link DorisSource.Builder} instead.
+ *
  **/
+@Deprecated
 public class DorisSourceBuilder<OUT> {
 
     private DorisOptions options;
