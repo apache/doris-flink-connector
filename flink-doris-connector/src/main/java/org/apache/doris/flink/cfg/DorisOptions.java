@@ -20,7 +20,6 @@ import org.apache.doris.flink.util.IOUtils;
 
 import java.util.Properties;
 
-import org.apache.commons.lang3.StringUtils;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -125,11 +124,7 @@ public class DorisOptions extends DorisConnectionOptions {
         public DorisOptions build() {
             checkNotNull(fenodes, "No fenodes supplied.");
             checkNotNull(tableIdentifier, "No tableIdentifier supplied.");
-            if (StringUtils.isNotEmpty(beNodes)) {
-                return new DorisOptions(fenodes, beNodes, username, password, tableIdentifier, jdbcUrl);
-            }
-            return new DorisOptions(fenodes, username, password, tableIdentifier, jdbcUrl);
-
+            return new DorisOptions(fenodes, beNodes, username, password, tableIdentifier, jdbcUrl);
         }
     }
 
