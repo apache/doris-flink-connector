@@ -67,7 +67,7 @@ public class DorisOptions extends DorisConnectionOptions {
      */
     public static class Builder {
         private String fenodes;
-        private String beNodes;
+        private String benodes;
         private String jdbcUrl;
         private String username;
         private String password;
@@ -108,8 +108,8 @@ public class DorisOptions extends DorisConnectionOptions {
         /**
          * optional, Backend Http Port
          */
-        public Builder setBeNodes(String beNodes) {
-            this.beNodes = beNodes;
+        public Builder setBenodes(String benodes) {
+            this.benodes = benodes;
             return this;
         }
 
@@ -124,7 +124,7 @@ public class DorisOptions extends DorisConnectionOptions {
         public DorisOptions build() {
             checkNotNull(fenodes, "No fenodes supplied.");
             checkNotNull(tableIdentifier, "No tableIdentifier supplied.");
-            return new DorisOptions(fenodes, beNodes, username, password, tableIdentifier, jdbcUrl);
+            return new DorisOptions(fenodes, benodes, username, password, tableIdentifier, jdbcUrl);
         }
     }
 
