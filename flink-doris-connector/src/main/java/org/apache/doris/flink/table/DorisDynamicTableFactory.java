@@ -20,6 +20,8 @@ import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisLookupOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
+
+import static org.apache.doris.flink.table.DorisConfigOptions.BENODES;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableSchema;
@@ -103,6 +105,7 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
     public Set<ConfigOption<?>> optionalOptions() {
         final Set<ConfigOption<?>> options = new HashSet<>();
         options.add(FENODES);
+        options.add(BENODES);
         options.add(TABLE_IDENTIFIER);
         options.add(USERNAME);
         options.add(PASSWORD);
@@ -169,8 +172,10 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
 
     private DorisOptions getDorisOptions(ReadableConfig readableConfig) {
         final String fenodes = readableConfig.get(FENODES);
+        final String benodes = readableConfig.get(BENODES);
         final DorisOptions.Builder builder = DorisOptions.builder()
                 .setFenodes(fenodes)
+                .setBenodes(benodes)
                 .setJdbcUrl(readableConfig.get(JDBC_URL))
                 .setTableIdentifier(readableConfig.get(TABLE_IDENTIFIER));
 
