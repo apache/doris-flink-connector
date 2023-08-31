@@ -25,7 +25,6 @@ import org.apache.doris.flink.exception.DorisException;
 import org.apache.doris.flink.rest.PartitionDefinition;
 import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.source.DorisSource;
-import org.apache.doris.flink.source.DorisSourceBuilder;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.table.api.TableSchema;
@@ -114,7 +113,7 @@ public final class DorisDynamicTableSource implements ScanTableSource, LookupTab
             return InputFormatProvider.of(builder.build());
         } else {
             //Read data using the interface of the FLIP-27 specification
-            DorisSource<RowData> build = DorisSourceBuilder.<RowData>builder()
+            DorisSource<RowData> build = DorisSource.<RowData>builder()
                     .setDorisReadOptions(readOptions)
                     .setDorisOptions(options)
                     .setDeserializer(new RowDataDeserializationSchema((RowType) physicalSchema.toRowDataType().getLogicalType()))
