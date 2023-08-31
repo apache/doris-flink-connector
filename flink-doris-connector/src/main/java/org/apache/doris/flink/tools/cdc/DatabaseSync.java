@@ -94,6 +94,7 @@ public abstract class DatabaseSync {
         DorisSystem dorisSystem = new DorisSystem(options);
 
         List<SourceSchema> schemaList = getSchemaList();
+        Preconditions.checkState(!schemaList.isEmpty(), "No tables to be synchronized.");
         if (!dorisSystem.databaseExists(database)) {
             LOG.info("database {} not exist, created", database);
             dorisSystem.createDatabase(database);
@@ -118,9 +119,7 @@ public abstract class DatabaseSync {
             System.exit(0);
         }
 
-        Preconditions.checkState(!syncTables.isEmpty(), "No tables to be synchronized.");
         config.setString(TABLE_NAME_OPTIONS, "(" + String.join("|", syncTables) + ")");
-
         DataStreamSource<String> streamSource = buildCdcSource(env);
         SingleOutputStreamOperator<Void> parsedStream = streamSource.process(new ParsingProcessFunction(converter));
         for (String table : dorisTables) {

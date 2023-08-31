@@ -47,8 +47,11 @@ public class SqlServerType {
     private static final String BINARY = "binary";
     private static final String VARBINARY = "varbinary";
 
-    public static String toDorisType(String sqlServerType, Integer precision, Integer scale) {
-        sqlServerType = sqlServerType.toLowerCase();
+    public static String toDorisType(String originSqlServerType, Integer precision, Integer scale) {
+        originSqlServerType = originSqlServerType.toLowerCase();
+        // For sqlserver IDENTITY type, such as 'INT IDENTITY'
+        // originSqlServerType is "int identity", so we only get "int".
+        String sqlServerType = originSqlServerType.split(" ")[0];
         switch (sqlServerType){
             case BIT:
                 return DorisType.BOOLEAN;
