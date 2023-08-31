@@ -32,7 +32,7 @@ import java.util.List;
 
 public class BackendUtil {
     private static final Logger LOG = LoggerFactory.getLogger(BackendUtil.class);
-    private List<BackendV2.BackendRowV2> backends;
+    private final List<BackendV2.BackendRowV2> backends;
     private long pos;
 
     public BackendUtil(List<BackendV2.BackendRowV2> backends) {
