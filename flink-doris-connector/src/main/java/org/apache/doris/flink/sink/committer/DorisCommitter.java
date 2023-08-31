@@ -17,6 +17,7 @@
 
 package org.apache.doris.flink.sink.committer;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.api.connector.sink.Committer;
 
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -69,7 +70,8 @@ public class DorisCommitter implements Committer<DorisCommittable> {
         this.dorisReadOptions = dorisReadOptions;
         this.maxRetry = maxRetry;
         this.httpClient = client;
-        this.backendUtil = dorisOptions.enableIntranetAccess() ? new BackendUtil(dorisOptions.getBeNodes())
+        this.backendUtil = StringUtils.isNotEmpty(dorisOptions.getBeNodes()) ? new BackendUtil(
+                dorisOptions.getBeNodes())
                 : new BackendUtil(RestService.getBackendsV2(dorisOptions, dorisReadOptions, LOG));
     }
 

@@ -20,6 +20,7 @@ import org.apache.doris.flink.util.IOUtils;
 
 import java.util.Properties;
 
+import org.apache.commons.lang3.StringUtils;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -42,9 +43,10 @@ public class DorisOptions extends DorisConnectionOptions {
         this.tableIdentifier = tableIdentifier;
     }
 
-    public DorisOptions(String beNodes, boolean enableIntranetAccess, String username, String password,
+    public DorisOptions(String fenodes, String beNodes, String username, String password,
             String tableIdentifier, String jdbcUrl) {
-        super(beNodes, enableIntranetAccess, username, password, jdbcUrl);
+        super(fenodes, username, password, jdbcUrl);
+        this.beNodes = beNodes;
         this.tableIdentifier = tableIdentifier;
     }
 
@@ -71,7 +73,6 @@ public class DorisOptions extends DorisConnectionOptions {
         private String username;
         private String password;
         private String tableIdentifier;
-        private boolean enableIntranetAccess;
 
         /**
          * required, tableIdentifier
@@ -114,14 +115,6 @@ public class DorisOptions extends DorisConnectionOptions {
         }
 
         /**
-         * optional, allow access to be through the intranet
-         */
-        public Builder enableIntranetAccess() {
-            this.enableIntranetAccess = true;
-            return this;
-        }
-
-        /**
          * not required, fe jdbc url, for lookup query
          */
         public Builder setJdbcUrl(String jdbcUrl) {
@@ -130,12 +123,13 @@ public class DorisOptions extends DorisConnectionOptions {
         }
 
         public DorisOptions build() {
+            checkNotNull(fenodes, "No fenodes supplied.");
             checkNotNull(tableIdentifier, "No tableIdentifier supplied.");
-            if (!enableIntranetAccess) {
-                checkNotNull(fenodes, "No fenodes supplied.");
-                return new DorisOptions(fenodes, username, password, tableIdentifier, jdbcUrl);
+            if (StringUtils.isNotEmpty(beNodes)) {
+                return new DorisOptions(fenodes, beNodes, username, password, tableIdentifier, jdbcUrl);
             }
-            return new DorisOptions(beNodes, enableIntranetAccess, username, password, tableIdentifier, jdbcUrl);
+            return new DorisOptions(fenodes, username, password, tableIdentifier, jdbcUrl);
+
         }
     }
 

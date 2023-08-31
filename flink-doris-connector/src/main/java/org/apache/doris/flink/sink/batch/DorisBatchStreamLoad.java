@@ -29,6 +29,8 @@ import org.apache.doris.flink.sink.EscapeHandler;
 import org.apache.doris.flink.sink.HttpPutBuilder;
 import org.apache.doris.flink.sink.HttpUtil;
 import org.apache.doris.flink.sink.writer.LabelGenerator;
+
+import org.apache.commons.lang3.StringUtils;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -93,7 +95,8 @@ public class DorisBatchStreamLoad implements Serializable {
                                 DorisReadOptions dorisReadOptions,
                                 DorisExecutionOptions executionOptions,
                                 LabelGenerator labelGenerator) {
-        this.backendUtil = dorisOptions.enableIntranetAccess() ? new BackendUtil(dorisOptions.getBeNodes())
+        this.backendUtil = StringUtils.isNotEmpty(dorisOptions.getBeNodes()) ? new BackendUtil(
+                dorisOptions.getBeNodes())
                 : new BackendUtil(RestService.getBackendsV2(dorisOptions, dorisReadOptions, LOG));
         this.hostPort = backendUtil.getAvailableBackend();
         String[] tableInfo = dorisOptions.getTableIdentifier().split("\\.");

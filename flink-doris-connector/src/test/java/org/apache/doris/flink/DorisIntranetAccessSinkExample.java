@@ -37,6 +37,16 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 
+/**
+ * When the flink connector accesses doris, it parses out all surviving BE nodes according to the FE address filled in.
+ * <p>
+ * However, when the BE node is deployed, most of the internal network IP is filled in,
+ * so the BE node analyzed by FE is the internal network IP. When flink is deployed on a non-intranet segment,
+ * the BE node will be inaccessible on the network.
+ * <p>
+ * In this case, you can access the BE node on the intranet by directly configuring {@link DorisOptions.builder().setBeNodes().build()},
+ * after you configure this parameter, Flink Connector will not parse all BE nodes through FE nodes.
+ */
 public class DorisIntranetAccessSinkExample {
 
     public static void main(String[] args) throws Exception {
@@ -65,8 +75,8 @@ public class DorisIntranetAccessSinkExample {
         properties.setProperty("line_delimiter", "\n");
         properties.setProperty("format", "csv");
         DorisOptions.Builder dorisBuilder = DorisOptions.builder();
-        dorisBuilder.enableIntranetAccess()
-                .setBeNodes("10.10.0.1:8040, 10.10.0.2:8040, 10.10.0.3:8040")
+        dorisBuilder.setFenodes("10.20.30.1:8030")
+                .setBeNodes("10.20.30.1:8040, 10.20.30.1:8040, 10.20.30.1:8040")
                 .setTableIdentifier("test.test_sink")
                 .setUsername("root")
                 .setPassword("");

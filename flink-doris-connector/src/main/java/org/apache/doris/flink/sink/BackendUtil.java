@@ -45,7 +45,7 @@ public class BackendUtil {
         this.pos = 0;
     }
 
-    public List<BackendV2.BackendRowV2> initBackends(String beNodes) {
+    private List<BackendV2.BackendRowV2> initBackends(String beNodes) {
         List<BackendV2.BackendRowV2> backends = new ArrayList<>();
         List<String> nodes = Arrays.asList(beNodes.split(","));
         nodes.forEach(node -> {
@@ -85,7 +85,6 @@ public class BackendUtil {
             return true;
         } catch (Exception ex) {
             LOG.warn("Failed to connect to backend:{}", backend, ex);
-            pos++;
             return false;
         }
     }
