@@ -95,8 +95,8 @@ public class DorisBatchStreamLoad implements Serializable {
                                 DorisReadOptions dorisReadOptions,
                                 DorisExecutionOptions executionOptions,
                                 LabelGenerator labelGenerator) {
-        this.backendUtil = StringUtils.isNotEmpty(dorisOptions.getBeNodes()) ? new BackendUtil(
-                dorisOptions.getBeNodes())
+        this.backendUtil = StringUtils.isNotEmpty(dorisOptions.getBenodes()) ? new BackendUtil(
+                dorisOptions.getBenodes())
                 : new BackendUtil(RestService.getBackendsV2(dorisOptions, dorisReadOptions, LOG));
         this.hostPort = backendUtil.getAvailableBackend();
         String[] tableInfo = dorisOptions.getTableIdentifier().split("\\.");

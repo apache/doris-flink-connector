@@ -45,7 +45,7 @@ public class DorisOptions extends DorisConnectionOptions {
     public DorisOptions(String fenodes, String beNodes, String username, String password,
             String tableIdentifier, String jdbcUrl) {
         super(fenodes, username, password, jdbcUrl);
-        this.beNodes = beNodes;
+        this.benodes = beNodes;
         this.tableIdentifier = tableIdentifier;
     }
 

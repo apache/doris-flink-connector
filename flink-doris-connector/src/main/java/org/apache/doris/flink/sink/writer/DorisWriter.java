@@ -101,8 +101,8 @@ public class DorisWriter<IN> implements SinkWriter<IN, DorisCommittable, DorisWr
     }
 
     public void initializeLoad(List<DorisWriterState> state) throws IOException {
-        this.backendUtil = StringUtils.isNotEmpty(dorisOptions.getBeNodes()) ? new BackendUtil(
-                dorisOptions.getBeNodes())
+        this.backendUtil = StringUtils.isNotEmpty(dorisOptions.getBenodes()) ? new BackendUtil(
+                dorisOptions.getBenodes())
                 : new BackendUtil(RestService.getBackendsV2(dorisOptions, dorisReadOptions, LOG));
         try {
             this.dorisStreamLoad = new DorisStreamLoad(

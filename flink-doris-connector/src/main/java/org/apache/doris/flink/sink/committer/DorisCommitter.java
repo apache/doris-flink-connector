@@ -70,8 +70,8 @@ public class DorisCommitter implements Committer<DorisCommittable> {
         this.dorisReadOptions = dorisReadOptions;
         this.maxRetry = maxRetry;
         this.httpClient = client;
-        this.backendUtil = StringUtils.isNotEmpty(dorisOptions.getBeNodes()) ? new BackendUtil(
-                dorisOptions.getBeNodes())
+        this.backendUtil = StringUtils.isNotEmpty(dorisOptions.getBenodes()) ? new BackendUtil(
+                dorisOptions.getBenodes())
                 : new BackendUtil(RestService.getBackendsV2(dorisOptions, dorisReadOptions, LOG));
     }
 
