@@ -198,6 +198,11 @@ public class DorisRowDataInputFormat extends RichInputFormat<RowData, DorisTable
             return this;
         }
 
+        public Builder setBenodes(String benodes) {
+            this.optionsBuilder.setBenodes(benodes);
+            return this;
+        }
+
         public Builder setUsername(String username) {
             this.optionsBuilder.setUsername(username);
             return this;

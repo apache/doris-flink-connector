@@ -58,10 +58,11 @@ public class CdcOraclelSyncDatabaseCase {
         Configuration config = Configuration.fromMap(sourceConfig);
 
         Map<String,String> sinkConfig = new HashMap<>();
-        sinkConfig.put("fenodes","127.0.0.1:8030");
+        sinkConfig.put("fenodes","10.20.30.1:8030");
+        // sinkConfig.put("benodes","10.20.30.1:8040, 10.20.30.2:8040, 10.20.30.3:8040");
         sinkConfig.put("username","root");
         sinkConfig.put("password","");
-        sinkConfig.put("jdbc-url","jdbc:mysql://127.0.0.1:9030");
+        sinkConfig.put("jdbc-url","jdbc:mysql://10.20.30.1:9030");
         sinkConfig.put("sink.label-prefix", UUID.randomUUID().toString());
         Configuration sinkConf = Configuration.fromMap(sinkConfig);
 

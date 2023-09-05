@@ -19,11 +19,15 @@ package org.apache.doris.flink.sink;
 
 import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.apache.doris.flink.rest.models.BackendV2;
+import org.apache.doris.flink.rest.models.BackendV2.BackendRowV2;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class BackendUtil {
@@ -36,13 +40,34 @@ public class BackendUtil {
         this.pos = 0;
     }
 
+    public BackendUtil(String beNodes) {
+        this.backends = initBackends(beNodes);
+        this.pos = 0;
+    }
+
+    private List<BackendV2.BackendRowV2> initBackends(String beNodes) {
+        List<BackendV2.BackendRowV2> backends = new ArrayList<>();
+        List<String> nodes = Arrays.asList(beNodes.split(","));
+        nodes.forEach(node -> {
+            if (tryHttpConnection(node)) {
+                node = node.trim();
+                String[] ipAndPort = node.split(":");
+                BackendRowV2 backendRowV2 = new BackendRowV2();
+                backendRowV2.setIp(ipAndPort[0]);
+                backendRowV2.setHttpPort(Integer.parseInt(ipAndPort[1]));
+                backendRowV2.setAlive(true);
+                backends.add(backendRowV2);
+            }
+        });
+        return backends;
+    }
+
     public String getAvailableBackend() {
         long tmp = pos + backends.size();
         while (pos < tmp) {
-            BackendV2.BackendRowV2 backend = backends.get((int) (pos % backends.size()));
+            BackendV2.BackendRowV2 backend = backends.get((int) (pos++ % backends.size()));
             String res = backend.toBackendString();
-            if(tryHttpConnection(res)){
-                pos++;
+            if (tryHttpConnection(res)) {
                 return res;
             }
         }
@@ -60,7 +85,6 @@ public class BackendUtil {
             return true;
         } catch (Exception ex) {
             LOG.warn("Failed to connect to backend:{}", backend, ex);
-            pos++;
             return false;
         }
     }

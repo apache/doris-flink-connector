@@ -104,6 +104,7 @@ public final class DorisDynamicTableSource implements ScanTableSource, LookupTab
             }
             DorisRowDataInputFormat.Builder builder = DorisRowDataInputFormat.builder()
                     .setFenodes(options.getFenodes())
+                    .setBenodes(options.getBenodes())
                     .setUsername(options.getUsername())
                     .setPassword(options.getPassword())
                     .setTableIdentifier(options.getTableIdentifier())
