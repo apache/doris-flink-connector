@@ -70,7 +70,7 @@ public class DorisStreamLoad implements Serializable {
 
     private String loadUrlStr;
     private String hostPort;
-    private final String abortUrlStr;
+    private String abortUrlStr;
     private final String user;
     private final String passwd;
     private final String db;
@@ -105,7 +105,7 @@ public class DorisStreamLoad implements Serializable {
         this.executorService = new ThreadPoolExecutor(1, 1,
                 0L, TimeUnit.MILLISECONDS,
                 new LinkedBlockingQueue<>(), new ExecutorThreadFactory("stream-load-upload"));
-        this.recordStream = new RecordStream(executionOptions.getBufferSize(), executionOptions.getBufferCount());
+        this.recordStream = new RecordStream(executionOptions.getBufferSize(), executionOptions.getBufferCount(), executionOptions.isUseCache());
         lineDelimiter = EscapeHandler.escapeString(streamLoadProp.getProperty(LINE_DELIMITER_KEY, LINE_DELIMITER_DEFAULT)).getBytes();
         loadBatchFirstRecord = true;
     }
@@ -121,6 +121,7 @@ public class DorisStreamLoad implements Serializable {
     public void setHostPort(String hostPort) {
         this.hostPort = hostPort;
         this.loadUrlStr = String.format(LOAD_URL_PATTERN, hostPort, this.db, this.table);
+        this.abortUrlStr = String.format(ABORT_URL_PATTERN, hostPort, db);
     }
 
     public Future<CloseableHttpResponse> getPendingLoadFuture() {
@@ -226,10 +227,10 @@ public class DorisStreamLoad implements Serializable {
      * @param label
      * @throws IOException
      */
-    public void startLoad(String label) throws IOException{
-        loadBatchFirstRecord = true;
+    public void startLoad(String label, boolean isResume) throws IOException {
+        loadBatchFirstRecord = !isResume;
         HttpPutBuilder putBuilder = new HttpPutBuilder();
-        recordStream.startInput();
+        recordStream.startInput(isResume);
         LOG.info("stream load started for {} on host {}", label, hostPort);
         try {
             InputStreamEntity entity = new InputStreamEntity(recordStream);
