@@ -133,7 +133,7 @@ public class DorisWriter<IN> implements SinkWriter<IN, DorisCommittable, DorisWr
         byte[] serialize = serializer.serialize(in);
         if(Objects.isNull(serialize)){
             //ddl record
-            return;DorisWriter
+            return;
         }
         if(!loading) {
             // start stream load only when there has data
