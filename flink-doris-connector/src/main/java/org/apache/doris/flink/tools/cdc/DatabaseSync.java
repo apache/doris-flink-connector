@@ -61,6 +61,8 @@ public abstract class DatabaseSync {
     public StreamExecutionEnvironment env;
     private boolean createTableOnly = false;
     private boolean newSchemaChange;
+    protected String includingTables;
+    protected String excludingTables;
 
     public abstract Connection getConnection() throws SQLException;
 
@@ -76,6 +78,8 @@ public abstract class DatabaseSync {
         this.config = config;
         this.database = database;
         this.converter = new TableNameConverter(tablePrefix, tableSuffix);
+        this.includingTables = includingTables;
+        this.excludingTables = excludingTables;
         this.includingPattern = includingTables == null ? null : Pattern.compile(includingTables);
         this.excludingPattern = excludingTables == null ? null : Pattern.compile(excludingTables);
         this.ignoreDefaultValue = ignoreDefaultValue;
