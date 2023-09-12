@@ -276,7 +276,7 @@ public class DorisExecutionOptions implements Serializable {
         }
 
         public DorisExecutionOptions build() {
-            return new DorisExecutionOptions(checkInterval, maxRetries, bufferSize, bufferCount, labelPrefix, useCache
+            return new DorisExecutionOptions(checkInterval, maxRetries, bufferSize, bufferCount, labelPrefix, useCache,
                     streamLoadProp, enableDelete, enable2PC, enableBatchMode, flushQueueSize, bufferFlushMaxRows,
                     bufferFlushMaxBytes, bufferFlushIntervalMs, ignoreUpdateBefore);
         }
