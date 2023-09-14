@@ -23,6 +23,9 @@ import org.apache.doris.flink.tools.cdc.postgres.PostgresDatabaseSync;
 import org.apache.doris.flink.tools.cdc.sqlserver.SqlServerDatabaseSync;
 import org.apache.flink.api.java.utils.MultipleParameterTool;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
+import org.apache.flink.streaming.api.CheckpointingMode;
+import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.util.StringUtils;
 
@@ -30,6 +33,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * cdc sync tools
@@ -111,13 +115,47 @@ public class CdcTools {
         Map<String, String> tableMap = getConfigMap(params, "table-conf");
         Configuration sinkConfig = Configuration.fromMap(sinkMap);
 
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        StreamExecutionEnvironment env = buildStreamEnv(params);
         databaseSync.create(env, database, config, tablePrefix, tableSuffix, includingTables, excludingTables, ignoreDefaultValue, sinkConfig, tableMap, createTableOnly, useNewSchemaChange);
         databaseSync.build();
-        if(StringUtils.isNullOrWhitespaceOnly(jobName)){
-            jobName = String.format("%s-Doris Sync Database: %s", type, config.getString("database-name","db"));
+        if (StringUtils.isNullOrWhitespaceOnly(jobName)) {
+            jobName = String.format("%s-Doris Sync Database: %s", type, config.getString("database-name", "db"));
         }
         env.execute(jobName);
+    }
+
+    private static StreamExecutionEnvironment buildStreamEnv(MultipleParameterTool params) {
+
+        Map<String, String> flinkConf = getConfigMap(params, "flink-conf");
+        if (flinkConf == null) {
+            flinkConf = new HashMap<>();
+            flinkConf.put("checkpoint-mode", "at-least-once");
+            flinkConf.put("checkpoint-interval", "60000");
+            flinkConf.put("checkpoint-path", "");
+        }
+
+        String checkpointMode = flinkConf.getOrDefault("checkpoint-mode", "at-least-once");
+        CheckpointingMode checkpointingMode;
+        switch (checkpointMode) {
+            case "exactly-once":
+                checkpointingMode = CheckpointingMode.EXACTLY_ONCE;
+                break;
+            case "at-least-once":
+            default:
+                checkpointingMode = CheckpointingMode.AT_LEAST_ONCE;
+                break;
+        }
+
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setStateBackend(new EmbeddedRocksDBStateBackend());
+        env.enableCheckpointing(Long.parseLong(flinkConf.get("checkpoint-interval")), checkpointingMode);
+        env.getCheckpointConfig().setExternalizedCheckpointCleanup(
+                CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
+        Optional.ofNullable(flinkConf.get("checkpoint-path"))
+                .filter(org.apache.commons.lang3.StringUtils::isNotEmpty)
+                .ifPresent(checkpointPath -> env.getCheckpointConfig().setCheckpointStorage(checkpointPath));
+
+        return env;
     }
 
     private static Map<String, String> getConfigMap(MultipleParameterTool params, String key) {
