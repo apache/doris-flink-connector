@@ -104,9 +104,9 @@ public class ExecutionPool implements Closeable {
     public void close() throws IOException {
         if (started.compareAndSet(true, false)) {
             LOG.info("close executorService");
-            actionWatcherExecutorService.shutdownNow();
+            actionWatcherExecutorService.shutdown();
+            workerExecutorService.shutdown();
             workerStated.set(false);
-            workerExecutorService.shutdownNow();
             this.actionWatcherExecutorService = null;
             this.workerExecutorService = null;
             this.semaphore = null;

@@ -107,11 +107,19 @@ public class OracleDatabaseSync extends DatabaseSync {
 
     @Override
     public DataStreamSource<String> buildCdcSource(StreamExecutionEnvironment env) {
+        Properties debeziumProperties = new Properties();
         String databaseName = config.get(OracleSourceOptions.DATABASE_NAME);
         String schemaName = config.get(OracleSourceOptions.SCHEMA_NAME);
         Preconditions.checkNotNull(databaseName, "database-name in oracle is required");
         Preconditions.checkNotNull(schemaName, "schema-name in oracle is required");
         String tableName = config.get(OracleSourceOptions.TABLE_NAME);
+        //When debezium incrementally reads, it will be judged based on regexp_like.
+        //When the regular length exceeds 512, an error will be reported, like ORA-12733: regular expression too long
+        if(tableName.length() > 384){
+            //max database name length 128
+            tableName = StringUtils.isNullOrWhitespaceOnly(includingTables) ? ".*" : includingTables;
+        }
+
         String url = config.get(OracleSourceOptions.URL);
         String hostname = config.get(OracleSourceOptions.HOSTNAME);
         Integer port = config.get(OracleSourceOptions.PORT);
@@ -127,7 +135,6 @@ public class OracleDatabaseSync extends DatabaseSync {
         }
 
         //debezium properties set
-        Properties debeziumProperties = new Properties();
         debeziumProperties.put("decimal.handling.mode", "string");
         //date to string
         debeziumProperties.putAll(OracleDateConverter.DEFAULT_PROPS);
