@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.flink.tools.cdc;
+package org.apache.doris.flink.tools.cdc.mysql;
 
 import com.ververica.cdc.connectors.shaded.org.apache.kafka.connect.data.SchemaBuilder;
 import io.debezium.spi.converter.CustomConverter;
@@ -47,9 +47,9 @@ public class DateToStringConverter implements CustomConverter<SchemaBuilder, Rel
 
     static {
         DEFAULT_PROPS.setProperty("converters", "date");
-        DEFAULT_PROPS.setProperty("date.type", "org.apache.doris.flink.tools.cdc.DateToStringConverter");
+        DEFAULT_PROPS.setProperty("date.type", "org.apache.doris.flink.tools.cdc.mysql.DateToStringConverter");
         DEFAULT_PROPS.setProperty("date.format.date", "yyyy-MM-dd");
-        DEFAULT_PROPS.setProperty("date.format.datetime", "yyyy-MM-dd HH:mm:ss");
+        DEFAULT_PROPS.setProperty("date.format.datetime", "yyyy-MM-dd HH:mm:ss.SSSSSS");
         DEFAULT_PROPS.setProperty("date.format.timestamp", "yyyy-MM-dd HH:mm:ss.SSSSSS");
         DEFAULT_PROPS.setProperty("date.format.timestamp.zone", "UTC+8");
     }
