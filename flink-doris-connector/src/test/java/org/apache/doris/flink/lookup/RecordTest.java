@@ -23,7 +23,9 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class RecordTest {
@@ -78,12 +80,40 @@ public class RecordTest {
         Assert.assertTrue(map.get(new RecordKey(record)) != null);
     }
 
+    @Test
+    public void testDeduplicateRecords(){
+        String[] conditionFields = new String[]{"b","c"};
+        int[] keyIndex = new int[]{2};
+        Object[] values = new Object[schema.getFieldTypes().length];
+        values[0] = "doris";
+        values[1] = "18";
+        Record record = appendValues(conditionFields, keyIndex, values);
+
+        Object[] values2 = new Object[schema.getFieldTypes().length];
+        values2[0] = "doris";
+        values2[1] = "18";
+        Record record2 = appendValues(conditionFields, keyIndex, values2);
+
+        Object[] values3 = new Object[schema.getFieldTypes().length];
+        values3[0] = "doris";
+        values3[1] = "1";
+        Record record3 = appendValues(conditionFields, keyIndex, values3);
+
+        List<Get> list = new ArrayList<>();
+        list.add(new Get(record));
+        list.add(new Get(record2));
+        list.add(new Get(record3));
+
+        List<Get> gets = Worker.deduplicateRecords(list);
+        Assert.assertTrue(gets.size() == 2);
+    }
+
     private Record appendValues(String[] conditionFields, int[] keyIndex, Object[] values){
         schema.setKeyIndex(keyIndex);
         schema.setConditionFields(conditionFields);
         Record record = new Record(schema);
         for(int i=0;i<schema.getFieldTypes().length;i++){
-            record.setObject(i,values);
+            record.setObject(i,values[i]);
         }
         return record;
     }
