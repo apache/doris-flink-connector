@@ -193,7 +193,7 @@ public class DorisWriter<IN> implements SinkWriter<IN, DorisCommittable, DorisWr
                 // use send cached data to new txn, then notify to restart the stream
                 if (executionOptions.isUseCache()) {
                     try {
-                        this.dorisStreamLoad.setHostPort(RestService.getBackend(dorisOptions, dorisReadOptions, LOG));
+                        this.dorisStreamLoad.setHostPort(backendUtil.getAvailableBackend());
                         if (executionOptions.enabled2PC()) {
                             dorisStreamLoad.abortPreCommit(labelPrefix, curCheckpointId);
                         }

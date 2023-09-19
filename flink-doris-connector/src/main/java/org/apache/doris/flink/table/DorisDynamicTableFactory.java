@@ -74,6 +74,7 @@ import static org.apache.doris.flink.table.DorisConfigOptions.SINK_IGNORE_UPDATE
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_LABEL_PREFIX;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_MAX_RETRIES;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_PARALLELISM;
+import static org.apache.doris.flink.table.DorisConfigOptions.SINK_USE_CACHE;
 import static org.apache.doris.flink.table.DorisConfigOptions.SOURCE_USE_OLD_API;
 import static org.apache.doris.flink.table.DorisConfigOptions.STREAM_LOAD_PROP_PREFIX;
 import static org.apache.doris.flink.table.DorisConfigOptions.TABLE_IDENTIFIER;
@@ -145,6 +146,8 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
         options.add(SINK_BUFFER_FLUSH_MAX_BYTES);
         options.add(SINK_FLUSH_QUEUE_SIZE);
         options.add(SINK_BUFFER_FLUSH_INTERVAL);
+
+        options.add(SINK_USE_CACHE);
 
         options.add(SOURCE_USE_OLD_API);
         return options;
@@ -223,6 +226,8 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
         builder.setBufferFlushMaxRows(readableConfig.get(SINK_BUFFER_FLUSH_MAX_ROWS));
         builder.setBufferFlushMaxBytes(readableConfig.get(SINK_BUFFER_FLUSH_MAX_BYTES));
         builder.setBufferFlushIntervalMs(readableConfig.get(SINK_BUFFER_FLUSH_INTERVAL).toMillis());
+
+        builder.setUseCache(readableConfig.get(SINK_USE_CACHE));
         return builder.build();
     }
 
