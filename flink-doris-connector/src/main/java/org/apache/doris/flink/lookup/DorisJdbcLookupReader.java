@@ -94,12 +94,9 @@ public class DorisJdbcLookupReader extends DorisLookupReader {
 
     private List<RowData> convertRowDataList(List<Record> records) {
         List<RowData> results = new ArrayList<>();
-        for (int index = 0; index < records.size(); index++){
-            Record record = records.get(index);
+        for (Record record : records) {
             RowData rowData = convertRowData(record);
             results.add(rowData);
-            //Recycle memory
-            records.set(index, null);
         }
         return results;
     }

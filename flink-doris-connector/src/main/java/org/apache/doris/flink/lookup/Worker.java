@@ -96,7 +96,7 @@ public class Worker implements Runnable {
         boolean first;
         for (int i = 0; i < recordList.size(); i++) {
             if (i > 0) {
-                sb.append(" union all ");
+                sb.append(" union ");
             }
             first = true;
             appendSelect(sb, schema);
