@@ -20,6 +20,8 @@ import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisLookupOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
+
+import static org.apache.doris.flink.table.DorisConfigOptions.BENODES;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableSchema;
@@ -59,10 +61,16 @@ import static org.apache.doris.flink.table.DorisConfigOptions.LOOKUP_JDBC_READ_T
 import static org.apache.doris.flink.table.DorisConfigOptions.LOOKUP_MAX_RETRIES;
 import static org.apache.doris.flink.table.DorisConfigOptions.PASSWORD;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_BUFFER_COUNT;
+import static org.apache.doris.flink.table.DorisConfigOptions.SINK_BUFFER_FLUSH_INTERVAL;
+import static org.apache.doris.flink.table.DorisConfigOptions.SINK_BUFFER_FLUSH_MAX_BYTES;
+import static org.apache.doris.flink.table.DorisConfigOptions.SINK_BUFFER_FLUSH_MAX_ROWS;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_BUFFER_SIZE;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_CHECK_INTERVAL;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_ENABLE_2PC;
+import static org.apache.doris.flink.table.DorisConfigOptions.SINK_ENABLE_BATCH_MODE;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_ENABLE_DELETE;
+import static org.apache.doris.flink.table.DorisConfigOptions.SINK_FLUSH_QUEUE_SIZE;
+import static org.apache.doris.flink.table.DorisConfigOptions.SINK_IGNORE_UPDATE_BEFORE;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_LABEL_PREFIX;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_MAX_RETRIES;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_PARALLELISM;
@@ -97,6 +105,7 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
     public Set<ConfigOption<?>> optionalOptions() {
         final Set<ConfigOption<?>> options = new HashSet<>();
         options.add(FENODES);
+        options.add(BENODES);
         options.add(TABLE_IDENTIFIER);
         options.add(USERNAME);
         options.add(PASSWORD);
@@ -129,6 +138,13 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
         options.add(SINK_BUFFER_SIZE);
         options.add(SINK_BUFFER_COUNT);
         options.add(SINK_PARALLELISM);
+        options.add(SINK_IGNORE_UPDATE_BEFORE);
+
+        options.add(SINK_ENABLE_BATCH_MODE);
+        options.add(SINK_BUFFER_FLUSH_MAX_ROWS);
+        options.add(SINK_BUFFER_FLUSH_MAX_BYTES);
+        options.add(SINK_FLUSH_QUEUE_SIZE);
+        options.add(SINK_BUFFER_FLUSH_INTERVAL);
 
         options.add(SOURCE_USE_OLD_API);
         return options;
@@ -156,8 +172,10 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
 
     private DorisOptions getDorisOptions(ReadableConfig readableConfig) {
         final String fenodes = readableConfig.get(FENODES);
+        final String benodes = readableConfig.get(BENODES);
         final DorisOptions.Builder builder = DorisOptions.builder()
                 .setFenodes(fenodes)
+                .setBenodes(benodes)
                 .setJdbcUrl(readableConfig.get(JDBC_URL))
                 .setTableIdentifier(readableConfig.get(TABLE_IDENTIFIER));
 
@@ -192,9 +210,19 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
         builder.setLabelPrefix(readableConfig.get(SINK_LABEL_PREFIX));
         builder.setStreamLoadProp(streamLoadProp);
         builder.setDeletable(readableConfig.get(SINK_ENABLE_DELETE));
+        builder.setIgnoreUpdateBefore(readableConfig.get(SINK_IGNORE_UPDATE_BEFORE));
         if (!readableConfig.get(SINK_ENABLE_2PC)) {
             builder.disable2PC();
         }
+
+        if(readableConfig.get(SINK_ENABLE_BATCH_MODE)) {
+            builder.enableBatchMode();
+        }
+
+        builder.setFlushQueueSize(readableConfig.get(SINK_FLUSH_QUEUE_SIZE));
+        builder.setBufferFlushMaxRows(readableConfig.get(SINK_BUFFER_FLUSH_MAX_ROWS));
+        builder.setBufferFlushMaxBytes(readableConfig.get(SINK_BUFFER_FLUSH_MAX_BYTES));
+        builder.setBufferFlushIntervalMs(readableConfig.get(SINK_BUFFER_FLUSH_INTERVAL).toMillis());
         return builder.build();
     }
 

@@ -140,8 +140,6 @@ public class MysqlType {
             case TIMESTAMP:
                 return String.format("%s(%s)", DorisType.DATETIME_V2, Math.min(length == null ? 0 : length, 6));
             case CHAR:
-                Preconditions.checkNotNull(length);
-                return String.format("%s(%s)", DorisType.CHAR, length);
             case VARCHAR:
                 Preconditions.checkNotNull(length);
                 return length * 3 > 65533 ? DorisType.STRING : String.format("%s(%s)", DorisType.VARCHAR, length * 3);

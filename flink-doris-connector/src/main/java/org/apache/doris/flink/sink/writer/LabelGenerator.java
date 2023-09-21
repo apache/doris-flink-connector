@@ -33,4 +33,8 @@ public class LabelGenerator {
     public String generateLabel(long chkId) {
         return enable2PC ? labelPrefix + "_" + chkId : labelPrefix + "_" + UUID.randomUUID();
     }
+
+    public String generateBatchLabel() {
+        return labelPrefix + "_" + UUID.randomUUID();
+    }
 }

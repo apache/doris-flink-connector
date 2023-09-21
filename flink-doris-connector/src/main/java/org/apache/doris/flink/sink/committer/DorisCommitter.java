@@ -17,6 +17,7 @@
 
 package org.apache.doris.flink.sink.committer;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.api.connector.sink.Committer;
 
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -25,6 +26,7 @@ import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.apache.doris.flink.rest.RestService;
+import org.apache.doris.flink.sink.BackendUtil;
 import org.apache.doris.flink.sink.DorisCommittable;
 import org.apache.doris.flink.sink.HttpPutBuilder;
 import org.apache.doris.flink.sink.HttpUtil;
@@ -55,6 +57,7 @@ public class DorisCommitter implements Committer<DorisCommittable> {
     private final DorisOptions dorisOptions;
     private final DorisReadOptions dorisReadOptions;
     private final ObjectMapper jsonMapper = new ObjectMapper();
+    private final BackendUtil backendUtil;
 
     int maxRetry;
 
@@ -67,6 +70,9 @@ public class DorisCommitter implements Committer<DorisCommittable> {
         this.dorisReadOptions = dorisReadOptions;
         this.maxRetry = maxRetry;
         this.httpClient = client;
+        this.backendUtil = StringUtils.isNotEmpty(dorisOptions.getBenodes()) ? new BackendUtil(
+                dorisOptions.getBenodes())
+                : new BackendUtil(RestService.getBackendsV2(dorisOptions, dorisReadOptions, LOG));
     }
 
     @Override
@@ -116,13 +122,13 @@ public class DorisCommitter implements Committer<DorisCommittable> {
                 if (retry == maxRetry) {
                     throw new DorisRuntimeException("stream load error: " + reasonPhrase);
                 }
-                hostPort = RestService.getBackend(dorisOptions, dorisReadOptions, LOG);
+                hostPort = backendUtil.getAvailableBackend();
             } catch (IOException e) {
                 LOG.error("commit transaction failed: ", e);
                 if (retry == maxRetry) {
                     throw new IOException("commit transaction failed: {}", e);
                 }
-                hostPort = RestService.getBackend(dorisOptions, dorisReadOptions, LOG);
+                hostPort = backendUtil.getAvailableBackend();
             }
         }
     }

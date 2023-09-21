@@ -22,6 +22,7 @@ import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;
 import org.apache.arrow.vector.DecimalVector;
 import org.apache.arrow.vector.FieldVector;
+import org.apache.arrow.vector.FixedSizeBinaryVector;
 import org.apache.arrow.vector.Float4Vector;
 import org.apache.arrow.vector.Float8Vector;
 import org.apache.arrow.vector.IntVector;
@@ -44,6 +45,7 @@ import org.slf4j.LoggerFactory;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -276,6 +278,37 @@ public class RowBatch {
                 addValueToRow(rowIndex, parse);
                 break;
             case "LARGEINT":
+                if (!minorType.equals(Types.MinorType.FIXEDSIZEBINARY) &&
+                        !minorType.equals(Types.MinorType.VARCHAR)) return false;
+                if (minorType.equals(Types.MinorType.FIXEDSIZEBINARY)) {
+                    FixedSizeBinaryVector largeIntVector = (FixedSizeBinaryVector) fieldVector;
+                    if (largeIntVector.isNull(rowIndex)) {
+                        addValueToRow(rowIndex, null);
+                        break;
+                    }
+                    byte[] bytes = largeIntVector.get(rowIndex);
+                    int left = 0, right = bytes.length - 1;
+                    while (left < right) {
+                        byte temp = bytes[left];
+                        bytes[left] = bytes[right];
+                        bytes[right] = temp;
+                        left++;
+                        right--;
+                    }
+                    BigInteger largeInt = new BigInteger(bytes);
+                    addValueToRow(rowIndex, largeInt);
+                    break;
+                } else {
+                    VarCharVector largeIntVector = (VarCharVector) fieldVector;
+                    if (largeIntVector.isNull(rowIndex)) {
+                        addValueToRow(rowIndex, null);
+                        break;
+                    }
+                    stringValue = new String(largeIntVector.get(rowIndex));
+                    BigInteger largeInt = new BigInteger(stringValue);
+                    addValueToRow(rowIndex, largeInt);
+                    break;
+                }
             case "CHAR":
             case "VARCHAR":
             case "STRING":

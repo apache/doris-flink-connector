@@ -155,7 +155,7 @@ public class DorisSystem {
                 throw new CreateTableException("key " + key + " not found in column list");
             }
             FieldSchema field = fields.get(key);
-            buildColumn(sb, field);
+            buildColumn(sb, field, true);
         }
 
         //append values
@@ -164,16 +164,18 @@ public class DorisSystem {
                 continue;
             }
             FieldSchema field = entry.getValue();
-            buildColumn(sb, field);
+            buildColumn(sb, field, false);
 
         }
         sb = sb.deleteCharAt(sb.length() -1);
         sb.append(" ) ");
-        //append model
-        sb.append(schema.getModel().name())
-                .append(" KEY(")
-                .append(String.join(",", identifier(schema.getKeys())))
-                .append(")");
+        //append uniq model
+        if(DataModel.UNIQUE.equals(schema.getModel())){
+            sb.append(schema.getModel().name())
+                    .append(" KEY(")
+                    .append(String.join(",", identifier(schema.getKeys())))
+                    .append(")");
+        }
 
         //append table comment
         if(!StringUtils.isNullOrWhitespaceOnly(schema.getTableComment())){
@@ -208,13 +210,25 @@ public class DorisSystem {
         return sb.toString();
     }
 
-    private void buildColumn(StringBuilder sql, FieldSchema field){
+    private void buildColumn(StringBuilder sql, FieldSchema field, boolean isKey){
+        String fieldType = field.getTypeString();
+        if(isKey && DorisType.STRING.equals(fieldType)){
+            fieldType = String.format("%s(%s)", DorisType.VARCHAR, 65533);
+        }
         sql.append(identifier(field.getName()))
                 .append(" ")
-                .append(field.getTypeString())
+                .append(fieldType)
                 .append(" COMMENT '")
-                .append(field.getComment() == null ? "" : field.getComment())
+                .append(quoteComment(field.getComment()))
                 .append("',");
+    }
+
+    private String quoteComment(String comment){
+        if(comment == null){
+            return "";
+        } else {
+            return comment.replaceAll("'","\\\\'");
+        }
     }
 
     private List<String> identifier(List<String> name) {

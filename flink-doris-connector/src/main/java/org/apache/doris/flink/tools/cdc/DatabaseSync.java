@@ -16,7 +16,6 @@
 // under the License.
 package org.apache.doris.flink.tools.cdc;
 
-import com.ververica.cdc.connectors.mysql.source.config.MySqlSourceOptions;
 import org.apache.doris.flink.catalog.doris.DorisSystem;
 import org.apache.doris.flink.catalog.doris.TableSchema;
 import org.apache.doris.flink.cfg.DorisConnectionOptions;
@@ -50,6 +49,7 @@ import java.util.regex.Pattern;
 public abstract class DatabaseSync {
     private static final Logger LOG = LoggerFactory.getLogger(DatabaseSync.class);
     private static final String LIGHT_SCHEMA_CHANGE = "light_schema_change";
+    private static final String TABLE_NAME_OPTIONS = "table-name";
     protected Configuration config;
     protected String database;
     protected TableNameConverter converter;
@@ -57,7 +57,12 @@ public abstract class DatabaseSync {
     protected Pattern excludingPattern;
     protected Map<String, String> tableConfig;
     protected Configuration sinkConfig;
+    protected boolean ignoreDefaultValue;
     public StreamExecutionEnvironment env;
+    private boolean createTableOnly = false;
+    private boolean newSchemaChange;
+    protected String includingTables;
+    protected String excludingTables;
 
     public abstract Connection getConnection() throws SQLException;
 
@@ -65,22 +70,27 @@ public abstract class DatabaseSync {
 
     public abstract DataStreamSource<String> buildCdcSource(StreamExecutionEnvironment env);
 
-
     public void create(StreamExecutionEnvironment env, String database, Configuration config,
                        String tablePrefix, String tableSuffix, String includingTables,
-                       String excludingTables, Configuration sinkConfig, Map<String, String> tableConfig) {
+                       String excludingTables, boolean ignoreDefaultValue, Configuration sinkConfig,
+            Map<String, String> tableConfig, boolean createTableOnly, boolean useNewSchemaChange) {
         this.env = env;
         this.config = config;
         this.database = database;
         this.converter = new TableNameConverter(tablePrefix, tableSuffix);
+        this.includingTables = includingTables;
+        this.excludingTables = excludingTables;
         this.includingPattern = includingTables == null ? null : Pattern.compile(includingTables);
         this.excludingPattern = excludingTables == null ? null : Pattern.compile(excludingTables);
+        this.ignoreDefaultValue = ignoreDefaultValue;
         this.sinkConfig = sinkConfig;
         this.tableConfig = tableConfig == null ? new HashMap<>() : tableConfig;
         //default enable light schema change
         if(!this.tableConfig.containsKey(LIGHT_SCHEMA_CHANGE)){
             this.tableConfig.put(LIGHT_SCHEMA_CHANGE, "true");
         }
+        this.createTableOnly = createTableOnly;
+        this.newSchemaChange = useNewSchemaChange;
     }
 
     public void build() throws Exception {
@@ -88,6 +98,7 @@ public abstract class DatabaseSync {
         DorisSystem dorisSystem = new DorisSystem(options);
 
         List<SourceSchema> schemaList = getSchemaList();
+        Preconditions.checkState(!schemaList.isEmpty(), "No tables to be synchronized.");
         if (!dorisSystem.databaseExists(database)) {
             LOG.info("database {} not exist, created", database);
             dorisSystem.createDatabase(database);
@@ -107,9 +118,12 @@ public abstract class DatabaseSync {
             }
             dorisTables.add(dorisTable);
         }
-        Preconditions.checkState(!syncTables.isEmpty(), "No tables to be synchronized.");
-        config.set(MySqlSourceOptions.TABLE_NAME, "(" + String.join("|", syncTables) + ")");
+        if(createTableOnly){
+            System.out.println("Create table finished.");
+            System.exit(0);
+        }
 
+        config.setString(TABLE_NAME_OPTIONS, "(" + String.join("|", syncTables) + ")");
         DataStreamSource<String> streamSource = buildCdcSource(env);
         SingleOutputStreamOperator<Void> parsedStream = streamSource.process(new ParsingProcessFunction(converter));
         for (String table : dorisTables) {
@@ -142,6 +156,7 @@ public abstract class DatabaseSync {
      */
     public DorisSink<String> buildDorisSink(String table) {
         String fenodes = sinkConfig.getString(DorisConfigOptions.FENODES);
+        String benodes = sinkConfig.getString(DorisConfigOptions.BENODES);
         String user = sinkConfig.getString(DorisConfigOptions.USERNAME);
         String passwd = sinkConfig.getString(DorisConfigOptions.PASSWORD, "");
         String labelPrefix = sinkConfig.getString(DorisConfigOptions.SINK_LABEL_PREFIX);
@@ -149,6 +164,7 @@ public abstract class DatabaseSync {
         DorisSink.Builder<String> builder = DorisSink.builder();
         DorisOptions.Builder dorisBuilder = DorisOptions.builder();
         dorisBuilder.setFenodes(fenodes)
+                .setBenodes(benodes)
                 .setTableIdentifier(database + "." + table)
                 .setUsername(user)
                 .setPassword(passwd);
@@ -169,14 +185,30 @@ public abstract class DatabaseSync {
         sinkConfig.getOptional(DorisConfigOptions.SINK_BUFFER_SIZE).ifPresent(executionBuilder::setBufferSize);
         sinkConfig.getOptional(DorisConfigOptions.SINK_CHECK_INTERVAL).ifPresent(executionBuilder::setCheckInterval);
         sinkConfig.getOptional(DorisConfigOptions.SINK_MAX_RETRIES).ifPresent(executionBuilder::setMaxRetries);
+        sinkConfig.getOptional(DorisConfigOptions.SINK_IGNORE_UPDATE_BEFORE).ifPresent(executionBuilder::setIgnoreUpdateBefore);
 
         boolean enable2pc = sinkConfig.getBoolean(DorisConfigOptions.SINK_ENABLE_2PC);
         if(!enable2pc){
             executionBuilder.disable2PC();
         }
+
+        //batch option
+        if(sinkConfig.getBoolean(DorisConfigOptions.SINK_ENABLE_BATCH_MODE)){
+            executionBuilder.enableBatchMode();
+        }
+        sinkConfig.getOptional(DorisConfigOptions.SINK_FLUSH_QUEUE_SIZE).ifPresent(executionBuilder::setFlushQueueSize);
+        sinkConfig.getOptional(DorisConfigOptions.SINK_BUFFER_FLUSH_MAX_ROWS).ifPresent(executionBuilder::setBufferFlushMaxRows);
+        sinkConfig.getOptional(DorisConfigOptions.SINK_BUFFER_FLUSH_MAX_BYTES).ifPresent(executionBuilder::setBufferFlushMaxBytes);
+        sinkConfig.getOptional(DorisConfigOptions.SINK_BUFFER_FLUSH_INTERVAL).ifPresent(v-> executionBuilder.setBufferFlushIntervalMs(v.toMillis()));
+
+        DorisExecutionOptions executionOptions = executionBuilder.build();
         builder.setDorisReadOptions(DorisReadOptions.builder().build())
-                .setDorisExecutionOptions(executionBuilder.build())
-                .setSerializer(JsonDebeziumSchemaSerializer.builder().setDorisOptions(dorisBuilder.build()).build())
+                .setDorisExecutionOptions(executionOptions)
+                .setSerializer(JsonDebeziumSchemaSerializer.builder()
+                        .setDorisOptions(dorisBuilder.build())
+                        .setNewSchemaChange(newSchemaChange)
+                        .setExecutionOptions(executionOptions)
+                        .build())
                 .setDorisOptions(dorisBuilder.build());
         return builder.build();
     }

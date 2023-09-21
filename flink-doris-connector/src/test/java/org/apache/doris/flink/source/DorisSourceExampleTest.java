@@ -34,7 +34,7 @@ public class DorisSourceExampleTest {
 
     @Test
     public void testBoundedDorisSource() throws Exception {
-        DorisSource<List<?>> dorisSource = DorisSourceBuilder.<List<?>>builder()
+        DorisSource<List<?>> dorisSource = DorisSource.<List<?>>builder()
                 .setDorisOptions(OptionUtils.buildDorisOptions())
                 .setDorisReadOptions(OptionUtils.buildDorisReadOptions())
                 .setDeserializer(new SimpleListDeserializationSchema())
