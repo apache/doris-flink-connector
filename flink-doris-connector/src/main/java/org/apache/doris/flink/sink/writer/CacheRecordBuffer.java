@@ -17,6 +17,7 @@
 
 package org.apache.doris.flink.sink.writer;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,7 +44,7 @@ public class CacheRecordBuffer extends RecordBuffer{
 
     @Override
     public void startBufferData() throws IOException{
-        LOG.info("start buffer data, read queue size {}, write queue size {}, buffer cache size {}, buffer poll size {}",
+        LOG.info("start buffer data, read queue size {}, write queue size {}, buffer cache size {}, buffer pool size {}",
                 readQueue.size(), writeQueue.size(), bufferCache.size(), bufferPool.size());
         try {
             // if the cache have data, that should be restarted from previous error
@@ -103,5 +104,15 @@ public class CacheRecordBuffer extends RecordBuffer{
     private ByteBuffer allocate(){
         ByteBuffer buff = bufferPool.poll();
         return buff != null ? buff : ByteBuffer.allocate(bufferCapacity);
+    }
+
+    @VisibleForTesting
+    public int getBufferCacheSize() {
+        return bufferCache.size();
+    }
+
+    @VisibleForTesting
+    public int getBufferPoolSize() {
+        return bufferPool.size();
     }
 }
