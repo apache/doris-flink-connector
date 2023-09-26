@@ -22,6 +22,7 @@ import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.connection.JdbcConnectionProvider;
 import org.apache.doris.flink.connection.SimpleJdbcConnectionProvider;
 import org.apache.doris.flink.exception.DorisRuntimeException;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,9 +30,12 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -91,10 +95,11 @@ public class Worker implements Runnable {
         }
         LookupSchema schema = action.getGetList().get(0).getRecord().getSchema();
         List<Get> recordList = action.getGetList();
-
+        List<Get> deduplicateList = deduplicateRecords(recordList);
+        LOG.debug("record size {}, after deduplicate size {}", recordList.size(), deduplicateList.size());
         StringBuilder sb = new StringBuilder();
         boolean first;
-        for (int i = 0; i < recordList.size(); i++) {
+        for (int i = 0; i < deduplicateList.size(); i++) {
             if (i > 0) {
                 sb.append(" union all ");
             }
@@ -112,9 +117,8 @@ public class Worker implements Runnable {
         }
 
         String sql = sb.toString();
-        LOG.debug("query sql is {}", sql);
         try {
-            Map<RecordKey, List<Record>> resultRecordMap = executeQuery(sql, recordList, schema);
+            Map<RecordKey, List<Record>> resultRecordMap = executeQuery(sql, deduplicateList, schema);
             for (Get get : recordList) {
                 Record record = get.getRecord();
                 if (get.getFuture() != null) {
@@ -130,6 +134,20 @@ public class Worker implements Runnable {
                 }
             }
         }
+    }
+
+    /**
+     * Sometimes, there will be duplicate key filtering conditions in a batch of data,
+     * which can be removed in advance to reduce query pressure.
+     * */
+    @VisibleForTesting
+    public static List<Get> deduplicateRecords(List<Get> recordList) {
+        if(recordList == null || recordList.size() <= 1){
+            return recordList;
+        }
+        Set<Get> recordSet = new TreeSet<>((r1, r2) -> Arrays.equals(r1.getRecord().getValues(), r2.getRecord().getValues()) ? 0 : -1);
+        recordSet.addAll(recordList);
+        return new ArrayList<>(recordSet);
     }
 
     private void appendSelect(StringBuilder sb, LookupSchema schema){
