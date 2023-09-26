@@ -31,11 +31,19 @@ public class RecordStream extends InputStream {
         return 0;
     }
 
-    public RecordStream(int bufferSize, int bufferCount) {
-        this.recordBuffer = new RecordBuffer(bufferSize, bufferCount);
+    public RecordStream(int bufferSize, int bufferCount, boolean useCache) {
+        if (useCache) {
+            this.recordBuffer = new CacheRecordBuffer(bufferSize, bufferCount);
+        }else {
+            this.recordBuffer = new RecordBuffer(bufferSize, bufferCount);
+        }
     }
 
-    public void startInput() {
+    public void startInput(boolean isResume) throws IOException {
+        // if resume from breakpoint, do not recycle cache buffer
+        if (!isResume && recordBuffer instanceof CacheRecordBuffer) {
+            ((CacheRecordBuffer)recordBuffer).recycleCache();
+        }
         recordBuffer.startBufferData();
     }
 

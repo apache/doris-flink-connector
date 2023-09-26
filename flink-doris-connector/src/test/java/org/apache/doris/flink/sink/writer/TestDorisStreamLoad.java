@@ -90,7 +90,7 @@ public class TestDorisStreamLoad {
         when(httpClient.execute(any())).thenReturn(preCommitResponse);
         byte[] writeBuffer = "test".getBytes(StandardCharsets.UTF_8);
         DorisStreamLoad dorisStreamLoad = new DorisStreamLoad("", dorisOptions, executionOptions, new LabelGenerator("", true), httpClient);
-        dorisStreamLoad.startLoad("1");
+        dorisStreamLoad.startLoad("1",false);
         dorisStreamLoad.writeRecord(writeBuffer);
         dorisStreamLoad.stopLoad("label");
         byte[] buff = new byte[4];
@@ -109,7 +109,7 @@ public class TestDorisStreamLoad {
         when(httpClient.execute(any())).thenReturn(preCommitResponse);
         byte[] writeBuffer = "test".getBytes(StandardCharsets.UTF_8);
         DorisStreamLoad dorisStreamLoad = new DorisStreamLoad("", dorisOptions, executionOptions, new LabelGenerator("", true), httpClient);
-        dorisStreamLoad.startLoad("1");
+        dorisStreamLoad.startLoad("1", false);
         dorisStreamLoad.writeRecord(writeBuffer);
         dorisStreamLoad.writeRecord(writeBuffer);
         dorisStreamLoad.stopLoad("label");
@@ -134,7 +134,7 @@ public class TestDorisStreamLoad {
         when(httpClient.execute(any())).thenReturn(preCommitResponse);
 
         DorisStreamLoad dorisStreamLoad = new DorisStreamLoad("", dorisOptions, executionOptions, new LabelGenerator("", true), httpClient);
-        dorisStreamLoad.startLoad("1");
+        dorisStreamLoad.startLoad("1", false);
         dorisStreamLoad.writeRecord("{\"id\": 1}".getBytes(StandardCharsets.UTF_8));
         dorisStreamLoad.writeRecord("{\"id\": 2}".getBytes(StandardCharsets.UTF_8));
         dorisStreamLoad.stopLoad("label");
