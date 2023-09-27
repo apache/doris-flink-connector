@@ -180,7 +180,7 @@ public class DorisSystem {
         //append table comment
         if(!StringUtils.isNullOrWhitespaceOnly(schema.getTableComment())){
             sb.append(" COMMENT '")
-                    .append(schema.getTableComment())
+                    .append(schema.getTableComment().replace("'",""))
                     .append("' ");
         }
 
