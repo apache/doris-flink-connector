@@ -20,6 +20,7 @@ package org.apache.doris.flink.sink;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
+import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.sink.committer.DorisCommitter;
 import org.apache.doris.flink.sink.writer.DorisRecordSerializer;
 import org.apache.doris.flink.sink.writer.DorisWriter;
@@ -31,6 +32,8 @@ import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.util.Preconditions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.List;
@@ -43,6 +46,7 @@ import java.util.Optional;
  */
 public class DorisSink<IN> implements Sink<IN, DorisCommittable, DorisWriterState, DorisCommittable> {
 
+    private static final Logger LOG = LoggerFactory.getLogger(DorisSink.class);
     private final DorisOptions dorisOptions;
     private final DorisReadOptions dorisReadOptions;
     private final DorisExecutionOptions dorisExecutionOptions;
@@ -56,6 +60,18 @@ public class DorisSink<IN> implements Sink<IN, DorisCommittable, DorisWriterStat
         this.dorisReadOptions = dorisReadOptions;
         this.dorisExecutionOptions = dorisExecutionOptions;
         this.serializer = serializer;
+        checkKeyType();
+    }
+
+    /**
+     * The uniq model has 2pc close by default unless 2pc is forced open
+     */
+    private void checkKeyType() {
+        if (dorisExecutionOptions.enabled2PC()
+                && !dorisExecutionOptions.force2PC()
+                && RestService.isUniqueKeyType(dorisOptions, dorisReadOptions, LOG)){
+            dorisExecutionOptions.setEnable2PC(false);
+        }
     }
 
     @Override

@@ -137,6 +137,7 @@ public abstract class DatabaseSync {
 
     private DorisConnectionOptions getDorisConnectionOptions() {
         String fenodes = sinkConfig.getString(DorisConfigOptions.FENODES);
+        String benodes = sinkConfig.getString(DorisConfigOptions.BENODES);
         String user = sinkConfig.getString(DorisConfigOptions.USERNAME);
         String passwd = sinkConfig.getString(DorisConfigOptions.PASSWORD, "");
         String jdbcUrl = sinkConfig.getString(DorisConfigOptions.JDBC_URL);
@@ -145,6 +146,7 @@ public abstract class DatabaseSync {
         Preconditions.checkNotNull(jdbcUrl, "jdbcurl is empty in sink-conf");
         DorisConnectionOptions.DorisConnectionOptionsBuilder builder = new DorisConnectionOptions.DorisConnectionOptionsBuilder()
                 .withFenodes(fenodes)
+                .withBenodes(benodes)
                 .withUsername(user)
                 .withPassword(passwd)
                 .withJdbcUrl(jdbcUrl);
@@ -168,6 +170,7 @@ public abstract class DatabaseSync {
                 .setTableIdentifier(database + "." + table)
                 .setUsername(user)
                 .setPassword(passwd);
+        sinkConfig.getOptional(DorisConfigOptions.AUTO_REDIRECT).ifPresent(dorisBuilder::setAutoRedirect);
 
         Properties pro = new Properties();
         //default json data format

@@ -44,8 +44,8 @@ public class DorisConfigOptions {
     public static final ConfigOption<String> TABLE_IDENTIFIER = ConfigOptions.key("table.identifier").stringType().noDefaultValue().withDescription("the doris table name.");
     public static final ConfigOption<String> USERNAME = ConfigOptions.key("username").stringType().noDefaultValue().withDescription("the doris user name.");
     public static final ConfigOption<String> PASSWORD = ConfigOptions.key("password").stringType().noDefaultValue().withDescription("the doris password.");
-
     public static final ConfigOption<String> JDBC_URL = ConfigOptions.key("jdbc-url").stringType().noDefaultValue().withDescription("doris jdbc url address.");
+    public static final ConfigOption<Boolean> AUTO_REDIRECT = ConfigOptions.key("auto-redirect").booleanType().defaultValue(false).withDescription("Use automatic redirection of fe without explicitly obtaining the be list");
 
     // source config options
     public static final ConfigOption<String> DORIS_READ_FIELD = ConfigOptions
@@ -176,7 +176,7 @@ public class DorisConfigOptions {
     public static final ConfigOption<Integer> SINK_BUFFER_SIZE = ConfigOptions
             .key("sink.buffer-size")
             .intType()
-            .defaultValue(256 * 1024)
+            .defaultValue(1024 * 1024)
             .withDescription("the buffer size to cache data for stream load.");
     public static final ConfigOption<Integer> SINK_BUFFER_COUNT = ConfigOptions
             .key("sink.buffer-count")
