@@ -60,6 +60,7 @@ public class DorisWriter<IN> implements SinkWriter<IN, DorisCommittable, DorisWr
     private static final Logger LOG = LoggerFactory.getLogger(DorisWriter.class);
     private static final List<String> DORIS_SUCCESS_STATUS = new ArrayList<>(Arrays.asList(SUCCESS, PUBLISH_TIMEOUT));
     private final long lastCheckpointId;
+    private long curCheckpointId;
     private DorisStreamLoad dorisStreamLoad;
     volatile boolean loading;
     private final DorisOptions dorisOptions;
@@ -86,6 +87,7 @@ public class DorisWriter<IN> implements SinkWriter<IN, DorisCommittable, DorisWr
                 initContext
                         .getRestoredCheckpointId()
                         .orElse(CheckpointIDCounter.INITIAL_CHECKPOINT_ID - 1);
+        this.curCheckpointId = lastCheckpointId + 1;
         LOG.info("restore checkpointId {}", lastCheckpointId);
         LOG.info("labelPrefix " + executionOptions.getLabelPrefix());
         this.dorisWriterState = new DorisWriterState(executionOptions.getLabelPrefix());
@@ -113,14 +115,14 @@ public class DorisWriter<IN> implements SinkWriter<IN, DorisCommittable, DorisWr
             // TODO: we need check and abort all pending transaction.
             //  Discard transactions that may cause the job to fail.
             if(executionOptions.enabled2PC()) {
-                dorisStreamLoad.abortPreCommit(labelPrefix, lastCheckpointId + 1);
+                dorisStreamLoad.abortPreCommit(labelPrefix, curCheckpointId);
             }
         } catch (Exception e) {
             throw new DorisRuntimeException(e);
         }
         // get main work thread.
         executorThread = Thread.currentThread();
-        this.currentLabel = labelGenerator.generateLabel(lastCheckpointId + 1);
+        this.currentLabel = labelGenerator.generateLabel(curCheckpointId);
         // when uploading data in streaming mode, we need to regularly detect whether there are exceptions.
         scheduledExecutorService.scheduleWithFixedDelay(this::checkDone, 200, intervalTime, TimeUnit.MILLISECONDS);
     }
@@ -134,8 +136,8 @@ public class DorisWriter<IN> implements SinkWriter<IN, DorisCommittable, DorisWr
             return;
         }
         if(!loading) {
-            //Start streamload only when there has data
-            dorisStreamLoad.startLoad(currentLabel);
+            // start stream load only when there has data
+            dorisStreamLoad.startLoad(currentLabel, false);
             loading = true;
         }
         dorisStreamLoad.writeRecord(serialize);
@@ -167,7 +169,8 @@ public class DorisWriter<IN> implements SinkWriter<IN, DorisCommittable, DorisWr
         Preconditions.checkState(dorisStreamLoad != null);
         // dynamic refresh BE node
         this.dorisStreamLoad.setHostPort(backendUtil.getAvailableBackend());
-        this.currentLabel = labelGenerator.generateLabel(checkpointId + 1);
+        this.curCheckpointId = checkpointId + 1;
+        this.currentLabel = labelGenerator.generateLabel(curCheckpointId);
         return Collections.singletonList(dorisWriterState);
     }
 
@@ -182,23 +185,38 @@ public class DorisWriter<IN> implements SinkWriter<IN, DorisCommittable, DorisWr
                 return;
             }
 
-            // double check to interrupt when loading is true and dorisStreamLoad.getPendingLoadFuture().isDone
-            // fix issue #139
+            // double-check the future, to avoid getting the old future
             if (dorisStreamLoad.getPendingLoadFuture() != null
                     && dorisStreamLoad.getPendingLoadFuture().isDone()) {
-                // TODO: introduce cache for reload instead of throwing exceptions.
-                String errorMsg;
-                try {
-                    RespContent content = dorisStreamLoad.handlePreCommitResponse(dorisStreamLoad.getPendingLoadFuture().get());
-                    errorMsg = content.getMessage();
-                } catch (Exception e) {
-                    errorMsg = e.getMessage();
-                }
+                // error happened when loading, now we should stop receive data
+                // and abort previous txn(stream load) and start a new txn(stream load)
+                // use send cached data to new txn, then notify to restart the stream
+                if (executionOptions.isUseCache()) {
+                    try {
+                        this.dorisStreamLoad.setHostPort(backendUtil.getAvailableBackend());
+                        if (executionOptions.enabled2PC()) {
+                            dorisStreamLoad.abortPreCommit(labelPrefix, curCheckpointId);
+                        }
+                        // start a new txn(stream load)
+                        LOG.info("getting exception, breakpoint resume for checkpoint ID: {}", curCheckpointId);
+                        dorisStreamLoad.startLoad(labelGenerator.generateLabel(curCheckpointId), true);
+                    } catch (Exception e) {
+                        throw new DorisRuntimeException(e);
+                    }
+                } else {
+                    String errorMsg;
+                    try {
+                        RespContent content = dorisStreamLoad.handlePreCommitResponse(dorisStreamLoad.getPendingLoadFuture().get());
+                        errorMsg = content.getMessage();
+                    } catch (Exception e) {
+                        errorMsg = e.getMessage();
+                    }
 
-                loadException = new StreamLoadException(errorMsg);
-                LOG.error("stream load finished unexpectedly, interrupt worker thread! {}", errorMsg);
-                // set the executor thread interrupted in case blocking in write data.
-                executorThread.interrupt();
+                    loadException = new StreamLoadException(errorMsg);
+                    LOG.error("stream load finished unexpectedly, interrupt worker thread! {}", errorMsg);
+                    // set the executor thread interrupted in case blocking in write data.
+                    executorThread.interrupt();
+                }
             }
         }
     }

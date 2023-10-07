@@ -162,6 +162,7 @@ public class OracleDatabaseSync extends DatabaseSync {
                     .tableList(schemaName + "." + tableName)
                     .username(username)
                     .password(password)
+                    .includeSchemaChanges(true)
                     .startupOptions(startupOptions)
                     .deserializer(schema)
                     .debeziumProperties(debeziumProperties)
