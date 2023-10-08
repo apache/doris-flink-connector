@@ -17,7 +17,6 @@
 
 package org.apache.doris.flink.sink.batch;
 
-import org.apache.doris.flink.sink.writer.RecordBuffer;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,22 +59,25 @@ public class BatchRecordBuffer {
 
     @VisibleForTesting
     public void ensureCapacity(int length) {
-        if(buffer.remaining() >= length){
+        int lineDelimiterSize = this.lineDelimiter.length;
+        if(buffer.remaining() - lineDelimiterSize >= length){
             return;
         }
         int currentRemain = buffer.remaining();
         int currentCapacity = buffer.capacity();
-
-        int target = buffer.remaining() + length;
-        int capacity = buffer.capacity();
-        //grow 512kb each time
-        target = Math.max(target, Math.min(capacity + 512 * 1024, capacity * 2));
-        ByteBuffer tmp = ByteBuffer.allocate(target);
+        // add lineDelimiter length
+        int needed = length - buffer.remaining() + lineDelimiterSize;
+        // grow at least 1MB
+        long grow = Math.max(needed, 1024 * 1024);
+        // grow at least 50% of the current size
+        grow = Math.max(buffer.capacity() / 2, grow);
+        int newCapacity = (int) Math.min(Integer.MAX_VALUE, buffer.capacity() + grow);
+        ByteBuffer tmp = ByteBuffer.allocate(newCapacity);
         buffer.flip();
         tmp.put(buffer);
         buffer.clear();
         buffer = tmp;
-        LOG.info("record length {},buffer remain {} ,grow capacity {} to {}", length, currentRemain, currentCapacity, target);
+        LOG.info("record length {},buffer remain {} ,grow capacity {} to {}", length, currentRemain, currentCapacity, newCapacity);
     }
 
     public String getLabelName() {
