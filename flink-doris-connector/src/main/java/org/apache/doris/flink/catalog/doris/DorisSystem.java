@@ -77,7 +77,7 @@ public class DorisSystem {
         return true;
     }
 
-    public boolean tableExists(String database, String table){
+    public boolean tableExists(String database, String table) {
         return databaseExists(database)
                 && listTables(database).contains(table);
     }
@@ -106,7 +106,7 @@ public class DorisSystem {
     public void execute(String sql) {
         try (Statement statement = jdbcConnectionProvider.getOrEstablishConnection().createStatement()) {
             statement.execute(sql);
-        } catch (Exception e){
+        } catch (Exception e) {
             throw new DorisSystemException(String.format("SQL query could not be executed: %s", sql), e);
         }
     }
@@ -150,8 +150,8 @@ public class DorisSystem {
         Map<String, FieldSchema> fields = schema.getFields();
         List<String> keys = schema.getKeys();
         //append keys
-        for(String key : keys){
-            if(!fields.containsKey(key)){
+        for (String key : keys) {
+            if (!fields.containsKey(key)) {
                 throw new CreateTableException("key " + key + " not found in column list");
             }
             FieldSchema field = fields.get(key);
@@ -160,17 +160,17 @@ public class DorisSystem {
 
         //append values
         for (Map.Entry<String, FieldSchema> entry : fields.entrySet()) {
-            if(keys.contains(entry.getKey())){
+            if (keys.contains(entry.getKey())) {
                 continue;
             }
             FieldSchema field = entry.getValue();
             buildColumn(sb, field, false);
 
         }
-        sb = sb.deleteCharAt(sb.length() -1);
+        sb = sb.deleteCharAt(sb.length() - 1);
         sb.append(" ) ");
         //append uniq model
-        if(DataModel.UNIQUE.equals(schema.getModel())){
+        if (DataModel.UNIQUE.equals(schema.getModel())) {
             sb.append(schema.getModel().name())
                     .append(" KEY(")
                     .append(String.join(",", identifier(schema.getKeys())))
@@ -178,7 +178,7 @@ public class DorisSystem {
         }
 
         //append table comment
-        if(!StringUtils.isNullOrWhitespaceOnly(schema.getTableComment())){
+        if (!StringUtils.isNullOrWhitespaceOnly(schema.getTableComment())) {
             sb.append(" COMMENT '")
                     .append(quoteComment(schema.getTableComment()))
                     .append("' ");
@@ -210,24 +210,47 @@ public class DorisSystem {
         return sb.toString();
     }
 
-    private void buildColumn(StringBuilder sql, FieldSchema field, boolean isKey){
+    private void buildColumn(StringBuilder sql, FieldSchema field, boolean isKey) {
         String fieldType = field.getTypeString();
-        if(isKey && DorisType.STRING.equals(fieldType)){
+        if (isKey && DorisType.STRING.equals(fieldType)) {
             fieldType = String.format("%s(%s)", DorisType.VARCHAR, 65533);
         }
         sql.append(identifier(field.getName()))
                 .append(" ")
                 .append(fieldType)
-                .append(" COMMENT '")
+                .append(convertNullable(field.getNullable()))
+                .append(quoteDefaultValue(field.getDefaultValue()))
                 .append(quoteComment(field.getComment()))
-                .append("',");
+                .append(",");
     }
 
-    private String quoteComment(String comment){
-        if(comment == null){
+    private String convertNullable(Integer nullable) {
+        if (nullable == null || nullable == 1) {
+            return " NULL ";
+        } else {
+            return " NOT NULL ";
+        }
+    }
+
+    private String quoteDefaultValue(String defaultValue) {
+        if ((defaultValue == null)) {
+            return "";
+        } else if ("NULL".equalsIgnoreCase(defaultValue.trim())
+                || "EMPTY".equalsIgnoreCase(defaultValue.trim())
+                || "CURRENT_TIMESTAMP".equalsIgnoreCase(defaultValue.trim())
+                || defaultValue.startsWith("'")
+                || defaultValue.startsWith("\"")) {
+            return " DEFAULT " + defaultValue;
+        } else {
+            return " DEFAULT '" + defaultValue.replaceAll("'", "\\\\'") + "'";
+        }
+    }
+
+    private String quoteComment(String comment) {
+        if (comment == null) {
             return "";
         } else {
-            return comment.replaceAll("'","\\\\'");
+            return " COMMENT '" + comment.replaceAll("'", "\\\\'") + "'";
         }
     }
 

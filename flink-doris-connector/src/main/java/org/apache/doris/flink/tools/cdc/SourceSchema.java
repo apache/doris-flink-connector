@@ -50,6 +50,8 @@ public abstract class SourceSchema {
                 String comment = rs.getString("REMARKS");
                 String fieldType = rs.getString("TYPE_NAME");
                 Integer precision = rs.getInt("COLUMN_SIZE");
+                String defaultValue = rs.getString("COLUMN_DEF");
+                Integer nullable = rs.getInt("NULLABLE");
 
                 if (rs.wasNull()) {
                     precision = null;
@@ -59,7 +61,7 @@ public abstract class SourceSchema {
                     scale = null;
                 }
                 String dorisTypeStr = convertToDorisType(fieldType, precision, scale);
-                fields.put(fieldName, new FieldSchema(fieldName, dorisTypeStr, comment));
+                fields.put(fieldName, new FieldSchema(fieldName, dorisTypeStr, defaultValue, comment, nullable));
             }
         }
 
@@ -85,15 +87,15 @@ public abstract class SourceSchema {
         return tableSchema;
     }
 
-    private List<String> buildKeys(){
+    private List<String> buildKeys() {
         return buildDistributeKeys();
     }
 
-    private List<String> buildDistributeKeys(){
-        if(!this.primaryKeys.isEmpty()){
+    private List<String> buildDistributeKeys() {
+        if (!this.primaryKeys.isEmpty()) {
             return primaryKeys;
         }
-        if(!this.fields.isEmpty()){
+        if (!this.fields.isEmpty()) {
             Map.Entry<String, FieldSchema> firstField = this.fields.entrySet().iterator().next();
             return Collections.singletonList(firstField.getKey());
         }
