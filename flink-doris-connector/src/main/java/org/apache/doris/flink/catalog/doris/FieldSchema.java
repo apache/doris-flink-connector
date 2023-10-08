@@ -21,6 +21,7 @@ public class FieldSchema {
     private String typeString;
     private String defaultValue;
     private String comment;
+    private Integer nullable;
 
     public FieldSchema() {
     }
@@ -36,6 +37,14 @@ public class FieldSchema {
         this.typeString = typeString;
         this.defaultValue = defaultValue;
         this.comment = comment;
+    }
+
+    public FieldSchema(String name, String typeString, String defaultValue, String comment, Integer nullable) {
+        this.name = name;
+        this.typeString = typeString;
+        this.defaultValue = defaultValue;
+        this.comment = comment;
+        this.nullable = nullable;
     }
 
     public String getName() {
@@ -69,4 +78,13 @@ public class FieldSchema {
     public void setDefaultValue(String defaultValue) {
         this.defaultValue = defaultValue;
     }
+
+    public Integer getNullable() {
+        return nullable;
+    }
+
+    public void setNullable(Integer nullable) {
+        this.nullable = nullable;
+    }
 }
+
