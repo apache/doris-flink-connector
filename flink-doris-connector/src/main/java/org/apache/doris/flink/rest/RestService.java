@@ -356,6 +356,11 @@ public class RestService implements Serializable {
     public static List<BackendV2.BackendRowV2> getBackendsV2(DorisOptions options, DorisReadOptions readOptions, Logger logger) {
         String feNodes = options.getFenodes();
         List<String> feNodeList = allEndpoints(feNodes, logger);
+
+        if(options.isAutoRedirect() && !feNodeList.isEmpty()){
+            return convert(feNodeList);
+        }
+
         for (String feNode: feNodeList) {
             try {
                 String beUrl = "http://" + feNode + BACKENDS_V2;
@@ -371,6 +376,21 @@ public class RestService implements Serializable {
         String errMsg = "No Doris FE is available, please check configuration";
         logger.error(errMsg);
         throw new DorisRuntimeException(errMsg);
+    }
+
+    /**
+     * When the user turns on redirection,
+     * there is no need to explicitly obtain the be list, just treat the fe list as the be list.
+     * @param feNodeList
+     * @return
+     */
+    private static List<BackendV2.BackendRowV2> convert(List<String> feNodeList){
+        List<BackendV2.BackendRowV2> nodeList = new ArrayList<>();
+        for(String node : feNodeList){
+            String[] split = node.split(":");
+            nodeList.add(BackendV2.BackendRowV2.of(split[0], Integer.valueOf(split[1]), true));
+        }
+        return nodeList;
     }
 
     static List<BackendV2.BackendRowV2> parseBackendV2(String response, Logger logger) {

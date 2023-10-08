@@ -49,7 +49,8 @@ public class DorisExecutionOptions implements Serializable {
      */
     private final Properties streamLoadProp;
     private final Boolean enableDelete;
-    private final Boolean enable2PC;
+    private Boolean enable2PC;
+    private boolean force2PC;
 
     //batch mode param
     private final int flushQueueSize;
@@ -73,7 +74,8 @@ public class DorisExecutionOptions implements Serializable {
                                  int bufferFlushMaxRows,
                                  int bufferFlushMaxBytes,
                                  long bufferFlushIntervalMs,
-                                 boolean ignoreUpdateBefore) {
+                                 boolean ignoreUpdateBefore,
+                                 boolean force2PC) {
         Preconditions.checkArgument(maxRetries >= 0);
         this.checkInterval = checkInterval;
         this.maxRetries = maxRetries;
@@ -84,6 +86,7 @@ public class DorisExecutionOptions implements Serializable {
         this.streamLoadProp = streamLoadProp;
         this.enableDelete = enableDelete;
         this.enable2PC = enable2PC;
+        this.force2PC = force2PC;
 
         this.enableBatchMode = enableBatchMode;
         this.flushQueueSize = flushQueueSize;
@@ -176,6 +179,14 @@ public class DorisExecutionOptions implements Serializable {
         return ignoreUpdateBefore;
     }
 
+    public void setEnable2PC(Boolean enable2PC) {
+        this.enable2PC = enable2PC;
+    }
+
+    public boolean force2PC() {
+        return force2PC;
+    }
+
     /**
      * Builder of {@link DorisExecutionOptions}.
      */
@@ -189,6 +200,9 @@ public class DorisExecutionOptions implements Serializable {
         private Properties streamLoadProp = new Properties();
         private boolean enableDelete = true;
         private boolean enable2PC = true;
+
+        //A flag used to determine whether to forcibly open 2pc. By default, the uniq model close 2pc.
+        private boolean force2PC = false;
 
         private int flushQueueSize = DEFAULT_FLUSH_QUEUE_SIZE;
         private int bufferFlushMaxRows = DEFAULT_BUFFER_FLUSH_MAX_ROWS;
@@ -244,6 +258,13 @@ public class DorisExecutionOptions implements Serializable {
             return this;
         }
 
+        public Builder enable2PC() {
+            this.enable2PC = true;
+            //Force open 2pc
+            this.force2PC = true;
+            return this;
+        }
+
         public Builder enableBatchMode() {
             this.enableBatchMode = true;
             return this;
@@ -278,7 +299,7 @@ public class DorisExecutionOptions implements Serializable {
         public DorisExecutionOptions build() {
             return new DorisExecutionOptions(checkInterval, maxRetries, bufferSize, bufferCount, labelPrefix, useCache,
                     streamLoadProp, enableDelete, enable2PC, enableBatchMode, flushQueueSize, bufferFlushMaxRows,
-                    bufferFlushMaxBytes, bufferFlushIntervalMs, ignoreUpdateBefore);
+                    bufferFlushMaxBytes, bufferFlushIntervalMs, ignoreUpdateBefore, force2PC);
         }
     }
 }
