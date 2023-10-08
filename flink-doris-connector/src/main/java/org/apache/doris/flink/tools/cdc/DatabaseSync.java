@@ -190,9 +190,12 @@ public abstract class DatabaseSync {
         sinkConfig.getOptional(DorisConfigOptions.SINK_MAX_RETRIES).ifPresent(executionBuilder::setMaxRetries);
         sinkConfig.getOptional(DorisConfigOptions.SINK_IGNORE_UPDATE_BEFORE).ifPresent(executionBuilder::setIgnoreUpdateBefore);
 
-        boolean enable2pc = sinkConfig.getBoolean(DorisConfigOptions.SINK_ENABLE_2PC);
-        if(!enable2pc){
+
+        if(!sinkConfig.getBoolean(DorisConfigOptions.SINK_ENABLE_2PC)){
             executionBuilder.disable2PC();
+        } else if(sinkConfig.getOptional(DorisConfigOptions.SINK_ENABLE_2PC).isPresent()){
+            //force open 2pc
+            executionBuilder.enable2PC();
         }
 
         //batch option
