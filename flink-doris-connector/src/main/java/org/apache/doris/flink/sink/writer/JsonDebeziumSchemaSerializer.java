@@ -469,7 +469,8 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
         filedSchemaMap.put(fieldName, new FieldSchema(fieldName, dorisTypeName, defaultValue, comment));
     }
 
-    private String buildDorisTypeName(JsonNode column) {
+    @VisibleForTesting
+    public String buildDorisTypeName(JsonNode column) {
         int length = column.get("length") == null ? 0 : column.get("length").asInt();
         int scale = column.get("scale") == null ? 0 : column.get("scale").asInt();
         String sourceTypeName = column.get("typeName").asText();
@@ -523,6 +524,11 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
     @VisibleForTesting
     public Map<String, FieldSchema> getOriginFieldSchemaMap() {
         return originFieldSchemaMap;
+    }
+
+    @VisibleForTesting
+    public void setSourceConnector(String sourceConnector) {
+        this.sourceConnector = SourceConnector.valueOf(sourceConnector.toUpperCase());
     }
 
     public static JsonDebeziumSchemaSerializer.Builder builder() {
