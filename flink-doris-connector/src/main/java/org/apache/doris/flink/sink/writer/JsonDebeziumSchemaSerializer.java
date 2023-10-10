@@ -82,6 +82,8 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
     public static final String EXECUTE_DDL = "ALTER TABLE %s %s COLUMN %s %s"; // alter table tbl add cloumn aca int
     private static final String addDropDDLRegex
             = "ALTER\\s+TABLE\\s+[^\\s]+\\s+(ADD|DROP)\\s+(COLUMN\\s+)?([^\\s]+)(\\s+([^\\s]+))?.*";
+    private static final Pattern renameDDLPattern = Pattern.compile(
+            "ALTER\\s+TABLE\\s+(\\w+)\\s+RENAME\\s+COLUMN\\s+(\\w+)\\s+TO\\s+(\\w+)", Pattern.CASE_INSENSITIVE);
     private final Pattern addDropDDLPattern;
     private DorisOptions dorisOptions;
     private ObjectMapper objectMapper = new ObjectMapper();
@@ -249,6 +251,17 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
             sourceConnector = SourceConnector.valueOf(record.get("source").get("connector").asText().toUpperCase());
             fillOriginSchema(columns);
         }
+
+        // rename ddl
+        Matcher renameMatcher = renameDDLPattern.matcher(ddl);
+        if (renameMatcher.find()) {
+            String oldColumnName = renameMatcher.group(2);
+            String newColumnName = renameMatcher.group(3);
+            return SchemaChangeHelper.generateRenameDDLSql(
+                    dorisOptions.getTableIdentifier(), oldColumnName, newColumnName, originFieldSchemaMap);
+        }
+
+        // add/drop ddl
         Map<String, FieldSchema> updateFiledSchema = new LinkedHashMap<>();
         for (JsonNode column : columns) {
             buildFieldSchema(updateFiledSchema, column);
