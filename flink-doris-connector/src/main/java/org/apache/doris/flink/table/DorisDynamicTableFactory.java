@@ -20,8 +20,6 @@ import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisLookupOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
-
-import static org.apache.doris.flink.table.DorisConfigOptions.BENODES;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableSchema;
@@ -38,6 +36,8 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
+import static org.apache.doris.flink.table.DorisConfigOptions.AUTO_REDIRECT;
+import static org.apache.doris.flink.table.DorisConfigOptions.BENODES;
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_BATCH_SIZE;
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_DESERIALIZE_ARROW_ASYNC;
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_DESERIALIZE_QUEUE_SIZE;
@@ -179,6 +179,7 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
         final DorisOptions.Builder builder = DorisOptions.builder()
                 .setFenodes(fenodes)
                 .setBenodes(benodes)
+                .setAutoRedirect(readableConfig.get(AUTO_REDIRECT))
                 .setJdbcUrl(readableConfig.get(JDBC_URL))
                 .setTableIdentifier(readableConfig.get(TABLE_IDENTIFIER));
 
@@ -214,8 +215,12 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
         builder.setStreamLoadProp(streamLoadProp);
         builder.setDeletable(readableConfig.get(SINK_ENABLE_DELETE));
         builder.setIgnoreUpdateBefore(readableConfig.get(SINK_IGNORE_UPDATE_BEFORE));
+
         if (!readableConfig.get(SINK_ENABLE_2PC)) {
             builder.disable2PC();
+        } else if (readableConfig.getOptional(SINK_ENABLE_2PC).isPresent()){
+            //force open 2pc
+            builder.enable2PC();
         }
 
         if(readableConfig.get(SINK_ENABLE_BATCH_MODE)) {

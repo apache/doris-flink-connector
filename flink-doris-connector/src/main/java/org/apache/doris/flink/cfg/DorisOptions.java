@@ -43,8 +43,8 @@ public class DorisOptions extends DorisConnectionOptions {
     }
 
     public DorisOptions(String fenodes, String beNodes, String username, String password,
-            String tableIdentifier, String jdbcUrl) {
-        super(fenodes, beNodes, username, password, jdbcUrl);
+            String tableIdentifier, String jdbcUrl, boolean redirect) {
+        super(fenodes, beNodes, username, password, jdbcUrl, redirect);
         this.tableIdentifier = tableIdentifier;
     }
 
@@ -70,6 +70,7 @@ public class DorisOptions extends DorisConnectionOptions {
         private String jdbcUrl;
         private String username;
         private String password;
+        private boolean autoRedirect;
         private String tableIdentifier;
 
         /**
@@ -120,10 +121,15 @@ public class DorisOptions extends DorisConnectionOptions {
             return this;
         }
 
+        public Builder setAutoRedirect(boolean autoRedirect) {
+            this.autoRedirect = autoRedirect;
+            return this;
+        }
+
         public DorisOptions build() {
             checkNotNull(fenodes, "No fenodes supplied.");
             checkNotNull(tableIdentifier, "No tableIdentifier supplied.");
-            return new DorisOptions(fenodes, benodes, username, password, tableIdentifier, jdbcUrl);
+            return new DorisOptions(fenodes, benodes, username, password, tableIdentifier, jdbcUrl, autoRedirect);
         }
     }
 
