@@ -37,6 +37,8 @@ public class SchemaChangeHelper {
 
     public static void compareSchema(Map<String, FieldSchema> updateFiledSchemaMap,
             Map<String, FieldSchema> originFieldSchemaMap) {
+        dropFieldSchemas.clear();
+        addFieldSchemas.clear();
         for (Entry<String, FieldSchema> updateFieldSchema : updateFiledSchemaMap.entrySet()) {
             String columName = updateFieldSchema.getKey();
             if (!originFieldSchemaMap.containsKey(columName)) {
