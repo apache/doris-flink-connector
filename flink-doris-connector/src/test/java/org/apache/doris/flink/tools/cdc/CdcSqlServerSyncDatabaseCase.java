@@ -51,7 +51,7 @@ public class CdcSqlServerSyncDatabaseCase {
         sourceConfig.put("hostname","127.0.0.1");
         sourceConfig.put("port","1433");
         sourceConfig.put("username","sa");
-        sourceConfig.put("password","123456");
+        sourceConfig.put("password","Passw@rd");
 //        sourceConfig.put("debezium.database.tablename.case.insensitive","false");
 //        sourceConfig.put("scan.incremental.snapshot.enabled","true");
 //        sourceConfig.put("debezium.include.schema.changes","false");
@@ -59,25 +59,29 @@ public class CdcSqlServerSyncDatabaseCase {
         Configuration config = Configuration.fromMap(sourceConfig);
 
         Map<String,String> sinkConfig = new HashMap<>();
-        sinkConfig.put("fenodes","10.20.30.1:8030");
+//        sinkConfig.put("fenodes","10.20.30.1:8030");
+        sinkConfig.put("fenodes","172.20.80.2:8030");
         // sinkConfig.put("benodes","10.20.30.1:8040, 10.20.30.2:8040, 10.20.30.3:8040");
         sinkConfig.put("username","root");
         sinkConfig.put("password","");
-        sinkConfig.put("jdbc-url","jdbc:mysql://10.20.30.1:9030");
+//        sinkConfig.put("jdbc-url","jdbc:mysql://10.20.30.1:9030");
+        sinkConfig.put("jdbc-url","jdbc:mysql://172.20.80.2:9030");
         sinkConfig.put("sink.label-prefix", UUID.randomUUID().toString());
         Configuration sinkConf = Configuration.fromMap(sinkConfig);
 
         Map<String,String> tableConfig = new HashMap<>();
         tableConfig.put("replication_num", "1");
 
-        String includingTables = "products_test";
+        String includingTables = "a_.*|b_.*|c";
         String excludingTables = "";
+        String multiToOneOrigin="a_.*|b_.*";
+        String multiToOneTarget="a|b";
         boolean ignoreDefaultValue = false;
         boolean useNewSchemaChange = false;
         DatabaseSync databaseSync = new SqlServerDatabaseSync();
-        databaseSync.create(env,database,config,tablePrefix,tableSuffix,includingTables,excludingTables,ignoreDefaultValue,sinkConf,tableConfig, false, useNewSchemaChange);
+        databaseSync.create(env,database,config,tablePrefix,tableSuffix,includingTables,excludingTables,multiToOneOrigin,multiToOneTarget,ignoreDefaultValue,sinkConf,tableConfig, false, useNewSchemaChange);
         databaseSync.build();
-        env.execute(String.format("Postgres-Doris Database Sync: %s", database));
+        env.execute(String.format("SqlServer-Doris Database Sync: %s", database));
 
     }
 }
