@@ -95,7 +95,7 @@ public class DorisCommitter implements Committer<DorisCommittable> {
             // http execute...
             try (CloseableHttpResponse response = httpClient.execute(httpPut)) {
                 StatusLine statusLine = response.getStatusLine();
-                if (201 == statusLine.getStatusCode()) {
+                if (200 == statusLine.getStatusCode()) {
                     if (response.getEntity() != null) {
                         String loadResult = EntityUtils.toString(response.getEntity());
                         Map<String, String> res = new ObjectMapper().readValue(loadResult, new TypeReference<HashMap<String, String>>() {
