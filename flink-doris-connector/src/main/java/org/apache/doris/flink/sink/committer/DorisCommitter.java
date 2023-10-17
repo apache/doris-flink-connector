@@ -17,11 +17,9 @@
 
 package org.apache.doris.flink.sink.committer;
 
-import org.apache.commons.lang3.StringUtils;
-import org.apache.flink.api.connector.sink.Committer;
-
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.exception.DorisRuntimeException;
@@ -31,6 +29,7 @@ import org.apache.doris.flink.sink.DorisCommittable;
 import org.apache.doris.flink.sink.HttpPutBuilder;
 import org.apache.doris.flink.sink.HttpUtil;
 import org.apache.doris.flink.sink.ResponseUtil;
+import org.apache.flink.api.connector.sink.Committer;
 import org.apache.http.StatusLine;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPut;
@@ -45,7 +44,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.apache.doris.flink.sink.LoadStatus.FAIL;
+import static org.apache.doris.flink.sink.LoadStatus.SUCCESS;
 
 /**
  * The committer to commit transaction.
@@ -109,7 +108,7 @@ public class DorisCommitter implements Committer<DorisCommittable> {
                         String loadResult = EntityUtils.toString(response.getEntity());
                         Map<String, String> res = jsonMapper.readValue(loadResult, new TypeReference<HashMap<String, String>>() {
                         });
-                        if (res.get("status").equals(FAIL) && !ResponseUtil.isCommitted(res.get("msg"))) {
+                        if (!res.get("status").equals(SUCCESS) && !ResponseUtil.isCommitted(res.get("msg"))) {
                             throw new DorisRuntimeException("Commit failed " + loadResult);
                         } else {
                             LOG.info("load result {}", loadResult);
