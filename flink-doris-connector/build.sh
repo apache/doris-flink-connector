@@ -144,7 +144,7 @@ if [ ${flinkVer} -eq 1 ]; then
 elif [ ${flinkVer} -eq 2 ]; then
     FLINK_VERSION="1.16.0"
 elif [ ${flinkVer} -eq 3 ]; then
-    FLINK_VERSION="1.17.0"
+    FLINK_VERSION="1.17.1"
 fi
 
 # extract minor version:

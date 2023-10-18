@@ -68,8 +68,8 @@ under the License.
 
     <properties>
         <revision>1.5.0-SNAPSHOT</revision>
-        <flink.version>1.16.0</flink.version>
-        <flink.minor.version>1.16</flink.minor.version>
+        <flink.version>1.17.1</flink.version>
+        <flink.minor.version>1.17</flink.minor.version>
         <libthrift.version>0.16.0</libthrift.version>
         <arrow.version>5.0.0</arrow.version>
         <maven-compiler-plugin.version>3.10.1</maven-compiler-plugin.version>
@@ -79,6 +79,7 @@ under the License.
         <log4j2.version>2.18.0</log4j2.version>
         <project.scm.id>github</project.scm.id>
         <thrift-service.version>1.0.0</thrift-service.version>
+        <flink.dependency.scope>compile</flink.dependency.scope>
     </properties>
 
     <dependencies>
@@ -92,35 +93,35 @@ under the License.
             <groupId>org.apache.flink</groupId>
             <artifactId>flink-clients</artifactId>
             <version>${flink.version}</version>
-            <scope>provided</scope>
+            <scope>${flink.dependency.scope}</scope>
         </dependency>
 
         <dependency>
             <groupId>org.apache.flink</groupId>
             <artifactId>flink-table-planner-loader</artifactId>
             <version>${flink.version}</version>
-            <scope>provided</scope>
+            <scope>${flink.dependency.scope}</scope>
         </dependency>
 
         <dependency>
             <groupId>org.apache.flink</groupId>
             <artifactId>flink-connector-base</artifactId>
             <version>${flink.version}</version>
-            <scope>provided</scope>
+            <scope>${flink.dependency.scope}</scope>
         </dependency>
 
         <dependency>
             <groupId>org.apache.flink</groupId>
             <artifactId>flink-table-api-java-bridge</artifactId>
             <version>${flink.version}</version>
-            <scope>provided</scope>
+            <scope>${flink.dependency.scope}</scope>
         </dependency>
 
         <dependency>
             <groupId>org.apache.flink</groupId>
             <artifactId>flink-table-runtime</artifactId>
             <version>${flink.version}</version>
-            <scope>provided</scope>
+            <scope>${flink.dependency.scope}</scope>
         </dependency>
 
         <dependency>
@@ -252,7 +253,7 @@ under the License.
             <groupId>com.ververica</groupId>
             <artifactId>flink-sql-connector-mysql-cdc</artifactId>
             <version>2.4.1</version>
-            <scope>provided</scope>
+            <scope>${flink.dependency.scope}</scope>
         </dependency>
         <dependency>
             <groupId>com.ververica</groupId>
@@ -276,7 +277,7 @@ under the License.
             <groupId>org.apache.flink</groupId>
             <artifactId>flink-runtime-web</artifactId>
             <version>${flink.version}</version>
-            <scope>provided</scope>
+            <scope>${flink.dependency.scope}</scope>
         </dependency>
     </dependencies>
 
@@ -335,6 +336,14 @@ under the License.
                                 <goal>shade</goal>
                             </goals>
                             <phase>package</phase>
+                            <configuration>
+                                <transformers>
+                                    <transformer
+                                            implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                        <mainClass>org.apache.doris.flink.tools.cdc.CdcTools</mainClass>
+                                    </transformer>
+                                </transformers>
+                            </configuration>
                         </execution>
                     </executions>
                 </plugin>

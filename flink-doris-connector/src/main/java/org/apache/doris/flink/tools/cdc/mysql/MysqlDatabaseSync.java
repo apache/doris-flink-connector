@@ -61,12 +61,12 @@ public class MysqlDatabaseSync extends DatabaseSync {
     }
 
     @Override
-    public Connection getConnection() throws SQLException {
+    public Connection getConnection() throws SQLException, ClassNotFoundException {
         Properties jdbcProperties = getJdbcProperties();
         StringBuilder jdbcUrlSb = new StringBuilder(JDBC_URL);
         jdbcProperties.forEach((key, value) -> jdbcUrlSb.append("&").append(key).append("=").append(value));
         String jdbcUrl = String.format(jdbcUrlSb.toString(), config.get(MySqlSourceOptions.HOSTNAME), config.get(MySqlSourceOptions.PORT));
-
+        Class.forName("com.mysql.cj.jdbc.Driver");
         return DriverManager.getConnection(jdbcUrl,config.get(MySqlSourceOptions.USERNAME),config.get(MySqlSourceOptions.PASSWORD));
     }
 

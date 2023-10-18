@@ -107,7 +107,7 @@ public class MysqlType {
                 return DorisType.BIGINT;
             case BIGINT_UNSIGNED:
             case BIGINT_UNSIGNED_ZEROFILL:
-                return DorisType.LARGEINT;
+                return DorisType.BIGINT;
             case FLOAT:
             case FLOAT_UNSIGNED:
             case FLOAT_UNSIGNED_ZEROFILL:

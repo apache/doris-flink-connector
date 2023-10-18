@@ -18,10 +18,7 @@ package org.apache.doris.flink.tools.cdc;
 
 import org.apache.doris.flink.catalog.doris.DorisSystem;
 import org.apache.doris.flink.catalog.doris.TableSchema;
-import org.apache.doris.flink.cfg.DorisConnectionOptions;
-import org.apache.doris.flink.cfg.DorisExecutionOptions;
-import org.apache.doris.flink.cfg.DorisOptions;
-import org.apache.doris.flink.cfg.DorisReadOptions;
+import org.apache.doris.flink.cfg.*;
 import org.apache.doris.flink.sink.DorisSink;
 import org.apache.doris.flink.sink.writer.JsonDebeziumSchemaSerializer;
 import org.apache.doris.flink.table.DorisConfigOptions;
@@ -64,7 +61,7 @@ public abstract class DatabaseSync {
     protected String includingTables;
     protected String excludingTables;
 
-    public abstract Connection getConnection() throws SQLException;
+    public abstract Connection getConnection() throws SQLException, ClassNotFoundException;
 
     public abstract List<SourceSchema> getSchemaList() throws Exception;
 
@@ -107,6 +104,10 @@ public abstract class DatabaseSync {
         List<String> syncTables = new ArrayList<>();
         List<String> dorisTables = new ArrayList<>();
         for (SourceSchema schema : schemaList) {
+            if (sinkConfig.containsKey(ConfigurationOptions.TABLE_IDENTIFIER)) {
+                dorisTables.add(sinkConfig.getString(DorisConfigOptions.TABLE_IDENTIFIER));
+                break;
+            }
             syncTables.add(schema.getTableName());
             String dorisTable = converter.convert(schema.getTableName());
             if (!dorisSystem.tableExists(database, dorisTable)) {
