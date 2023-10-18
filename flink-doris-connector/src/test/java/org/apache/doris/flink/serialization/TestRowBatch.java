@@ -17,6 +17,7 @@
 
 package org.apache.doris.flink.serialization;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;
@@ -30,17 +31,24 @@ import org.apache.arrow.vector.TinyIntVector;
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
+import org.apache.arrow.vector.complex.MapVector;
+import org.apache.arrow.vector.complex.StructVector;
+import org.apache.arrow.vector.complex.impl.NullableStructWriter;
+import org.apache.arrow.vector.complex.impl.UnionMapWriter;
 import org.apache.arrow.vector.dictionary.DictionaryProvider;
 import org.apache.arrow.vector.ipc.ArrowStreamWriter;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
+import org.apache.doris.flink.exception.DorisException;
 import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.rest.models.Schema;
 import org.apache.doris.sdk.thrift.TScanBatchResult;
 import org.apache.doris.sdk.thrift.TStatus;
 import org.apache.doris.sdk.thrift.TStatusCode;
+import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
+import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableMap;
 import org.apache.flink.table.data.DecimalData;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -50,7 +58,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -440,5 +450,140 @@ public class TestRowBatch {
         thrown.expect(NoSuchElementException.class);
         thrown.expectMessage(startsWith("Get row offset:"));
         rowBatch.next();
+    }
+
+    @Test
+    public void testMap() throws IOException, DorisException {
+
+        ImmutableList<Field> mapChildren = ImmutableList.of(
+                new Field("child", new FieldType(false, new ArrowType.Struct(), null),
+                        ImmutableList.of(
+                                new Field("key", new FieldType(false, new ArrowType.Utf8(), null), null),
+                                new Field("value", new FieldType(false, new ArrowType.Int(32, true), null),
+                                        null)
+                        )
+                ));
+
+        ImmutableList<Field> fields = ImmutableList.of(
+                new Field("col_map", new FieldType(false, new ArrowType.Map(false), null),
+                        mapChildren)
+        );
+
+        RootAllocator allocator = new RootAllocator(Integer.MAX_VALUE);
+        VectorSchemaRoot root = VectorSchemaRoot.create(
+                new org.apache.arrow.vector.types.pojo.Schema(fields, null), allocator);
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        ArrowStreamWriter arrowStreamWriter = new ArrowStreamWriter(
+                root,
+                new DictionaryProvider.MapDictionaryProvider(),
+                outputStream);
+
+        arrowStreamWriter.start();
+        root.setRowCount(3);
+
+        MapVector mapVector = (MapVector) root.getVector("col_map");
+        mapVector.allocateNew();
+        UnionMapWriter mapWriter = mapVector.getWriter();
+        for (int i = 0; i < 3; i++) {
+            mapWriter.setPosition(i);
+            mapWriter.startMap();
+            mapWriter.startEntry();
+            String key = "k" + (i + 1);
+            byte[] bytes = key.getBytes(StandardCharsets.UTF_8);
+            ArrowBuf buffer = allocator.buffer(bytes.length);
+            buffer.setBytes(0, bytes);
+            mapWriter.key().varChar().writeVarChar(0, bytes.length, buffer);
+            buffer.close();
+            mapWriter.value().integer().writeInt(i);
+            mapWriter.endEntry();
+            mapWriter.endMap();
+        }
+        mapWriter.setValueCount(3);
+
+        arrowStreamWriter.writeBatch();
+
+        arrowStreamWriter.end();
+        arrowStreamWriter.close();
+
+        TStatus status = new TStatus();
+        status.setStatusCode(TStatusCode.OK);
+        TScanBatchResult scanBatchResult = new TScanBatchResult();
+        scanBatchResult.setStatus(status);
+        scanBatchResult.setEos(false);
+        scanBatchResult.setRows(outputStream.toByteArray());
+
+        String schemaStr = "{\"properties\":[{\"type\":\"MAP\",\"name\":\"col_map\",\"comment\":\"\"}" +
+                "], \"status\":200}";
+
+
+        Schema schema = RestService.parseSchema(schemaStr, logger);
+
+        RowBatch rowBatch = new RowBatch(scanBatchResult, schema).readArrow();
+        Assert.assertTrue(rowBatch.hasNext());
+        Assert.assertEquals(ImmutableMap.of("k1","0"), rowBatch.next().get(0));
+        Assert.assertTrue(rowBatch.hasNext());
+        Assert.assertEquals(ImmutableMap.of("k2", "1"),rowBatch.next().get(0));
+        Assert.assertTrue(rowBatch.hasNext());
+        Assert.assertEquals(ImmutableMap.of("k3", "2"), rowBatch.next().get(0));
+        Assert.assertFalse(rowBatch.hasNext());
+
+    }
+
+    @Test
+    public void testStruct() throws IOException, DorisException {
+
+        ImmutableList<Field> fields = ImmutableList.of(
+                new Field("col_struct", new FieldType(false, new ArrowType.Struct(), null),
+                        ImmutableList.of(new Field("a", new FieldType(false, new ArrowType.Utf8(), null), null),
+                                new Field("b", new FieldType(false, new ArrowType.Int(32, true), null), null))
+                ));
+
+        RootAllocator allocator = new RootAllocator(Integer.MAX_VALUE);
+        VectorSchemaRoot root = VectorSchemaRoot.create(
+                new org.apache.arrow.vector.types.pojo.Schema(fields, null), allocator);
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        ArrowStreamWriter arrowStreamWriter = new ArrowStreamWriter(
+                root,
+                new DictionaryProvider.MapDictionaryProvider(),
+                outputStream);
+
+        arrowStreamWriter.start();
+        root.setRowCount(3);
+
+        StructVector structVector = (StructVector) root.getVector("col_struct");
+        structVector.allocateNew();
+        NullableStructWriter writer = structVector.getWriter();
+        writer.setPosition(0);
+        writer.start();
+        byte[] bytes = "a1".getBytes(StandardCharsets.UTF_8);
+        ArrowBuf buffer = allocator.buffer(bytes.length);
+        buffer.setBytes(0, bytes);
+        writer.varChar("a").writeVarChar(0, bytes.length, buffer);
+        buffer.close();
+        writer.integer("b").writeInt(1);
+        writer.end();
+        writer.setValueCount(1);
+
+        arrowStreamWriter.writeBatch();
+
+        arrowStreamWriter.end();
+        arrowStreamWriter.close();
+
+        TStatus status = new TStatus();
+        status.setStatusCode(TStatusCode.OK);
+        TScanBatchResult scanBatchResult = new TScanBatchResult();
+        scanBatchResult.setStatus(status);
+        scanBatchResult.setEos(false);
+        scanBatchResult.setRows(outputStream.toByteArray());
+
+        String schemaStr = "{\"properties\":[{\"type\":\"STRUCT\",\"name\":\"col_struct\",\"comment\":\"\"}" +
+                "], \"status\":200}";
+
+        Schema schema = RestService.parseSchema(schemaStr, logger);
+
+        RowBatch rowBatch = new RowBatch(scanBatchResult, schema).readArrow();
+        Assert.assertTrue(rowBatch.hasNext());
+        Assert.assertEquals("{\"a\":\"a1\",\"b\":1}", rowBatch.next().get(0));
+
     }
 }
