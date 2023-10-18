@@ -16,6 +16,7 @@
 // under the License.
 package org.apache.doris.flink.tools.cdc;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.doris.flink.catalog.doris.DorisSystem;
 import org.apache.doris.flink.catalog.doris.TableSchema;
 import org.apache.doris.flink.cfg.DorisConnectionOptions;
@@ -55,7 +56,6 @@ public abstract class DatabaseSync {
     protected TableNameConverter converter;
     protected Pattern includingPattern;
     protected Pattern excludingPattern;
-    protected Pattern multiToOnePattern;
     protected Map<Pattern, String> multiToOneRulesPattern;
     protected Map<String, String> tableConfig;
     protected Configuration sinkConfig;
@@ -87,9 +87,8 @@ public abstract class DatabaseSync {
         this.multiToOneTarget = multiToOneTarget;
         this.includingPattern = includingTables == null ? null : Pattern.compile(includingTables);
         this.excludingPattern = excludingTables == null ? null : Pattern.compile(excludingTables);
-        this.multiToOnePattern = multiToOneOrigin == null ? null : Pattern.compile(multiToOneOrigin);
         this.multiToOneRulesPattern=multiToOneRulesParser(multiToOneOrigin,multiToOneTarget);
-        this.converter = new TableNameConverter(tablePrefix, tableSuffix,multiToOnePattern,multiToOneRulesPattern);
+        this.converter = new TableNameConverter(tablePrefix, tableSuffix,multiToOneRulesPattern);
         this.ignoreDefaultValue = ignoreDefaultValue;
         this.sinkConfig = sinkConfig;
         this.tableConfig = tableConfig == null ? new HashMap<>() : tableConfig;
@@ -116,13 +115,7 @@ public abstract class DatabaseSync {
         List<String> dorisTables = new ArrayList<>();
         for (SourceSchema schema : schemaList) {
             syncTables.add(schema.getTableName());
-            // 转换之前得判断是否是多表合一,多表合一不进行转换
-            String dorisTable="";
-            if(converter.isMultiToOneTable(schema.getTableName())){
-                dorisTable = converter.getMultiToOneTargetByTableName(schema.getTableName());
-            }else{
-                dorisTable = converter.convert(schema.getTableName());
-            }
+            String dorisTable=converter.convert(schema.getTableName());
             if (!dorisSystem.tableExists(database, dorisTable)) {
                 TableSchema dorisSchema = schema.convertTableSchema(tableConfig);
                 //set doris target database
@@ -254,7 +247,7 @@ public abstract class DatabaseSync {
      * Filter table that many tables merge to one
      */
     protected HashMap<Pattern,String> multiToOneRulesParser(String multiToOneOrigin,String multiToOneTarget){
-        if(multiToOneOrigin==null || multiToOneTarget==null){
+        if(StringUtils.isEmpty(multiToOneOrigin) || StringUtils.isEmpty(multiToOneTarget)){
             return null;
         }
         HashMap<Pattern,String> multiToOneRulesPattern= new HashMap<>();
@@ -264,8 +257,13 @@ public abstract class DatabaseSync {
             System.out.println("param error : multi to one params length are not equal,please check your params.");
             System.exit(1);
         }
-        for (int i = 0; i < origins.length; i++) {
-            multiToOneRulesPattern.put(Pattern.compile(origins[i]),targets[i]);
+        try {
+            for (int i = 0; i < origins.length; i++) {
+                multiToOneRulesPattern.put(Pattern.compile(origins[i]),targets[i]);
+            }
+        } catch (Exception e) {
+            System.out.println("param error : Your regular expression is incorrect,please check.");
+            System.exit(1);
         }
         return multiToOneRulesPattern;
     }
@@ -274,9 +272,6 @@ public abstract class DatabaseSync {
         private static final long serialVersionUID = 1L;
         private final String prefix;
         private final String suffix;
-
-        private Pattern multiToOnePattern;
-
         private Map<Pattern,String> multiToOneRulesPattern;
 
         TableNameConverter(){
@@ -288,40 +283,31 @@ public abstract class DatabaseSync {
             this.suffix = suffix == null ? "" : suffix;
         }
 
-        TableNameConverter(String prefix, String suffix,Pattern multiToOnePattern,Map<Pattern, String> multiToOneRulesPattern) {
+        TableNameConverter(String prefix, String suffix,Map<Pattern, String> multiToOneRulesPattern) {
             this.prefix = prefix == null ? "" : prefix;
             this.suffix = suffix == null ? "" : suffix;
-            this.multiToOnePattern=multiToOnePattern;
             this.multiToOneRulesPattern = multiToOneRulesPattern;
         }
 
         public String convert(String tableName) {
-            if(isMultiToOneTable(tableName)){
-                return getMultiToOneTargetByTableName(tableName);
+            if(multiToOneRulesPattern==null){
+                return prefix + tableName + suffix;
             }
-            return prefix + tableName + suffix;
-        }
-        /**
-         * filter table that merge to one
-         */
-        public boolean isMultiToOneTable(String tableName){
-            boolean flag=false;
-            if(multiToOnePattern!=null){
-                flag=multiToOnePattern.matcher(tableName).matches();
-            }
-            LOG.debug("table {} is multi-to-one? {}", tableName, flag);
-            return flag;
 
-        }
-        /**
-         * get target table name
-         */
-        public String getMultiToOneTargetByTableName(String tableName){
-            String target="";
+            String target=null;
+
             for (Map.Entry<Pattern, String> patternStringEntry : multiToOneRulesPattern.entrySet()) {
                 if(patternStringEntry.getKey().matcher(tableName).matches()){
                     target=patternStringEntry.getValue();
                 }
+            }
+            /**
+             * If multiToOneRulesPattern is not null and target is not assigned,
+             * then the synchronization task contains both multi to one and one to one ,
+             * prefixes and suffixes are added to common one-to-one mapping tables
+             * */
+            if(target==null){
+                return prefix + tableName + suffix;
             }
             return target;
         }
