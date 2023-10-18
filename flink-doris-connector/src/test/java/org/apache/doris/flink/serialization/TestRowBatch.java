@@ -41,6 +41,7 @@ import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
+import org.apache.arrow.vector.util.Text;
 import org.apache.doris.flink.exception.DorisException;
 import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.rest.models.Schema;
@@ -520,11 +521,11 @@ public class TestRowBatch {
 
         RowBatch rowBatch = new RowBatch(scanBatchResult, schema).readArrow();
         Assert.assertTrue(rowBatch.hasNext());
-        Assert.assertEquals(ImmutableMap.of("k1","0"), rowBatch.next().get(0));
+        Assert.assertTrue(ImmutableMap.of("k1", 0).equals(rowBatch.next().get(0)));
         Assert.assertTrue(rowBatch.hasNext());
-        Assert.assertEquals(ImmutableMap.of("k2", "1"),rowBatch.next().get(0));
+        Assert.assertTrue(ImmutableMap.of("k2", 1).equals(rowBatch.next().get(0)));
         Assert.assertTrue(rowBatch.hasNext());
-        Assert.assertEquals(ImmutableMap.of("k3", "2"), rowBatch.next().get(0));
+        Assert.assertTrue(ImmutableMap.of("k3", 2).equals(rowBatch.next().get(0)));
         Assert.assertFalse(rowBatch.hasNext());
 
     }
@@ -583,7 +584,6 @@ public class TestRowBatch {
 
         RowBatch rowBatch = new RowBatch(scanBatchResult, schema).readArrow();
         Assert.assertTrue(rowBatch.hasNext());
-        Assert.assertEquals("{\"a\":\"a1\",\"b\":1}", rowBatch.next().get(0));
-
+        Assert.assertTrue(ImmutableMap.of("a", new Text("a1"),"b",1).equals(rowBatch.next().get(0)));
     }
 }
