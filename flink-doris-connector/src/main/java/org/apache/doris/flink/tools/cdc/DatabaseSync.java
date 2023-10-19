@@ -16,7 +16,6 @@
 // under the License.
 package org.apache.doris.flink.tools.cdc;
 
-import org.apache.commons.lang3.StringUtils;
 import org.apache.doris.flink.catalog.doris.DorisSystem;
 import org.apache.doris.flink.catalog.doris.TableSchema;
 import org.apache.doris.flink.cfg.DorisConnectionOptions;
@@ -34,6 +33,7 @@ import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -87,7 +87,7 @@ public abstract class DatabaseSync {
         this.multiToOneTarget = multiToOneTarget;
         this.includingPattern = includingTables == null ? null : Pattern.compile(includingTables);
         this.excludingPattern = excludingTables == null ? null : Pattern.compile(excludingTables);
-        this.multiToOneRulesPattern=multiToOneRulesParser(multiToOneOrigin,multiToOneTarget);
+        this.multiToOneRulesPattern = multiToOneRulesParser(multiToOneOrigin,multiToOneTarget);
         this.converter = new TableNameConverter(tablePrefix, tableSuffix,multiToOneRulesPattern);
         this.ignoreDefaultValue = ignoreDefaultValue;
         this.sinkConfig = sinkConfig;
@@ -247,7 +247,7 @@ public abstract class DatabaseSync {
      * Filter table that many tables merge to one
      */
     protected HashMap<Pattern,String> multiToOneRulesParser(String multiToOneOrigin,String multiToOneTarget){
-        if(StringUtils.isEmpty(multiToOneOrigin) || StringUtils.isEmpty(multiToOneTarget)){
+        if(StringUtils.isNullOrWhitespaceOnly(multiToOneOrigin) || StringUtils.isNullOrWhitespaceOnly(multiToOneTarget)){
             return null;
         }
         HashMap<Pattern,String> multiToOneRulesPattern= new HashMap<>();
