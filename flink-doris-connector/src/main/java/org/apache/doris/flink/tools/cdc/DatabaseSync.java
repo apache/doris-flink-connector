@@ -104,7 +104,7 @@ public abstract class DatabaseSync {
         List<String> syncTables = new ArrayList<>();
         List<String> dorisTables = new ArrayList<>();
         for (SourceSchema schema : schemaList) {
-            if (sinkConfig.containsKey(ConfigurationOptions.TABLE_IDENTIFIER)) {
+            if (sinkConfig.containsKey(DorisConfigOptions.TABLE_IDENTIFIER.key())) {
                 dorisTables.add(sinkConfig.getString(DorisConfigOptions.TABLE_IDENTIFIER));
                 break;
             }
