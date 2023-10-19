@@ -220,7 +220,9 @@ public class DorisRowConverter implements Serializable {
             case ARRAY:
                 return val -> convertArrayData(((List<?>) val).toArray(), type);
             case ROW:
+                return val -> convertRowData((Map<String, ?>) val, type);
             case MAP:
+                return val -> convertMapData((Map) val, type);
             case MULTISET:
             case RAW:
             default:
@@ -296,6 +298,33 @@ public class DorisRowConverter implements Serializable {
         }
         GenericArrayData arrayData = new GenericArrayData(array);
         return arrayData;
+    }
+
+    private MapData convertMapData(Map<Object, Object> map, LogicalType type){
+        MapType mapType = (MapType) type;
+        DeserializationConverter keyConverter = createNullableInternalConverter(mapType.getKeyType());
+        DeserializationConverter valueConverter = createNullableInternalConverter(mapType.getValueType());
+        Map<Object, Object> result = new HashMap<>();
+        for(Map.Entry<Object, Object> entry : map.entrySet()){
+            Object key = keyConverter.deserialize(entry.getKey());
+            Object value = valueConverter.deserialize(entry.getValue());
+            result.put(key, value);
+        }
+        GenericMapData mapData = new GenericMapData(result);
+        return mapData;
+    }
+
+    private RowData convertRowData(Map<String, ?> row, LogicalType type) {
+        RowType rowType = (RowType) type;
+        GenericRowData rowData = new GenericRowData(row.size());
+        int index = 0;
+        for(Map.Entry<String, ?> entry : row.entrySet()){
+            DeserializationConverter converter = createNullableInternalConverter(rowType.getTypeAt(index));
+            Object value = converter.deserialize(entry.getValue());
+            rowData.setField(index, value);
+            index++;
+        }
+        return rowData;
     }
 
     private List<Object> convertArrayData(ArrayData array, LogicalType type){
