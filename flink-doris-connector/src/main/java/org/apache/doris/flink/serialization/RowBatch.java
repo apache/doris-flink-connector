@@ -32,6 +32,9 @@ import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.complex.ListVector;
+import org.apache.arrow.vector.complex.MapVector;
+import org.apache.arrow.vector.complex.StructVector;
+import org.apache.arrow.vector.complex.impl.UnionMapReader;
 import org.apache.arrow.vector.ipc.ArrowStreamReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.doris.flink.exception.DorisException;
@@ -50,7 +53,9 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 
 /**
@@ -328,6 +333,31 @@ public class RowBatch {
                 Object listValue = listVector.isNull(rowIndex) ? null : listVector.getObject(rowIndex);
                 //todo: when the subtype of array is date, conversion is required
                 addValueToRow(rowIndex, listValue);
+                break;
+            case "MAP":
+                if (!minorType.equals(Types.MinorType.MAP)) return false;
+                MapVector mapVector = (MapVector) fieldVector;
+                UnionMapReader reader = mapVector.getReader();
+                if (mapVector.isNull(rowIndex)) {
+                    addValueToRow(rowIndex, null);
+                    break;
+                }
+                reader.setPosition(rowIndex);
+                Map<String, Object> mapValue = new HashMap<>();
+                while (reader.next()) {
+                    mapValue.put(reader.key().readObject().toString(), reader.value().readObject());
+                }
+                addValueToRow(rowIndex, mapValue);
+                break;
+            case "STRUCT":
+                if (!minorType.equals(Types.MinorType.STRUCT)) return false;
+                StructVector structVector = (StructVector) fieldVector;
+                if (structVector.isNull(rowIndex)) {
+                    addValueToRow(rowIndex, null);
+                    break;
+                }
+                Map<String, ?> structValue = structVector.getObject(rowIndex);
+                addValueToRow(rowIndex, structValue);
                 break;
             default:
                 String errMsg = "Unsupported type " + schema.get(col).getType();
