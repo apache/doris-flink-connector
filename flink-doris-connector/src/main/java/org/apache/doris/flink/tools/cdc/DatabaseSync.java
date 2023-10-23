@@ -61,6 +61,7 @@ public abstract class DatabaseSync {
     public StreamExecutionEnvironment env;
     private boolean createTableOnly = false;
     private boolean newSchemaChange;
+    private boolean useLowerCase = false;
     protected String includingTables;
     protected String excludingTables;
 
@@ -73,7 +74,7 @@ public abstract class DatabaseSync {
     public void create(StreamExecutionEnvironment env, String database, Configuration config,
                        String tablePrefix, String tableSuffix, String includingTables,
                        String excludingTables, boolean ignoreDefaultValue, Configuration sinkConfig,
-            Map<String, String> tableConfig, boolean createTableOnly, boolean useNewSchemaChange) {
+                       Map<String, String> tableConfig, boolean createTableOnly, boolean useNewSchemaChange, boolean useLowerCase) {
         this.env = env;
         this.config = config;
         this.database = database;
@@ -86,11 +87,12 @@ public abstract class DatabaseSync {
         this.sinkConfig = sinkConfig;
         this.tableConfig = tableConfig == null ? new HashMap<>() : tableConfig;
         //default enable light schema change
-        if(!this.tableConfig.containsKey(LIGHT_SCHEMA_CHANGE)){
+        if (!this.tableConfig.containsKey(LIGHT_SCHEMA_CHANGE)) {
             this.tableConfig.put(LIGHT_SCHEMA_CHANGE, "true");
         }
         this.createTableOnly = createTableOnly;
         this.newSchemaChange = useNewSchemaChange;
+        this.useLowerCase = useLowerCase;
     }
 
     public void build() throws Exception {
@@ -107,18 +109,18 @@ public abstract class DatabaseSync {
         List<String> syncTables = new ArrayList<>();
         List<String> dorisTables = new ArrayList<>();
         for (SourceSchema schema : schemaList) {
-            syncTables.add(schema.getTableName());
-            String dorisTable = converter.convert(schema.getTableName());
+            syncTables.add(this.useLowerCase ? schema.getTableName().toLowerCase() : schema.getTableName());
+            String dorisTable = this.useLowerCase ? converter.convert(schema.getTableName()).toLowerCase() : converter.convert(schema.getTableName());
             if (!dorisSystem.tableExists(database, dorisTable)) {
                 TableSchema dorisSchema = schema.convertTableSchema(tableConfig);
                 //set doris target database
                 dorisSchema.setDatabase(database);
                 dorisSchema.setTable(dorisTable);
-                dorisSystem.createTable(dorisSchema);
+                dorisSystem.createTable(dorisSchema, useLowerCase);
             }
             dorisTables.add(dorisTable);
         }
-        if(createTableOnly){
+        if (createTableOnly) {
             System.out.println("Create table finished.");
             System.exit(0);
         }
@@ -191,21 +193,21 @@ public abstract class DatabaseSync {
         sinkConfig.getOptional(DorisConfigOptions.SINK_IGNORE_UPDATE_BEFORE).ifPresent(executionBuilder::setIgnoreUpdateBefore);
 
 
-        if(!sinkConfig.getBoolean(DorisConfigOptions.SINK_ENABLE_2PC)){
+        if (!sinkConfig.getBoolean(DorisConfigOptions.SINK_ENABLE_2PC)) {
             executionBuilder.disable2PC();
-        } else if(sinkConfig.getOptional(DorisConfigOptions.SINK_ENABLE_2PC).isPresent()){
+        } else if (sinkConfig.getOptional(DorisConfigOptions.SINK_ENABLE_2PC).isPresent()) {
             //force open 2pc
             executionBuilder.enable2PC();
         }
 
         //batch option
-        if(sinkConfig.getBoolean(DorisConfigOptions.SINK_ENABLE_BATCH_MODE)){
+        if (sinkConfig.getBoolean(DorisConfigOptions.SINK_ENABLE_BATCH_MODE)) {
             executionBuilder.enableBatchMode();
         }
         sinkConfig.getOptional(DorisConfigOptions.SINK_FLUSH_QUEUE_SIZE).ifPresent(executionBuilder::setFlushQueueSize);
         sinkConfig.getOptional(DorisConfigOptions.SINK_BUFFER_FLUSH_MAX_ROWS).ifPresent(executionBuilder::setBufferFlushMaxRows);
         sinkConfig.getOptional(DorisConfigOptions.SINK_BUFFER_FLUSH_MAX_BYTES).ifPresent(executionBuilder::setBufferFlushMaxBytes);
-        sinkConfig.getOptional(DorisConfigOptions.SINK_BUFFER_FLUSH_INTERVAL).ifPresent(v-> executionBuilder.setBufferFlushIntervalMs(v.toMillis()));
+        sinkConfig.getOptional(DorisConfigOptions.SINK_BUFFER_FLUSH_INTERVAL).ifPresent(v -> executionBuilder.setBufferFlushIntervalMs(v.toMillis()));
 
         sinkConfig.getOptional(DorisConfigOptions.SINK_USE_CACHE).ifPresent(executionBuilder::setUseCache);
 
@@ -241,8 +243,8 @@ public abstract class DatabaseSync {
         private final String prefix;
         private final String suffix;
 
-        TableNameConverter(){
-            this("","");
+        TableNameConverter() {
+            this("", "");
         }
 
         TableNameConverter(String prefix, String suffix) {

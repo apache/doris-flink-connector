@@ -26,7 +26,7 @@ import java.util.UUID;
 
 public class CdcOraclelSyncDatabaseCase {
 
-    public static void main(String[] args) throws Exception{
+    public static void main(String[] args) throws Exception {
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
@@ -45,36 +45,37 @@ public class CdcOraclelSyncDatabaseCase {
         String database = "db1";
         String tablePrefix = "";
         String tableSuffix = "";
-        Map<String,String> sourceConfig = new HashMap<>();
-        sourceConfig.put("database-name","XE");
-        sourceConfig.put("schema-name","ADMIN");
-        sourceConfig.put("hostname","127.0.0.1");
-        sourceConfig.put("port","1521");
-        sourceConfig.put("username","admin");
-        sourceConfig.put("password","");
+        Map<String, String> sourceConfig = new HashMap<>();
+        sourceConfig.put("database-name", "XE");
+        sourceConfig.put("schema-name", "ADMIN");
+        sourceConfig.put("hostname", "127.0.0.1");
+        sourceConfig.put("port", "1521");
+        sourceConfig.put("username", "admin");
+        sourceConfig.put("password", "");
 //        sourceConfig.put("debezium.database.tablename.case.insensitive","false");
-        sourceConfig.put("debezium.log.mining.strategy","online_catalog");
-        sourceConfig.put("debezium.log.mining.continuous.mine","true");
+        sourceConfig.put("debezium.log.mining.strategy", "online_catalog");
+        sourceConfig.put("debezium.log.mining.continuous.mine", "true");
         Configuration config = Configuration.fromMap(sourceConfig);
 
-        Map<String,String> sinkConfig = new HashMap<>();
-        sinkConfig.put("fenodes","10.20.30.1:8030");
+        Map<String, String> sinkConfig = new HashMap<>();
+        sinkConfig.put("fenodes", "10.20.30.1:8030");
         // sinkConfig.put("benodes","10.20.30.1:8040, 10.20.30.2:8040, 10.20.30.3:8040");
-        sinkConfig.put("username","root");
-        sinkConfig.put("password","");
-        sinkConfig.put("jdbc-url","jdbc:mysql://10.20.30.1:9030");
+        sinkConfig.put("username", "root");
+        sinkConfig.put("password", "");
+        sinkConfig.put("jdbc-url", "jdbc:mysql://10.20.30.1:9030");
         sinkConfig.put("sink.label-prefix", UUID.randomUUID().toString());
         Configuration sinkConf = Configuration.fromMap(sinkConfig);
 
-        Map<String,String> tableConfig = new HashMap<>();
+        Map<String, String> tableConfig = new HashMap<>();
         tableConfig.put("replication_num", "1");
 
         String includingTables = "test.*";
         String excludingTables = "";
         boolean ignoreDefaultValue = false;
         boolean useNewSchemaChange = false;
+        boolean useLowerCase = false;
         DatabaseSync databaseSync = new OracleDatabaseSync();
-        databaseSync.create(env,database,config,tablePrefix,tableSuffix,includingTables,excludingTables,ignoreDefaultValue,sinkConf,tableConfig, false, useNewSchemaChange);
+        databaseSync.create(env, database, config, tablePrefix, tableSuffix, includingTables, excludingTables, ignoreDefaultValue, sinkConf, tableConfig, false, useNewSchemaChange, useLowerCase);
         databaseSync.build();
         env.execute(String.format("Oracle-Doris Database Sync: %s", database));
 

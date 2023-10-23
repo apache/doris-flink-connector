@@ -47,6 +47,8 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  */
 @Public
 public class DorisSystem {
+
+    private boolean useLowerCase;
     private static final Logger LOG = LoggerFactory.getLogger(DatabaseSync.class);
     private JdbcConnectionProvider jdbcConnectionProvider;
     private static final List<String> builtinDatabases = Arrays.asList("information_schema");
@@ -77,7 +79,7 @@ public class DorisSystem {
         return true;
     }
 
-    public boolean tableExists(String database, String table){
+    public boolean tableExists(String database, String table) {
         return databaseExists(database)
                 && listTables(database).contains(table);
     }
@@ -97,8 +99,9 @@ public class DorisSystem {
         execute(String.format("DROP TABLE IF EXISTS %s", tableName));
     }
 
-    public void createTable(TableSchema schema) {
-        String ddl = buildCreateTableDDL(schema);
+    public void createTable(TableSchema schema, boolean useLowerCase) {
+        this.useLowerCase = useLowerCase;
+        String ddl = buildCreateTableDDL(schema, useLowerCase);
         LOG.info("Create table with ddl:{}", ddl);
         execute(ddl);
     }
@@ -106,7 +109,7 @@ public class DorisSystem {
     public void execute(String sql) {
         try (Statement statement = jdbcConnectionProvider.getOrEstablishConnection().createStatement()) {
             statement.execute(sql);
-        } catch (Exception e){
+        } catch (Exception e) {
             throw new DorisSystemException(String.format("SQL query could not be executed: %s", sql), e);
         }
     }
@@ -140,18 +143,25 @@ public class DorisSystem {
         }
     }
 
-    public String buildCreateTableDDL(TableSchema schema) {
+    public String buildCreateTableDDL(TableSchema schema, boolean useLowerCase) {
         StringBuilder sb = new StringBuilder("CREATE TABLE IF NOT EXISTS ");
         sb.append(identifier(schema.getDatabase()))
                 .append(".")
                 .append(identifier(schema.getTable()))
                 .append("(");
 
+        // 待验证, 生成Doris DDL语句时,排除不支持的字段名, 该规则尚未匹配 源数据对应字段名剔除
+        // Map<String, FieldSchema> fields = new Map<String, FieldSchema>;
+        // schema.getFields().forEach((key, val) -> {
+        //     if (key.matches("^[a-zA-Z][a-zA-Z0-9-_]*$")) {
+        //         fields.put(key, val);
+        //     }
+        // });
         Map<String, FieldSchema> fields = schema.getFields();
         List<String> keys = schema.getKeys();
         //append keys
-        for(String key : keys){
-            if(!fields.containsKey(key)){
+        for (String key : keys) {
+            if (!fields.containsKey(key)) {
                 throw new CreateTableException("key " + key + " not found in column list");
             }
             FieldSchema field = fields.get(key);
@@ -160,17 +170,17 @@ public class DorisSystem {
 
         //append values
         for (Map.Entry<String, FieldSchema> entry : fields.entrySet()) {
-            if(keys.contains(entry.getKey())){
+            if (keys.contains(entry.getKey())) {
                 continue;
             }
             FieldSchema field = entry.getValue();
             buildColumn(sb, field, false);
 
         }
-        sb = sb.deleteCharAt(sb.length() -1);
+        sb = sb.deleteCharAt(sb.length() - 1);
         sb.append(" ) ");
         //append uniq model
-        if(DataModel.UNIQUE.equals(schema.getModel())){
+        if (DataModel.UNIQUE.equals(schema.getModel())) {
             sb.append(schema.getModel().name())
                     .append(" KEY(")
                     .append(String.join(",", identifier(schema.getKeys())))
@@ -178,7 +188,7 @@ public class DorisSystem {
         }
 
         //append table comment
-        if(!StringUtils.isNullOrWhitespaceOnly(schema.getTableComment())){
+        if (!StringUtils.isNullOrWhitespaceOnly(schema.getTableComment())) {
             sb.append(" COMMENT '")
                     .append(quoteComment(schema.getTableComment()))
                     .append("' ");
@@ -210,9 +220,9 @@ public class DorisSystem {
         return sb.toString();
     }
 
-    private void buildColumn(StringBuilder sql, FieldSchema field, boolean isKey){
+    private void buildColumn(StringBuilder sql, FieldSchema field, boolean isKey) {
         String fieldType = field.getTypeString();
-        if(isKey && DorisType.STRING.equals(fieldType)){
+        if (isKey && DorisType.STRING.equals(fieldType)) {
             fieldType = String.format("%s(%s)", DorisType.VARCHAR, 65533);
         }
         sql.append(identifier(field.getName()))
@@ -223,21 +233,20 @@ public class DorisSystem {
                 .append("',");
     }
 
-    private String quoteComment(String comment){
-        if(comment == null){
+    private String quoteComment(String comment) {
+        if (comment == null) {
             return "";
         } else {
-            return comment.replaceAll("'","\\\\'");
+            return comment.replaceAll("'", "\\\\'");
         }
     }
 
     private List<String> identifier(List<String> name) {
-        List<String> result = name.stream().map(m -> identifier(m)).collect(Collectors.toList());
-        return result;
+        return name.stream().map(m -> identifier(m)).collect(Collectors.toList());
     }
 
     private String identifier(String name) {
-        return "`" + name + "`";
+        return "`" + (this.useLowerCase ? name.toLowerCase() : name) + "`";
     }
 
     private String quoteProperties(String name) {
