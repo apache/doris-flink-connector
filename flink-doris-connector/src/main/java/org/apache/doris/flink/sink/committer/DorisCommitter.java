@@ -94,7 +94,7 @@ public class DorisCommitter implements Committer<DorisCommittable>, Closeable {
 
         LOG.info("commit txn {} to host {}", committable.getTxnID(), hostPort);
         int retry = 0;
-        while (retry++ <= maxRetry) {
+        while (retry <= maxRetry) {
             //get latest-url
             String url = String.format(commitPattern, hostPort, committable.getDb());
             HttpPut httpPut = builder.setUrl(url).setEmptyEntity().build();
@@ -108,7 +108,7 @@ public class DorisCommitter implements Committer<DorisCommittable>, Closeable {
                         Map<String, String> res = jsonMapper.readValue(loadResult, new TypeReference<HashMap<String, String>>() {
                         });
                         if (!res.get("status").equals(SUCCESS) && !ResponseUtil.isCommitted(res.get("msg"))) {
-                            throw new DorisRuntimeException("Commit failed " + loadResult);
+                            throw new DorisRuntimeException("commit transaction failed " + loadResult);
                         } else {
                             LOG.info("load result {}", loadResult);
                         }
@@ -116,18 +116,19 @@ public class DorisCommitter implements Committer<DorisCommittable>, Closeable {
                     return;
                 }
                 String reasonPhrase = statusLine.getReasonPhrase();
-                LOG.warn("commit failed with {}, reason {}", hostPort, reasonPhrase);
+                LOG.error("commit failed with {}, reason {}", hostPort, reasonPhrase);
                 if (retry == maxRetry) {
-                    throw new DorisRuntimeException("stream load error: " + reasonPhrase);
+                    throw new DorisRuntimeException("commit transaction error: " + reasonPhrase);
                 }
                 hostPort = backendUtil.getAvailableBackend();
-            } catch (IOException e) {
-                LOG.error("commit transaction failed: ", e);
+            } catch (Exception e) {
+                LOG.error("commit transaction failed, to retry, {}", e.getMessage());
                 if (retry == maxRetry) {
-                    throw new IOException("commit transaction failed: {}", e);
+                    throw new DorisRuntimeException("commit transaction error, ", e);
                 }
                 hostPort = backendUtil.getAvailableBackend();
             }
+            retry++;
         }
     }
 

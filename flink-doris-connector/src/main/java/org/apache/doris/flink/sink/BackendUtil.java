@@ -74,7 +74,7 @@ public class BackendUtil {
         throw new DorisRuntimeException("no available backend.");
     }
 
-    public boolean tryHttpConnection(String backend) {
+    public static boolean tryHttpConnection(String backend) {
         try {
             backend = "http://" + backend;
             URL url = new URL(backend);
