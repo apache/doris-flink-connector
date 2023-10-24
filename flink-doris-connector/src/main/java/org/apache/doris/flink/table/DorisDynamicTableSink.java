@@ -27,7 +27,6 @@ import org.apache.doris.flink.sink.writer.RowDataSerializer;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
-import org.apache.flink.table.connector.sink.SinkProvider;
 import org.apache.flink.table.connector.sink.SinkV2Provider;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.util.Preconditions;
@@ -104,7 +103,7 @@ public class DorisDynamicTableSink implements DynamicTableSink {
                     .setDorisReadOptions(readOptions)
                     .setDorisExecutionOptions(executionOptions)
                     .setSerializer(serializerBuilder.build());
-            return SinkProvider.of(dorisSinkBuilder.build(), sinkParallelism);
+            return SinkV2Provider.of(dorisSinkBuilder.build(), sinkParallelism);
         }else{
             DorisBatchSink.Builder<RowData> dorisBatchSinkBuilder = DorisBatchSink.builder();
             dorisBatchSinkBuilder.setDorisOptions(options)

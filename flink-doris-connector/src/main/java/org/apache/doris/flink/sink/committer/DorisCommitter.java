@@ -29,7 +29,7 @@ import org.apache.doris.flink.sink.DorisCommittable;
 import org.apache.doris.flink.sink.HttpPutBuilder;
 import org.apache.doris.flink.sink.HttpUtil;
 import org.apache.doris.flink.sink.ResponseUtil;
-import org.apache.flink.api.connector.sink.Committer;
+import org.apache.flink.api.connector.sink2.Committer;
 import org.apache.http.StatusLine;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPut;
@@ -38,10 +38,10 @@ import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Closeable;
 import java.io.IOException;
-import java.util.Collections;
+import java.util.Collection;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import static org.apache.doris.flink.sink.LoadStatus.SUCCESS;
@@ -49,7 +49,7 @@ import static org.apache.doris.flink.sink.LoadStatus.SUCCESS;
 /**
  * The committer to commit transaction.
  */
-public class DorisCommitter implements Committer<DorisCommittable> {
+public class DorisCommitter implements Committer<DorisCommittable>, Closeable {
     private static final Logger LOG = LoggerFactory.getLogger(DorisCommitter.class);
     private static final String commitPattern = "http://%s/api/%s/_stream_load_2pc";
     private final CloseableHttpClient httpClient;
@@ -75,11 +75,10 @@ public class DorisCommitter implements Committer<DorisCommittable> {
     }
 
     @Override
-    public List<DorisCommittable> commit(List<DorisCommittable> committableList) throws IOException {
-        for (DorisCommittable committable : committableList) {
-            commitTransaction(committable);
+    public void commit(Collection<CommitRequest<DorisCommittable>> requests) throws IOException, InterruptedException {
+        for (CommitRequest<DorisCommittable> request: requests) {
+            commitTransaction(request.getCommittable());
         }
-        return Collections.emptyList();
     }
 
     private void commitTransaction(DorisCommittable committable) throws IOException {
@@ -133,9 +132,12 @@ public class DorisCommitter implements Committer<DorisCommittable> {
     }
 
     @Override
-    public void close() throws Exception {
+    public void close() {
         if (httpClient != null) {
-            httpClient.close();
+            try {
+                httpClient.close();
+            } catch (IOException e) {
+            }
         }
     }
 }

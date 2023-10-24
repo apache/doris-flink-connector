@@ -25,7 +25,6 @@ import org.apache.doris.flink.rest.models.BackendV2.BackendRowV2;
 import org.apache.doris.flink.sink.DorisCommittable;
 import org.apache.doris.flink.sink.HttpEntityMock;
 import org.apache.doris.flink.sink.OptionUtils;
-
 import org.apache.http.ProtocolVersion;
 import org.apache.http.StatusLine;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -34,16 +33,15 @@ import org.apache.http.message.BasicStatusLine;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-
+import org.mockito.MockedStatic;
+import org.slf4j.Logger;
 
 import java.util.Collections;
 
 import static org.mockito.ArgumentMatchers.any;
-import org.mockito.MockedStatic;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
-import org.slf4j.Logger;
 
 /**
  * Test for Doris Committer.
@@ -83,7 +81,8 @@ public class TestDorisCommitter {
                 "\"msg\": \"errCode = 2, detailMessage = transaction [2] is already visible, not pre-committed.\"\n" +
                 "}";
         this.entityMock.setValue(response);
-        dorisCommitter.commit(Collections.singletonList(dorisCommittable));
+        final MockCommitRequest<DorisCommittable> request = new MockCommitRequest<>(dorisCommittable);
+        dorisCommitter.commit(Collections.singletonList(request));
 
     }
 
@@ -94,7 +93,8 @@ public class TestDorisCommitter {
                 "\"msg\": \"errCode = 2, detailMessage = transaction [25] is already aborted. abort reason: User Abort\"\n" +
                 "}";
         this.entityMock.setValue(response);
-        dorisCommitter.commit(Collections.singletonList(dorisCommittable));
+        final MockCommitRequest<DorisCommittable> request = new MockCommitRequest<>(dorisCommittable);
+        dorisCommitter.commit(Collections.singletonList(request));
     }
 
     @After
