@@ -23,7 +23,7 @@ import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.sink.DorisCommittable;
 import org.apache.doris.flink.sink.HttpTestUtil;
 import org.apache.doris.flink.sink.OptionUtils;
-import org.apache.flink.api.connector.sink.Sink;
+import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.junit.Assert;
@@ -31,6 +31,7 @@ import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.OptionalLong;
@@ -67,12 +68,13 @@ public class TestDorisWriter {
         when(initContext.getRestoredCheckpointId()).thenReturn(OptionalLong.of(1));
         DorisWriter<String> dorisWriter = new DorisWriter<String>(initContext, Collections.emptyList(), new SimpleStringSerializer(), dorisOptions, readOptions, executionOptions);
         dorisWriter.setDorisStreamLoad(dorisStreamLoad);
-        List<DorisCommittable> committableList = dorisWriter.prepareCommit(true);
-
+        dorisWriter.write("doris,1",null);
+        Collection<DorisCommittable> committableList = dorisWriter.prepareCommit();
         Assert.assertEquals(1, committableList.size());
-        Assert.assertEquals("local:8040", committableList.get(0).getHostPort());
-        Assert.assertEquals("db_test", committableList.get(0).getDb());
-        Assert.assertEquals(2, committableList.get(0).getTxnID());
+        DorisCommittable dorisCommittable = committableList.stream().findFirst().get();
+        Assert.assertEquals("local:8040", dorisCommittable.getHostPort());
+        Assert.assertEquals("test", dorisCommittable.getDb());
+        Assert.assertEquals(2, dorisCommittable.getTxnID());
         Assert.assertFalse(dorisWriter.isLoading());
     }
 
@@ -91,6 +93,6 @@ public class TestDorisWriter {
 
         Assert.assertEquals(1, writerStates.size());
         Assert.assertEquals("doris", writerStates.get(0).getLabelPrefix());
-        Assert.assertTrue(dorisWriter.isLoading());
+        Assert.assertTrue(!dorisWriter.isLoading());
     }
 }

@@ -29,7 +29,7 @@ public class DorisExecutionOptions implements Serializable {
 
     private static final long serialVersionUID = 1L;
     public static final int DEFAULT_CHECK_INTERVAL = 10000;
-    public static final int DEFAULT_MAX_RETRY_TIMES = 1;
+    public static final int DEFAULT_MAX_RETRY_TIMES = 3;
     private static final int DEFAULT_BUFFER_SIZE = 1024 * 1024;
     private static final int DEFAULT_BUFFER_COUNT = 3;
     //batch flush
