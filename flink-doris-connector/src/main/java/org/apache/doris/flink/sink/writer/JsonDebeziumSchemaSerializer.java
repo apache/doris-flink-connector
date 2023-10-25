@@ -267,7 +267,8 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
             buildFieldSchema(updateFiledSchema, column);
         }
         SchemaChangeHelper.compareSchema(updateFiledSchema, originFieldSchemaMap);
-        // In order to avoid operations such as rename or change, which may lead to the accidental deletion of the doris column.
+        // In order to avoid other source table column change operations other than add/drop/rename,
+        // which may lead to the accidental deletion of the doris column.
         Matcher matcher = addDropDDLPattern.matcher(ddl);
         if (!matcher.find()) {
             return null;
