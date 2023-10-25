@@ -31,6 +31,7 @@ public class TableSchema {
     private List<String> distributeKeys = new ArrayList<>();
     private Map<String, String> properties = new HashMap<>();
 
+
     public String getDatabase() {
         return database;
     }

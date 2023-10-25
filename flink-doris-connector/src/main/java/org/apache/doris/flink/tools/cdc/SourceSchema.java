@@ -85,15 +85,15 @@ public abstract class SourceSchema {
         return tableSchema;
     }
 
-    private List<String> buildKeys(){
+    private List<String> buildKeys() {
         return buildDistributeKeys();
     }
 
-    private List<String> buildDistributeKeys(){
-        if(!this.primaryKeys.isEmpty()){
+    private List<String> buildDistributeKeys() {
+        if (!this.primaryKeys.isEmpty()) {
             return primaryKeys;
         }
-        if(!this.fields.isEmpty()){
+        if (!this.fields.isEmpty()) {
             Map.Entry<String, FieldSchema> firstField = this.fields.entrySet().iterator().next();
             return Collections.singletonList(firstField.getKey());
         }

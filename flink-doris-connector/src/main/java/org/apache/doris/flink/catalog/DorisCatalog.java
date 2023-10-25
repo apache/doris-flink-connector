@@ -338,7 +338,7 @@ public class DorisCatalog extends AbstractCatalog {
         schema.setDistributeKeys(primaryKeys);
         schema.setProperties(getCreateTableProps(options));
 
-        dorisSystem.createTable(schema);
+        dorisSystem.createTable(schema, false);
     }
 
     public List<String> getCreateDorisKeys(org.apache.flink.table.api.TableSchema schema){
