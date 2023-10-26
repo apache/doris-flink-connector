@@ -277,6 +277,10 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
     }
 
     @VisibleForTesting
+    public void setOriginFieldSchemaMap(Map<String, FieldSchema> originFieldSchemaMap) {
+        this.originFieldSchemaMap = originFieldSchemaMap;
+    }
+    @VisibleForTesting
     public boolean schemaChange(JsonNode recordRoot) {
         boolean status = false;
         try {
