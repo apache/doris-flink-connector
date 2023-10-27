@@ -32,8 +32,9 @@ public class SchemaChangeHelper {
     private static final List<FieldSchema> addFieldSchemas = Lists.newArrayList();
     // Used to determine whether the doris table supports ddl
     private static final List<DDLSchema> ddlSchemas = Lists.newArrayList();
-    public static final String ADD_DDL = "ALTER TABLE %s ADD COLUMN %s %s";
-    public static final String DROP_DDL = "ALTER TABLE %s DROP COLUMN %s";
+    private static final String ADD_DDL = "ALTER TABLE %s ADD COLUMN %s %s";
+    private static final String DROP_DDL = "ALTER TABLE %s DROP COLUMN %s";
+    private static final String RENAME_DDL = "ALTER TABLE %s RENAME COLUMN %s %s";
 
     public static void compareSchema(Map<String, FieldSchema> updateFiledSchemaMap,
             Map<String, FieldSchema> originFieldSchemaMap) {
@@ -55,6 +56,24 @@ public class SchemaChangeHelper {
         if (CollectionUtils.isNotEmpty(dropFieldSchemas)) {
             dropFieldSchemas.forEach(originFieldSchemaMap::remove);
         }
+    }
+
+    public static List<String> generateRenameDDLSql(String table, String oldColumnName, String newColumnName,
+            Map<String, FieldSchema> originFieldSchemaMap) {
+        ddlSchemas.clear();
+        List<String> ddlList = Lists.newArrayList();
+        FieldSchema fieldSchema = null;
+        for (Entry<String, FieldSchema> originFieldSchema : originFieldSchemaMap.entrySet()) {
+            if (originFieldSchema.getKey().equals(oldColumnName)) {
+                fieldSchema = originFieldSchema.getValue();
+                String renameSQL = String.format(RENAME_DDL, table, oldColumnName, newColumnName);
+                ddlList.add(renameSQL);
+                ddlSchemas.add(new DDLSchema(oldColumnName, false));
+            }
+        }
+        originFieldSchemaMap.remove(oldColumnName);
+        originFieldSchemaMap.put(newColumnName, fieldSchema);
+        return ddlList;
     }
 
     public static List<String> generateDDLSql(String table) {
