@@ -82,6 +82,8 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
     public static final String EXECUTE_DDL = "ALTER TABLE %s %s COLUMN %s %s"; // alter table tbl add cloumn aca int
     private static final String addDropDDLRegex
             = "ALTER\\s+TABLE\\s+[^\\s]+\\s+(ADD|DROP)\\s+(COLUMN\\s+)?([^\\s]+)(\\s+([^\\s]+))?.*";
+    private static final Pattern renameDDLPattern = Pattern.compile(
+            "ALTER\\s+TABLE\\s+(\\w+)\\s+RENAME\\s+COLUMN\\s+(\\w+)\\s+TO\\s+(\\w+)", Pattern.CASE_INSENSITIVE);
     private final Pattern addDropDDLPattern;
     private DorisOptions dorisOptions;
     private ObjectMapper objectMapper = new ObjectMapper();
@@ -249,12 +251,24 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
             sourceConnector = SourceConnector.valueOf(record.get("source").get("connector").asText().toUpperCase());
             fillOriginSchema(columns);
         }
+
+        // rename ddl
+        Matcher renameMatcher = renameDDLPattern.matcher(ddl);
+        if (renameMatcher.find()) {
+            String oldColumnName = renameMatcher.group(2);
+            String newColumnName = renameMatcher.group(3);
+            return SchemaChangeHelper.generateRenameDDLSql(
+                    dorisOptions.getTableIdentifier(), oldColumnName, newColumnName, originFieldSchemaMap);
+        }
+
+        // add/drop ddl
         Map<String, FieldSchema> updateFiledSchema = new LinkedHashMap<>();
         for (JsonNode column : columns) {
             buildFieldSchema(updateFiledSchema, column);
         }
         SchemaChangeHelper.compareSchema(updateFiledSchema, originFieldSchemaMap);
-        // In order to avoid operations such as rename or change, which may lead to the accidental deletion of the doris column.
+        // In order to avoid other source table column change operations other than add/drop/rename,
+        // which may lead to the accidental deletion of the doris column.
         Matcher matcher = addDropDDLPattern.matcher(ddl);
         if (!matcher.find()) {
             return null;
@@ -262,6 +276,10 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
         return SchemaChangeHelper.generateDDLSql(dorisOptions.getTableIdentifier());
     }
 
+    @VisibleForTesting
+    public void setOriginFieldSchemaMap(Map<String, FieldSchema> originFieldSchemaMap) {
+        this.originFieldSchemaMap = originFieldSchemaMap;
+    }
     @VisibleForTesting
     public boolean schemaChange(JsonNode recordRoot) {
         boolean status = false;
