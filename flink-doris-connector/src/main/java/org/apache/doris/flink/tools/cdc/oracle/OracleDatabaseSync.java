@@ -59,9 +59,24 @@ import static com.ververica.cdc.connectors.base.options.SourceOptions.SPLIT_KEY_
 public class OracleDatabaseSync extends DatabaseSync {
     private static final Logger LOG = LoggerFactory.getLogger(OracleDatabaseSync.class);
 
-    private static String JDBC_URL = "jdbc:oracle:thin:@%s:%d:%s";
+    private static final String JDBC_URL = "jdbc:oracle:thin:@%s:%d:%s";
 
-    public OracleDatabaseSync() {
+    public OracleDatabaseSync() throws SQLException {
+        super();
+    }
+
+    @Override
+    public void registerDriver() throws SQLException {
+        try {
+            Class.forName("oracle.jdbc.driver.OracleDriver");
+        } catch (ClassNotFoundException ex) {
+            LOG.warn("can not found class oracle.jdbc.driver.OracleDriver, use class oracle.jdbc.OracleDriver");
+            try {
+                Class.forName("com.mysql.jdbc.Driver");
+            } catch (Exception e) {
+                throw new SQLException("No suitable driver found, can not found class oracle.jdbc.driver.OracleDriver and oracle.jdbc.OracleDriver");
+            }
+        }
     }
 
     @Override
@@ -97,7 +112,7 @@ public class OracleDatabaseSync extends DatabaseSync {
                     }
                     SourceSchema sourceSchema =
                             new OracleSchema(metaData, databaseName, schemaName, tableName, tableComment);
-                    sourceSchema.setModel(sourceSchema.primaryKeys.size() > 0 ? DataModel.UNIQUE : DataModel.DUPLICATE);
+                    sourceSchema.setModel(!sourceSchema.primaryKeys.isEmpty() ? DataModel.UNIQUE : DataModel.DUPLICATE);
                     schemaList.add(sourceSchema);
                 }
             }

@@ -54,10 +54,25 @@ import java.util.regex.Pattern;
 
 public class MysqlDatabaseSync extends DatabaseSync {
     private static final Logger LOG = LoggerFactory.getLogger(MysqlDatabaseSync.class);
-    private static String JDBC_URL = "jdbc:mysql://%s:%d?useInformationSchema=true";
-    private static String PROPERTIES_PREFIX = "jdbc.properties.";
+    private static final String JDBC_URL = "jdbc:mysql://%s:%d?useInformationSchema=true";
+    private static final String PROPERTIES_PREFIX = "jdbc.properties.";
 
-    public MysqlDatabaseSync() {
+    public MysqlDatabaseSync() throws SQLException {
+        super();
+    }
+
+    @Override
+    public void registerDriver() throws SQLException {
+        try {
+            Class.forName("com.mysql.cj.jdbc.Driver");
+        } catch (ClassNotFoundException ex) {
+            LOG.warn("can not found class com.mysql.cj.jdbc.Driver, use class com.mysql.jdbc.Driver");
+            try {
+                Class.forName("com.mysql.jdbc.Driver");
+            } catch (Exception e) {
+                throw new SQLException("No suitable driver found, can not found class com.mysql.cj.jdbc.Driver and com.mysql.jdbc.Driver");
+            }
+        }
     }
 
     @Override
@@ -86,7 +101,7 @@ public class MysqlDatabaseSync extends DatabaseSync {
                     }
                     SourceSchema sourceSchema =
                             new MysqlSchema(metaData, databaseName, tableName, tableComment);
-                    sourceSchema.setModel(sourceSchema.primaryKeys.size() > 0 ? DataModel.UNIQUE : DataModel.DUPLICATE);
+                    sourceSchema.setModel(!sourceSchema.primaryKeys.isEmpty() ? DataModel.UNIQUE : DataModel.DUPLICATE);
                     schemaList.add(sourceSchema);
                 }
             }
@@ -196,9 +211,8 @@ public class MysqlDatabaseSync extends DatabaseSync {
         }
         MySqlSource<String> mySqlSource = sourceBuilder.deserializer(schema).includeSchemaChanges(true).build();
 
-        DataStreamSource<String> streamSource = env.fromSource(
+        return env.fromSource(
                 mySqlSource, WatermarkStrategy.noWatermarks(), "MySQL Source");
-        return streamSource;
     }
 
     /**

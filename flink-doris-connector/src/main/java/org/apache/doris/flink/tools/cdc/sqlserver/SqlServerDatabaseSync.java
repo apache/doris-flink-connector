@@ -58,10 +58,20 @@ import static com.ververica.cdc.connectors.base.options.SourceOptions.SPLIT_KEY_
 
 public class SqlServerDatabaseSync extends DatabaseSync {
     private static final Logger LOG = LoggerFactory.getLogger(SqlServerDatabaseSync.class);
-    private static String JDBC_URL = "jdbc:sqlserver://%s:%d;database=%s";
-    private static String PORT = "port";
+    private static final String JDBC_URL = "jdbc:sqlserver://%s:%d;database=%s";
+    private static final String PORT = "port";
 
-    public SqlServerDatabaseSync() {
+    public SqlServerDatabaseSync() throws SQLException {
+        super();
+    }
+
+    @Override
+    public void registerDriver() throws SQLException {
+        try {
+            Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
+        } catch (ClassNotFoundException ex) {
+            throw new SQLException("No suitable driver found, can not found class com.microsoft.sqlserver.jdbc.SQLServerDriver");
+        }
     }
 
     @Override
@@ -91,7 +101,7 @@ public class SqlServerDatabaseSync extends DatabaseSync {
                     }
                     SourceSchema sourceSchema =
                             new SqlServerSchema(metaData, databaseName, null, tableName, tableComment);
-                    sourceSchema.setModel(sourceSchema.primaryKeys.size() > 0 ? DataModel.UNIQUE : DataModel.DUPLICATE);
+                    sourceSchema.setModel(!sourceSchema.primaryKeys.isEmpty() ? DataModel.UNIQUE : DataModel.DUPLICATE);
                     schemaList.add(sourceSchema);
                 }
             }
