@@ -72,7 +72,7 @@ public class OracleDatabaseSync extends DatabaseSync {
         } catch (ClassNotFoundException ex) {
             LOG.warn("can not found class oracle.jdbc.driver.OracleDriver, use class oracle.jdbc.OracleDriver");
             try {
-                Class.forName("com.mysql.jdbc.Driver");
+                Class.forName("oracle.jdbc.OracleDriver");
             } catch (Exception e) {
                 throw new SQLException("No suitable driver found, can not found class oracle.jdbc.driver.OracleDriver and oracle.jdbc.OracleDriver");
             }
