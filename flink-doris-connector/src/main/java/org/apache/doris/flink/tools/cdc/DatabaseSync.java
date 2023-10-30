@@ -50,25 +50,35 @@ public abstract class DatabaseSync {
     private static final Logger LOG = LoggerFactory.getLogger(DatabaseSync.class);
     private static final String LIGHT_SCHEMA_CHANGE = "light_schema_change";
     private static final String TABLE_NAME_OPTIONS = "table-name";
+
     protected Configuration config;
+
     protected String database;
+
     protected TableNameConverter converter;
     protected Pattern includingPattern;
     protected Pattern excludingPattern;
     protected Map<String, String> tableConfig;
     protected Configuration sinkConfig;
     protected boolean ignoreDefaultValue;
+
     public StreamExecutionEnvironment env;
     private boolean createTableOnly = false;
     private boolean newSchemaChange;
     protected String includingTables;
     protected String excludingTables;
 
+    public abstract void registerDriver() throws SQLException;
+
     public abstract Connection getConnection() throws SQLException;
 
     public abstract List<SourceSchema> getSchemaList() throws Exception;
 
     public abstract DataStreamSource<String> buildCdcSource(StreamExecutionEnvironment env);
+
+    public DatabaseSync() throws SQLException {
+        registerDriver();
+    }
 
     public void create(StreamExecutionEnvironment env, String database, Configuration config,
                        String tablePrefix, String tableSuffix, String includingTables,
