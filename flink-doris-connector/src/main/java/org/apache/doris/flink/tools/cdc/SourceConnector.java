@@ -14,28 +14,23 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
-package org.apache.doris.flink.sink.writer;
 
-import java.util.UUID;
+package org.apache.doris.flink.tools.cdc;
 
-/**
- * Generator label for stream load.
- */
-public class LabelGenerator {
-    private String labelPrefix;
-    private boolean enable2PC;
+public enum SourceConnector {
 
-    public LabelGenerator(String labelPrefix, boolean enable2PC) {
-        this.labelPrefix = labelPrefix;
-        this.enable2PC = enable2PC;
+    MYSQL("mysql"),
+    ORACLE("oracle"),
+    POSTGRES("postgres"),
+    SQLSERVER("sqlserver");
+
+    public final String connectorName;
+
+    SourceConnector(String connectorName) {
+        this.connectorName = connectorName;
     }
 
-    public String generateLabel(long chkId) {
-        String label = labelPrefix + "_" + chkId;
-        return enable2PC ? label : label + "_" + UUID.randomUUID();
-    }
-
-    public String generateBatchLabel() {
-        return labelPrefix + "_" + UUID.randomUUID();
+    public String getConnectorName() {
+        return connectorName;
     }
 }
