@@ -86,7 +86,7 @@ public class MysqlDatabaseSync extends DatabaseSync {
                     }
                     SourceSchema sourceSchema =
                             new MysqlSchema(metaData, databaseName, tableName, tableComment);
-                    sourceSchema.setModel(sourceSchema.primaryKeys.size() > 0 ? DataModel.UNIQUE : DataModel.DUPLICATE);
+                    sourceSchema.setModel(sourceSchema.primaryKeys.size() > 0 ? DataModel.UNIQUE : DataModel.UNIQUE);
                     schemaList.add(sourceSchema);
                 }
             }
