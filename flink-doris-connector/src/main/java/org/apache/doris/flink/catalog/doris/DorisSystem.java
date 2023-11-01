@@ -24,7 +24,6 @@ import org.apache.doris.flink.connection.SimpleJdbcConnectionProvider;
 import org.apache.doris.flink.exception.CreateTableException;
 import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.apache.doris.flink.exception.DorisSystemException;
-import org.apache.doris.flink.tools.cdc.DatabaseSync;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.util.StringUtils;
 import org.slf4j.Logger;
@@ -33,7 +32,7 @@ import org.slf4j.LoggerFactory;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -47,9 +46,9 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  */
 @Public
 public class DorisSystem {
-    private static final Logger LOG = LoggerFactory.getLogger(DatabaseSync.class);
-    private JdbcConnectionProvider jdbcConnectionProvider;
-    private static final List<String> builtinDatabases = Arrays.asList("information_schema");
+    private static final Logger LOG = LoggerFactory.getLogger(DorisSystem.class);
+    private final JdbcConnectionProvider jdbcConnectionProvider;
+    private static final List<String> builtinDatabases = Collections.singletonList("information_schema");
 
     public DorisSystem(DorisConnectionOptions options) {
         this.jdbcConnectionProvider = new SimpleJdbcConnectionProvider(options);
