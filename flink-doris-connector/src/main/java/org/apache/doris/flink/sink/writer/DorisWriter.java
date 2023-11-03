@@ -33,7 +33,6 @@ import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.StatefulSink;
 import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
-import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.slf4j.Logger;
@@ -171,7 +170,7 @@ public class DorisWriter<IN> implements StatefulSink.StatefulSinkWriter<IN, Dori
             return Collections.emptyList();
         }
         long txnId = respContent.getTxnId();
-        return ImmutableList.of(new DorisCommittable(dorisStreamLoad.getHostPort(), dorisStreamLoad.getDb(), txnId));
+        return Collections.singletonList(new DorisCommittable(dorisStreamLoad.getHostPort(), dorisStreamLoad.getDb(), txnId));
     }
 
     @Override
