@@ -36,11 +36,21 @@ public class BatchRecordBuffer {
     private int numOfRecords = 0;
     private int bufferSizeBytes = 0;
     private boolean loadBatchFirstRecord = true;
+    private String database;
+    private String table;
 
     public BatchRecordBuffer(){}
 
     public BatchRecordBuffer(byte[] lineDelimiter, int bufferSize) {
         super();
+        this.lineDelimiter = lineDelimiter;
+        this.buffer = ByteBuffer.allocate(bufferSize);
+    }
+
+    public BatchRecordBuffer(String database, String table, byte[] lineDelimiter, int bufferSize) {
+        super();
+        this.database = database;
+        this.table = table;
         this.lineDelimiter = lineDelimiter;
         this.buffer = ByteBuffer.allocate(bufferSize);
     }
@@ -141,4 +151,19 @@ public class BatchRecordBuffer {
         this.bufferSizeBytes = bufferSizeBytes;
     }
 
+    public String getDatabase() {
+        return database;
+    }
+
+    public void setDatabase(String database) {
+        this.database = database;
+    }
+
+    public String getTable() {
+        return table;
+    }
+
+    public void setTable(String table) {
+        this.table = table;
+    }
 }
