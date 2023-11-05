@@ -31,6 +31,7 @@ import org.apache.doris.flink.rest.models.Field;
 import org.apache.doris.flink.rest.models.Schema;
 
 import org.apache.commons.collections.CollectionUtils;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Maps;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
@@ -284,6 +285,30 @@ public class TestJsonDebeziumSchemaSerializer {
         JsonNode columns = objectMapper.readTree(columnInfo);
         String dorisTypeName = serializer.buildDorisTypeName(columns);
         Assert.assertEquals(dorisTypeName, "VARCHAR(384)");
+    }
+
+    @Test
+    public void testExtractDDLListRename() throws IOException {
+        String columnInfo
+                = "{\"source\":{\"version\":\"1.9.7.Final\",\"connector\":\"mysql\",\"name\":\"mysql_binlog_source\",\"ts_ms\":1698314781975,\"snapshot\":\"false\",\"db\":\"test\",\"sequence\":null,\"table\":\"t1\",\"server_id\":1,\"gtid\":null,\"file\":\"binlog.000046\",\"pos\":5197,\"row\":0,\"thread\":null,\"query\":null},\"historyRecord\":\"{\\\"source\\\":{\\\"file\\\":\\\"binlog.000046\\\",\\\"pos\\\":5197,\\\"server_id\\\":1},\\\"position\\\":{\\\"transaction_id\\\":null,\\\"ts_sec\\\":1698314781,\\\"file\\\":\\\"binlog.000046\\\",\\\"pos\\\":5331,\\\"server_id\\\":1},\\\"databaseName\\\":\\\"test\\\",\\\"ddl\\\":\\\"alter table t1 rename column c3 to c333\\\",\\\"tableChanges\\\":[{\\\"type\\\":\\\"ALTER\\\",\\\"id\\\":\\\"\\\\\\\"test\\\\\\\".\\\\\\\"t1\\\\\\\"\\\",\\\"table\\\":{\\\"defaultCharsetName\\\":\\\"utf8mb4\\\",\\\"primaryKeyColumnNames\\\":[\\\"id\\\"],\\\"columns\\\":[{\\\"name\\\":\\\"id\\\",\\\"jdbcType\\\":4,\\\"typeName\\\":\\\"INT\\\",\\\"typeExpression\\\":\\\"INT\\\",\\\"charsetName\\\":null,\\\"position\\\":1,\\\"optional\\\":false,\\\"autoIncremented\\\":false,\\\"generated\\\":false,\\\"comment\\\":null,\\\"hasDefaultValue\\\":true,\\\"defaultValueExpression\\\":\\\"10000\\\",\\\"enumValues\\\":[]},{\\\"name\\\":\\\"c2\\\",\\\"jdbcType\\\":4,\\\"typeName\\\":\\\"INT\\\",\\\"typeExpression\\\":\\\"INT\\\",\\\"charsetName\\\":null,\\\"position\\\":2,\\\"optional\\\":true,\\\"autoIncremented\\\":false,\\\"generated\\\":false,\\\"comment\\\":null,\\\"hasDefaultValue\\\":true,\\\"enumValues\\\":[]},{\\\"name\\\":\\\"c333\\\",\\\"jdbcType\\\":12,\\\"typeName\\\":\\\"VARCHAR\\\",\\\"typeExpression\\\":\\\"VARCHAR\\\",\\\"charsetName\\\":\\\"utf8mb4\\\",\\\"length\\\":10,\\\"position\\\":3,\\\"optional\\\":true,\\\"autoIncremented\\\":false,\\\"generated\\\":false,\\\"comment\\\":null,\\\"hasDefaultValue\\\":true,\\\"enumValues\\\":[]}]},\\\"comment\\\":null}]}\"}";
+        Map<String, FieldSchema> originFieldSchemaMap = Maps.newHashMap();
+        JsonNode record = objectMapper.readTree(columnInfo);
+
+        DorisOptions dorisOptions = DorisOptions.builder().setFenodes("127.0.0.1:8030")
+                .setTableIdentifier("test.t1")
+                .setUsername("root")
+                .setPassword("").build();
+        JsonDebeziumSchemaSerializer serializer = JsonDebeziumSchemaSerializer.builder().setDorisOptions(dorisOptions)
+                .build();
+        serializer.setSourceConnector("mysql");
+
+        originFieldSchemaMap.put("id", new FieldSchema("id", "INT", "", ""));
+        originFieldSchemaMap.put("c2", new FieldSchema("c2", "INT", "", ""));
+        originFieldSchemaMap.put("c3", new FieldSchema("c3", "VARCHAR(30)", "", ""));
+        serializer.setOriginFieldSchemaMap(originFieldSchemaMap);
+
+        List<String> ddlList = serializer.extractDDLList(record);
+        Assert.assertEquals("ALTER TABLE test.t1 RENAME COLUMN c3 c333", ddlList.get(0));
     }
 
     @Ignore

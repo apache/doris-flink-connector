@@ -17,6 +17,7 @@
 
 package org.apache.doris.flink.sink.writer;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
@@ -27,13 +28,11 @@ import org.apache.doris.flink.rest.models.RespContent;
 import org.apache.doris.flink.sink.BackendUtil;
 import org.apache.doris.flink.sink.DorisCommittable;
 import org.apache.doris.flink.sink.HttpUtil;
-
-import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.connector.sink.Sink;
-import org.apache.flink.api.connector.sink.SinkWriter;
+import org.apache.flink.api.connector.sink2.Sink;
+import org.apache.flink.api.connector.sink2.StatefulSink;
+import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
-import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.slf4j.Logger;
@@ -42,6 +41,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -56,7 +56,8 @@ import static org.apache.doris.flink.sink.LoadStatus.SUCCESS;
  * Doris Writer will load data to doris.
  * @param <IN>
  */
-public class DorisWriter<IN> implements SinkWriter<IN, DorisCommittable, DorisWriterState> {
+public class DorisWriter<IN> implements StatefulSink.StatefulSinkWriter<IN, DorisWriterState>,
+        TwoPhaseCommittingSink.PrecommittingSinkWriter<IN, DorisCommittable> {
     private static final Logger LOG = LoggerFactory.getLogger(DorisWriter.class);
     private static final List<String> DORIS_SUCCESS_STATUS = new ArrayList<>(Arrays.asList(SUCCESS, PUBLISH_TIMEOUT));
     private final long lastCheckpointId;
@@ -78,7 +79,7 @@ public class DorisWriter<IN> implements SinkWriter<IN, DorisCommittable, DorisWr
     private String currentLabel;
 
     public DorisWriter(Sink.InitContext initContext,
-                       List<DorisWriterState> state,
+                       Collection<DorisWriterState> state,
                        DorisRecordSerializer<IN> serializer,
                        DorisOptions dorisOptions,
                        DorisReadOptions dorisReadOptions,
@@ -100,9 +101,11 @@ public class DorisWriter<IN> implements SinkWriter<IN, DorisCommittable, DorisWr
         this.executionOptions = executionOptions;
         this.intervalTime = executionOptions.checkInterval();
         this.loading = false;
+
+        initializeLoad(state);
     }
 
-    public void initializeLoad(List<DorisWriterState> state) throws IOException {
+    public void initializeLoad(Collection<DorisWriterState> state) {
         this.backendUtil = StringUtils.isNotEmpty(dorisOptions.getBenodes()) ? new BackendUtil(
                 dorisOptions.getBenodes())
                 : new BackendUtil(RestService.getBackendsV2(dorisOptions, dorisReadOptions, LOG));
@@ -144,7 +147,13 @@ public class DorisWriter<IN> implements SinkWriter<IN, DorisCommittable, DorisWr
     }
 
     @Override
-    public List<DorisCommittable> prepareCommit(boolean flush) throws IOException {
+    public void flush(boolean flush) throws IOException, InterruptedException {
+
+    }
+
+
+    @Override
+    public Collection<DorisCommittable> prepareCommit() throws IOException, InterruptedException {
         if(!loading){
             //There is no data during the entire checkpoint period
             return Collections.emptyList();
@@ -161,7 +170,7 @@ public class DorisWriter<IN> implements SinkWriter<IN, DorisCommittable, DorisWr
             return Collections.emptyList();
         }
         long txnId = respContent.getTxnId();
-        return ImmutableList.of(new DorisCommittable(dorisStreamLoad.getHostPort(), dorisStreamLoad.getDb(), txnId));
+        return Collections.singletonList(new DorisCommittable(dorisStreamLoad.getHostPort(), dorisStreamLoad.getDb(), txnId));
     }
 
     @Override
@@ -246,4 +255,5 @@ public class DorisWriter<IN> implements SinkWriter<IN, DorisCommittable, DorisWr
             dorisStreamLoad.close();
         }
     }
+
 }

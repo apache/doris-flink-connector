@@ -62,9 +62,19 @@ import static com.ververica.cdc.connectors.postgres.source.config.PostgresSource
 public class PostgresDatabaseSync extends DatabaseSync {
     private static final Logger LOG = LoggerFactory.getLogger(PostgresDatabaseSync.class);
 
-    private static String JDBC_URL = "jdbc:postgresql://%s:%d/%s";
+    private static final String JDBC_URL = "jdbc:postgresql://%s:%d/%s";
 
-    public PostgresDatabaseSync() {
+    public PostgresDatabaseSync() throws SQLException {
+        super();
+    }
+
+    @Override
+    public void registerDriver() throws SQLException {
+        try {
+            Class.forName("org.postgresql.Driver");
+        } catch (ClassNotFoundException ex) {
+            throw new SQLException("No suitable driver found, can not found class org.postgresql.Driver");
+        }
     }
 
     @Override
