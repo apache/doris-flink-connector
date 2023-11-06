@@ -57,6 +57,6 @@ public class LabelGenerator {
     }
 
     public String generateBatchLabel(String table) {
-        return labelPrefix + "_" + table + "_" + UUID.randomUUID();
+        return String.format("%s_%s_%s", labelPrefix, table, UUID.randomUUID());
     }
 }
