@@ -24,11 +24,14 @@ import org.apache.doris.flink.sink.writer.DorisRecordSerializer;
 import org.apache.doris.flink.sink.writer.LabelGenerator;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.SinkWriter;
+import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -46,12 +49,20 @@ public class DorisBatchWriter<IN> implements SinkWriter<IN> {
     private final DorisRecordSerializer<IN> serializer;
     private final transient ScheduledExecutorService scheduledExecutorService;
     private transient volatile Exception flushException = null;
+    private String database;
+    private String table;
 
     public DorisBatchWriter(Sink.InitContext initContext,
                             DorisRecordSerializer<IN> serializer,
                             DorisOptions dorisOptions,
                             DorisReadOptions dorisReadOptions,
                             DorisExecutionOptions executionOptions) {
+        if(!StringUtils.isNullOrWhitespaceOnly(dorisOptions.getTableIdentifier())){
+            String[] tableInfo = dorisOptions.getTableIdentifier().split("\\.");
+            Preconditions.checkState(tableInfo.length == 2, "tableIdentifier input error, the format is database.table");
+            this.database = tableInfo[0];
+            this.table = tableInfo[1];
+        }
         LOG.info("labelPrefix " + executionOptions.getLabelPrefix());
         this.labelPrefix = executionOptions.getLabelPrefix() + "_" + initContext.getSubtaskId();
         this.labelGenerator = new LabelGenerator(labelPrefix, false);
@@ -72,7 +83,7 @@ public class DorisBatchWriter<IN> implements SinkWriter<IN> {
     private void intervalFlush() {
         try {
             LOG.info("interval flush triggered.");
-            batchStreamLoad.flush(false);
+            batchStreamLoad.flush(null, false);
         } catch (InterruptedException e) {
             flushException = e;
         }
@@ -81,18 +92,30 @@ public class DorisBatchWriter<IN> implements SinkWriter<IN> {
     @Override
     public void write(IN in, Context context) throws IOException, InterruptedException {
         checkFlushException();
+        if(in instanceof RecordWithMeta){
+            RecordWithMeta row = (RecordWithMeta) in;
+            if(StringUtils.isNullOrWhitespaceOnly(row.getTable())
+                    ||StringUtils.isNullOrWhitespaceOnly(row.getDatabase())
+                    ||row.getRecord() == null){
+                LOG.warn("Record or meta format is incorrect, ignore record db:{}, table:{}, row:{}", row.getDatabase(), row.getTable(), row.getRecord());
+                return;
+            }
+            batchStreamLoad.writeRecord(row.getDatabase(), row.getTable(), row.getRecord().getBytes(StandardCharsets.UTF_8));
+            return;
+        }
+
         byte[] serialize = serializer.serialize(in);
         if(Objects.isNull(serialize)){
             //ddl record
             return;
         }
-        batchStreamLoad.writeRecord(serialize);
+        batchStreamLoad.writeRecord(database, table, serialize);
     }
     @Override
     public void flush(boolean flush) throws IOException, InterruptedException {
         checkFlushException();
         LOG.info("checkpoint flush triggered.");
-        batchStreamLoad.flush(true);
+        batchStreamLoad.flush(null,  true);
     }
 
     @Override
