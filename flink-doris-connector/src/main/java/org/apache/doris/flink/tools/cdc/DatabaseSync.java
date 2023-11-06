@@ -33,6 +33,7 @@ import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,6 +59,7 @@ public abstract class DatabaseSync {
     protected TableNameConverter converter;
     protected Pattern includingPattern;
     protected Pattern excludingPattern;
+    protected Map<Pattern, String> multiToOneRulesPattern;
     protected Map<String, String> tableConfig;
     protected Configuration sinkConfig;
     protected boolean ignoreDefaultValue;
@@ -67,6 +69,8 @@ public abstract class DatabaseSync {
     private boolean newSchemaChange;
     protected String includingTables;
     protected String excludingTables;
+    protected String multiToOneOrigin;
+    protected String multiToOneTarget;
 
     public abstract void registerDriver() throws SQLException;
 
@@ -82,16 +86,19 @@ public abstract class DatabaseSync {
 
     public void create(StreamExecutionEnvironment env, String database, Configuration config,
                        String tablePrefix, String tableSuffix, String includingTables,
-                       String excludingTables, boolean ignoreDefaultValue, Configuration sinkConfig,
+                       String excludingTables,String multiToOneOrigin,String multiToOneTarget, boolean ignoreDefaultValue, Configuration sinkConfig,
             Map<String, String> tableConfig, boolean createTableOnly, boolean useNewSchemaChange) {
         this.env = env;
         this.config = config;
         this.database = database;
-        this.converter = new TableNameConverter(tablePrefix, tableSuffix);
         this.includingTables = includingTables;
         this.excludingTables = excludingTables;
+        this.multiToOneOrigin = multiToOneOrigin;
+        this.multiToOneTarget = multiToOneTarget;
         this.includingPattern = includingTables == null ? null : Pattern.compile(includingTables);
         this.excludingPattern = excludingTables == null ? null : Pattern.compile(excludingTables);
+        this.multiToOneRulesPattern = multiToOneRulesParser(multiToOneOrigin,multiToOneTarget);
+        this.converter = new TableNameConverter(tablePrefix, tableSuffix,multiToOneRulesPattern);
         this.ignoreDefaultValue = ignoreDefaultValue;
         this.sinkConfig = sinkConfig;
         this.tableConfig = tableConfig == null ? new HashMap<>() : tableConfig;
@@ -118,7 +125,7 @@ public abstract class DatabaseSync {
         List<String> dorisTables = new ArrayList<>();
         for (SourceSchema schema : schemaList) {
             syncTables.add(schema.getTableName());
-            String dorisTable = converter.convert(schema.getTableName());
+            String dorisTable=converter.convert(schema.getTableName());
             if (!dorisSystem.tableExists(database, dorisTable)) {
                 TableSchema dorisSchema = schema.convertTableSchema(tableConfig);
                 //set doris target database
@@ -126,7 +133,9 @@ public abstract class DatabaseSync {
                 dorisSchema.setTable(dorisTable);
                 dorisSystem.createTable(dorisSchema);
             }
-            dorisTables.add(dorisTable);
+            if(!dorisTables.contains(dorisTable)){
+                dorisTables.add(dorisTable);
+            }
         }
         if(createTableOnly){
             System.out.println("Create table finished.");
@@ -139,7 +148,6 @@ public abstract class DatabaseSync {
         for (String table : dorisTables) {
             OutputTag<String> recordOutputTag = ParsingProcessFunction.createRecordOutputTag(table);
             DataStream<String> sideOutput = parsedStream.getSideOutput(recordOutputTag);
-
             int sinkParallel = sinkConfig.getInteger(DorisConfigOptions.SINK_PARALLELISM, sideOutput.getParallelism());
             sideOutput.sinkTo(buildDorisSink(table)).setParallelism(sinkParallel).name(table).uid(table);
         }
@@ -245,11 +253,36 @@ public abstract class DatabaseSync {
         LOG.debug("table {} is synchronized? {}", tableName, sync);
         return sync;
     }
+    /**
+     * Filter table that many tables merge to one
+     */
+    protected HashMap<Pattern,String> multiToOneRulesParser(String multiToOneOrigin,String multiToOneTarget){
+        if(StringUtils.isNullOrWhitespaceOnly(multiToOneOrigin) || StringUtils.isNullOrWhitespaceOnly(multiToOneTarget)){
+            return null;
+        }
+        HashMap<Pattern,String> multiToOneRulesPattern= new HashMap<>();
+        String[] origins = multiToOneOrigin.split("\\|");
+        String[] targets = multiToOneTarget.split("\\|");
+        if(origins.length!=targets.length){
+            System.out.println("param error : multi to one params length are not equal,please check your params.");
+            System.exit(1);
+        }
+        try {
+            for (int i = 0; i < origins.length; i++) {
+                multiToOneRulesPattern.put(Pattern.compile(origins[i]),targets[i]);
+            }
+        } catch (Exception e) {
+            System.out.println("param error : Your regular expression is incorrect,please check.");
+            System.exit(1);
+        }
+        return multiToOneRulesPattern;
+    }
 
     public static class TableNameConverter implements Serializable {
         private static final long serialVersionUID = 1L;
         private final String prefix;
         private final String suffix;
+        private Map<Pattern,String> multiToOneRulesPattern;
 
         TableNameConverter(){
             this("","");
@@ -260,8 +293,33 @@ public abstract class DatabaseSync {
             this.suffix = suffix == null ? "" : suffix;
         }
 
+        TableNameConverter(String prefix, String suffix,Map<Pattern, String> multiToOneRulesPattern) {
+            this.prefix = prefix == null ? "" : prefix;
+            this.suffix = suffix == null ? "" : suffix;
+            this.multiToOneRulesPattern = multiToOneRulesPattern;
+        }
+
         public String convert(String tableName) {
-            return prefix + tableName + suffix;
+            if(multiToOneRulesPattern==null){
+                return prefix + tableName + suffix;
+            }
+
+            String target=null;
+
+            for (Map.Entry<Pattern, String> patternStringEntry : multiToOneRulesPattern.entrySet()) {
+                if(patternStringEntry.getKey().matcher(tableName).matches()){
+                    target=patternStringEntry.getValue();
+                }
+            }
+            /**
+             * If multiToOneRulesPattern is not null and target is not assigned,
+             * then the synchronization task contains both multi to one and one to one ,
+             * prefixes and suffixes are added to common one-to-one mapping tables
+             * */
+            if(target==null){
+                return prefix + tableName + suffix;
+            }
+            return target;
         }
     }
 }
