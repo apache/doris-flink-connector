@@ -17,7 +17,11 @@
 
 package org.apache.doris.flink.sink;
 
+import org.apache.commons.lang3.StringUtils;
+import org.apache.doris.flink.cfg.DorisOptions;
+import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.exception.DorisRuntimeException;
+import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.rest.models.BackendV2;
 import org.apache.doris.flink.rest.models.BackendV2.BackendRowV2;
 
@@ -60,6 +64,14 @@ public class BackendUtil {
             }
         });
         return backends;
+    }
+
+    public static BackendUtil getInstance(DorisOptions dorisOptions, DorisReadOptions readOptions, Logger logger){
+        if(StringUtils.isNotEmpty(dorisOptions.getBenodes())){
+            return new BackendUtil(dorisOptions.getBenodes());
+        } else {
+            return new BackendUtil(RestService.getBackendsV2(dorisOptions, readOptions, logger));
+        }
     }
 
     public String getAvailableBackend() {

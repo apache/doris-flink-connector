@@ -16,6 +16,8 @@
 // under the License.
 package org.apache.doris.flink.sink.writer;
 
+import org.apache.flink.util.Preconditions;
+
 import java.util.UUID;
 
 /**
@@ -24,14 +26,29 @@ import java.util.UUID;
 public class LabelGenerator {
     private String labelPrefix;
     private boolean enable2PC;
+    private String tableIdentifier;
+    private int subtaskId;
 
     public LabelGenerator(String labelPrefix, boolean enable2PC) {
         this.labelPrefix = labelPrefix;
         this.enable2PC = enable2PC;
     }
 
+    public LabelGenerator(String labelPrefix, boolean enable2PC, String tableIdentifier, int subtaskId) {
+        this(labelPrefix, enable2PC);
+        // The label of stream load can not contain `.`
+        this.tableIdentifier = tableIdentifier.replace(".", "_");
+        this.subtaskId = subtaskId;
+    }
+
     public String generateLabel(long chkId) {
-        String label = labelPrefix + "_" + chkId;
+        String label = String.format("%s_%s_%s", labelPrefix, subtaskId, chkId);
+        return enable2PC ? label : label + "_" + UUID.randomUUID();
+    }
+
+    public String generateTableLabel(long chkId) {
+        Preconditions.checkState(tableIdentifier != null);
+        String label = String.format("%s_%s_%s_%s", labelPrefix, tableIdentifier, subtaskId, chkId);
         return enable2PC ? label : label + "_" + UUID.randomUUID();
     }
 
@@ -40,6 +57,6 @@ public class LabelGenerator {
     }
 
     public String generateBatchLabel(String table) {
-        return String.format("%s_%s_%s", labelPrefix, table, UUID.randomUUID());
+        return labelPrefix + "_" + table + "_" + UUID.randomUUID();
     }
 }

@@ -50,9 +50,50 @@ public class HttpTestUtil {
             "}\n" +
             "\n";
 
+    public static final String LABEL_EXIST_PRE_COMMIT_TABLE_RESPONSE = "{\n" +
+            "\"TxnId\": 1,\n" +
+            "\"Label\": \"test001_db_table_0_1\",\n" +
+            "\"TwoPhaseCommit\": \"true\",\n" +
+            "\"Status\": \"Label Already Exists\",\n" +
+            "\"ExistingJobStatus\": \"PRECOMMITTED\",\n" +
+            "\"Message\": \"errCode = 2, detailMessage = Label [test001_db_table_0_1] has already been used, relate to txn [1]\",\n" +
+            "\"NumberTotalRows\": 0,\n" +
+            "\"NumberLoadedRows\": 0,\n" +
+            "\"NumberFilteredRows\": 0,\n" +
+            "\"NumberUnselectedRows\": 0,\n" +
+            "\"LoadBytes\": 0,\n" +
+            "\"LoadTimeMs\": 0,\n" +
+            "\"BeginTxnTimeMs\": 0,\n" +
+            "\"StreamLoadPutTimeMs\": 0,\n" +
+            "\"ReadDataTimeMs\": 0,\n" +
+            "\"WriteDataTimeMs\": 0,\n" +
+            "\"CommitAndPublishTimeMs\": 0\n" +
+            "}\n" +
+            "\n";
+
     public static final String PRE_COMMIT_RESPONSE = "{\n" +
             "\"TxnId\": 2,\n" +
             "\"Label\": \"test001_0_2\",\n" +
+            "\"TwoPhaseCommit\": \"true\",\n" +
+            "\"Status\": \"Success\",\n" +
+            "\"Message\": \"OK\",\n" +
+            "\"NumberTotalRows\": 0,\n" +
+            "\"NumberLoadedRows\": 0,\n" +
+            "\"NumberFilteredRows\": 0,\n" +
+            "\"NumberUnselectedRows\": 0,\n" +
+            "\"LoadBytes\": 0,\n" +
+            "\"LoadTimeMs\": 0,\n" +
+            "\"BeginTxnTimeMs\": 0,\n" +
+            "\"StreamLoadPutTimeMs\": 0,\n" +
+            "\"ReadDataTimeMs\": 0,\n" +
+            "\"WriteDataTimeMs\": 0,\n" +
+            "\"CommitAndPublishTimeMs\": 0\n" +
+            "}\n" +
+            "\n";
+
+    public static final String PRE_COMMIT_TABLE_RESPONSE = "{\n" +
+            "\"TxnId\": 2,\n" +
+            "\"Label\": \"test001_db_table_0_2\",\n" +
             "\"TwoPhaseCommit\": \"true\",\n" +
             "\"Status\": \"Success\",\n" +
             "\"Message\": \"OK\",\n" +

@@ -52,6 +52,10 @@ public class DorisOptions extends DorisConnectionOptions {
         return tableIdentifier;
     }
 
+    public void setTableIdentifier(String tableIdentifier) {
+        this.tableIdentifier = tableIdentifier;
+    }
+
     public String save() throws IllegalArgumentException {
         Properties copy = new Properties();
         return IOUtils.propsToString(copy);
