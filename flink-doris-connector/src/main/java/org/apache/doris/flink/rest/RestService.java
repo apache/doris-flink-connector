@@ -458,6 +458,11 @@ public class RestService implements Serializable {
 
     public static boolean isUniqueKeyType(DorisOptions options, DorisReadOptions readOptions, Logger logger)
             throws DorisRuntimeException {
+        //Enable 2pc in multi-table scenario
+        if(StringUtils.isBlank(options.getTableIdentifier())){
+            logger.info("table model verification is skipped in multi-table scenarios.");
+            return false;
+        }
         try {
             return UNIQUE_KEYS_TYPE.equals(getSchema(options, readOptions, logger).getKeysType());
         } catch (Exception e) {
