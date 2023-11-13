@@ -72,12 +72,14 @@ public class CdcPostgresSyncDatabaseCase {
         Map<String,String> tableConfig = new HashMap<>();
         tableConfig.put("replication_num", "1");
 
-        String includingTables = "testcdc";
+        String includingTables = "a_.*|b_.*|c";
         String excludingTables = "";
+        String multiToOneOrigin="a_.*|b_.*";
+        String multiToOneTarget="a|b";
         boolean ignoreDefaultValue = false;
         boolean useNewSchemaChange = false;
         DatabaseSync databaseSync = new PostgresDatabaseSync();
-        databaseSync.create(env,database,config,tablePrefix,tableSuffix,includingTables,excludingTables,ignoreDefaultValue,sinkConf,tableConfig, false, useNewSchemaChange);
+        databaseSync.create(env,database,config,tablePrefix,tableSuffix,includingTables,excludingTables,multiToOneOrigin,multiToOneTarget,ignoreDefaultValue,sinkConf,tableConfig, false, useNewSchemaChange);
         databaseSync.build();
         env.execute(String.format("Postgres-Doris Database Sync: %s", database));
 

@@ -14,21 +14,27 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+package org.apache.doris.flink.tools.cdc;
 
-package org.apache.doris.flink.sink;
-
-import java.util.regex.Pattern;
+import org.apache.doris.flink.tools.cdc.mysql.MysqlDatabaseSync;
+import org.junit.Test;
+import java.util.Arrays;
 
 /**
- * util for handle response.
- */
-public class ResponseUtil {
-    public static final Pattern LABEL_EXIST_PATTERN =
-            Pattern.compile("Label \\[(.*)\\] has already been used, relate to txn \\[(\\d+)\\]");
-    public static final Pattern COMMITTED_PATTERN =
-            Pattern.compile("transaction \\[(\\d+)\\] is already \\b(COMMITTED|committed|VISIBLE|visible)\\b, not pre-committed.");
-
-    public static boolean isCommitted(String msg) {
-       return COMMITTED_PATTERN.matcher(msg).find();
+ * Unit tests for the {@link DatabaseSync}.
+ **/
+public class DatabaseSyncTest {
+    @Test
+    public void multiToOneRulesParserTest() throws Exception{
+        String[][] testCase = {
+                {"a_.*|b_.*","a|b"} //  Normal condition
+//                ,{"a_.*|b_.*","a|b|c"} // Unequal length
+//                ,{"",""} // Null value
+//                ,{"***....","a"} // Abnormal regular expression
+        };
+        DatabaseSync databaseSync = new MysqlDatabaseSync();
+        Arrays.stream(testCase).forEach(arr->{
+            databaseSync.multiToOneRulesParser(arr[0], arr[1]);
+        });
     }
 }

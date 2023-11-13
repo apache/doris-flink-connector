@@ -111,6 +111,7 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
         options.add(USERNAME);
         options.add(PASSWORD);
         options.add(JDBC_URL);
+        options.add(AUTO_REDIRECT);
 
         options.add(DORIS_READ_FIELD);
         options.add(DORIS_FILTER_QUERY);

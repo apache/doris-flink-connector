@@ -69,12 +69,14 @@ public class CdcOraclelSyncDatabaseCase {
         Map<String,String> tableConfig = new HashMap<>();
         tableConfig.put("replication_num", "1");
 
-        String includingTables = "test.*";
+        String includingTables = "a_.*|b_.*|c";
         String excludingTables = "";
+        String multiToOneOrigin="a_.*|b_.*";
+        String multiToOneTarget="a|b";
         boolean ignoreDefaultValue = false;
         boolean useNewSchemaChange = false;
         DatabaseSync databaseSync = new OracleDatabaseSync();
-        databaseSync.create(env,database,config,tablePrefix,tableSuffix,includingTables,excludingTables,ignoreDefaultValue,sinkConf,tableConfig, false, useNewSchemaChange);
+        databaseSync.create(env,database,config,tablePrefix,tableSuffix,includingTables,excludingTables,multiToOneOrigin,multiToOneTarget,ignoreDefaultValue,sinkConf,tableConfig, false, useNewSchemaChange);
         databaseSync.build();
         env.execute(String.format("Oracle-Doris Database Sync: %s", database));
 

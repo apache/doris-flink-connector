@@ -23,29 +23,31 @@ import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.apache.doris.flink.exception.StreamLoadException;
-import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.rest.models.RespContent;
 import org.apache.doris.flink.sink.BackendUtil;
 import org.apache.doris.flink.sink.DorisCommittable;
 import org.apache.doris.flink.sink.HttpUtil;
+import org.apache.doris.flink.sink.batch.RecordWithMeta;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.StatefulSink;
 import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
-import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
-import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -63,21 +65,21 @@ public class DorisWriter<IN> implements StatefulSink.StatefulSinkWriter<IN, Dori
     private static final List<String> DORIS_SUCCESS_STATUS = new ArrayList<>(Arrays.asList(SUCCESS, PUBLISH_TIMEOUT));
     private final long lastCheckpointId;
     private long curCheckpointId;
-    private DorisStreamLoad dorisStreamLoad;
-    volatile boolean loading;
+    private Map<String, DorisStreamLoad> dorisStreamLoadMap = new ConcurrentHashMap<>();
+    private Map<String, LabelGenerator> labelGeneratorMap = new ConcurrentHashMap<>();;
+    volatile boolean globalLoading;
+    private Map<String, Boolean> loadingMap = new ConcurrentHashMap<>();
     private final DorisOptions dorisOptions;
     private final DorisReadOptions dorisReadOptions;
     private final DorisExecutionOptions executionOptions;
     private final String labelPrefix;
-    private final LabelGenerator labelGenerator;
+    private final int subtaskId;
     private final int intervalTime;
-    private final DorisWriterState dorisWriterState;
     private final DorisRecordSerializer<IN> serializer;
     private final transient ScheduledExecutorService scheduledExecutorService;
     private transient Thread executorThread;
     private transient volatile Exception loadException = null;
     private BackendUtil backendUtil;
-    private String currentLabel;
 
     public DorisWriter(Sink.InitContext initContext,
                        Collection<DorisWriterState> state,
@@ -92,106 +94,188 @@ public class DorisWriter<IN> implements StatefulSink.StatefulSinkWriter<IN, Dori
         this.curCheckpointId = lastCheckpointId + 1;
         LOG.info("restore checkpointId {}", lastCheckpointId);
         LOG.info("labelPrefix " + executionOptions.getLabelPrefix());
-        this.dorisWriterState = new DorisWriterState(executionOptions.getLabelPrefix());
-        this.labelPrefix = executionOptions.getLabelPrefix() + "_" + initContext.getSubtaskId();
-        this.labelGenerator = new LabelGenerator(labelPrefix, executionOptions.enabled2PC());
+        this.labelPrefix = executionOptions.getLabelPrefix();
+        this.subtaskId = initContext.getSubtaskId();
         this.scheduledExecutorService = new ScheduledThreadPoolExecutor(1, new ExecutorThreadFactory("stream-load-check"));
         this.serializer = serializer;
         this.dorisOptions = dorisOptions;
         this.dorisReadOptions = dorisReadOptions;
         this.executionOptions = executionOptions;
         this.intervalTime = executionOptions.checkInterval();
-        this.loading = false;
+        this.globalLoading = false;
 
         initializeLoad(state);
     }
 
     public void initializeLoad(Collection<DorisWriterState> state) {
-        this.backendUtil = StringUtils.isNotEmpty(dorisOptions.getBenodes()) ? new BackendUtil(
-                dorisOptions.getBenodes())
-                : new BackendUtil(RestService.getBackendsV2(dorisOptions, dorisReadOptions, LOG));
+        this.backendUtil = BackendUtil.getInstance(dorisOptions, dorisReadOptions, LOG);
         try {
-            this.dorisStreamLoad = new DorisStreamLoad(
-                    backendUtil.getAvailableBackend(),
-                    dorisOptions,
-                    executionOptions,
-                    labelGenerator, new HttpUtil().getHttpClient());
-            // TODO: we need check and abort all pending transaction.
-            //  Discard transactions that may cause the job to fail.
             if(executionOptions.enabled2PC()) {
-                dorisStreamLoad.abortPreCommit(labelPrefix, curCheckpointId);
+                abortLingeringTransactions(state);
             }
         } catch (Exception e) {
+            LOG.error("Failed to abort transaction.", e);
             throw new DorisRuntimeException(e);
         }
         // get main work thread.
         executorThread = Thread.currentThread();
-        this.currentLabel = labelGenerator.generateLabel(curCheckpointId);
         // when uploading data in streaming mode, we need to regularly detect whether there are exceptions.
         scheduledExecutorService.scheduleWithFixedDelay(this::checkDone, 200, intervalTime, TimeUnit.MILLISECONDS);
+    }
+
+    private void abortLingeringTransactions(Collection<DorisWriterState> recoveredStates) throws Exception {
+        List<String> alreadyAborts = new ArrayList<>();
+        //abort label in state
+         for(DorisWriterState state : recoveredStates){
+             // Todo: When the sink parallelism is reduced,
+             //  the txn of the redundant task before aborting is also needed.
+             if(!state.getLabelPrefix().equals(labelPrefix)){
+                 LOG.warn("Label prefix from previous execution {} has changed to {}.", state.getLabelPrefix(), executionOptions.getLabelPrefix());
+             }
+             String key = state.getDatabase() + "." + state.getTable();
+             DorisStreamLoad streamLoader = getStreamLoader(key);
+             streamLoader.abortPreCommit(state.getLabelPrefix(), curCheckpointId);
+             alreadyAborts.add(state.getLabelPrefix());
+        }
+
+        // TODO: In a multi-table scenario, if do not restore from checkpoint,
+        //  when modify labelPrefix at startup, we cannot abort the previous label.
+        if(!alreadyAborts.contains(labelPrefix)
+                && StringUtils.isNotEmpty(dorisOptions.getTableIdentifier())
+                && StringUtils.isNotEmpty(labelPrefix)){
+            //abort current labelPrefix
+            DorisStreamLoad streamLoader = getStreamLoader(dorisOptions.getTableIdentifier());
+            streamLoader.abortPreCommit(labelPrefix, curCheckpointId);
+        }
     }
 
     @Override
     public void write(IN in, Context context) throws IOException {
         checkLoadException();
-        byte[] serialize = serializer.serialize(in);
-        if(Objects.isNull(serialize)){
-            //ddl record
+        Tuple2<String, byte[]> rowTuple = serializeRecord(in);
+        String tableKey = rowTuple.f0;
+        byte[] serializeRow = rowTuple.f1;
+        if(serializeRow == null){
             return;
         }
-        if(!loading) {
+
+        DorisStreamLoad streamLoader = getStreamLoader(tableKey);
+        if(!loadingMap.containsKey(tableKey)) {
             // start stream load only when there has data
-            dorisStreamLoad.startLoad(currentLabel, false);
-            loading = true;
+            LabelGenerator labelGenerator = getLabelGenerator(tableKey);
+            String currentLabel = labelGenerator.generateTableLabel(curCheckpointId);
+            streamLoader.startLoad(currentLabel, false);
+            loadingMap.put(tableKey, true);
+            globalLoading = true;
         }
-        dorisStreamLoad.writeRecord(serialize);
+        streamLoader.writeRecord(serializeRow);
+    }
+
+    private Tuple2<String, byte[]> serializeRecord(IN in) throws IOException {
+        String tableKey = dorisOptions.getTableIdentifier();
+        byte[] serializeRow = null;
+        if(serializer != null) {
+            serializeRow = serializer.serialize(in);
+            if(Objects.isNull(serializeRow)){
+                //ddl record by JsonDebeziumSchemaSerializer
+                return Tuple2.of(tableKey, null);
+            }
+        }
+        //multi table load
+        if(in instanceof RecordWithMeta){
+            RecordWithMeta row = (RecordWithMeta) in;
+            if(StringUtils.isBlank(row.getTable())
+                    || StringUtils.isBlank(row.getDatabase())
+                    || row.getRecord() == null){
+                LOG.warn("Record or meta format is incorrect, ignore record db:{}, table:{}, row:{}", row.getDatabase(), row.getTable(), row.getRecord());
+                return Tuple2.of(tableKey, null);
+            }
+            tableKey = row.getDatabase() + "." + row.getTable();
+            serializeRow = row.getRecord().getBytes(StandardCharsets.UTF_8);
+        }
+        return Tuple2.of(tableKey, serializeRow);
     }
 
     @Override
     public void flush(boolean flush) throws IOException, InterruptedException {
-
+        //No action is triggered, everything is in the precommit method
     }
-
 
     @Override
     public Collection<DorisCommittable> prepareCommit() throws IOException, InterruptedException {
-        if(!loading){
-            //There is no data during the entire checkpoint period
+        // Verify whether data is written during a checkpoint
+        if(!globalLoading && loadingMap.values().stream().noneMatch(Boolean::booleanValue)){
             return Collections.emptyList();
         }
         // disable exception checker before stop load.
-        loading = false;
-        Preconditions.checkState(dorisStreamLoad != null);
-        RespContent respContent = dorisStreamLoad.stopLoad(currentLabel);
-        if (!DORIS_SUCCESS_STATUS.contains(respContent.getStatus())) {
-            String errMsg = String.format("stream load error: %s, see more in %s", respContent.getMessage(), respContent.getErrorURL());
-            throw new DorisRuntimeException(errMsg);
+        globalLoading = false;
+        // clean loadingMap
+        loadingMap.clear();
+
+        // submit stream load http request
+        List<DorisCommittable> committableList = new ArrayList<>();
+        for(Map.Entry<String, DorisStreamLoad> streamLoader : dorisStreamLoadMap.entrySet()){
+            String tableIdentifier = streamLoader.getKey();
+            DorisStreamLoad dorisStreamLoad = streamLoader.getValue();
+            LabelGenerator labelGenerator = getLabelGenerator(tableIdentifier);
+            String currentLabel = labelGenerator.generateTableLabel(curCheckpointId);
+            RespContent respContent = dorisStreamLoad.stopLoad(currentLabel);
+            if (!DORIS_SUCCESS_STATUS.contains(respContent.getStatus())) {
+                String errMsg = String.format("tabel {} stream load error: %s, see more in %s", tableIdentifier, respContent.getMessage(), respContent.getErrorURL());
+                throw new DorisRuntimeException(errMsg);
+            }
+            if(executionOptions.enabled2PC()){
+                long txnId = respContent.getTxnId();
+                committableList.add(new DorisCommittable(dorisStreamLoad.getHostPort(), dorisStreamLoad.getDb(), txnId));
+            }
         }
-        if (!executionOptions.enabled2PC()) {
-            return Collections.emptyList();
-        }
-        long txnId = respContent.getTxnId();
-        return ImmutableList.of(new DorisCommittable(dorisStreamLoad.getHostPort(), dorisStreamLoad.getDb(), txnId));
+        return committableList;
     }
 
     @Override
     public List<DorisWriterState> snapshotState(long checkpointId) throws IOException {
-        Preconditions.checkState(dorisStreamLoad != null);
-        // dynamic refresh BE node
-        this.dorisStreamLoad.setHostPort(backendUtil.getAvailableBackend());
+        List<DorisWriterState> writerStates = new ArrayList<>();
+        for(DorisStreamLoad dorisStreamLoad : dorisStreamLoadMap.values()){
+            //Dynamic refresh backend
+            dorisStreamLoad.setHostPort(backendUtil.getAvailableBackend());
+            DorisWriterState writerState = new DorisWriterState(labelPrefix, dorisStreamLoad.getDb(), dorisStreamLoad.getTable(), subtaskId);
+            writerStates.add(writerState);
+        }
         this.curCheckpointId = checkpointId + 1;
-        this.currentLabel = labelGenerator.generateLabel(curCheckpointId);
-        return Collections.singletonList(dorisWriterState);
+        return writerStates;
     }
 
+    private LabelGenerator getLabelGenerator(String tableKey){
+        return labelGeneratorMap.computeIfAbsent(tableKey, v-> new LabelGenerator(labelPrefix, executionOptions.enabled2PC(), tableKey, subtaskId));
+    }
+
+    private DorisStreamLoad getStreamLoader(String tableKey){
+        LabelGenerator labelGenerator = getLabelGenerator(tableKey);
+        dorisOptions.setTableIdentifier(tableKey);
+        return dorisStreamLoadMap.computeIfAbsent(tableKey, v -> new DorisStreamLoad(backendUtil.getAvailableBackend(),
+                dorisOptions,
+                executionOptions,
+                labelGenerator,
+                new HttpUtil().getHttpClient()));
+    }
+
+    /**
+     * Check the streamload http request regularly
+     */
     private void checkDone() {
+        for(Map.Entry<String, DorisStreamLoad> streamLoadMap : dorisStreamLoadMap.entrySet()){
+            checkAllDone(streamLoadMap.getKey(), streamLoadMap.getValue());
+        }
+    }
+
+    private void checkAllDone(String tableIdentifier, DorisStreamLoad dorisStreamLoad){
         // the load future is done and checked in prepareCommit().
         // this will check error while loading.
         LOG.debug("start timer checker, interval {} ms", intervalTime);
         if (dorisStreamLoad.getPendingLoadFuture() != null
                 && dorisStreamLoad.getPendingLoadFuture().isDone()) {
-            if (!loading) {
-                LOG.debug("not loading, skip timer checker");
+            if (!globalLoading || !loadingMap.get(tableIdentifier)) {
+                LOG.debug("not loading, skip timer checker for table {}", tableIdentifier);
                 return;
             }
 
@@ -203,13 +287,14 @@ public class DorisWriter<IN> implements StatefulSink.StatefulSinkWriter<IN, Dori
                 // use send cached data to new txn, then notify to restart the stream
                 if (executionOptions.isUseCache()) {
                     try {
-                        this.dorisStreamLoad.setHostPort(backendUtil.getAvailableBackend());
+                        dorisStreamLoad.setHostPort(backendUtil.getAvailableBackend());
                         if (executionOptions.enabled2PC()) {
                             dorisStreamLoad.abortPreCommit(labelPrefix, curCheckpointId);
                         }
                         // start a new txn(stream load)
-                        LOG.info("getting exception, breakpoint resume for checkpoint ID: {}", curCheckpointId);
-                        dorisStreamLoad.startLoad(labelGenerator.generateLabel(curCheckpointId), true);
+                        LOG.info("getting exception, breakpoint resume for checkpoint ID: {}, table {}", curCheckpointId, tableIdentifier);
+                        LabelGenerator labelGenerator = getLabelGenerator(tableIdentifier);
+                        dorisStreamLoad.startLoad(labelGenerator.generateTableLabel(curCheckpointId), true);
                     } catch (Exception e) {
                         throw new DorisRuntimeException(e);
                     }
@@ -223,7 +308,7 @@ public class DorisWriter<IN> implements StatefulSink.StatefulSinkWriter<IN, Dori
                     }
 
                     loadException = new StreamLoadException(errorMsg);
-                    LOG.error("stream load finished unexpectedly, interrupt worker thread! {}", errorMsg);
+                    LOG.error("table {} stream load finished unexpectedly, interrupt worker thread! {}", tableIdentifier, errorMsg);
                     // set the executor thread interrupted in case blocking in write data.
                     executorThread.interrupt();
                 }
@@ -239,21 +324,24 @@ public class DorisWriter<IN> implements StatefulSink.StatefulSinkWriter<IN, Dori
 
     @VisibleForTesting
     public boolean isLoading() {
-        return this.loading;
+        return this.globalLoading;
     }
 
     @VisibleForTesting
-    public void setDorisStreamLoad(DorisStreamLoad streamLoad) {
-        this.dorisStreamLoad = streamLoad;
+    public void setDorisStreamLoadMap(Map<String, DorisStreamLoad> streamLoadMap) {
+        this.dorisStreamLoadMap = streamLoadMap;
     }
 
     @Override
     public void close() throws Exception {
+        LOG.info("Close DorisWriter.");
         if (scheduledExecutorService != null) {
             scheduledExecutorService.shutdownNow();
         }
-        if (dorisStreamLoad != null) {
-            dorisStreamLoad.close();
+        if (dorisStreamLoadMap != null && !dorisStreamLoadMap.isEmpty()) {
+            for(DorisStreamLoad dorisStreamLoad : dorisStreamLoadMap.values()){
+                dorisStreamLoad.close();
+            }
         }
     }
 

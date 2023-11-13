@@ -114,6 +114,10 @@ public class DorisStreamLoad implements Serializable {
         return db;
     }
 
+    public String getTable() {
+        return table;
+    }
+
     public String getHostPort() {
         return hostPort;
     }
@@ -141,7 +145,7 @@ public class DorisStreamLoad implements Serializable {
             try {
                 // TODO: According to label abort txn. Currently, it can only be aborted based on txnid,
                 //  so we must first request a streamload based on the label to get the txnid.
-                String label = labelGenerator.generateLabel(startChkID);
+                String label = labelGenerator.generateTableLabel(startChkID);
                 HttpPutBuilder builder = new HttpPutBuilder();
                 builder.setUrl(loadUrlStr)
                         .baseAuth(user, passwd)
@@ -215,7 +219,7 @@ public class DorisStreamLoad implements Serializable {
 
     public RespContent stopLoad(String label) throws IOException{
         recordStream.endInput();
-        LOG.info("stream load stopped for {} on host {}", label, hostPort);
+        LOG.info("table {} stream load stopped for {} on host {}", table, label, hostPort);
         Preconditions.checkState(pendingLoadFuture != null);
         try {
            return handlePreCommitResponse(pendingLoadFuture.get());
@@ -233,7 +237,7 @@ public class DorisStreamLoad implements Serializable {
         loadBatchFirstRecord = !isResume;
         HttpPutBuilder putBuilder = new HttpPutBuilder();
         recordStream.startInput(isResume);
-        LOG.info("stream load started for {} on host {}", label, hostPort);
+        LOG.info("table {} stream load started for {} on host {}", table, label, hostPort);
         try {
             InputStreamEntity entity = new InputStreamEntity(recordStream);
             putBuilder.setUrl(loadUrlStr)
@@ -247,7 +251,7 @@ public class DorisStreamLoad implements Serializable {
                putBuilder.enable2PC();
             }
             pendingLoadFuture = executorService.submit(() -> {
-                LOG.info("start execute load");
+                LOG.info("table {} start execute load", table);
                 return httpClient.execute(putBuilder.build());
             });
         } catch (Exception e) {
