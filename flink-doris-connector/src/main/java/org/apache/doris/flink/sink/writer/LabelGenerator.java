@@ -24,6 +24,8 @@ import java.util.UUID;
  * Generator label for stream load.
  */
 public class LabelGenerator {
+
+    private final static int MAX_LOAD_LABEL_LENGTH = 128;
     private String labelPrefix;
     private boolean enable2PC;
     private String tableIdentifier;
@@ -43,20 +45,31 @@ public class LabelGenerator {
 
     public String generateLabel(long chkId) {
         String label = String.format("%s_%s_%s", labelPrefix, subtaskId, chkId);
-        return enable2PC ? label : label + "_" + UUID.randomUUID();
+        String result = enable2PC ? label : label + "_" + UUID.randomUUID();
+        return generateLabelUtil(result);
     }
 
     public String generateTableLabel(long chkId) {
         Preconditions.checkState(tableIdentifier != null);
         String label = String.format("%s_%s_%s_%s", labelPrefix, tableIdentifier, subtaskId, chkId);
-        return enable2PC ? label : label + "_" + UUID.randomUUID();
+        String result = enable2PC ? label : label + "_" + UUID.randomUUID();
+        return generateLabelUtil(result);
     }
 
     public String generateBatchLabel() {
-        return labelPrefix + "_" + UUID.randomUUID();
+        return generateLabelUtil(labelPrefix + "_" + UUID.randomUUID());
     }
 
     public String generateBatchLabel(String table) {
-        return String.format("%s_%s_%s", labelPrefix, table, UUID.randomUUID());
+        return generateLabelUtil(String.format("%s_%s_%s", labelPrefix, table, UUID.randomUUID()));
+    }
+
+    public String generateLabelUtil(String label) {
+        int len = label.length();
+        if (len <= MAX_LOAD_LABEL_LENGTH) {
+            return label;
+        } else {
+            return label.substring(len - MAX_LOAD_LABEL_LENGTH);
+        }
     }
 }

@@ -103,9 +103,7 @@ public abstract class DatabaseSync {
         this.sinkConfig = sinkConfig;
         this.tableConfig = tableConfig == null ? new HashMap<>() : tableConfig;
         //default enable light schema change
-        if(!this.tableConfig.containsKey(LIGHT_SCHEMA_CHANGE)){
-            this.tableConfig.put(LIGHT_SCHEMA_CHANGE, "true");
-        }
+        this.tableConfig.computeIfAbsent(LIGHT_SCHEMA_CHANGE, key -> "true");
         this.createTableOnly = createTableOnly;
         this.newSchemaChange = useNewSchemaChange;
     }
@@ -198,7 +196,7 @@ public abstract class DatabaseSync {
         Properties streamLoadProp = DorisConfigOptions.getStreamLoadProp(sinkConfig.toMap());
         pro.putAll(streamLoadProp);
         DorisExecutionOptions.Builder executionBuilder = DorisExecutionOptions.builder()
-                .setLabelPrefix(String.join("-", labelPrefix, database, table))
+                .setLabelPrefix(labelPrefix)
                 .setStreamLoadProp(pro);
 
         sinkConfig.getOptional(DorisConfigOptions.SINK_ENABLE_DELETE).ifPresent(executionBuilder::setDeletable);
