@@ -25,7 +25,7 @@ import java.util.UUID;
  */
 public class LabelGenerator {
 
-    private final static int MAX_LOAD_LABEL_LENGTH = 128;
+    private static final int MAX_LOAD_LABEL_LENGTH = 128;
     private String labelPrefix;
     private boolean enable2PC;
     private String tableIdentifier;
