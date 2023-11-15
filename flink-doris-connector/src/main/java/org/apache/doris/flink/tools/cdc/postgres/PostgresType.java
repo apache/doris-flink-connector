@@ -88,9 +88,6 @@ public class PostgresType {
                 return DorisType.FLOAT;
             case FLOAT8:
                 return DorisType.DOUBLE;
-            case BPCHAR:
-                Preconditions.checkNotNull(precision);
-                return String.format("%s(%s)", DorisType.CHAR, precision);
             case TIMESTAMP:
             case TIMESTAMPTZ:
                 return String.format("%s(%s)", DorisType.DATETIME_V2, Math.min(precision == null ? 0 : precision, 6));
@@ -100,6 +97,7 @@ public class PostgresType {
                 return DorisType.BOOLEAN;
             case BIT:
                 return precision == 1 ? DorisType.BOOLEAN : DorisType.STRING;
+            case BPCHAR:
             case VARCHAR:
                 Preconditions.checkNotNull(precision);
                 return precision * 3 > 65533 ? DorisType.STRING : String.format("%s(%s)", DorisType.VARCHAR, precision * 3);
