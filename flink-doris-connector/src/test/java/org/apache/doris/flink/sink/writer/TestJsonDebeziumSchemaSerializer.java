@@ -163,7 +163,7 @@ public class TestJsonDebeziumSchemaSerializer {
     @Test
     public void testExtractDDLListMultipleColumns() throws IOException {
         String sql0 = "ALTER TABLE test.t1 ADD COLUMN c2 INT";
-        String sql1 = "ALTER TABLE test.t1 ADD COLUMN c555 VARCHAR(300)";
+        String sql1 = "ALTER TABLE test.t1 ADD COLUMN c555 VARCHAR(400)";
         String sql2 = "ALTER TABLE test.t1 ADD COLUMN c666 INT DEFAULT '100'";
         String sql3 = "ALTER TABLE test.t1 ADD COLUMN c4 BIGINT DEFAULT '555'";
         String sql4 = "ALTER TABLE test.t1 ADD COLUMN c199 INT";
@@ -243,7 +243,7 @@ public class TestJsonDebeziumSchemaSerializer {
     public void testFillOriginSchema() throws IOException {
         Map<String, FieldSchema> srcFiledSchemaMap = new LinkedHashMap<>();
         srcFiledSchemaMap.put("id", new FieldSchema("id", "INT", null, null));
-        srcFiledSchemaMap.put("name", new FieldSchema("name", "VARCHAR(150)", null, null));
+        srcFiledSchemaMap.put("name", new FieldSchema("name", "VARCHAR(200)", null, null));
         srcFiledSchemaMap.put("test_time", new FieldSchema("test_time", "DATETIMEV2(0)", null, null));
         srcFiledSchemaMap.put("c1", new FieldSchema("c1", "INT", "'100'", null));
 
