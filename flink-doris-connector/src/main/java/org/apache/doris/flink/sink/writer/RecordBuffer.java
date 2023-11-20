@@ -33,7 +33,7 @@ import java.util.concurrent.LinkedBlockingDeque;
 public class RecordBuffer {
     private static final Logger LOG = LoggerFactory.getLogger(RecordBuffer.class);
     BlockingQueue<ByteBuffer> writeQueue;
-    BlockingQueue<ByteBuffer> readQueue;
+    LinkedBlockingDeque<ByteBuffer> readQueue;
     int bufferCapacity;
     int queueSize;
     ByteBuffer currentWriteBuffer;
@@ -52,7 +52,7 @@ public class RecordBuffer {
         this.queueSize = queueSize;
     }
 
-    public void startBufferData() {
+    public void startBufferData() throws IOException{
         LOG.info("start buffer data, read queue size {}, write queue size {}", readQueue.size(), writeQueue.size());
         Preconditions.checkState(readQueue.size() == 0);
         Preconditions.checkState(writeQueue.size() == queueSize);

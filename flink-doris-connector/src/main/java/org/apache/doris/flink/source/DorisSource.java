@@ -120,4 +120,56 @@ public class DorisSource<OUT> implements Source<OUT, DorisSourceSplit, PendingSp
     public TypeInformation<OUT> getProducedType() {
         return deserializer.getProducedType();
     }
+
+    public static <OUT> DorisSourceBuilder<OUT> builder() {
+        return new DorisSourceBuilder();
+    }
+
+    /**
+     * build for DorisSource.
+     * @param <OUT> record type.
+     */
+
+    public static class DorisSourceBuilder<OUT> {
+
+        private DorisOptions options;
+        private DorisReadOptions readOptions;
+
+        // Boundedness
+        private Boundedness boundedness;
+        private DorisDeserializationSchema<OUT> deserializer;
+
+        DorisSourceBuilder() {
+            boundedness = Boundedness.BOUNDED;
+        }
+
+
+        public DorisSourceBuilder<OUT> setDorisOptions(DorisOptions options) {
+            this.options = options;
+            return this;
+        }
+
+        public DorisSourceBuilder<OUT> setDorisReadOptions(DorisReadOptions readOptions) {
+            this.readOptions = readOptions;
+            return this;
+        }
+
+        public DorisSourceBuilder<OUT> setBoundedness(Boundedness boundedness) {
+            this.boundedness = boundedness;
+            return this;
+        }
+
+        public DorisSourceBuilder<OUT> setDeserializer(DorisDeserializationSchema<OUT> deserializer) {
+            this.deserializer = deserializer;
+            return this;
+        }
+
+        public DorisSource<OUT> build() {
+            if(readOptions == null){
+                readOptions = DorisReadOptions.builder().build();
+            }
+            return new DorisSource<>(options, readOptions, boundedness, deserializer);
+        }
+    }
+
 }

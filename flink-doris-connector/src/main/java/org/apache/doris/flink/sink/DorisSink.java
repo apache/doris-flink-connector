@@ -20,29 +20,34 @@ package org.apache.doris.flink.sink;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
+import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.sink.committer.DorisCommitter;
 import org.apache.doris.flink.sink.writer.DorisRecordSerializer;
 import org.apache.doris.flink.sink.writer.DorisWriter;
-import org.apache.flink.api.connector.sink.Committer;
 import org.apache.doris.flink.sink.writer.DorisWriterState;
 import org.apache.doris.flink.sink.writer.DorisWriterStateSerializer;
-import org.apache.flink.api.connector.sink.GlobalCommitter;
-import org.apache.flink.api.connector.sink.Sink;
-import org.apache.flink.api.connector.sink.SinkWriter;
+import org.apache.flink.api.connector.sink2.Committer;
+import org.apache.flink.api.connector.sink2.StatefulSink;
+import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.util.Preconditions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.List;
-import java.util.Optional;
+import java.util.Collection;
+import java.util.Collections;
 
 /**
  * Load data into Doris based on 2PC.
  * see {@link DorisWriter} and {@link DorisCommitter}.
  * @param <IN> type of record.
  */
-public class DorisSink<IN> implements Sink<IN, DorisCommittable, DorisWriterState, DorisCommittable> {
+public class DorisSink<IN>
+        implements StatefulSink<IN, DorisWriterState>,
+            TwoPhaseCommittingSink<IN, DorisCommittable>{
 
+    private static final Logger LOG = LoggerFactory.getLogger(DorisSink.class);
     private final DorisOptions dorisOptions;
     private final DorisReadOptions dorisReadOptions;
     private final DorisExecutionOptions dorisExecutionOptions;
@@ -56,39 +61,47 @@ public class DorisSink<IN> implements Sink<IN, DorisCommittable, DorisWriterStat
         this.dorisReadOptions = dorisReadOptions;
         this.dorisExecutionOptions = dorisExecutionOptions;
         this.serializer = serializer;
+        checkKeyType();
+    }
+
+    /**
+     * The uniq model has 2pc close by default unless 2pc is forced open
+     */
+    private void checkKeyType() {
+        if (dorisExecutionOptions.enabled2PC()
+                && !dorisExecutionOptions.force2PC()
+                && RestService.isUniqueKeyType(dorisOptions, dorisReadOptions, LOG)){
+            dorisExecutionOptions.setEnable2PC(false);
+        }
     }
 
     @Override
-    public SinkWriter<IN, DorisCommittable, DorisWriterState> createWriter(InitContext initContext, List<DorisWriterState> state) throws IOException {
-        DorisWriter<IN> dorisWriter = new DorisWriter<IN>(initContext, state, serializer, dorisOptions, dorisReadOptions, dorisExecutionOptions);
-        dorisWriter.initializeLoad(state);
+    public DorisWriter<IN> createWriter(InitContext initContext) throws IOException {
+        DorisWriter<IN> dorisWriter = new DorisWriter<>(initContext, Collections.emptyList(), serializer, dorisOptions, dorisReadOptions, dorisExecutionOptions);
         return dorisWriter;
     }
 
     @Override
-    public Optional<SimpleVersionedSerializer<DorisWriterState>> getWriterStateSerializer() {
-        return Optional.of(new DorisWriterStateSerializer());
+    public Committer<DorisCommittable> createCommitter() throws IOException {
+        return new DorisCommitter(dorisOptions, dorisReadOptions, dorisExecutionOptions.getMaxRetries());
     }
 
     @Override
-    public Optional<Committer<DorisCommittable>> createCommitter() throws IOException {
-        return Optional.of(new DorisCommitter(dorisOptions, dorisReadOptions, dorisExecutionOptions.getMaxRetries()));
+    public DorisWriter<IN> restoreWriter(InitContext initContext, Collection<DorisWriterState> recoveredState) throws IOException {
+        DorisWriter<IN> dorisWriter = new DorisWriter<>(initContext, recoveredState, serializer, dorisOptions, dorisReadOptions, dorisExecutionOptions);
+        return dorisWriter;
     }
 
     @Override
-    public Optional<GlobalCommitter<DorisCommittable, DorisCommittable>> createGlobalCommitter() throws IOException {
-        return Optional.empty();
+    public SimpleVersionedSerializer<DorisWriterState> getWriterStateSerializer() {
+        return new DorisWriterStateSerializer();
     }
 
     @Override
-    public Optional<SimpleVersionedSerializer<DorisCommittable>> getCommittableSerializer() {
-        return Optional.of(new DorisCommittableSerializer());
+    public SimpleVersionedSerializer<DorisCommittable> getCommittableSerializer() {
+        return new DorisCommittableSerializer();
     }
 
-    @Override
-    public Optional<SimpleVersionedSerializer<DorisCommittable>> getGlobalCommittableSerializer() {
-        return Optional.empty();
-    }
 
     public static <IN> Builder<IN> builder() {
         return new Builder<>();
@@ -127,7 +140,6 @@ public class DorisSink<IN> implements Sink<IN, DorisCommittable, DorisWriterStat
         public DorisSink<IN> build() {
             Preconditions.checkNotNull(dorisOptions);
             Preconditions.checkNotNull(dorisExecutionOptions);
-            Preconditions.checkNotNull(serializer);
             if(dorisReadOptions == null) {
                 dorisReadOptions = DorisReadOptions.builder().build();
             }

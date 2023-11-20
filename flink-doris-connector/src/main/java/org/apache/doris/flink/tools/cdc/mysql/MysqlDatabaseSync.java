@@ -21,18 +21,21 @@ import com.ververica.cdc.connectors.mysql.source.MySqlSourceBuilder;
 import com.ververica.cdc.connectors.mysql.source.config.MySqlSourceOptions;
 import com.ververica.cdc.connectors.mysql.source.offset.BinlogOffset;
 import com.ververica.cdc.connectors.mysql.source.offset.BinlogOffsetBuilder;
-import com.ververica.cdc.connectors.mysql.table.JdbcUrlUtils;
 import com.ververica.cdc.connectors.mysql.table.StartupOptions;
 import com.ververica.cdc.connectors.shaded.org.apache.kafka.connect.json.JsonConverterConfig;
+import com.ververica.cdc.debezium.DebeziumDeserializationSchema;
 import com.ververica.cdc.debezium.JsonDebeziumDeserializationSchema;
 import com.ververica.cdc.debezium.table.DebeziumOptions;
+import org.apache.doris.flink.catalog.doris.DataModel;
+import org.apache.doris.flink.deserialization.DorisJsonDebeziumDeserializationSchema;
 import org.apache.doris.flink.tools.cdc.DatabaseSync;
-import org.apache.doris.flink.tools.cdc.DateToStringConverter;
 import org.apache.doris.flink.tools.cdc.SourceSchema;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,13 +49,30 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class MysqlDatabaseSync extends DatabaseSync {
     private static final Logger LOG = LoggerFactory.getLogger(MysqlDatabaseSync.class);
+    private static final String JDBC_URL = "jdbc:mysql://%s:%d?useInformationSchema=true";
+    private static final String PROPERTIES_PREFIX = "jdbc.properties.";
 
-    private static String JDBC_URL = "jdbc:mysql://%s:%d?useInformationSchema=true";
+    public MysqlDatabaseSync() throws SQLException {
+        super();
+    }
 
-    public MysqlDatabaseSync() {
+    @Override
+    public void registerDriver() throws SQLException {
+        try {
+            Class.forName("com.mysql.cj.jdbc.Driver");
+        } catch (ClassNotFoundException ex) {
+            LOG.warn("can not found class com.mysql.cj.jdbc.Driver, use class com.mysql.jdbc.Driver");
+            try {
+                Class.forName("com.mysql.jdbc.Driver");
+            } catch (Exception e) {
+                throw new SQLException("No suitable driver found, can not found class com.mysql.cj.jdbc.Driver and com.mysql.jdbc.Driver");
+            }
+        }
     }
 
     @Override
@@ -80,14 +100,9 @@ public class MysqlDatabaseSync extends DatabaseSync {
                         continue;
                     }
                     SourceSchema sourceSchema =
-                            new SourceSchema(metaData, databaseName, tableName, tableComment);
-                    if (sourceSchema.primaryKeys.size() > 0) {
-                        //Only sync tables with primary keys
-                        schemaList.add(sourceSchema);
-                    } else {
-                        LOG.warn("table {} has no primary key, skip", tableName);
-                        System.out.println("table " + tableName + " has no primary key, skip.");
-                    }
+                            new MysqlSchema(metaData, databaseName, tableName, tableComment);
+                    sourceSchema.setModel(!sourceSchema.primaryKeys.isEmpty() ? DataModel.UNIQUE : DataModel.DUPLICATE);
+                    schemaList.add(sourceSchema);
                 }
             }
         }
@@ -131,7 +146,14 @@ public class MysqlDatabaseSync extends DatabaseSync {
         config
                 .getOptional(MySqlSourceOptions.SCAN_NEWLY_ADDED_TABLE_ENABLED)
                 .ifPresent(sourceBuilder::scanNewlyAddedTableEnabled);
+        config
+                .getOptional(MySqlSourceOptions.SCAN_INCREMENTAL_SNAPSHOT_CHUNK_SIZE)
+                .ifPresent(sourceBuilder::splitSize);
+        config
+                .getOptional(MySqlSourceOptions.SCAN_INCREMENTAL_CLOSE_IDLE_READER_ENABLED)
+                .ifPresent(sourceBuilder::closeIdleReaders);
 
+        setChunkColumns(sourceBuilder);
         String startupMode = config.get(MySqlSourceOptions.SCAN_STARTUP_MODE);
         if ("initial".equalsIgnoreCase(startupMode)) {
             sourceBuilder.startupOptions(StartupOptions.initial());
@@ -170,8 +192,8 @@ public class MysqlDatabaseSync extends DatabaseSync {
         for (Map.Entry<String, String> entry : config.toMap().entrySet()) {
             String key = entry.getKey();
             String value = entry.getValue();
-            if (key.startsWith(JdbcUrlUtils.PROPERTIES_PREFIX)) {
-                jdbcProperties.put(key.substring(JdbcUrlUtils.PROPERTIES_PREFIX.length()), value);
+            if (key.startsWith(PROPERTIES_PREFIX)) {
+                jdbcProperties.put(key.substring(PROPERTIES_PREFIX.length()), value);
             } else if (key.startsWith(DebeziumOptions.DEBEZIUM_OPTIONS_PREFIX)) {
                 debeziumProperties.put(
                         key.substring(DebeziumOptions.DEBEZIUM_OPTIONS_PREFIX.length()), value);
@@ -179,16 +201,48 @@ public class MysqlDatabaseSync extends DatabaseSync {
         }
         sourceBuilder.jdbcProperties(jdbcProperties);
         sourceBuilder.debeziumProperties(debeziumProperties);
-
-        Map<String, Object> customConverterConfigs = new HashMap<>();
-        customConverterConfigs.put(JsonConverterConfig.DECIMAL_FORMAT_CONFIG, "numeric");
-        JsonDebeziumDeserializationSchema schema =
-                new JsonDebeziumDeserializationSchema(false, customConverterConfigs);
+        DebeziumDeserializationSchema<String> schema;
+        if (ignoreDefaultValue) {
+            schema = new DorisJsonDebeziumDeserializationSchema();
+        } else {
+            Map<String, Object> customConverterConfigs = new HashMap<>();
+            customConverterConfigs.put(JsonConverterConfig.DECIMAL_FORMAT_CONFIG, "numeric");
+            schema = new JsonDebeziumDeserializationSchema(false, customConverterConfigs);
+        }
         MySqlSource<String> mySqlSource = sourceBuilder.deserializer(schema).includeSchemaChanges(true).build();
 
-        DataStreamSource<String> streamSource = env.fromSource(
+        return env.fromSource(
                 mySqlSource, WatermarkStrategy.noWatermarks(), "MySQL Source");
-        return streamSource;
+    }
+
+    /**
+     * set chunkkeyColumn,eg: db.table1:column1,db.table2:column2
+     * @param sourceBuilder
+     */
+    private void setChunkColumns(MySqlSourceBuilder<String> sourceBuilder) {
+        Map<ObjectPath, String> chunkColumnMap = getChunkColumnMap();
+        for(Map.Entry<ObjectPath, String> entry : chunkColumnMap.entrySet()){
+            sourceBuilder.chunkKeyColumn(entry.getKey(), entry.getValue());
+        }
+    }
+
+    private Map<ObjectPath, String> getChunkColumnMap(){
+        Map<ObjectPath, String> chunkMap = new HashMap<>();
+        String chunkColumn = config.getString(MySqlSourceOptions.SCAN_INCREMENTAL_SNAPSHOT_CHUNK_KEY_COLUMN);
+        if(!StringUtils.isNullOrWhitespaceOnly(chunkColumn)){
+            final Pattern chunkPattern = Pattern.compile("(\\S+)\\.(\\S+):(\\S+)");
+            String[] tblColumns = chunkColumn.split(",");
+            for(String tblCol : tblColumns){
+                Matcher matcher = chunkPattern.matcher(tblCol);
+                if(matcher.find()){
+                    String db = matcher.group(1);
+                    String table = matcher.group(2);
+                    String col = matcher.group(3);
+                    chunkMap.put(new ObjectPath(db, table), col);
+                }
+            }
+        }
+        return chunkMap;
     }
 
     private Properties getJdbcProperties(){
@@ -196,8 +250,8 @@ public class MysqlDatabaseSync extends DatabaseSync {
         for (Map.Entry<String, String> entry : config.toMap().entrySet()) {
             String key = entry.getKey();
             String value = entry.getValue();
-            if (key.startsWith(JdbcUrlUtils.PROPERTIES_PREFIX)) {
-                jdbcProps.put(key.substring(JdbcUrlUtils.PROPERTIES_PREFIX.length()), value);
+            if (key.startsWith(PROPERTIES_PREFIX)) {
+                jdbcProps.put(key.substring(PROPERTIES_PREFIX.length()), value);
             }
         }
         return jdbcProps;

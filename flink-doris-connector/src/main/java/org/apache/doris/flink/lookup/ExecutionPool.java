@@ -103,9 +103,12 @@ public class ExecutionPool implements Closeable {
     @Override
     public void close() throws IOException {
         if (started.compareAndSet(true, false)) {
+            LOG.info("close executorService");
             actionWatcherExecutorService.shutdown();
-            workerStated.set(false);
             workerExecutorService.shutdown();
+            workerStated.set(false);
+            this.actionWatcherExecutorService = null;
+            this.workerExecutorService = null;
             this.semaphore = null;
         }
     }
@@ -160,6 +163,7 @@ public class ExecutionPool implements Closeable {
                     if (firstGet != null) {
                         recordList.add(firstGet);
                         queue.drainTo(recordList, batchSize - 1);
+                        LOG.debug("fetch {} records from queue", recordList.size());
                         Map<String, List<Get>> getsByTable = new HashMap<>();
                         for (Get get : recordList) {
                             List<Get> list = getsByTable.computeIfAbsent(get.getRecord().getTableIdentifier(), (s) -> new ArrayList<>());
@@ -181,6 +185,7 @@ public class ExecutionPool implements Closeable {
                     }
                 }
             }
+            LOG.info("action watcher stop");
         }
 
         @Override

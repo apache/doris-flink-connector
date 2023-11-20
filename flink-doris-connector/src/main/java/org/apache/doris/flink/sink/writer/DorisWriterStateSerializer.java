@@ -30,9 +30,10 @@ import java.io.IOException;
  */
 public class DorisWriterStateSerializer implements SimpleVersionedSerializer<DorisWriterState> {
 
+    private static final int VERSION = 2;
     @Override
     public int getVersion() {
-        return 1;
+        return VERSION;
     }
 
     @Override
@@ -40,6 +41,9 @@ public class DorisWriterStateSerializer implements SimpleVersionedSerializer<Dor
         try (final ByteArrayOutputStream baos = new ByteArrayOutputStream();
              final DataOutputStream out = new DataOutputStream(baos)) {
             out.writeUTF(dorisWriterState.getLabelPrefix());
+            out.writeUTF(dorisWriterState.getDatabase());
+            out.writeUTF(dorisWriterState.getTable());
+            out.writeInt(dorisWriterState.getSubtaskId());
             out.flush();
             return baos.toByteArray();
         }
@@ -49,8 +53,15 @@ public class DorisWriterStateSerializer implements SimpleVersionedSerializer<Dor
     public DorisWriterState deserialize(int version, byte[] serialized) throws IOException {
         try (final ByteArrayInputStream bais = new ByteArrayInputStream(serialized);
              final DataInputStream in = new DataInputStream(bais)) {
-            final String labelPrefix = in.readUTF();
-            return new DorisWriterState(labelPrefix);
+             String labelPrefix = in.readUTF();
+             if(version == 1){
+                 return new DorisWriterState(labelPrefix);
+             }else {
+                 final String database = in.readUTF();
+                 final String table = in.readUTF();
+                 final int subtaskId = in.readInt();
+                 return new DorisWriterState(labelPrefix, database, table, subtaskId);
+             }
         }
     }
 }

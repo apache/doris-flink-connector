@@ -70,7 +70,7 @@ public class DorisStreamLoad implements Serializable {
 
     private String loadUrlStr;
     private String hostPort;
-    private final String abortUrlStr;
+    private String abortUrlStr;
     private final String user;
     private final String passwd;
     private final String db;
@@ -105,13 +105,17 @@ public class DorisStreamLoad implements Serializable {
         this.executorService = new ThreadPoolExecutor(1, 1,
                 0L, TimeUnit.MILLISECONDS,
                 new LinkedBlockingQueue<>(), new ExecutorThreadFactory("stream-load-upload"));
-        this.recordStream = new RecordStream(executionOptions.getBufferSize(), executionOptions.getBufferCount());
+        this.recordStream = new RecordStream(executionOptions.getBufferSize(), executionOptions.getBufferCount(), executionOptions.isUseCache());
         lineDelimiter = EscapeHandler.escapeString(streamLoadProp.getProperty(LINE_DELIMITER_KEY, LINE_DELIMITER_DEFAULT)).getBytes();
         loadBatchFirstRecord = true;
     }
 
     public String getDb() {
         return db;
+    }
+
+    public String getTable() {
+        return table;
     }
 
     public String getHostPort() {
@@ -121,6 +125,7 @@ public class DorisStreamLoad implements Serializable {
     public void setHostPort(String hostPort) {
         this.hostPort = hostPort;
         this.loadUrlStr = String.format(LOAD_URL_PATTERN, hostPort, this.db, this.table);
+        this.abortUrlStr = String.format(ABORT_URL_PATTERN, hostPort, db);
     }
 
     public Future<CloseableHttpResponse> getPendingLoadFuture() {
@@ -138,7 +143,9 @@ public class DorisStreamLoad implements Serializable {
         LOG.info("abort for labelSuffix {}. start chkId {}.", labelSuffix, chkID);
         while (true) {
             try {
-                String label = labelGenerator.generateLabel(startChkID);
+                // TODO: According to label abort txn. Currently, it can only be aborted based on txnid,
+                //  so we must first request a streamload based on the label to get the txnid.
+                String label = labelGenerator.generateTableLabel(startChkID);
                 HttpPutBuilder builder = new HttpPutBuilder();
                 builder.setUrl(loadUrlStr)
                         .baseAuth(user, passwd)
@@ -212,7 +219,7 @@ public class DorisStreamLoad implements Serializable {
 
     public RespContent stopLoad(String label) throws IOException{
         recordStream.endInput();
-        LOG.info("stream load stopped for {} on host {}", label, hostPort);
+        LOG.info("table {} stream load stopped for {} on host {}", table, label, hostPort);
         Preconditions.checkState(pendingLoadFuture != null);
         try {
            return handlePreCommitResponse(pendingLoadFuture.get());
@@ -226,11 +233,11 @@ public class DorisStreamLoad implements Serializable {
      * @param label
      * @throws IOException
      */
-    public void startLoad(String label) throws IOException{
-        loadBatchFirstRecord = true;
+    public void startLoad(String label, boolean isResume) throws IOException {
+        loadBatchFirstRecord = !isResume;
         HttpPutBuilder putBuilder = new HttpPutBuilder();
-        recordStream.startInput();
-        LOG.info("stream load started for {} on host {}", label, hostPort);
+        recordStream.startInput(isResume);
+        LOG.info("table {} stream load started for {} on host {}", table, label, hostPort);
         try {
             InputStreamEntity entity = new InputStreamEntity(recordStream);
             putBuilder.setUrl(loadUrlStr)
@@ -244,7 +251,7 @@ public class DorisStreamLoad implements Serializable {
                putBuilder.enable2PC();
             }
             pendingLoadFuture = executorService.submit(() -> {
-                LOG.info("start execute load");
+                LOG.info("table {} start execute load", table);
                 return httpClient.execute(putBuilder.build());
             });
         } catch (Exception e) {

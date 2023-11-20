@@ -26,9 +26,9 @@ import org.junit.Test;
 public class TestDorisWriterStateSerializer {
     @Test
     public void testSerialize() throws Exception {
-        DorisWriterState expectDorisWriterState = new DorisWriterState("doris");
+        DorisWriterState expectDorisWriterState = new DorisWriterState("doris",  "db", "table", 0);
         DorisWriterStateSerializer serializer = new DorisWriterStateSerializer();
-        DorisWriterState dorisWriterState =  serializer.deserialize(1, serializer.serialize(expectDorisWriterState));
+        DorisWriterState dorisWriterState =  serializer.deserialize(2, serializer.serialize(expectDorisWriterState));
         Assert.assertEquals(expectDorisWriterState, dorisWriterState);
     }
 }

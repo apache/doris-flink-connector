@@ -22,6 +22,7 @@ import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;
 import org.apache.arrow.vector.DecimalVector;
 import org.apache.arrow.vector.FieldVector;
+import org.apache.arrow.vector.FixedSizeBinaryVector;
 import org.apache.arrow.vector.Float4Vector;
 import org.apache.arrow.vector.Float8Vector;
 import org.apache.arrow.vector.IntVector;
@@ -31,6 +32,9 @@ import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.complex.ListVector;
+import org.apache.arrow.vector.complex.MapVector;
+import org.apache.arrow.vector.complex.StructVector;
+import org.apache.arrow.vector.complex.impl.UnionMapReader;
 import org.apache.arrow.vector.ipc.ArrowStreamReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.doris.flink.exception.DorisException;
@@ -44,11 +48,14 @@ import org.slf4j.LoggerFactory;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 
 /**
@@ -276,6 +283,37 @@ public class RowBatch {
                 addValueToRow(rowIndex, parse);
                 break;
             case "LARGEINT":
+                if (!minorType.equals(Types.MinorType.FIXEDSIZEBINARY) &&
+                        !minorType.equals(Types.MinorType.VARCHAR)) return false;
+                if (minorType.equals(Types.MinorType.FIXEDSIZEBINARY)) {
+                    FixedSizeBinaryVector largeIntVector = (FixedSizeBinaryVector) fieldVector;
+                    if (largeIntVector.isNull(rowIndex)) {
+                        addValueToRow(rowIndex, null);
+                        break;
+                    }
+                    byte[] bytes = largeIntVector.get(rowIndex);
+                    int left = 0, right = bytes.length - 1;
+                    while (left < right) {
+                        byte temp = bytes[left];
+                        bytes[left] = bytes[right];
+                        bytes[right] = temp;
+                        left++;
+                        right--;
+                    }
+                    BigInteger largeInt = new BigInteger(bytes);
+                    addValueToRow(rowIndex, largeInt);
+                    break;
+                } else {
+                    VarCharVector largeIntVector = (VarCharVector) fieldVector;
+                    if (largeIntVector.isNull(rowIndex)) {
+                        addValueToRow(rowIndex, null);
+                        break;
+                    }
+                    stringValue = new String(largeIntVector.get(rowIndex));
+                    BigInteger largeInt = new BigInteger(stringValue);
+                    addValueToRow(rowIndex, largeInt);
+                    break;
+                }
             case "CHAR":
             case "VARCHAR":
             case "STRING":
@@ -295,6 +333,31 @@ public class RowBatch {
                 Object listValue = listVector.isNull(rowIndex) ? null : listVector.getObject(rowIndex);
                 //todo: when the subtype of array is date, conversion is required
                 addValueToRow(rowIndex, listValue);
+                break;
+            case "MAP":
+                if (!minorType.equals(Types.MinorType.MAP)) return false;
+                MapVector mapVector = (MapVector) fieldVector;
+                UnionMapReader reader = mapVector.getReader();
+                if (mapVector.isNull(rowIndex)) {
+                    addValueToRow(rowIndex, null);
+                    break;
+                }
+                reader.setPosition(rowIndex);
+                Map<String, Object> mapValue = new HashMap<>();
+                while (reader.next()) {
+                    mapValue.put(reader.key().readObject().toString(), reader.value().readObject());
+                }
+                addValueToRow(rowIndex, mapValue);
+                break;
+            case "STRUCT":
+                if (!minorType.equals(Types.MinorType.STRUCT)) return false;
+                StructVector structVector = (StructVector) fieldVector;
+                if (structVector.isNull(rowIndex)) {
+                    addValueToRow(rowIndex, null);
+                    break;
+                }
+                Map<String, ?> structValue = structVector.getObject(rowIndex);
+                addValueToRow(rowIndex, structValue);
                 break;
             default:
                 String errMsg = "Unsupported type " + schema.get(col).getType();

@@ -75,5 +75,13 @@ public class BackendV2 {
             return ip + ":" + httpPort;
         }
 
+        public static BackendRowV2 of(String ip, int httpPort, boolean alive){
+            BackendRowV2 rowV2 = new BackendRowV2();
+            rowV2.setIp(ip);
+            rowV2.setHttpPort(httpPort);
+            rowV2.setAlive(alive);
+            return rowV2;
+        }
+
     }
 }

@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.flink.tools.cdc;
+package org.apache.doris.flink.tools.cdc.postgres;
 
 import com.ververica.cdc.connectors.shaded.org.apache.kafka.connect.data.SchemaBuilder;
 import io.debezium.spi.converter.CustomConverter;
@@ -23,44 +23,35 @@ import io.debezium.spi.converter.RelationalColumn;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.sql.Date;
 import java.sql.Timestamp;
 import java.time.DateTimeException;
-import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.Properties;
 import java.util.function.Consumer;
 
-public class DateToStringConverter implements CustomConverter<SchemaBuilder, RelationalColumn> {
-    private static final Logger log = LoggerFactory.getLogger(DateToStringConverter.class);
+public class PostgresDateConverter implements CustomConverter<SchemaBuilder, RelationalColumn> {
+    private static final Logger log = LoggerFactory.getLogger(PostgresDateConverter.class);
     private DateTimeFormatter dateFormatter = DateTimeFormatter.ISO_DATE;
-    private DateTimeFormatter timeFormatter = DateTimeFormatter.ISO_TIME;
-    private DateTimeFormatter datetimeFormatter = DateTimeFormatter.ISO_DATE_TIME;
     private DateTimeFormatter timestampFormatter = DateTimeFormatter.ISO_DATE_TIME;
-    private ZoneId timestampZoneId = ZoneId.systemDefault();
 
     public static Properties DEFAULT_PROPS = new Properties();
 
     static {
         DEFAULT_PROPS.setProperty("converters", "date");
-        DEFAULT_PROPS.setProperty("date.type", "org.apache.doris.flink.tools.cdc.DateToStringConverter");
+        DEFAULT_PROPS.setProperty("date.type", "org.apache.doris.flink.tools.cdc.postgres.PostgresDateConverter");
         DEFAULT_PROPS.setProperty("date.format.date", "yyyy-MM-dd");
-        DEFAULT_PROPS.setProperty("date.format.datetime", "yyyy-MM-dd HH:mm:ss");
         DEFAULT_PROPS.setProperty("date.format.timestamp", "yyyy-MM-dd HH:mm:ss.SSSSSS");
-        DEFAULT_PROPS.setProperty("date.format.timestamp.zone", "UTC+8");
     }
 
     @Override
     public void configure(Properties props) {
         readProps(props, "format.date", p -> dateFormatter = DateTimeFormatter.ofPattern(p));
-        readProps(props, "format.time", p -> timeFormatter = DateTimeFormatter.ofPattern(p));
-        readProps(props, "format.datetime", p -> datetimeFormatter = DateTimeFormatter.ofPattern(p));
         readProps(props, "format.timestamp", p -> timestampFormatter = DateTimeFormatter.ofPattern(p));
-        readProps(props, "format.timestamp.zone", z -> timestampZoneId = ZoneId.of(z));
     }
 
     private void readProps(Properties properties, String settingKey, Consumer<String> callback) {
@@ -89,10 +80,6 @@ public class DateToStringConverter implements CustomConverter<SchemaBuilder, Rel
             schemaBuilder = SchemaBuilder.string().optional();
             converter = this::convertTime;
         }
-        if ("DATETIME".equals(sqlType)) {
-            schemaBuilder = SchemaBuilder.string().optional();
-            converter = this::convertDateTime;
-        }
         if ("TIMESTAMP".equals(sqlType)) {
             schemaBuilder = SchemaBuilder.string().optional();
             converter = this::convertTimestamp;
@@ -108,40 +95,26 @@ public class DateToStringConverter implements CustomConverter<SchemaBuilder, Rel
         } else if (input instanceof Integer) {
             LocalDate date = LocalDate.ofEpochDay((Integer) input);
             return dateFormatter.format(date);
+        } else if (input instanceof Date){
+            return dateFormatter.format(((Date) input).toLocalDate());
         }
         return null;
     }
 
     private String convertTime(Object input) {
-        if (input instanceof Duration) {
-            Duration duration = (Duration) input;
-            long seconds = duration.getSeconds();
-            int nano = duration.getNano();
-            LocalTime time = LocalTime.ofSecondOfDay(seconds).withNano(nano);
-            return timeFormatter.format(time);
-        }
-        return null;
-    }
-
-    private String convertDateTime(Object input) {
-        if (input instanceof LocalDateTime) {
-            return datetimeFormatter.format((LocalDateTime) input);
-        } else if (input instanceof Timestamp) {
-            return datetimeFormatter.format(((Timestamp) input).toLocalDateTime());
+        if (input instanceof String) {
+            return input.toString();
         }
         return null;
     }
 
     private String convertTimestamp(Object input) {
-        if (input instanceof ZonedDateTime) {
-            // mysql timestamp will be converted to UTC storage,and the zonedDatetime here is UTC time
-            ZonedDateTime zonedDateTime = (ZonedDateTime) input;
-            LocalDateTime localDateTime = zonedDateTime.withZoneSameInstant(timestampZoneId).toLocalDateTime();
-            return timestampFormatter.format(localDateTime);
-        } else if (input instanceof Timestamp) {
+        if (input instanceof Timestamp) {
             return timestampFormatter.format(((Timestamp) input).toLocalDateTime());
+        } else if (input instanceof Instant){
+            LocalDateTime ldt =  LocalDateTime.ofInstant(((Instant) input), ZoneOffset.UTC);
+            return timestampFormatter.format(ldt);
         }
         return null;
     }
-
 }

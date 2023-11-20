@@ -24,7 +24,6 @@ import org.apache.doris.flink.connection.SimpleJdbcConnectionProvider;
 import org.apache.doris.flink.exception.CreateTableException;
 import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.apache.doris.flink.exception.DorisSystemException;
-import org.apache.doris.flink.tools.cdc.DatabaseSync;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.util.StringUtils;
 import org.slf4j.Logger;
@@ -33,7 +32,7 @@ import org.slf4j.LoggerFactory;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -47,9 +46,9 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  */
 @Public
 public class DorisSystem {
-    private static final Logger LOG = LoggerFactory.getLogger(DatabaseSync.class);
-    private JdbcConnectionProvider jdbcConnectionProvider;
-    private static final List<String> builtinDatabases = Arrays.asList("information_schema");
+    private static final Logger LOG = LoggerFactory.getLogger(DorisSystem.class);
+    private final JdbcConnectionProvider jdbcConnectionProvider;
+    private static final List<String> builtinDatabases = Collections.singletonList("information_schema");
 
     public DorisSystem(DorisConnectionOptions options) {
         this.jdbcConnectionProvider = new SimpleJdbcConnectionProvider(options);
@@ -155,7 +154,7 @@ public class DorisSystem {
                 throw new CreateTableException("key " + key + " not found in column list");
             }
             FieldSchema field = fields.get(key);
-            buildColumn(sb, field);
+            buildColumn(sb, field, true);
         }
 
         //append values
@@ -164,21 +163,23 @@ public class DorisSystem {
                 continue;
             }
             FieldSchema field = entry.getValue();
-            buildColumn(sb, field);
+            buildColumn(sb, field, false);
 
         }
         sb = sb.deleteCharAt(sb.length() -1);
         sb.append(" ) ");
-        //append model
-        sb.append(schema.getModel().name())
-                .append(" KEY(")
-                .append(String.join(",", identifier(schema.getKeys())))
-                .append(")");
+        //append uniq model
+        if(DataModel.UNIQUE.equals(schema.getModel())){
+            sb.append(schema.getModel().name())
+                    .append(" KEY(")
+                    .append(String.join(",", identifier(schema.getKeys())))
+                    .append(")");
+        }
 
         //append table comment
         if(!StringUtils.isNullOrWhitespaceOnly(schema.getTableComment())){
             sb.append(" COMMENT '")
-                    .append(schema.getTableComment())
+                    .append(quoteComment(schema.getTableComment()))
                     .append("' ");
         }
 
@@ -208,13 +209,25 @@ public class DorisSystem {
         return sb.toString();
     }
 
-    private void buildColumn(StringBuilder sql, FieldSchema field){
+    private void buildColumn(StringBuilder sql, FieldSchema field, boolean isKey){
+        String fieldType = field.getTypeString();
+        if(isKey && DorisType.STRING.equals(fieldType)){
+            fieldType = String.format("%s(%s)", DorisType.VARCHAR, 65533);
+        }
         sql.append(identifier(field.getName()))
                 .append(" ")
-                .append(field.getTypeString())
+                .append(fieldType)
                 .append(" COMMENT '")
-                .append(field.getComment() == null ? "" : field.getComment())
+                .append(quoteComment(field.getComment()))
                 .append("',");
+    }
+
+    private String quoteComment(String comment){
+        if(comment == null){
+            return "";
+        } else {
+            return comment.replaceAll("'","\\\\'");
+        }
     }
 
     private List<String> identifier(List<String> name) {
