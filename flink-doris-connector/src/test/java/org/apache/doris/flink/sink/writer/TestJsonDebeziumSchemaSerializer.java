@@ -243,7 +243,7 @@ public class TestJsonDebeziumSchemaSerializer {
     public void testFillOriginSchema() throws IOException {
         Map<String, FieldSchema> srcFiledSchemaMap = new LinkedHashMap<>();
         srcFiledSchemaMap.put("id", new FieldSchema("id", "INT", null, null));
-        srcFiledSchemaMap.put("name", new FieldSchema("name", "VARCHAR(150)", null, null));
+        srcFiledSchemaMap.put("name", new FieldSchema("name", "VARCHAR(200)", null, null));
         srcFiledSchemaMap.put("test_time", new FieldSchema("test_time", "DATETIMEV2(0)", null, null));
         srcFiledSchemaMap.put("c1", new FieldSchema("c1", "INT", "'100'", null));
 
