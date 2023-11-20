@@ -163,7 +163,7 @@ public class TestJsonDebeziumSchemaSerializer {
     @Test
     public void testExtractDDLListMultipleColumns() throws IOException {
         String sql0 = "ALTER TABLE test.t1 ADD COLUMN c2 INT";
-        String sql1 = "ALTER TABLE test.t1 ADD COLUMN c555 VARCHAR(300)";
+        String sql1 = "ALTER TABLE test.t1 ADD COLUMN c555 VARCHAR(400)";
         String sql2 = "ALTER TABLE test.t1 ADD COLUMN c666 INT DEFAULT '100'";
         String sql3 = "ALTER TABLE test.t1 ADD COLUMN c4 BIGINT DEFAULT '555'";
         String sql4 = "ALTER TABLE test.t1 ADD COLUMN c199 INT";
