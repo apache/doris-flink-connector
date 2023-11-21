@@ -109,7 +109,7 @@ public class SchemaChangeHelper {
         return ddlSchemas;
     }
 
-    static class DDLSchema {
+    public static class DDLSchema {
         private final String columnName;
         private final boolean isDropColumn;
 

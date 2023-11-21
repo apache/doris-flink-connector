@@ -19,6 +19,7 @@ package org.apache.doris.flink.sink.writer;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.doris.flink.sink.writer.serializer.RowSerializer;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
@@ -55,7 +56,7 @@ public class TestRowSerializer {
         RowSerializer.Builder builder = RowSerializer.builder();
         builder.setFieldNames(fieldNames).setFieldType(dataTypes).setType("csv").setFieldDelimiter("|").enableDelete(false);
         RowSerializer serializer = builder.build();
-        byte[] serializedValue = serializer.serialize(row);
+        byte[] serializedValue = serializer.serialize(row).f1;
         Assert.assertArrayEquals("3|test|60.2".getBytes(StandardCharsets.UTF_8), serializedValue);
     }
 
@@ -64,7 +65,7 @@ public class TestRowSerializer {
         RowSerializer.Builder builder = RowSerializer.builder();
         builder.setFieldNames(fieldNames).setFieldType(dataTypes).setType("json").setFieldDelimiter("|").enableDelete(false);
         RowSerializer serializer = builder.build();
-        byte[] serializedValue = serializer.serialize(row);
+        byte[] serializedValue = serializer.serialize(row).f1;
         ObjectMapper objectMapper = new ObjectMapper();
         Map<String, String> valueMap = objectMapper.readValue(new String(serializedValue, StandardCharsets.UTF_8), new TypeReference<Map<String, String>>(){});
         Assert.assertEquals("3", valueMap.get("id"));
@@ -77,7 +78,7 @@ public class TestRowSerializer {
         RowSerializer.Builder builder = RowSerializer.builder();
         builder.setFieldNames(fieldNames).setFieldType(dataTypes).setType("csv").setFieldDelimiter("|").enableDelete(true);
         RowSerializer serializer = builder.build();
-        byte[] serializedValue = serializer.serialize(row);
+        byte[] serializedValue = serializer.serialize(row).f1;
         Assert.assertArrayEquals("3|test|60.2|0".getBytes(StandardCharsets.UTF_8), serializedValue);
     }
 
@@ -86,7 +87,7 @@ public class TestRowSerializer {
         RowSerializer.Builder builder = RowSerializer.builder();
         builder.setFieldNames(fieldNames).setFieldType(dataTypes).setType("json").setFieldDelimiter("|").enableDelete(true);
         RowSerializer serializer = builder.build();
-        byte[] serializedValue = serializer.serialize(row);
+        byte[] serializedValue = serializer.serialize(row).f1;
         ObjectMapper objectMapper = new ObjectMapper();
         Map<String, String> valueMap = objectMapper.readValue(new String(serializedValue, StandardCharsets.UTF_8), new TypeReference<Map<String, String>>(){});
         Assert.assertEquals("3", valueMap.get("id"));
