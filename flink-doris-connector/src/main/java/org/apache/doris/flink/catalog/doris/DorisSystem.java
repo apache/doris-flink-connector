@@ -139,7 +139,7 @@ public class DorisSystem {
         }
     }
 
-    public String buildCreateTableDDL(TableSchema schema) {
+    public static String buildCreateTableDDL(TableSchema schema) {
         StringBuilder sb = new StringBuilder("CREATE TABLE IF NOT EXISTS ");
         sb.append(identifier(schema.getDatabase()))
                 .append(".")
@@ -209,7 +209,7 @@ public class DorisSystem {
         return sb.toString();
     }
 
-    private void buildColumn(StringBuilder sql, FieldSchema field, boolean isKey){
+    private static void buildColumn(StringBuilder sql, FieldSchema field, boolean isKey){
         String fieldType = field.getTypeString();
         if(isKey && DorisType.STRING.equals(fieldType)){
             fieldType = String.format("%s(%s)", DorisType.VARCHAR, 65533);
@@ -222,7 +222,7 @@ public class DorisSystem {
                 .append("',");
     }
 
-    private String quoteComment(String comment){
+    private static String quoteComment(String comment){
         if(comment == null){
             return "";
         } else {
@@ -230,16 +230,16 @@ public class DorisSystem {
         }
     }
 
-    private List<String> identifier(List<String> name) {
+    private static List<String> identifier(List<String> name) {
         List<String> result = name.stream().map(m -> identifier(m)).collect(Collectors.toList());
         return result;
     }
 
-    private String identifier(String name) {
+    private static String identifier(String name) {
         return "`" + name + "`";
     }
 
-    private String quoteProperties(String name) {
+    private static String quoteProperties(String name) {
         return "'" + name + "'";
     }
 

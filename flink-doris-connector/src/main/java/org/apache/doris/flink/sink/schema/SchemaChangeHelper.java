@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.flink.sink.writer;
+package org.apache.doris.flink.sink.schema;
 
 import org.apache.doris.flink.catalog.doris.FieldSchema;
 
@@ -66,8 +66,7 @@ public class SchemaChangeHelper {
         for (Entry<String, FieldSchema> originFieldSchema : originFieldSchemaMap.entrySet()) {
             if (originFieldSchema.getKey().equals(oldColumnName)) {
                 fieldSchema = originFieldSchema.getValue();
-                String renameSQL = String.format(RENAME_DDL, table, oldColumnName, newColumnName);
-                ddlList.add(renameSQL);
+                ddlList.add(buildRenameColumnDDL(table, oldColumnName, newColumnName));
                 ddlSchemas.add(new DDLSchema(oldColumnName, false));
             }
         }
@@ -80,23 +79,11 @@ public class SchemaChangeHelper {
         ddlSchemas.clear();
         List<String> ddlList = Lists.newArrayList();
         for (FieldSchema fieldSchema : addFieldSchemas) {
-            String name = fieldSchema.getName();
-            String type = fieldSchema.getTypeString();
-            String defaultValue = fieldSchema.getDefaultValue();
-            String comment = fieldSchema.getComment();
-            String addDDL = String.format(ADD_DDL, table, name, type);
-            if (!StringUtils.isNullOrWhitespaceOnly(defaultValue)) {
-                addDDL = addDDL + " DEFAULT " + defaultValue;
-            }
-            if (!StringUtils.isNullOrWhitespaceOnly(comment)) {
-                addDDL = addDDL + " COMMENT " + comment;
-            }
-            ddlList.add(addDDL);
-            ddlSchemas.add(new DDLSchema(name, false));
+            ddlList.add(buildAddColumnDDL(table, fieldSchema));
+            ddlSchemas.add(new DDLSchema(fieldSchema.getName(), false));
         }
         for (String columName : dropFieldSchemas) {
-            String dropDDL = String.format(DROP_DDL, table, columName);
-            ddlList.add(dropDDL);
+            ddlList.add(buildDropColumnDDL(table, columName));
             ddlSchemas.add(new DDLSchema(columName, true));
         }
 
@@ -105,11 +92,34 @@ public class SchemaChangeHelper {
         return ddlList;
     }
 
+    public static String buildAddColumnDDL(String tableIdentifier, FieldSchema fieldSchema){
+        String name = fieldSchema.getName();
+        String type = fieldSchema.getTypeString();
+        String defaultValue = fieldSchema.getDefaultValue();
+        String comment = fieldSchema.getComment();
+        String addDDL = String.format(ADD_DDL, tableIdentifier, name, type);
+        if (!StringUtils.isNullOrWhitespaceOnly(defaultValue)) {
+            addDDL = addDDL + " DEFAULT " + defaultValue;
+        }
+        if (!StringUtils.isNullOrWhitespaceOnly(comment)) {
+            addDDL = addDDL + " COMMENT " + comment;
+        }
+        return addDDL;
+    }
+
+    public static String buildDropColumnDDL(String tableIdentifier, String columName){
+        return String.format(DROP_DDL, tableIdentifier, columName);
+    }
+
+    public static String buildRenameColumnDDL(String tableIdentifier, String oldColumnName, String newColumnName){
+        return String.format(RENAME_DDL, tableIdentifier, oldColumnName, newColumnName);
+    }
+
     public static List<DDLSchema> getDdlSchemas() {
         return ddlSchemas;
     }
 
-    static class DDLSchema {
+    public static class DDLSchema {
         private final String columnName;
         private final boolean isDropColumn;
 
