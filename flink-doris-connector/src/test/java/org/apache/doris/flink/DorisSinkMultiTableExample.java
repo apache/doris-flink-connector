@@ -21,6 +21,7 @@ import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.sink.batch.DorisBatchSink;
 import org.apache.doris.flink.sink.batch.RecordWithMeta;
+import org.apache.doris.flink.sink.writer.RecordWithMetaSerializer;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 
@@ -67,7 +68,8 @@ public class DorisSinkMultiTableExample {
 
         builder.setDorisReadOptions(readOptionBuilder.build())
                 .setDorisExecutionOptions(executionBuilder.build())
-                .setDorisOptions(dorisBuilder.build());
+                .setDorisOptions(dorisBuilder.build())
+                .setSerializer(new RecordWithMetaSerializer());
 
 //        RecordWithMeta record = new RecordWithMeta("test", "test_flink_tmp1", "wangwu,1");
 //        RecordWithMeta record1 = new RecordWithMeta("test", "test_flink_tmp", "wangwu,1");

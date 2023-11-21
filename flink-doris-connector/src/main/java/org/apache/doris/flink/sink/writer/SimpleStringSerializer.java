@@ -17,6 +17,8 @@
 
 package org.apache.doris.flink.sink.writer;
 
+import org.apache.flink.api.java.tuple.Tuple2;
+
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
@@ -26,7 +28,7 @@ import java.nio.charset.StandardCharsets;
 public class SimpleStringSerializer implements DorisRecordSerializer<String> {
 
     @Override
-    public byte[] serialize(String record) throws IOException {
-        return record.getBytes(StandardCharsets.UTF_8);
+    public Tuple2<String, byte[]> serialize(String record) throws IOException {
+        return Tuple2.of(null, record.getBytes(StandardCharsets.UTF_8));
     }
 }
