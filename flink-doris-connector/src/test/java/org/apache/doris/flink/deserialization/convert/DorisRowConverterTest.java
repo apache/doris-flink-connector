@@ -17,8 +17,8 @@
 package org.apache.doris.flink.deserialization.convert;
 
 import org.apache.doris.flink.deserialization.converter.DorisRowConverter;
-import org.apache.doris.flink.sink.writer.RowDataSerializer;
-import org.apache.doris.flink.sink.writer.RowDataSerializer.Builder;
+import org.apache.doris.flink.sink.writer.serializer.RowDataSerializer;
+import org.apache.doris.flink.sink.writer.serializer.RowDataSerializer.Builder;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;

@@ -21,7 +21,7 @@ import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.sink.DorisSink;
 import org.apache.doris.flink.sink.batch.RecordWithMeta;
-import org.apache.doris.flink.sink.writer.RecordWithMetaSerializer;
+import org.apache.doris.flink.sink.writer.serializer.RecordWithMetaSerializer;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;

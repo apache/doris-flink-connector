@@ -15,20 +15,25 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.flink.sink.writer;
+package org.apache.doris.flink.sink.writer.serializer;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
+import java.io.Serializable;
 
 /**
- * String Serializer.
+ * How to serialize the record to bytes.
+ * @param <T>
  */
-public class SimpleStringSerializer implements DorisRecordSerializer<String> {
+public interface DorisRecordSerializer<T> extends Serializable {
 
-    @Override
-    public Tuple2<String, byte[]> serialize(String record) throws IOException {
-        return Tuple2.of(null, record.getBytes(StandardCharsets.UTF_8));
-    }
+    /**
+     * define how to convert record into byte array.
+     * @param record
+     * @return [tableIdentifer,byte array]
+     * @throws IOException
+     */
+    Tuple2<String, byte[]> serialize(T record) throws IOException;
+
 }

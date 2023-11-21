@@ -17,6 +17,7 @@
 
 package org.apache.doris.flink.sink.writer;
 
+import org.apache.doris.flink.sink.writer.serializer.RowDataSerializer;
 import org.apache.flink.table.types.DataType;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;

@@ -21,7 +21,7 @@ import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.sink.batch.DorisBatchSink;
 import org.apache.doris.flink.sink.batch.RecordWithMeta;
-import org.apache.doris.flink.sink.writer.RecordWithMetaSerializer;
+import org.apache.doris.flink.sink.writer.serializer.RecordWithMetaSerializer;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 
