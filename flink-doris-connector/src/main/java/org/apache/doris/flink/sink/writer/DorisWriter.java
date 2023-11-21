@@ -209,13 +209,15 @@ public class DorisWriter<IN> implements StatefulSink.StatefulSinkWriter<IN, Dori
         }
         // disable exception checker before stop load.
         globalLoading = false;
-        // clean loadingMap
-        loadingMap.clear();
 
         // submit stream load http request
         List<DorisCommittable> committableList = new ArrayList<>();
         for(Map.Entry<String, DorisStreamLoad> streamLoader : dorisStreamLoadMap.entrySet()){
             String tableIdentifier = streamLoader.getKey();
+            if(!loadingMap.getOrDefault(tableIdentifier, false)){
+                LOG.debug("skip table {}, no data need to load.", tableIdentifier);
+                continue;
+            }
             DorisStreamLoad dorisStreamLoad = streamLoader.getValue();
             LabelGenerator labelGenerator = getLabelGenerator(tableIdentifier);
             String currentLabel = labelGenerator.generateTableLabel(curCheckpointId);
@@ -229,6 +231,8 @@ public class DorisWriter<IN> implements StatefulSink.StatefulSinkWriter<IN, Dori
                 committableList.add(new DorisCommittable(dorisStreamLoad.getHostPort(), dorisStreamLoad.getDb(), txnId));
             }
         }
+        // clean loadingMap
+        loadingMap.clear();
         return committableList;
     }
 
