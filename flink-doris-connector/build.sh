@@ -152,7 +152,7 @@ elif [ ${flinkVer} -eq 4 ]; then
     FLINK_VERSION="1.18.0"
 fi
 
-# extract minor version:
+# extract major version:
 # eg: 3.1.2 -> 3
 FLINK_MAJOR_VERSION=0
 [ ${FLINK_VERSION} != 0 ] && FLINK_MAJOR_VERSION=${FLINK_VERSION%.*}
