@@ -85,7 +85,7 @@ public class SchemaChangeManager {
         return false;
     }
 
-    private Map<String, Object> buildRequestParam(boolean dropColumn, String columnName) {
+    public static Map<String, Object> buildRequestParam(boolean dropColumn, String columnName) {
         Map<String, Object> params = new HashMap<>();
         params.put("isDropColumn", dropColumn);
         params.put("columnName", columnName);
