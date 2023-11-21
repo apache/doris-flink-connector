@@ -27,7 +27,7 @@ import org.apache.doris.flink.rest.models.RespContent;
 import org.apache.doris.flink.sink.BackendUtil;
 import org.apache.doris.flink.sink.DorisCommittable;
 import org.apache.doris.flink.sink.HttpUtil;
-import org.apache.doris.flink.sink.batch.RecordWithMeta;
+import org.apache.doris.flink.sink.writer.serializer.DorisRecordSerializer;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.StatefulSink;
@@ -39,14 +39,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -152,11 +150,16 @@ public class DorisWriter<IN> implements StatefulSink.StatefulSinkWriter<IN, Dori
     @Override
     public void write(IN in, Context context) throws IOException {
         checkLoadException();
-        Tuple2<String, byte[]> rowTuple = serializeRecord(in);
-        String tableKey = rowTuple.f0;
-        byte[] serializeRow = rowTuple.f1;
-        if(serializeRow == null){
+        String tableKey = dorisOptions.getTableIdentifier();
+
+        Tuple2<String, byte[]> rowTuple = serializer.serialize(in);
+        if(rowTuple == null || rowTuple.f1 == null){
+            //ddl or value is null
             return;
+        }
+        //multi table load
+        if(rowTuple.f0 != null){
+            tableKey = rowTuple.f0;
         }
 
         DorisStreamLoad streamLoader = getStreamLoader(tableKey);
@@ -168,32 +171,7 @@ public class DorisWriter<IN> implements StatefulSink.StatefulSinkWriter<IN, Dori
             loadingMap.put(tableKey, true);
             globalLoading = true;
         }
-        streamLoader.writeRecord(serializeRow);
-    }
-
-    private Tuple2<String, byte[]> serializeRecord(IN in) throws IOException {
-        String tableKey = dorisOptions.getTableIdentifier();
-        byte[] serializeRow = null;
-        if(serializer != null) {
-            serializeRow = serializer.serialize(in);
-            if(Objects.isNull(serializeRow)){
-                //ddl record by JsonDebeziumSchemaSerializer
-                return Tuple2.of(tableKey, null);
-            }
-        }
-        //multi table load
-        if(in instanceof RecordWithMeta){
-            RecordWithMeta row = (RecordWithMeta) in;
-            if(StringUtils.isBlank(row.getTable())
-                    || StringUtils.isBlank(row.getDatabase())
-                    || row.getRecord() == null){
-                LOG.warn("Record or meta format is incorrect, ignore record db:{}, table:{}, row:{}", row.getDatabase(), row.getTable(), row.getRecord());
-                return Tuple2.of(tableKey, null);
-            }
-            tableKey = row.getDatabase() + "." + row.getTable();
-            serializeRow = row.getRecord().getBytes(StandardCharsets.UTF_8);
-        }
-        return Tuple2.of(tableKey, serializeRow);
+        streamLoader.writeRecord(rowTuple.f1);
     }
 
     @Override
