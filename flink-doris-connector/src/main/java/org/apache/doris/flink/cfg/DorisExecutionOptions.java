@@ -22,6 +22,10 @@ import org.apache.flink.util.Preconditions;
 import java.io.Serializable;
 import java.util.Properties;
 
+import static org.apache.doris.flink.sink.writer.LoadConstants.FORMAT_KEY;
+import static org.apache.doris.flink.sink.writer.LoadConstants.JSON;
+import static org.apache.doris.flink.sink.writer.LoadConstants.READ_JSON_BY_LINE;
+
 /**
  * Doris sink batch options.
  */
@@ -297,6 +301,12 @@ public class DorisExecutionOptions implements Serializable {
         }
 
         public DorisExecutionOptions build() {
+            //If format=json is set but read_json_by_line is not set, record may not be written.
+            if(streamLoadProp != null
+                    && streamLoadProp.containsKey(FORMAT_KEY)
+                    && JSON.equals(streamLoadProp.getProperty(FORMAT_KEY))){
+                streamLoadProp.put(READ_JSON_BY_LINE, true);
+            }
             return new DorisExecutionOptions(checkInterval, maxRetries, bufferSize, bufferCount, labelPrefix, useCache,
                     streamLoadProp, enableDelete, enable2PC, enableBatchMode, flushQueueSize, bufferFlushMaxRows,
                     bufferFlushMaxBytes, bufferFlushIntervalMs, ignoreUpdateBefore, force2PC);
