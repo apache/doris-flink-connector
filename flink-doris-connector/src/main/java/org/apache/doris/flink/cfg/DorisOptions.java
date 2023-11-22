@@ -132,7 +132,8 @@ public class DorisOptions extends DorisConnectionOptions {
 
         public DorisOptions build() {
             checkNotNull(fenodes, "No fenodes supplied.");
-            checkNotNull(tableIdentifier, "No tableIdentifier supplied.");
+            //multi table load, don't need check
+            //checkNotNull(tableIdentifier, "No tableIdentifier supplied.");
             return new DorisOptions(fenodes, benodes, username, password, tableIdentifier, jdbcUrl, autoRedirect);
         }
     }
