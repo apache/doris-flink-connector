@@ -26,7 +26,7 @@ under the License.
         <version>23</version>
     </parent>
     <groupId>org.apache.doris</groupId>
-    <artifactId>flink-doris-connector-${flink.minor.version}</artifactId>
+    <artifactId>flink-doris-connector-${flink.major.version}</artifactId>
     <version>${revision}</version>
     <name>Flink Doris Connector</name>
     <url>https://doris.apache.org/</url>
@@ -68,8 +68,8 @@ under the License.
 
     <properties>
         <revision>1.5.0-SNAPSHOT</revision>
-        <flink.version>1.16.0</flink.version>
-        <flink.minor.version>1.16</flink.minor.version>
+        <flink.version>1.18.0</flink.version>
+        <flink.major.version>1.18</flink.major.version>
         <flink.sql.cdc.version>2.4.1</flink.sql.cdc.version>
         <libthrift.version>0.16.0</libthrift.version>
         <arrow.version>5.0.0</arrow.version>
@@ -214,6 +214,12 @@ under the License.
             <version>2.13.3</version>
         </dependency>
 
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>31.1-jre</version>
+        </dependency>
+
         <!--Test-->
         <dependency>
             <groupId>org.hamcrest</groupId>
@@ -254,24 +260,48 @@ under the License.
             <artifactId>flink-sql-connector-mysql-cdc</artifactId>
             <version>${flink.sql.cdc.version}</version>
             <scope>provided</scope>
+            <exclusions>
+                <exclusion>
+                    <artifactId>flink-shaded-guava</artifactId>
+                    <groupId>org.apache.flink</groupId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>com.ververica</groupId>
             <artifactId>flink-sql-connector-oracle-cdc</artifactId>
             <version>${flink.sql.cdc.version}</version>
             <scope>provided</scope>
+            <exclusions>
+                <exclusion>
+                    <artifactId>flink-shaded-guava</artifactId>
+                    <groupId>org.apache.flink</groupId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>com.ververica</groupId>
             <artifactId>flink-sql-connector-postgres-cdc</artifactId>
             <version>${flink.sql.cdc.version}</version>
             <scope>provided</scope>
+            <exclusions>
+                <exclusion>
+                    <artifactId>flink-shaded-guava</artifactId>
+                    <groupId>org.apache.flink</groupId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>com.ververica</groupId>
             <artifactId>flink-sql-connector-sqlserver-cdc</artifactId>
             <version>${flink.sql.cdc.version}</version>
             <scope>provided</scope>
+            <exclusions>
+                <exclusion>
+                    <artifactId>flink-shaded-guava</artifactId>
+                    <groupId>org.apache.flink</groupId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.apache.flink</groupId>
@@ -321,8 +351,8 @@ under the License.
                                 <shadedPattern>org.apache.doris.shaded.org.apache.commons.codec</shadedPattern>
                             </relocation>
                             <relocation>
-                                <pattern>com.google.flatbuffers</pattern>
-                                <shadedPattern>org.apache.doris.shaded.com.google.flatbuffers</shadedPattern>
+                                <pattern>com.google</pattern>
+                                <shadedPattern>org.apache.doris.shaded.com.google</shadedPattern>
                             </relocation>
                             <relocation>
                                 <pattern>org.apache.thrift</pattern>
