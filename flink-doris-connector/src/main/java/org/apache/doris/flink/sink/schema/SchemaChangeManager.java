@@ -40,11 +40,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
-public class SchemaChangeManager {
+public class SchemaChangeManager implements Serializable {
+    private static final long serialVersionUID = 1L;
     private static final Logger LOG = LoggerFactory.getLogger(SchemaChangeManager.class);
     private static final String CHECK_SCHEMA_CHANGE_API = "http://%s/api/enable_light_schema_change/%s/%s";
     private static final String SCHEMA_CHANGE_API = "http://%s/api/query/default_cluster/";
