@@ -49,7 +49,7 @@ public class SchemaChangeManager implements Serializable {
     private static final long serialVersionUID = 1L;
     private static final Logger LOG = LoggerFactory.getLogger(SchemaChangeManager.class);
     private static final String CHECK_SCHEMA_CHANGE_API = "http://%s/api/enable_light_schema_change/%s/%s";
-    private static final String SCHEMA_CHANGE_API = "http://%s/api/query/default_cluster/";
+    private static final String SCHEMA_CHANGE_API = "http://%s/api/query/default_cluster/%s";
     private ObjectMapper objectMapper = new ObjectMapper();
     private DorisOptions dorisOptions;
 
@@ -59,7 +59,7 @@ public class SchemaChangeManager implements Serializable {
 
     public boolean createTable(TableSchema table) throws IOException, IllegalArgumentException {
         String createTableDDL = DorisSystem.buildCreateTableDDL(table);
-        return execute(createTableDDL);
+        return execute(createTableDDL, table.getDatabase());
     }
 
     public boolean addColumn(String database, String table, FieldSchema field) throws IOException, IllegalArgumentException {
@@ -82,7 +82,7 @@ public class SchemaChangeManager implements Serializable {
 
     public boolean schemaChange(String database, String table, Map<String, Object> params, String sql) throws IOException, IllegalArgumentException {
         if(checkSchemaChange(database, table, params)){
-            return execute(sql);
+            return execute(sql, database);
         }
         return false;
     }
@@ -116,13 +116,14 @@ public class SchemaChangeManager implements Serializable {
     /**
      * execute sql in doris
      */
-    public boolean execute(String ddl) throws IOException, IllegalArgumentException {
+    public boolean execute(String ddl, String database) throws IOException, IllegalArgumentException {
         if(StringUtils.isNullOrWhitespaceOnly(ddl)){
             return false;
         }
         Map<String, String> param = new HashMap<>();
         param.put("stmt", ddl);
-        String requestUrl = String.format(SCHEMA_CHANGE_API, RestService.randomEndpoint(dorisOptions.getFenodes(), LOG));
+        String requestUrl = String.format(SCHEMA_CHANGE_API,
+                RestService.randomEndpoint(dorisOptions.getFenodes(), LOG), database);
         HttpPost httpPost = new HttpPost(requestUrl);
         httpPost.setHeader(HttpHeaders.AUTHORIZATION, authHeader());
         httpPost.setHeader(HttpHeaders.CONTENT_TYPE, "application/json");

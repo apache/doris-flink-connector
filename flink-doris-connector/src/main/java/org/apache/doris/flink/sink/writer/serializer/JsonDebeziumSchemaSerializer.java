@@ -198,7 +198,7 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
                 DDLSchema ddlSchema = ddlSchemas.get(i);
                 String ddlSql = ddlSqlList.get(i);
                 boolean doSchemaChange = checkSchemaChange(ddlSchema);
-                status = doSchemaChange && schemaChangeManager.execute(ddlSql);
+                status = doSchemaChange && schemaChangeManager.execute(ddlSql, database);
                 LOG.info("schema change status:{}, ddl:{}", status, ddlSql);
             }
         } catch (Exception ex) {
@@ -268,7 +268,7 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
                 return false;
             }
             boolean doSchemaChange = checkSchemaChange(ddl);
-            status = doSchemaChange && schemaChangeManager.execute(ddl);
+            status = doSchemaChange && schemaChangeManager.execute(ddl, database);
             LOG.info("schema change status:{}", status);
         } catch (Exception ex) {
             LOG.warn("schema change error :", ex);
