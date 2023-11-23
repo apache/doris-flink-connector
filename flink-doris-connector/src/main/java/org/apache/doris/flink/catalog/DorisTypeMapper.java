@@ -125,7 +125,7 @@ public class DorisTypeMapper {
         @Override
         public String visit(VarCharType varCharType) {
             int length = varCharType.getLength();
-            return length > 65533 ? STRING : String.format("%s(%s)", VARCHAR, length);
+            return length * 4 > 65533 ? STRING : String.format("%s(%s)", VARCHAR, length * 4);
         }
 
         @Override
@@ -143,7 +143,7 @@ public class DorisTypeMapper {
             int precision = decimalType.getPrecision();
             int scale = decimalType.getScale();
             return precision <= 38
-                    ? String.format("%s(%s,%s)", DorisType.DECIMAL_V3, precision, scale >= 0 ? scale : 0)
+                    ? String.format("%s(%s,%s)", DorisType.DECIMAL_V3, precision, Math.max(scale, 0))
                     : DorisType.STRING;
         }
 
