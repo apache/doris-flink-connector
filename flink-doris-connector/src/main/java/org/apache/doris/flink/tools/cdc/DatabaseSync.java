@@ -180,6 +180,7 @@ public abstract class DatabaseSync {
         String user = sinkConfig.getString(DorisConfigOptions.USERNAME);
         String passwd = sinkConfig.getString(DorisConfigOptions.PASSWORD, "");
         String labelPrefix = sinkConfig.getString(DorisConfigOptions.SINK_LABEL_PREFIX);
+        String jdbcUrl = sinkConfig.getString(DorisConfigOptions.JDBC_URL);
 
         DorisSink.Builder<String> builder = DorisSink.builder();
         DorisOptions.Builder dorisBuilder = DorisOptions.builder();
@@ -187,6 +188,7 @@ public abstract class DatabaseSync {
                 .setBenodes(benodes)
                 .setTableIdentifier(database + "." + table)
                 .setUsername(user)
+                .setJdbcUrl(jdbcUrl)
                 .setPassword(passwd);
         sinkConfig.getOptional(DorisConfigOptions.AUTO_REDIRECT).ifPresent(dorisBuilder::setAutoRedirect);
 

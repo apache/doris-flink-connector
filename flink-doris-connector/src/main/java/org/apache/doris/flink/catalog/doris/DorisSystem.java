@@ -29,6 +29,7 @@ import org.apache.flink.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Serializable;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
@@ -45,7 +46,8 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * Doris System Operate
  */
 @Public
-public class DorisSystem {
+public class DorisSystem implements Serializable {
+    private static final long serialVersionUID = 1L;
     private static final Logger LOG = LoggerFactory.getLogger(DorisSystem.class);
     private final JdbcConnectionProvider jdbcConnectionProvider;
     private static final List<String> builtinDatabases = Collections.singletonList("information_schema");
@@ -90,6 +92,10 @@ public class DorisSystem {
                 1,
                 null,
                 databaseName);
+    }
+
+    public List<String> descTable(String table) {
+        return extractColumnValuesBySQL("desc " + table, 1, null);
     }
 
     public void dropTable(String tableName) {

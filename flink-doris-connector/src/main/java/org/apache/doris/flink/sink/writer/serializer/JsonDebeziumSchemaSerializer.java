@@ -25,6 +25,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.NullNode;
 import org.apache.commons.collections.CollectionUtils;
+
+import org.apache.doris.flink.catalog.doris.DorisSystem;
 import org.apache.doris.flink.catalog.doris.FieldSchema;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
@@ -37,6 +39,7 @@ import org.apache.doris.flink.tools.cdc.mysql.MysqlType;
 import org.apache.doris.flink.tools.cdc.oracle.OracleType;
 import org.apache.doris.flink.tools.cdc.postgres.PostgresType;
 import org.apache.doris.flink.tools.cdc.sqlserver.SqlServerType;
+
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.util.StringUtils;
@@ -86,6 +89,7 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
     private boolean ignoreUpdateBefore = true;
     private SourceConnector sourceConnector;
     private SchemaChangeManager schemaChangeManager;
+    private DorisSystem dorisSystem;
 
     public JsonDebeziumSchemaSerializer(DorisOptions dorisOptions,
             Pattern pattern,
@@ -105,6 +109,7 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
         this.firstLoad = true;
         this.firstSchemaChange = true;
         this.schemaChangeManager = new SchemaChangeManager(dorisOptions);
+        this.dorisSystem = new DorisSystem(dorisOptions);
     }
 
     public JsonDebeziumSchemaSerializer(DorisOptions dorisOptions,
@@ -239,7 +244,7 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
         // add/drop ddl
         Map<String, FieldSchema> updateFiledSchema = new LinkedHashMap<>();
         for (JsonNode column : columns) {
-            buildFieldSchema(updateFiledSchema, column);
+            buildFieldSchema(updateFiledSchema, column.get("name").asText(), column);
         }
         SchemaChangeHelper.compareSchema(updateFiledSchema, originFieldSchemaMap);
         // In order to avoid other source table column change operations other than add/drop/rename,
@@ -255,6 +260,7 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
     public void setOriginFieldSchemaMap(Map<String, FieldSchema> originFieldSchemaMap) {
         this.originFieldSchemaMap = originFieldSchemaMap;
     }
+
     @VisibleForTesting
     public boolean schemaChange(JsonNode recordRoot) {
         boolean status = false;
@@ -292,7 +298,8 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
     }
 
     private boolean checkSchemaChange(DDLSchema ddlSchema) throws IOException, IllegalArgumentException {
-        Map<String, Object> param = SchemaChangeManager.buildRequestParam(ddlSchema.isDropColumn(), ddlSchema.getColumnName());
+        Map<String, Object> param = SchemaChangeManager.buildRequestParam(ddlSchema.isDropColumn(),
+                ddlSchema.getColumnName());
         return schemaChangeManager.checkSchemaChange(database, table, param);
     }
 
@@ -327,7 +334,6 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
     protected String extractTable(JsonNode record) {
         return extractJsonNode(record.get("source"), "table");
     }
-
 
 
     private String extractJsonNode(JsonNode record, String key) {
@@ -378,7 +384,6 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
     }
 
 
-
     @VisibleForTesting
     public void fillOriginSchema(JsonNode columns) {
         if (Objects.nonNull(originFieldSchemaMap)) {
@@ -397,14 +402,26 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
             }
         } else {
             originFieldSchemaMap = new LinkedHashMap<>();
-            columns.forEach(column -> buildFieldSchema(originFieldSchemaMap, column));
+            List<String> dorisTableColumns = dorisSystem.descTable(dorisOptions.getTableIdentifier());
+            for (String dorisTableColumn : dorisTableColumns) {
+                JsonNode targetJsonNode = null;
+                for (JsonNode column : columns) {
+                    if (dorisTableColumn.equals(column.get("name").asText())) {
+                        targetJsonNode = column;
+                    }
+                }
+                buildFieldSchema(originFieldSchemaMap, dorisTableColumn, targetJsonNode);
+            }
         }
         firstSchemaChange = false;
         firstLoad = false;
     }
 
-    private void buildFieldSchema(Map<String, FieldSchema> filedSchemaMap, JsonNode column) {
-        String fieldName = column.get("name").asText();
+    private void buildFieldSchema(Map<String, FieldSchema> filedSchemaMap, String fieldName, JsonNode column) {
+        if (Objects.isNull(column)) {
+            filedSchemaMap.put(fieldName, new FieldSchema());
+            return;
+        }
         String dorisTypeName = buildDorisTypeName(column);
         String defaultValue = handleDefaultValue(extractJsonNode(column, "defaultValueExpression"));
         String comment = extractJsonNode(column, "comment");
@@ -472,6 +489,12 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
     public void setSourceConnector(String sourceConnector) {
         this.sourceConnector = SourceConnector.valueOf(sourceConnector.toUpperCase());
     }
+
+    @VisibleForTesting
+    public void setDorisSystem(DorisSystem dorisSystem) {
+        this.dorisSystem = dorisSystem;
+    }
+
 
     public static JsonDebeziumSchemaSerializer.Builder builder() {
         return new JsonDebeziumSchemaSerializer.Builder();
