@@ -396,6 +396,8 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
                 }
             }
         } else {
+            LOG.error("Current schema change failed! You need to ensure that "
+                    + "there is data in the table." + dorisOptions.getTableIdentifier());
             originFieldSchemaMap = new LinkedHashMap<>();
             columns.forEach(column -> buildFieldSchema(originFieldSchemaMap, column));
         }
