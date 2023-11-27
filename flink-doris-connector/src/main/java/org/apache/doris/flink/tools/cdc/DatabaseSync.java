@@ -25,7 +25,6 @@ import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.sink.DorisSink;
 import org.apache.doris.flink.sink.writer.serializer.JsonDebeziumSchemaSerializer;
 import org.apache.doris.flink.table.DorisConfigOptions;
-import org.apache.doris.flink.tools.cdc.mysql.ParsingProcessFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
@@ -60,7 +59,7 @@ public abstract class DatabaseSync {
     protected Pattern includingPattern;
     protected Pattern excludingPattern;
     protected Map<Pattern, String> multiToOneRulesPattern;
-    protected Map<String, String> tableConfig;
+    protected Map<String, String> tableConfig = new HashMap<>();
     protected Configuration sinkConfig;
     protected boolean ignoreDefaultValue;
 
@@ -71,6 +70,10 @@ public abstract class DatabaseSync {
     protected String excludingTables;
     protected String multiToOneOrigin;
     protected String multiToOneTarget;
+    protected String tablePrefix;
+    protected String tableSuffix;
+    protected boolean singleSink;
+    private Map<String, String> tableMapping = new HashMap<>();
 
     public abstract void registerDriver() throws SQLException;
 
@@ -84,30 +87,15 @@ public abstract class DatabaseSync {
         registerDriver();
     }
 
-    public void create(StreamExecutionEnvironment env, String database, Configuration config,
-                       String tablePrefix, String tableSuffix, String includingTables,
-                       String excludingTables,String multiToOneOrigin,String multiToOneTarget, boolean ignoreDefaultValue, Configuration sinkConfig,
-            Map<String, String> tableConfig, boolean createTableOnly, boolean useNewSchemaChange) {
-        this.env = env;
-        this.config = config;
-        this.database = database;
-        this.includingTables = includingTables;
-        this.excludingTables = excludingTables;
-        this.multiToOneOrigin = multiToOneOrigin;
-        this.multiToOneTarget = multiToOneTarget;
+    public void create() {
         this.includingPattern = includingTables == null ? null : Pattern.compile(includingTables);
         this.excludingPattern = excludingTables == null ? null : Pattern.compile(excludingTables);
         this.multiToOneRulesPattern = multiToOneRulesParser(multiToOneOrigin,multiToOneTarget);
         this.converter = new TableNameConverter(tablePrefix, tableSuffix,multiToOneRulesPattern);
-        this.ignoreDefaultValue = ignoreDefaultValue;
-        this.sinkConfig = sinkConfig;
-        this.tableConfig = tableConfig == null ? new HashMap<>() : tableConfig;
         //default enable light schema change
         if(!this.tableConfig.containsKey(LIGHT_SCHEMA_CHANGE)){
             this.tableConfig.put(LIGHT_SCHEMA_CHANGE, "true");
         }
-        this.createTableOnly = createTableOnly;
-        this.newSchemaChange = useNewSchemaChange;
     }
 
     public void build() throws Exception {
@@ -125,7 +113,10 @@ public abstract class DatabaseSync {
         List<String> dorisTables = new ArrayList<>();
         for (SourceSchema schema : schemaList) {
             syncTables.add(schema.getTableName());
-            String dorisTable=converter.convert(schema.getTableName());
+            String dorisTable = converter.convert(schema.getTableName());
+
+            //Calculate the mapping relationship between upstream and downstream tables
+            tableMapping.put(schema.getTableIdentifier(), String.format("%s.%s", database, dorisTable));
             if (!dorisSystem.tableExists(database, dorisTable)) {
                 TableSchema dorisSchema = schema.convertTableSchema(tableConfig);
                 //set doris target database
@@ -144,12 +135,16 @@ public abstract class DatabaseSync {
 
         config.setString(TABLE_NAME_OPTIONS, "(" + String.join("|", syncTables) + ")");
         DataStreamSource<String> streamSource = buildCdcSource(env);
-        SingleOutputStreamOperator<Void> parsedStream = streamSource.process(new ParsingProcessFunction(converter));
-        for (String table : dorisTables) {
-            OutputTag<String> recordOutputTag = ParsingProcessFunction.createRecordOutputTag(table);
-            DataStream<String> sideOutput = parsedStream.getSideOutput(recordOutputTag);
-            int sinkParallel = sinkConfig.getInteger(DorisConfigOptions.SINK_PARALLELISM, sideOutput.getParallelism());
-            sideOutput.sinkTo(buildDorisSink(table)).setParallelism(sinkParallel).name(table).uid(table);
+        if(singleSink){
+            streamSource.sinkTo(buildDorisSink());
+        }else{
+            SingleOutputStreamOperator<Void> parsedStream = streamSource.process(new ParsingProcessFunction(converter));
+            for (String table : dorisTables) {
+                OutputTag<String> recordOutputTag = ParsingProcessFunction.createRecordOutputTag(table);
+                DataStream<String> sideOutput = parsedStream.getSideOutput(recordOutputTag);
+                int sinkParallel = sinkConfig.getInteger(DorisConfigOptions.SINK_PARALLELISM, sideOutput.getParallelism());
+                sideOutput.sinkTo(buildDorisSink(table)).setParallelism(sinkParallel).name(table).uid(table);
+            }
         }
     }
 
@@ -172,6 +167,13 @@ public abstract class DatabaseSync {
     }
 
     /**
+     * create doris sink for multi table
+     */
+    public DorisSink<String> buildDorisSink(){
+        return buildDorisSink(null);
+    }
+
+    /**
      * create doris sink
      */
     public DorisSink<String> buildDorisSink(String table) {
@@ -179,16 +181,19 @@ public abstract class DatabaseSync {
         String benodes = sinkConfig.getString(DorisConfigOptions.BENODES);
         String user = sinkConfig.getString(DorisConfigOptions.USERNAME);
         String passwd = sinkConfig.getString(DorisConfigOptions.PASSWORD, "");
-        String labelPrefix = sinkConfig.getString(DorisConfigOptions.SINK_LABEL_PREFIX);
 
         DorisSink.Builder<String> builder = DorisSink.builder();
         DorisOptions.Builder dorisBuilder = DorisOptions.builder();
         dorisBuilder.setFenodes(fenodes)
                 .setBenodes(benodes)
-                .setTableIdentifier(database + "." + table)
                 .setUsername(user)
                 .setPassword(passwd);
         sinkConfig.getOptional(DorisConfigOptions.AUTO_REDIRECT).ifPresent(dorisBuilder::setAutoRedirect);
+
+        //single sink not need table identifier
+        if(!singleSink && !StringUtils.isNullOrWhitespaceOnly(table)){
+            dorisBuilder.setTableIdentifier(database + "." + table);
+        }
 
         Properties pro = new Properties();
         //default json data format
@@ -198,9 +203,9 @@ public abstract class DatabaseSync {
         Properties streamLoadProp = DorisConfigOptions.getStreamLoadProp(sinkConfig.toMap());
         pro.putAll(streamLoadProp);
         DorisExecutionOptions.Builder executionBuilder = DorisExecutionOptions.builder()
-                .setLabelPrefix(String.join("-", labelPrefix, database, table))
                 .setStreamLoadProp(pro);
 
+        sinkConfig.getOptional(DorisConfigOptions.SINK_LABEL_PREFIX).ifPresent(executionBuilder::setLabelPrefix);
         sinkConfig.getOptional(DorisConfigOptions.SINK_ENABLE_DELETE).ifPresent(executionBuilder::setDeletable);
         sinkConfig.getOptional(DorisConfigOptions.SINK_BUFFER_COUNT).ifPresent(executionBuilder::setBufferCount);
         sinkConfig.getOptional(DorisConfigOptions.SINK_BUFFER_SIZE).ifPresent(executionBuilder::setBufferSize);
@@ -234,6 +239,7 @@ public abstract class DatabaseSync {
                         .setDorisOptions(dorisBuilder.build())
                         .setNewSchemaChange(newSchemaChange)
                         .setExecutionOptions(executionOptions)
+                        .setTableMapping(tableMapping)
                         .build())
                 .setDorisOptions(dorisBuilder.build());
         return builder.build();
@@ -276,6 +282,82 @@ public abstract class DatabaseSync {
             System.exit(1);
         }
         return multiToOneRulesPattern;
+    }
+
+
+    public DatabaseSync setEnv(StreamExecutionEnvironment env) {
+        this.env = env;
+        return this;
+    }
+
+    public DatabaseSync setConfig(Configuration config) {
+        this.config = config;
+        return this;
+    }
+
+    public DatabaseSync setDatabase(String database) {
+        this.database = database;
+        return this;
+    }
+
+    public DatabaseSync setIncludingTables(String includingTables) {
+        this.includingTables = includingTables;
+        return this;
+    }
+
+    public DatabaseSync setExcludingTables(String excludingTables) {
+        this.excludingTables = excludingTables;
+        return this;
+    }
+
+    public DatabaseSync setMultiToOneOrigin(String multiToOneOrigin) {
+        this.multiToOneOrigin = multiToOneOrigin;
+        return this;
+    }
+
+    public DatabaseSync setMultiToOneTarget(String multiToOneTarget) {
+        this.multiToOneTarget = multiToOneTarget;
+        return this;
+    }
+
+    public DatabaseSync setTableConfig(Map<String, String> tableConfig) {
+        this.tableConfig = tableConfig;
+        return this;
+    }
+
+    public DatabaseSync setSinkConfig(Configuration sinkConfig) {
+        this.sinkConfig = sinkConfig;
+        return this;
+    }
+
+    public DatabaseSync setIgnoreDefaultValue(boolean ignoreDefaultValue) {
+        this.ignoreDefaultValue = ignoreDefaultValue;
+        return this;
+    }
+
+    public DatabaseSync setCreateTableOnly(boolean createTableOnly) {
+        this.createTableOnly = createTableOnly;
+        return this;
+    }
+
+    public DatabaseSync setNewSchemaChange(boolean newSchemaChange) {
+        this.newSchemaChange = newSchemaChange;
+        return this;
+    }
+
+    public DatabaseSync setSingleSink(boolean singleSink) {
+        this.singleSink = singleSink;
+        return this;
+    }
+
+    public DatabaseSync setTablePrefix(String tablePrefix) {
+        this.tablePrefix = tablePrefix;
+        return this;
+    }
+
+    public DatabaseSync setTableSuffix(String tableSuffix) {
+        this.tableSuffix = tableSuffix;
+        return this;
     }
 
     public static class TableNameConverter implements Serializable {
@@ -322,4 +404,6 @@ public abstract class DatabaseSync {
             return target;
         }
     }
+
+
 }
