@@ -58,7 +58,7 @@ public class TestRowDataSerializer {
         RowDataSerializer.Builder builder = RowDataSerializer.builder();
         builder.setFieldNames(fieldNames).setFieldType(dataTypes).setType("csv").setFieldDelimiter("|").enableDelete(false);
         RowDataSerializer serializer = builder.build();
-        byte[] serializedValue = serializer.serialize(rowData).f1;
+        byte[] serializedValue = serializer.serialize(rowData).getRow();
         Assert.assertArrayEquals("3|test|60.2".getBytes(StandardCharsets.UTF_8), serializedValue);
     }
 
@@ -67,7 +67,7 @@ public class TestRowDataSerializer {
         RowDataSerializer.Builder builder = RowDataSerializer.builder();
         builder.setFieldNames(fieldNames).setFieldType(dataTypes).setType("json").setFieldDelimiter("|").enableDelete(false);
         RowDataSerializer serializer = builder.build();
-        byte[] serializedValue = serializer.serialize(rowData).f1;
+        byte[] serializedValue = serializer.serialize(rowData).getRow();
         ObjectMapper objectMapper = new ObjectMapper();
         Map<String, String> valueMap = objectMapper.readValue(new String(serializedValue, StandardCharsets.UTF_8), new TypeReference<Map<String, String>>(){});
         Assert.assertEquals("3", valueMap.get("id"));
@@ -80,7 +80,7 @@ public class TestRowDataSerializer {
         RowDataSerializer.Builder builder = RowDataSerializer.builder();
         builder.setFieldNames(fieldNames).setFieldType(dataTypes).setType("csv").setFieldDelimiter("|").enableDelete(true);
         RowDataSerializer serializer = builder.build();
-        byte[] serializedValue = serializer.serialize(rowData).f1;
+        byte[] serializedValue = serializer.serialize(rowData).getRow();
         Assert.assertArrayEquals("3|test|60.2|0".getBytes(StandardCharsets.UTF_8), serializedValue);
     }
 
@@ -89,7 +89,7 @@ public class TestRowDataSerializer {
         RowDataSerializer.Builder builder = RowDataSerializer.builder();
         builder.setFieldNames(fieldNames).setFieldType(dataTypes).setType("json").setFieldDelimiter("|").enableDelete(true);
         RowDataSerializer serializer = builder.build();
-        byte[] serializedValue = serializer.serialize(rowData).f1;
+        byte[] serializedValue = serializer.serialize(rowData).getRow();
         ObjectMapper objectMapper = new ObjectMapper();
         Map<String, String> valueMap = objectMapper.readValue(new String(serializedValue, StandardCharsets.UTF_8), new TypeReference<Map<String, String>>(){});
         Assert.assertEquals("3", valueMap.get("id"));

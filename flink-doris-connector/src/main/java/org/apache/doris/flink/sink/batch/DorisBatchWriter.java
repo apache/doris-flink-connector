@@ -20,11 +20,11 @@ package org.apache.doris.flink.sink.batch;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
-import org.apache.doris.flink.sink.writer.serializer.DorisRecordSerializer;
 import org.apache.doris.flink.sink.writer.LabelGenerator;
+import org.apache.doris.flink.sink.writer.serializer.DorisRecord;
+import org.apache.doris.flink.sink.writer.serializer.DorisRecordSerializer;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.SinkWriter;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
@@ -93,18 +93,17 @@ public class DorisBatchWriter<IN> implements SinkWriter<IN> {
         checkFlushException();
         String db = this.database;
         String tbl = this.table;
-        Tuple2<String, byte[]> rowTuple = serializer.serialize(in);
-        if(rowTuple == null || rowTuple.f1 == null){
+        DorisRecord record = serializer.serialize(in);
+        if(record == null || record.getRow() == null){
             //ddl or value is null
             return;
         }
         //multi table load
-        if(rowTuple.f0 != null){
-            String[] tableInfo = rowTuple.f0.split("\\.");
-            db = tableInfo[0];
-            tbl = tableInfo[1];
+        if(record.getTableIdentifier() != null){
+            db = record.getDatabase();
+            tbl = record.getTable();
         }
-        batchStreamLoad.writeRecord(db, tbl, rowTuple.f1);
+        batchStreamLoad.writeRecord(db, tbl, record.getRow());
     }
     @Override
     public void flush(boolean flush) throws IOException, InterruptedException {

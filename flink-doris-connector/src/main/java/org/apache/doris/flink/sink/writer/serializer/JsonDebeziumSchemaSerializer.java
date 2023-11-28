@@ -121,7 +121,7 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
     }
 
     @Override
-    public Tuple2<String, byte[]> serialize(String record) throws IOException {
+    public DorisRecord serialize(String record) throws IOException {
         LOG.debug("received debezium json data {} :", record);
         JsonNode recordRoot = objectMapper.readValue(record, JsonNode.class);
         String op = extractJsonNode(recordRoot, "op");
@@ -146,7 +146,7 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
                 addDeleteSign(valueMap, false);
                 break;
             case OP_UPDATE:
-                return Tuple2.of(null, extractUpdate(recordRoot));
+                return DorisRecord.of(extractUpdate(recordRoot));
             case OP_DELETE:
                 valueMap = extractBeforeRow(recordRoot);
                 addDeleteSign(valueMap, true);
@@ -155,7 +155,7 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
                 LOG.error("parse record fail, unknown op {} in {}", op, record);
                 return null;
         }
-        return Tuple2.of(null, objectMapper.writeValueAsString(valueMap).getBytes(StandardCharsets.UTF_8));
+        return DorisRecord.of(objectMapper.writeValueAsString(valueMap).getBytes(StandardCharsets.UTF_8));
     }
 
     /**

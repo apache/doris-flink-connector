@@ -17,7 +17,6 @@
 
 package org.apache.doris.flink.sink.writer.serializer;
 
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.conversion.RowRowConverter;
@@ -55,7 +54,7 @@ public class RowSerializer implements DorisRecordSerializer<Row> {
     }
 
     @Override
-    public Tuple2<String, byte[]> serialize(Row record) throws IOException{
+    public DorisRecord serialize(Row record) throws IOException{
         RowData rowDataRecord = this.rowRowConverter.toInternal(record);
         return this.rowDataSerializer.serialize(rowDataRecord);
     }
