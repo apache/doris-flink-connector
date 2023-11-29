@@ -67,6 +67,18 @@ public class DorisRecord implements Serializable {
         return new DorisRecord(database, table, row);
     }
 
+    public static DorisRecord of(String tableIdentifier, byte[] row) {
+        if(tableIdentifier != null) {
+            String[] dbTbl = tableIdentifier.split("\\.");
+            if(dbTbl.length == 2){
+                String database = dbTbl[0];
+                String table = dbTbl[1];
+                return new DorisRecord(database, table, row);
+            }
+        }
+        return null;
+    }
+
     public static DorisRecord of(byte[] row) {
         return new DorisRecord(null, null, row);
     }
