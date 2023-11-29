@@ -171,7 +171,7 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
                 addDeleteSign(valueMap, false);
                 break;
             case OP_UPDATE:
-                return DorisRecord.of(extractUpdate(recordRoot));
+                return DorisRecord.of(dorisTableIdentifier, extractUpdate(recordRoot));
             case OP_DELETE:
                 valueMap = extractBeforeRow(recordRoot);
                 addDeleteSign(valueMap, true);
