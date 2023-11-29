@@ -137,7 +137,7 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
     }
 
     @Override
-    public Tuple2<String, byte[]> serialize(String record) throws IOException {
+    public DorisRecord serialize(String record) throws IOException {
         LOG.debug("received debezium json data {} :", record);
         JsonNode recordRoot = objectMapper.readValue(record, JsonNode.class);
 
@@ -171,7 +171,7 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
                 addDeleteSign(valueMap, false);
                 break;
             case OP_UPDATE:
-                return Tuple2.of(null, extractUpdate(recordRoot));
+                return DorisRecord.of(extractUpdate(recordRoot));
             case OP_DELETE:
                 valueMap = extractBeforeRow(recordRoot);
                 addDeleteSign(valueMap, true);
@@ -181,7 +181,7 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
                 return null;
         }
 
-        return Tuple2.of(dorisTableIdentifier, objectMapper.writeValueAsString(valueMap).getBytes(StandardCharsets.UTF_8));
+        return DorisRecord.of(dorisTableIdentifier, objectMapper.writeValueAsString(valueMap).getBytes(StandardCharsets.UTF_8));
     }
 
     /**
@@ -471,6 +471,8 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
                 }
             }
         } else {
+            LOG.error("Current schema change failed! You need to ensure that "
+                    + "there is data in the table." + dorisOptions.getTableIdentifier());
             originFieldSchemaMap = new LinkedHashMap<>();
             columns.forEach(column -> buildFieldSchema(originFieldSchemaMap, column));
         }

@@ -73,7 +73,7 @@ public class TestJsonDebeziumSchemaSerializer {
         // insert into t1 VALUES(1,"doris",'2022-01-01','2022-01-01 10:01:02','2022-01-01 10:01:03');
         byte[] serializedValue = serializer.serialize(
                 "{\"before\":null,\"after\":{\"id\":1,\"name\":\"doris\",\"dt\":\"2022-01-01\",\"dtime\":\"2022-01-01 10:01:02\",\"ts\":\"2022-01-01 10:01:03\"},\"source\":{\"version\":\"1.5.4.Final\",\"connector\":\"mysql\",\"name\":\"mysql_binlog_source\",\"ts_ms\":1663923840000,\"snapshot\":\"false\",\"db\":\"test\",\"sequence\":null,\"table\":\"t1\",\"server_id\":1,\"gtid\":null,\"file\":\"binlog.000006\",\"pos\":11834,\"row\":0,\"thread\":null,\"query\":null},\"op\":\"c\",\"ts_ms\":1663923840146,\"transaction\":null}")
-                .f1;
+                .getRow();
         Map<String, String> valueMap = objectMapper.readValue(new String(serializedValue, StandardCharsets.UTF_8),
                 new TypeReference<Map<String, String>>() {
                 });
@@ -92,7 +92,7 @@ public class TestJsonDebeziumSchemaSerializer {
         // update t1 set name='doris-update' WHERE id =1;
         byte[] serializedValue = serializer.serialize(
                 "{\"before\":{\"id\":1,\"name\":\"doris\",\"dt\":\"2022-01-01\",\"dtime\":\"2022-01-01 10:01:02\",\"ts\":\"2022-01-01 10:01:03\"},\"after\":{\"id\":1,\"name\":\"doris-update\",\"dt\":\"2022-01-01\",\"dtime\":\"2022-01-01 10:01:02\",\"ts\":\"2022-01-01 10:01:03\"},\"source\":{\"version\":\"1.5.4.Final\",\"connector\":\"mysql\",\"name\":\"mysql_binlog_source\",\"ts_ms\":1663924082000,\"snapshot\":\"false\",\"db\":\"test\",\"sequence\":null,\"table\":\"t1\",\"server_id\":1,\"gtid\":null,\"file\":\"binlog.000006\",\"pos\":12154,\"row\":0,\"thread\":null,\"query\":null},\"op\":\"u\",\"ts_ms\":1663924082186,\"transaction\":null}")
-                .f1;
+                .getRow();
         Map<String, String> valueMap = objectMapper.readValue(new String(serializedValue, StandardCharsets.UTF_8),
                 new TypeReference<Map<String, String>>() {
                 });
@@ -113,7 +113,7 @@ public class TestJsonDebeziumSchemaSerializer {
         // update t1 set name='doris-update' WHERE id =1;
         byte[] serializedValue = serializer.serialize(
                 "{\"before\":{\"id\":1,\"name\":\"doris\",\"dt\":\"2022-01-01\",\"dtime\":\"2022-01-01 10:01:02\",\"ts\":\"2022-01-01 10:01:03\"},\"after\":{\"id\":1,\"name\":\"doris-update\",\"dt\":\"2022-01-01\",\"dtime\":\"2022-01-01 10:01:02\",\"ts\":\"2022-01-01 10:01:03\"},\"source\":{\"version\":\"1.5.4.Final\",\"connector\":\"mysql\",\"name\":\"mysql_binlog_source\",\"ts_ms\":1663924082000,\"snapshot\":\"false\",\"db\":\"test\",\"sequence\":null,\"table\":\"t1\",\"server_id\":1,\"gtid\":null,\"file\":\"binlog.000006\",\"pos\":12154,\"row\":0,\"thread\":null,\"query\":null},\"op\":\"u\",\"ts_ms\":1663924082186,\"transaction\":null}")
-                .f1;
+                .getRow();
         String row = new String(serializedValue, StandardCharsets.UTF_8);
         String[] split = row.split("\n");
         Map<String, String> valueMap = objectMapper.readValue(split[1], new TypeReference<Map<String, String>>() {
@@ -135,7 +135,7 @@ public class TestJsonDebeziumSchemaSerializer {
     public void testSerializeDelete() throws IOException {
         byte[] serializedValue = serializer.serialize(
                 "{\"before\":{\"id\":1,\"name\":\"doris-update\",\"dt\":\"2022-01-01\",\"dtime\":\"2022-01-01 10:01:02\",\"ts\":\"2022-01-01 10:01:03\"},\"after\":null,\"source\":{\"version\":\"1.5.4.Final\",\"connector\":\"mysql\",\"name\":\"mysql_binlog_source\",\"ts_ms\":1663924328000,\"snapshot\":\"false\",\"db\":\"test\",\"sequence\":null,\"table\":\"t1\",\"server_id\":1,\"gtid\":null,\"file\":\"binlog.000006\",\"pos\":12500,\"row\":0,\"thread\":null,\"query\":null},\"op\":\"d\",\"ts_ms\":1663924328869,\"transaction\":null}")
-                .f1;
+                .getRow();
         Map<String, String> valueMap = objectMapper.readValue(new String(serializedValue, StandardCharsets.UTF_8),
                 new TypeReference<Map<String, String>>() {
                 });
@@ -168,21 +168,23 @@ public class TestJsonDebeziumSchemaSerializer {
 
     @Test
     public void testExtractDDLListMultipleColumns() throws IOException {
-        String sql0 = "ALTER TABLE test.t1 ADD COLUMN c2 INT";
-        String sql1 = "ALTER TABLE test.t1 ADD COLUMN c555 VARCHAR(400)";
-        String sql2 = "ALTER TABLE test.t1 ADD COLUMN c666 INT DEFAULT '100'";
-        String sql3 = "ALTER TABLE test.t1 ADD COLUMN c4 BIGINT DEFAULT '555'";
-        String sql4 = "ALTER TABLE test.t1 ADD COLUMN c199 INT";
-        String sql5 = "ALTER TABLE test.t1 ADD COLUMN c12 INT DEFAULT '100'";
-        String sql6 = "ALTER TABLE test.t1 DROP COLUMN name";
-        String sql7 = "ALTER TABLE test.t1 DROP COLUMN test_time";
-        String sql8 = "ALTER TABLE test.t1 DROP COLUMN c1";
-        String sql9 = "ALTER TABLE test.t1 DROP COLUMN cc";
-        List<String> srcSqlList = Arrays.asList(sql0, sql1, sql2, sql3, sql4, sql5, sql6, sql7, sql8, sql9);
+        String sql0 = "ALTER TABLE test.t1 ADD COLUMN id INT DEFAULT '10000'";
+        String sql1 = "ALTER TABLE test.t1 ADD COLUMN c199 INT";
+        String sql2 = "ALTER TABLE test.t1 ADD COLUMN c12 INT DEFAULT '100'";
+        String sql3 = "ALTER TABLE test.t1 DROP COLUMN c13";
+        List<String> srcSqlList = Arrays.asList(sql0, sql1, sql2, sql3);
+
+        Map<String, FieldSchema> originFiledSchemaMap = new LinkedHashMap<>();
+        originFiledSchemaMap.put("c2", new FieldSchema());
+        originFiledSchemaMap.put("c555", new FieldSchema());
+        originFiledSchemaMap.put("c666", new FieldSchema());
+        originFiledSchemaMap.put("c4", new FieldSchema());
+        originFiledSchemaMap.put("c13", new FieldSchema());
 
         String record
                 = "{\"source\":{\"version\":\"1.9.7.Final\",\"connector\":\"mysql\",\"name\":\"mysql_binlog_source\",\"ts_ms\":1691033764674,\"snapshot\":\"false\",\"db\":\"test\",\"sequence\":null,\"table\":\"t1\",\"server_id\":1,\"gtid\":null,\"file\":\"binlog.000029\",\"pos\":23305,\"row\":0,\"thread\":null,\"query\":null},\"historyRecord\":\"{\\\"source\\\":{\\\"file\\\":\\\"binlog.000029\\\",\\\"pos\\\":23305,\\\"server_id\\\":1},\\\"position\\\":{\\\"transaction_id\\\":null,\\\"ts_sec\\\":1691033764,\\\"file\\\":\\\"binlog.000029\\\",\\\"pos\\\":23464,\\\"server_id\\\":1},\\\"databaseName\\\":\\\"test\\\",\\\"ddl\\\":\\\"alter table t1 drop c11, drop column c3, add c12 int default 100\\\",\\\"tableChanges\\\":[{\\\"type\\\":\\\"ALTER\\\",\\\"id\\\":\\\"\\\\\\\"test\\\\\\\".\\\\\\\"t1\\\\\\\"\\\",\\\"table\\\":{\\\"defaultCharsetName\\\":\\\"utf8mb4\\\",\\\"primaryKeyColumnNames\\\":[\\\"id\\\"],\\\"columns\\\":[{\\\"name\\\":\\\"id\\\",\\\"jdbcType\\\":4,\\\"typeName\\\":\\\"INT\\\",\\\"typeExpression\\\":\\\"INT\\\",\\\"charsetName\\\":null,\\\"position\\\":1,\\\"optional\\\":false,\\\"autoIncremented\\\":false,\\\"generated\\\":false,\\\"comment\\\":null,\\\"hasDefaultValue\\\":true,\\\"defaultValueExpression\\\":\\\"10000\\\",\\\"enumValues\\\":[]},{\\\"name\\\":\\\"c2\\\",\\\"jdbcType\\\":4,\\\"typeName\\\":\\\"INT\\\",\\\"typeExpression\\\":\\\"INT\\\",\\\"charsetName\\\":null,\\\"position\\\":2,\\\"optional\\\":true,\\\"autoIncremented\\\":false,\\\"generated\\\":false,\\\"comment\\\":null,\\\"hasDefaultValue\\\":true,\\\"enumValues\\\":[]},{\\\"name\\\":\\\"c555\\\",\\\"jdbcType\\\":12,\\\"typeName\\\":\\\"VARCHAR\\\",\\\"typeExpression\\\":\\\"VARCHAR\\\",\\\"charsetName\\\":\\\"utf8mb4\\\",\\\"length\\\":100,\\\"position\\\":3,\\\"optional\\\":true,\\\"autoIncremented\\\":false,\\\"generated\\\":false,\\\"comment\\\":null,\\\"hasDefaultValue\\\":true,\\\"enumValues\\\":[]},{\\\"name\\\":\\\"c666\\\",\\\"jdbcType\\\":4,\\\"typeName\\\":\\\"INT\\\",\\\"typeExpression\\\":\\\"INT\\\",\\\"charsetName\\\":null,\\\"position\\\":4,\\\"optional\\\":true,\\\"autoIncremented\\\":false,\\\"generated\\\":false,\\\"comment\\\":null,\\\"hasDefaultValue\\\":true,\\\"defaultValueExpression\\\":\\\"100\\\",\\\"enumValues\\\":[]},{\\\"name\\\":\\\"c4\\\",\\\"jdbcType\\\":-5,\\\"typeName\\\":\\\"BIGINT\\\",\\\"typeExpression\\\":\\\"BIGINT\\\",\\\"charsetName\\\":null,\\\"position\\\":5,\\\"optional\\\":true,\\\"autoIncremented\\\":false,\\\"generated\\\":false,\\\"comment\\\":null,\\\"hasDefaultValue\\\":true,\\\"defaultValueExpression\\\":\\\"555\\\",\\\"enumValues\\\":[]},{\\\"name\\\":\\\"c199\\\",\\\"jdbcType\\\":4,\\\"typeName\\\":\\\"INT\\\",\\\"typeExpression\\\":\\\"INT\\\",\\\"charsetName\\\":null,\\\"position\\\":6,\\\"optional\\\":true,\\\"autoIncremented\\\":false,\\\"generated\\\":false,\\\"comment\\\":null,\\\"hasDefaultValue\\\":true,\\\"enumValues\\\":[]},{\\\"name\\\":\\\"c12\\\",\\\"jdbcType\\\":4,\\\"typeName\\\":\\\"INT\\\",\\\"typeExpression\\\":\\\"INT\\\",\\\"charsetName\\\":null,\\\"position\\\":7,\\\"optional\\\":true,\\\"autoIncremented\\\":false,\\\"generated\\\":false,\\\"comment\\\":null,\\\"hasDefaultValue\\\":true,\\\"defaultValueExpression\\\":\\\"100\\\",\\\"enumValues\\\":[]}]},\\\"comment\\\":null}]}\"}";
         JsonNode recordRoot = objectMapper.readTree(record);
+        serializer.setOriginFieldSchemaMap(originFiledSchemaMap);
         List<String> ddlSQLList = serializer.extractDDLList(recordRoot);
         for (int i = 0; i < ddlSQLList.size(); i++) {
             String srcSQL = srcSqlList.get(i);

@@ -17,8 +17,6 @@
 
 package org.apache.doris.flink.sink.writer.serializer;
 
-import org.apache.flink.api.java.tuple.Tuple2;
-
 import java.io.IOException;
 import java.io.Serializable;
 
@@ -34,6 +32,6 @@ public interface DorisRecordSerializer<T> extends Serializable {
      * @return [tableIdentifer,byte array]
      * @throws IOException
      */
-    Tuple2<String, byte[]> serialize(T record) throws IOException;
+    DorisRecord serialize(T record) throws IOException;
 
 }

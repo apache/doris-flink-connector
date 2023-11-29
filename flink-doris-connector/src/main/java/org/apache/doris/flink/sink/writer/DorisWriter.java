@@ -27,12 +27,12 @@ import org.apache.doris.flink.rest.models.RespContent;
 import org.apache.doris.flink.sink.BackendUtil;
 import org.apache.doris.flink.sink.DorisCommittable;
 import org.apache.doris.flink.sink.HttpUtil;
+import org.apache.doris.flink.sink.writer.serializer.DorisRecord;
 import org.apache.doris.flink.sink.writer.serializer.DorisRecordSerializer;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.StatefulSink;
 import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.slf4j.Logger;
@@ -152,14 +152,14 @@ public class DorisWriter<IN> implements StatefulSink.StatefulSinkWriter<IN, Dori
         checkLoadException();
         String tableKey = dorisOptions.getTableIdentifier();
 
-        Tuple2<String, byte[]> rowTuple = serializer.serialize(in);
-        if(rowTuple == null || rowTuple.f1 == null){
+        DorisRecord record = serializer.serialize(in);
+        if(record == null || record.getRow() == null){
             //ddl or value is null
             return;
         }
         //multi table load
-        if(rowTuple.f0 != null){
-            tableKey = rowTuple.f0;
+        if(record.getTableIdentifier() != null){
+            tableKey = record.getTableIdentifier();
         }
 
         DorisStreamLoad streamLoader = getStreamLoader(tableKey);
@@ -171,7 +171,7 @@ public class DorisWriter<IN> implements StatefulSink.StatefulSinkWriter<IN, Dori
             loadingMap.put(tableKey, true);
             globalLoading = true;
         }
-        streamLoader.writeRecord(rowTuple.f1);
+        streamLoader.writeRecord(record.getRow());
     }
 
     @Override
