@@ -20,7 +20,6 @@ package org.apache.doris.flink.sink.writer.serializer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.doris.flink.deserialization.converter.DorisRowConverter;
 import org.apache.doris.flink.sink.EscapeHandler;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.RowKind;
@@ -60,7 +59,7 @@ public class RowDataSerializer implements DorisRecordSerializer<RowData> {
     }
 
     @Override
-    public Tuple2<String, byte[]> serialize(RowData record) throws IOException{
+    public DorisRecord serialize(RowData record) throws IOException{
         int maxIndex = Math.min(record.getArity(), fieldNames.length);
         String valString;
         if (JSON.equals(type)) {
@@ -70,7 +69,7 @@ public class RowDataSerializer implements DorisRecordSerializer<RowData> {
         } else {
             throw new IllegalArgumentException("The type " + type + " is not supported!");
         }
-        return Tuple2.of(null, valString.getBytes(StandardCharsets.UTF_8));
+        return DorisRecord.of(valString.getBytes(StandardCharsets.UTF_8));
     }
 
     public String buildJsonString(RowData record, int maxIndex) throws IOException {

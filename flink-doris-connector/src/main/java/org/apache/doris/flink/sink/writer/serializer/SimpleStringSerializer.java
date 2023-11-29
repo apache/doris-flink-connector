@@ -28,7 +28,7 @@ import java.nio.charset.StandardCharsets;
 public class SimpleStringSerializer implements DorisRecordSerializer<String> {
 
     @Override
-    public Tuple2<String, byte[]> serialize(String record) throws IOException {
-        return Tuple2.of(null, record.getBytes(StandardCharsets.UTF_8));
+    public DorisRecord serialize(String record) throws IOException {
+        return DorisRecord.of(record.getBytes(StandardCharsets.UTF_8));
     }
 }
