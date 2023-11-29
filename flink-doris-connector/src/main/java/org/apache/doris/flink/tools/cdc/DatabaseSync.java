@@ -45,6 +45,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 public abstract class DatabaseSync {
     private static final Logger LOG = LoggerFactory.getLogger(DatabaseSync.class);
@@ -82,6 +83,11 @@ public abstract class DatabaseSync {
     public abstract List<SourceSchema> getSchemaList() throws Exception;
 
     public abstract DataStreamSource<String> buildCdcSource(StreamExecutionEnvironment env);
+
+    /**
+     * Get the prefix of a specific tableList, for example, mysql is database, oracle is schema
+     */
+    public abstract String getTableListPrefix();
 
     public DatabaseSync() throws SQLException {
         registerDriver();
@@ -132,8 +138,7 @@ public abstract class DatabaseSync {
             System.out.println("Create table finished.");
             System.exit(0);
         }
-
-        config.setString(TABLE_NAME_OPTIONS, "(" + String.join("|", syncTables) + ")");
+        config.setString(TABLE_NAME_OPTIONS, getSyncTableList(syncTables));
         DataStreamSource<String> streamSource = buildCdcSource(env);
         if(singleSink){
             streamSource.sinkTo(buildDorisSink());
@@ -259,6 +264,24 @@ public abstract class DatabaseSync {
         LOG.debug("table {} is synchronized? {}", tableName, sync);
         return sync;
     }
+
+    protected String getSyncTableList(List<String> syncTables){
+        if(!singleSink){
+            return syncTables.stream()
+                    .map(v-> getTableListPrefix() + "\\." + v)
+                    .collect(Collectors.joining("|"));
+        }else{
+            // includingTablePattern and ^excludingPattern
+            String includingPattern = String.format("(%s)\\.(%s)", getTableListPrefix(), includingTables);
+            if (excludingTables.isEmpty()) {
+                return includingPattern;
+            }else{
+                String excludingPattern = String.format("?!(^%s$)", getTableListPrefix() + "\\." + excludingTables);
+                return String.format("(%s)(%s)", includingPattern, excludingPattern);
+            }
+        }
+    }
+
     /**
      * Filter table that many tables merge to one
      */
