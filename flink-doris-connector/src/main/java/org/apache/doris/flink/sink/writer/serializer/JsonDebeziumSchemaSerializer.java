@@ -311,8 +311,9 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
         return SchemaChangeHelper.generateDDLSql(dorisTable);
     }
 
-    private TableSchema extractCreateTableSchema(JsonNode record) throws JsonProcessingException {
-        String dorisTable = getDorisTableIdentifier(record);
+    @VisibleForTesting
+    public TableSchema extractCreateTableSchema(JsonNode record) throws JsonProcessingException {
+        String dorisTable = getCreateTableIdentifier(record);
         JsonNode tableChange =  extractTableChange(record);
         JsonNode pkColumns = tableChange.get("table").get("primaryKeyColumnNames");
         JsonNode columns = tableChange.get("table").get("columns");
@@ -323,7 +324,7 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
         }
         List<String> pkList = new ArrayList<>();
         for(JsonNode column : pkColumns){
-            String fieldName = column.get("name").asText();
+            String fieldName = column.asText();
             pkList.add(fieldName);
         }
 
@@ -490,8 +491,6 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
             return EventType.ALTER;
         }else if(EventType.CREATE.toString().equalsIgnoreCase(type)){
             return EventType.CREATE;
-        }else{
-            LOG.error("Unsupported event type {}", type);
         }
         return null;
     }
