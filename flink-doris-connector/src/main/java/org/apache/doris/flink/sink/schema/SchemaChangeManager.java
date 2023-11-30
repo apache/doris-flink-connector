@@ -120,6 +120,7 @@ public class SchemaChangeManager implements Serializable {
         if(StringUtils.isNullOrWhitespaceOnly(ddl)){
             return false;
         }
+        LOG.info("Execute SQL: {}", ddl);
         Map<String, String> param = new HashMap<>();
         param.put("stmt", ddl);
         String requestUrl = String.format(SCHEMA_CHANGE_API,

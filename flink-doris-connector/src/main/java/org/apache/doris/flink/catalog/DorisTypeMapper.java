@@ -124,8 +124,9 @@ public class DorisTypeMapper {
 
         @Override
         public String visit(VarCharType varCharType) {
-            int length = varCharType.getLength();
-            return length * 4 > 65533 ? STRING : String.format("%s(%s)", VARCHAR, length * 4);
+            //Flink varchar length max value is int, it may overflow after multiplying by 4
+            long length = varCharType.getLength();
+            return length * 4 >= 65533 ? STRING : String.format("%s(%s)", VARCHAR, length * 4);
         }
 
         @Override
