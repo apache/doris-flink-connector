@@ -122,9 +122,7 @@ public class MysqlDatabaseSync extends DatabaseSync {
                 .username(config.get(MySqlSourceOptions.USERNAME))
                 .password(config.get(MySqlSourceOptions.PASSWORD))
                 .databaseList(databaseName)
-                .tableList(tableName)
-                //default open add newly table
-                .scanNewlyAddedTableEnabled(true);
+                .tableList(tableName);
 
         config.getOptional(MySqlSourceOptions.SERVER_ID).ifPresent(sourceBuilder::serverId);
         config
