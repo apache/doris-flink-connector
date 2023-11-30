@@ -119,6 +119,13 @@ public class DorisExecutionOptions implements Serializable {
         return new Builder().setStreamLoadProp(properties).build();
     }
 
+    public static Properties defaultsProperties() {
+        Properties properties = new Properties();
+        properties.setProperty("format", "json");
+        properties.setProperty("read_json_by_line", "true");
+        return properties;
+    }
+
     public Integer checkInterval() {
         return checkInterval;
     }
@@ -269,8 +276,8 @@ public class DorisExecutionOptions implements Serializable {
             return this;
         }
 
-        public Builder enableBatchMode() {
-            this.enableBatchMode = true;
+        public Builder setBatchMode(Boolean enableBatchMode) {
+            this.enableBatchMode = enableBatchMode;
             return this;
         }
 
