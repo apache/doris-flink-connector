@@ -174,7 +174,7 @@ public class OracleDatabaseSync extends DatabaseSync {
                     .port(port)
                     .databaseList(databaseName)
                     .schemaList(schemaName)
-                    .tableList(schemaName + "." + tableName)
+                    .tableList(tableName)
                     .username(username)
                     .password(password)
                     .includeSchemaChanges(true)
@@ -199,12 +199,18 @@ public class OracleDatabaseSync extends DatabaseSync {
                     .password(password)
                     .database(databaseName)
                     .schemaList(schemaName)
-                    .tableList(schemaName + "." + tableName)
+                    .tableList(tableName)
                     .debeziumProperties(debeziumProperties)
                     .startupOptions(startupOptions)
                     .deserializer(schema)
                     .build();
             return env.addSource(oracleSource, "Oracle Source");
         }
+    }
+
+    @Override
+    public String getTableListPrefix() {
+        String schemaName = config.get(OracleSourceOptions.SCHEMA_NAME);
+        return schemaName;
     }
 }

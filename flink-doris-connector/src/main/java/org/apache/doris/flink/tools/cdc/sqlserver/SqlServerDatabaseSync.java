@@ -153,7 +153,7 @@ public class SqlServerDatabaseSync extends DatabaseSync {
                     .hostname(hostname)
                     .port(port)
                     .databaseList(databaseName)
-                    .tableList(schemaName + "." + tableName)
+                    .tableList(tableName)
                     .username(username)
                     .password(password)
                     .startupOptions(startupOptions)
@@ -175,7 +175,7 @@ public class SqlServerDatabaseSync extends DatabaseSync {
                     .hostname(hostname)
                     .port(port)
                     .database(databaseName)
-                    .tableList(schemaName + "." + tableName)
+                    .tableList(tableName)
                     .username(username)
                     .password(password)
                     .debeziumProperties(debeziumProperties)
@@ -184,5 +184,11 @@ public class SqlServerDatabaseSync extends DatabaseSync {
                     .build();
             return env.addSource(sqlServerSource, "SqlServer Source");
         }
+    }
+
+    @Override
+    public String getTableListPrefix() {
+        String schemaName = config.get(JdbcSourceOptions.SCHEMA_NAME);
+        return schemaName;
     }
 }
