@@ -308,7 +308,7 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
                 return false;
             }
 
-            boolean doSchemaChange = checkSchemaChange(ddl, tuple.f0, tuple.f1);
+            boolean doSchemaChange = checkSchemaChange(tuple.f0, tuple.f1, ddl);
             status = doSchemaChange && schemaChangeManager.execute(ddl, tuple.f0);
             LOG.info("schema change status:{}", status);
         } catch (Exception ex) {

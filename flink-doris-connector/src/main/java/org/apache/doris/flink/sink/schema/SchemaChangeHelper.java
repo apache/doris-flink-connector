@@ -35,6 +35,7 @@ public class SchemaChangeHelper {
     private static final String ADD_DDL = "ALTER TABLE %s ADD COLUMN %s %s";
     private static final String DROP_DDL = "ALTER TABLE %s DROP COLUMN %s";
     private static final String RENAME_DDL = "ALTER TABLE %s RENAME COLUMN %s %s";
+    private static final String CHECK_COLUMN_EXISTS = "SELECT COLUMN_NAME FROM information_schema.`COLUMNS` WHERE TABLE_SCHEMA = '%s' AND TABLE_NAME = '%s' AND COLUMN_NAME = '%s'";
 
     public static void compareSchema(Map<String, FieldSchema> updateFiledSchemaMap,
             Map<String, FieldSchema> originFieldSchemaMap) {
@@ -113,6 +114,10 @@ public class SchemaChangeHelper {
 
     public static String buildRenameColumnDDL(String tableIdentifier, String oldColumnName, String newColumnName){
         return String.format(RENAME_DDL, tableIdentifier, oldColumnName, newColumnName);
+    }
+
+    public static String buildColumnExistsQuery(String database, String table, String column){
+        return String.format(CHECK_COLUMN_EXISTS, database, table, column);
     }
 
     public static List<DDLSchema> getDdlSchemas() {
