@@ -242,6 +242,8 @@ public abstract class DatabaseSync {
                         .setNewSchemaChange(newSchemaChange)
                         .setExecutionOptions(executionOptions)
                         .setTableMapping(tableMapping)
+                        .setTableProperties(tableConfig)
+                        .setTargetDatabase(database)
                         .build())
                 .setDorisOptions(dorisBuilder.build());
         return builder.build();
