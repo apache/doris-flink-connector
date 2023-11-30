@@ -66,6 +66,8 @@ public class SchemaManagerTest {
 
     HttpEntityMock entityMock;
     SchemaChangeManager schemaChangeManager;
+    static  MockedStatic<HttpClients> httpClientMockedStatic = mockStatic(HttpClients.class);
+
 
     @Before
     public void setUp() throws IOException {
@@ -80,9 +82,6 @@ public class SchemaManagerTest {
         when(httpClient.execute(any())).thenReturn(httpResponse);
         when(httpResponse.getStatusLine()).thenReturn(normalLine);
         when(httpResponse.getEntity()).thenReturn(entityMock);
-
-        MockedStatic<HttpClients> httpClientMockedStatic = mockStatic(HttpClients.class);
-
         when(httpClient.execute(any())).thenReturn(httpResponse);
         when(httpResponse.getStatusLine()).thenReturn(normalLine);
         when(httpResponse.getEntity()).thenReturn(entityMock);
