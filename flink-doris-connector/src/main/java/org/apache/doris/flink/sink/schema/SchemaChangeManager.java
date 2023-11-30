@@ -17,12 +17,14 @@
 
 package org.apache.doris.flink.sink.schema;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.doris.flink.catalog.doris.DorisSystem;
 import org.apache.doris.flink.catalog.doris.FieldSchema;
 import org.apache.doris.flink.catalog.doris.TableSchema;
 import org.apache.doris.flink.cfg.DorisOptions;
+import org.apache.doris.flink.exception.DorisSchemaChangeException;
 import org.apache.doris.flink.exception.IllegalArgumentException;
 import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.sink.HttpGetWithEntity;
@@ -63,12 +65,20 @@ public class SchemaChangeManager implements Serializable {
     }
 
     public boolean addColumn(String database, String table, FieldSchema field) throws IOException, IllegalArgumentException {
+        if(checkColumnExists(database, table, field.getName())){
+            LOG.warn("The column {} already exists in table {}, no need to add it again", field.getName(), table);
+            return true;
+        }
         String tableIdentifier = getTableIdentifier(database, table);
         String addColumnDDL = SchemaChangeHelper.buildAddColumnDDL(tableIdentifier, field);
         return schemaChange(database, table, buildRequestParam(false, field.getName()), addColumnDDL);
     }
 
     public boolean dropColumn(String database, String table, String columnName) throws IOException, IllegalArgumentException {
+        if(!checkColumnExists(database, table, columnName)){
+            LOG.warn("The column {} not exists in table {}, no need to drop", columnName, table);
+            return true;
+        }
         String tableIdentifier = getTableIdentifier(database, table);
         String dropColumnDDL = SchemaChangeHelper.buildDropColumnDDL(tableIdentifier, columnName);
         return schemaChange(database, table, buildRequestParam(true, columnName), dropColumnDDL);
@@ -106,11 +116,7 @@ public class SchemaChangeManager implements Serializable {
         HttpGetWithEntity httpGet = new HttpGetWithEntity(requestUrl);
         httpGet.setHeader(HttpHeaders.AUTHORIZATION, authHeader());
         httpGet.setEntity(new StringEntity(objectMapper.writeValueAsString(params)));
-        boolean success = handleResponse(httpGet);
-        if (!success) {
-            LOG.warn("schema change can not do table {}.{}", database, table);
-        }
-        return success;
+        return handleResponse(httpGet);
     }
 
     /**
@@ -120,7 +126,12 @@ public class SchemaChangeManager implements Serializable {
         if(StringUtils.isNullOrWhitespaceOnly(ddl)){
             return false;
         }
-        LOG.info("Execute query: {}", ddl);
+        LOG.info("Execute SQL: {}", ddl);
+        HttpPost httpPost = buildHttpPost(ddl, database);
+        return handleResponse(httpPost);
+    }
+
+    public HttpPost buildHttpPost(String ddl, String database) throws IllegalArgumentException, IOException {
         Map<String, String> param = new HashMap<>();
         param.put("stmt", ddl);
         String requestUrl = String.format(SCHEMA_CHANGE_API,
@@ -129,14 +140,14 @@ public class SchemaChangeManager implements Serializable {
         httpPost.setHeader(HttpHeaders.AUTHORIZATION, authHeader());
         httpPost.setHeader(HttpHeaders.CONTENT_TYPE, "application/json");
         httpPost.setEntity(new StringEntity(objectMapper.writeValueAsString(param)));
-        boolean success = handleResponse(httpPost);
-        return success;
+        return httpPost;
     }
 
     private boolean handleResponse(HttpUriRequest request) {
         try (CloseableHttpClient httpclient = HttpClients.createDefault()) {
             CloseableHttpResponse response = httpclient.execute(request);
             final int statusCode = response.getStatusLine().getStatusCode();
+            final String reasonPhrase = response.getStatusLine().getReasonPhrase();
             if (statusCode == 200 && response.getEntity() != null) {
                 String loadResult = EntityUtils.toString(response.getEntity());
                 Map<String, Object> responseMap = objectMapper.readValue(loadResult, Map.class);
@@ -144,11 +155,39 @@ public class SchemaChangeManager implements Serializable {
                 if (code.equals("0")) {
                     return true;
                 } else {
-                    LOG.error("schema change response:{}", loadResult);
+                    throw new DorisSchemaChangeException("Failed to schemaChange, response: " + loadResult);
+                }
+            } else{
+                throw new DorisSchemaChangeException("Failed to schemaChange, status: " + statusCode + ", reason: " + reasonPhrase);
+            }
+        } catch (Exception e) {
+            LOG.error("SchemaChange request error,", e);
+            throw new DorisSchemaChangeException("SchemaChange request error with " + e.getMessage());
+        }
+    }
+
+    /**
+     * When processing a column, determine whether it exists and be idempotent.
+     */
+    public boolean checkColumnExists(String database, String table, String columnName) throws IllegalArgumentException, IOException {
+        String existsQuery = SchemaChangeHelper.buildColumnExistsQuery(database, table, columnName);
+        HttpPost httpPost = buildHttpPost(existsQuery, database);
+        try (CloseableHttpClient httpclient = HttpClients.createDefault()) {
+            CloseableHttpResponse response = httpclient.execute(httpPost);
+            final int statusCode = response.getStatusLine().getStatusCode();
+            if (statusCode == 200 && response.getEntity() != null) {
+                String loadResult = EntityUtils.toString(response.getEntity());
+                JsonNode responseNode = objectMapper.readTree(loadResult);
+                String code = responseNode.get("code").asText("-1");
+                if (code.equals("0")) {
+                    JsonNode data = responseNode.get("data").get("data");
+                    if(!data.isEmpty()){
+                        return true;
+                    }
                 }
             }
         } catch (Exception e) {
-            LOG.error("http request error,", e);
+            LOG.error("check column exist request error {}, default return false", e.getMessage());
         }
         return false;
     }
