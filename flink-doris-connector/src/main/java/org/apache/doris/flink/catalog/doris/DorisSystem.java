@@ -29,6 +29,7 @@ import org.apache.flink.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Serializable;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
@@ -45,7 +46,8 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * Doris System Operate
  */
 @Public
-public class DorisSystem {
+public class DorisSystem implements Serializable {
+    private static final long serialVersionUID = 1L;
     private static final Logger LOG = LoggerFactory.getLogger(DorisSystem.class);
     private final JdbcConnectionProvider jdbcConnectionProvider;
     private static final List<String> builtinDatabases = Collections.singletonList("information_schema");
@@ -79,6 +81,22 @@ public class DorisSystem {
     public boolean tableExists(String database, String table){
         return databaseExists(database)
                 && listTables(database).contains(table);
+    }
+
+    public boolean columnExists(String database, String table, String columnName){
+        if(tableExists(database, table)){
+            List<String> columns = extractColumnValuesBySQL(
+                    "SELECT COLUMN_NAME FROM information_schema.`COLUMNS` WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = ?",
+                    1,
+                    null,
+                    database,
+                    table,
+                    columnName);
+            if(columns != null && !columns.isEmpty()){
+               return true;
+            }
+        }
+        return false;
     }
 
     public List<String> listTables(String databaseName) {
