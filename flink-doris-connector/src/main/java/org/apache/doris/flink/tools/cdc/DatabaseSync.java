@@ -273,10 +273,10 @@ public abstract class DatabaseSync {
         }else{
             // includingTablePattern and ^excludingPattern
             String includingPattern = String.format("(%s)\\.(%s)", getTableListPrefix(), includingTables);
-            if (excludingTables.isEmpty()) {
+            if (StringUtils.isNullOrWhitespaceOnly(excludingTables)) {
                 return includingPattern;
             }else{
-                String excludingPattern = String.format("?!(^%s$)", getTableListPrefix() + "\\." + excludingTables);
+                String excludingPattern = String.format("?!(%s\\.(%s))$", getTableListPrefix(), excludingTables);
                 return String.format("(%s)(%s)", includingPattern, excludingPattern);
             }
         }

@@ -129,6 +129,7 @@ public class CdcTools {
                 .setTableConfig(tableMap)
                 .setCreateTableOnly(createTableOnly)
                 .setNewSchemaChange(useNewSchemaChange)
+                .setSingleSink(singleSink)
                 .create();
         databaseSync.build();
         if(StringUtils.isNullOrWhitespaceOnly(jobName)){
