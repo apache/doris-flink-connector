@@ -33,6 +33,7 @@ import org.apache.doris.flink.exception.IllegalArgumentException;
 import org.apache.doris.flink.sink.schema.SchemaChangeHelper;
 import org.apache.doris.flink.sink.schema.SchemaChangeHelper.DDLSchema;
 import org.apache.doris.flink.sink.schema.SchemaChangeManager;
+import org.apache.doris.flink.sink.writer.EventType;
 import org.apache.doris.flink.tools.cdc.SourceConnector;
 import org.apache.doris.flink.tools.cdc.SourceSchema;
 import org.apache.doris.flink.tools.cdc.mysql.MysqlType;
@@ -277,9 +278,6 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
         String ddl = extractJsonNode(historyRecord, "ddl");
         JsonNode tableChange = extractTableChange(record);
         if (Objects.isNull(tableChange) || Objects.isNull(ddl)) {
-            return null;
-        }
-        if(!EventType.ALTER.equals(extractEventType(record))){
             return null;
         }
 
@@ -714,10 +712,4 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
         return type;
 
     }
-
-    enum EventType{
-        ALTER,
-        CREATE
-    }
-
 }
