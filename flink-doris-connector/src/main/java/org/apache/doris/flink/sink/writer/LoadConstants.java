@@ -31,5 +31,8 @@ public class LoadConstants {
     public static final String CSV = "csv";
     public static final String NULL_VALUE = "\\N";
     public static final String DORIS_DELETE_SIGN = "__DORIS_DELETE_SIGN__";
-
+    /**
+     * LABEL_REGEX = "^[-_A-Za-z0-9:]{1,128}$"; The maximum length of a stream load label is 128.
+     */
+    public static final int MAX_LOAD_LABEL_LENGTH = 128;
 }
