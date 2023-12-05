@@ -72,6 +72,7 @@ public class RowDataSerializer implements DorisRecordSerializer<RowData> {
         return DorisRecord.of(valString.getBytes(StandardCharsets.UTF_8));
     }
 
+    
     public String buildJsonString(RowData record, int maxIndex) throws IOException {
         int fieldIndex = 0;
         Map<String, String> valueMap = new HashMap<>();
