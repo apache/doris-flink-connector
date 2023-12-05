@@ -73,6 +73,7 @@ public class RowDataSerializer implements DorisRecordSerializer<RowData> {
     }
 
     
+
     public String buildJsonString(RowData record, int maxIndex) throws IOException {
         int fieldIndex = 0;
         Map<String, String> valueMap = new HashMap<>();
