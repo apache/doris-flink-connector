@@ -130,6 +130,10 @@ public class DorisWriter<IN> implements StatefulSink.StatefulSinkWriter<IN, Dori
              if(!state.getLabelPrefix().equals(labelPrefix)){
                  LOG.warn("Label prefix from previous execution {} has changed to {}.", state.getLabelPrefix(), executionOptions.getLabelPrefix());
              }
+             if (state.getDatabase() == null || state.getTable() == null) {
+                 LOG.warn("Transactions cannot be aborted when restore because the last used flink-doris-connector version less than 1.5.0.");
+                 continue;
+             }
              String key = state.getDatabase() + "." + state.getTable();
              DorisStreamLoad streamLoader = getStreamLoader(key);
              streamLoader.abortPreCommit(state.getLabelPrefix(), curCheckpointId);
