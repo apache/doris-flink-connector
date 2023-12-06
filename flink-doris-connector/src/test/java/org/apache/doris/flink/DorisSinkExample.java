@@ -66,6 +66,7 @@ public class DorisSinkExample {
                 .setUsername("test")
                 .setPassword("test");
         DorisExecutionOptions.Builder  executionBuilder = DorisExecutionOptions.builder();
+        //executionBuilder.setLabelPrefix("test_sink_stream_load_label_length_test_batch_stream_load_label_test_batch_stream_load_label")
         executionBuilder.setLabelPrefix("label-doris")
                 .setStreamLoadProp(properties)
                 .setBufferSize(8*1024)

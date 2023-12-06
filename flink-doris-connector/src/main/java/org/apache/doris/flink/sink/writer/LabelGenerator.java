@@ -20,12 +20,12 @@ import org.apache.flink.util.Preconditions;
 
 import java.util.UUID;
 
+import static org.apache.doris.flink.sink.writer.LoadConstants.MAX_LOAD_LABEL_LENGTH;
+
 /**
  * Generator label for stream load.
  */
 public class LabelGenerator {
-
-    private static final int MAX_LOAD_LABEL_LENGTH = 128;
     private String labelPrefix;
     private boolean enable2PC;
     private String tableIdentifier;

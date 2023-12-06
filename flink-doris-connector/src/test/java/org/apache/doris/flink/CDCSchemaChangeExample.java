@@ -18,7 +18,6 @@
 package org.apache.doris.flink;
 
 import com.ververica.cdc.connectors.mysql.source.MySqlSource;
-import com.ververica.cdc.connectors.mysql.table.StartupOptions;
 import com.ververica.cdc.connectors.shaded.org.apache.kafka.connect.json.JsonConverterConfig;
 import com.ververica.cdc.debezium.JsonDebeziumDeserializationSchema;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
@@ -71,6 +70,7 @@ public class CDCSchemaChangeExample {
                 .setPassword("").build();
 //
         DorisExecutionOptions.Builder  executionBuilder = DorisExecutionOptions.builder();
+        //executionBuilder.setLabelPrefix("test_sink_stream_load_label_length_test_batch_stream_load_label_test_batch_stream_load_label")
         executionBuilder.setLabelPrefix("label-doris" + UUID.randomUUID())
                 .setStreamLoadProp(props).setDeletable(true);
 

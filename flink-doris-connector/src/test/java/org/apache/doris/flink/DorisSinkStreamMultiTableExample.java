@@ -55,6 +55,7 @@ public class DorisSinkStreamMultiTableExample {
                 .setPassword("");
 
         DorisExecutionOptions.Builder executionBuilder = DorisExecutionOptions.builder();
+        //executionBuilder.setLabelPrefix("test_sink_stream_load_label_length_test_batch_stream_load_label_test_batch_stream_load_label")
         executionBuilder.setLabelPrefix("xxx12")
                 .setStreamLoadProp(properties)
                 .setDeletable(false).enable2PC();

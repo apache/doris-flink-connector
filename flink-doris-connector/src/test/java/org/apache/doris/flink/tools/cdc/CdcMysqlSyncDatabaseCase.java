@@ -58,6 +58,7 @@ public class CdcMysqlSyncDatabaseCase {
         sinkConfig.put("username","root");
         sinkConfig.put("password","");
         sinkConfig.put("jdbc-url","jdbc:mysql://10.20.30.1:9030");
+        //sinkConfig.put("sink.label-prefix", "test_flink_cdc_stream_load_label_length_test_max_stream_load_label_when_batch_stream_load_label");
         sinkConfig.put("sink.label-prefix", UUID.randomUUID().toString());
         Configuration sinkConf = Configuration.fromMap(sinkConfig);
 
