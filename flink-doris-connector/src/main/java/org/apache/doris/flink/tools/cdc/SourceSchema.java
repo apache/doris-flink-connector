@@ -19,6 +19,7 @@ package org.apache.doris.flink.tools.cdc;
 import org.apache.doris.flink.catalog.doris.DataModel;
 import org.apache.doris.flink.catalog.doris.FieldSchema;
 import org.apache.doris.flink.catalog.doris.TableSchema;
+import org.apache.flink.util.StringUtils;
 
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
@@ -27,9 +28,11 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.StringJoiner;
 
 public abstract class SourceSchema {
     private final String databaseName;
+    private final String schemaName;
     private final String tableName;
     private final String tableComment;
     private final LinkedHashMap<String, FieldSchema> fields;
@@ -40,6 +43,7 @@ public abstract class SourceSchema {
             DatabaseMetaData metaData, String databaseName, String schemaName, String tableName, String tableComment)
             throws Exception {
         this.databaseName = databaseName;
+        this.schemaName = schemaName;
         this.tableName = tableName;
         this.tableComment = tableComment;
 
@@ -73,6 +77,26 @@ public abstract class SourceSchema {
     }
 
     public abstract String convertToDorisType(String fieldType, Integer precision, Integer scale);
+
+    public String getTableIdentifier(){
+        return getString(databaseName, schemaName, tableName);
+    }
+
+    public static String getString(String databaseName, String schemaName, String tableName) {
+        StringJoiner identifier = new StringJoiner(".");
+        if(!StringUtils.isNullOrWhitespaceOnly(databaseName)){
+            identifier.add(databaseName);
+        }
+        if(!StringUtils.isNullOrWhitespaceOnly(schemaName)){
+            identifier.add(schemaName);
+        }
+
+        if(!StringUtils.isNullOrWhitespaceOnly(tableName)){
+            identifier.add(tableName);
+        }
+
+        return identifier.toString();
+    }
 
     public TableSchema convertTableSchema(Map<String, String> tableProps) {
         TableSchema tableSchema = new TableSchema();

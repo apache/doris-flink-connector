@@ -89,7 +89,7 @@ public class DorisConfigOptions {
             .defaultValue(DORIS_DESERIALIZE_ARROW_ASYNC_DEFAULT)
             .withDescription("");
     public static final ConfigOption<Integer> DORIS_DESERIALIZE_QUEUE_SIZE = ConfigOptions
-            .key("doris.request.retriesdoris.deserialize.queue.size")
+            .key("doris.deserialize.queue.size")
             .intType()
             .defaultValue(DORIS_DESERIALIZE_QUEUE_SIZE_DEFAULT)
             .withDescription("");

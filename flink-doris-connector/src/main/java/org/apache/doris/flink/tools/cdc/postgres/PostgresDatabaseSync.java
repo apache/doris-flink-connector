@@ -159,7 +159,7 @@ public class PostgresDatabaseSync extends DatabaseSync {
                     .port(port)
                     .database(databaseName)
                     .schemaList(schemaName)
-                    .tableList(schemaName + "." + tableName)
+                    .tableList(tableName)
                     .username(username)
                     .password(password)
                     .deserializer(schema)
@@ -185,7 +185,7 @@ public class PostgresDatabaseSync extends DatabaseSync {
                     .port(port)
                     .database(databaseName)
                     .schemaList(schemaName)
-                    .tableList(schemaName + "." + tableName)
+                    .tableList(tableName)
                     .username(username)
                     .password(password)
                     .debeziumProperties(debeziumProperties)
@@ -195,5 +195,11 @@ public class PostgresDatabaseSync extends DatabaseSync {
                     .build();
             return env.addSource(postgresSource, "Postgres Source");
         }
+    }
+
+    @Override
+    public String getTableListPrefix() {
+        String schemaName = config.get(PostgresSourceOptions.SCHEMA_NAME);
+        return schemaName;
     }
 }

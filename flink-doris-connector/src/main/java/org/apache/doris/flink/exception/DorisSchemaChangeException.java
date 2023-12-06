@@ -15,18 +15,31 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.flink.sink.writer;
-
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
+package org.apache.doris.flink.exception;
 
 /**
- * String Serializer.
+ * Doris Schema Change run exception.
  */
-public class SimpleStringSerializer implements DorisRecordSerializer<String> {
+public class DorisSchemaChangeException extends RuntimeException {
+    public DorisSchemaChangeException() {
+        super();
+    }
 
-    @Override
-    public byte[] serialize(String record) throws IOException {
-        return record.getBytes(StandardCharsets.UTF_8);
+    public DorisSchemaChangeException(String message) {
+        super(message);
+    }
+
+    public DorisSchemaChangeException(String message, Throwable cause) {
+        super(message, cause);
+    }
+
+    public DorisSchemaChangeException(Throwable cause) {
+        super(cause);
+    }
+
+    protected DorisSchemaChangeException(String message, Throwable cause,
+                                         boolean enableSuppression,
+                                         boolean writableStackTrace) {
+        super(message, cause, enableSuppression, writableStackTrace);
     }
 }
