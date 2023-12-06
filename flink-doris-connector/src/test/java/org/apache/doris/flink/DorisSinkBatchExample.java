@@ -54,10 +54,10 @@ public class DorisSinkBatchExample {
         properties.setProperty("line_delimiter", "\n");
         properties.setProperty("format", "csv");
         DorisOptions.Builder dorisBuilder = DorisOptions.builder();
-        dorisBuilder.setFenodes("172.21.16.12:28030")
-                .setTableIdentifier("test.test_flink_batch")
+        dorisBuilder.setFenodes("127.0.0.1:8030")
+                .setTableIdentifier("test.test_flink")
                 .setUsername("root")
-                .setPassword("123456");
+                .setPassword("");
         DorisExecutionOptions.Builder executionBuilder = DorisExecutionOptions.builder();
         // The stream load label is composed of table name, UUID,task id  and label-prefix.
         // Its maximum length is 128, of which the fixed length of uuid is 36.Set prefix label length to exceed 92
