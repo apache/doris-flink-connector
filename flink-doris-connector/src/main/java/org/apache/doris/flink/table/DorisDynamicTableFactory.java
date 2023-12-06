@@ -224,10 +224,7 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
             builder.enable2PC();
         }
 
-        if(readableConfig.get(SINK_ENABLE_BATCH_MODE)) {
-            builder.enableBatchMode();
-        }
-
+        builder.setBatchMode(readableConfig.get(SINK_ENABLE_BATCH_MODE));
         builder.setFlushQueueSize(readableConfig.get(SINK_FLUSH_QUEUE_SIZE));
         builder.setBufferFlushMaxRows(readableConfig.get(SINK_BUFFER_FLUSH_MAX_ROWS));
         builder.setBufferFlushMaxBytes(readableConfig.get(SINK_BUFFER_FLUSH_MAX_BYTES));

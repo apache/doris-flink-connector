@@ -17,8 +17,8 @@
 package org.apache.doris.flink.deserialization.convert;
 
 import org.apache.doris.flink.deserialization.converter.DorisRowConverter;
-import org.apache.doris.flink.sink.writer.RowDataSerializer;
-import org.apache.doris.flink.sink.writer.RowDataSerializer.Builder;
+import org.apache.doris.flink.sink.writer.serializer.RowDataSerializer;
+import org.apache.doris.flink.sink.writer.serializer.RowDataSerializer.Builder;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
@@ -77,7 +77,7 @@ public class DorisRowConverterTest implements Serializable {
                 .setFieldDelimiter("|")
                 .setFieldNames(new String[]{"f1","f2","f3","f4","f5","f6","f7","f8","f9","f10","f11","f12","f13","f14","f15","f16"})
                 .build();
-        String s = new String(serializer.serialize(rowData));
+        String s = new String(serializer.serialize(rowData).getRow());
         Assert.assertEquals("\\N|true|1.2|1.2345|24|10|1|32|64|128|10.12|2021-01-01 08:00:00.0|2021-01-01 08:00:00.0|2021-01-01|a|doris", s);
     }
 

@@ -78,7 +78,21 @@ public class CdcSqlServerSyncDatabaseCase {
         boolean ignoreDefaultValue = false;
         boolean useNewSchemaChange = false;
         DatabaseSync databaseSync = new SqlServerDatabaseSync();
-        databaseSync.create(env,database,config,tablePrefix,tableSuffix,includingTables,excludingTables,multiToOneOrigin,multiToOneTarget,ignoreDefaultValue,sinkConf,tableConfig, false, useNewSchemaChange);
+        databaseSync.setEnv(env)
+                .setDatabase(database)
+                .setConfig(config)
+                .setTablePrefix(tablePrefix)
+                .setTableSuffix(tableSuffix)
+                .setIncludingTables(includingTables)
+                .setExcludingTables(excludingTables)
+                .setMultiToOneOrigin(multiToOneOrigin)
+                .setMultiToOneTarget(multiToOneTarget)
+                .setIgnoreDefaultValue(ignoreDefaultValue)
+                .setSinkConfig(sinkConf)
+                .setTableConfig(tableConfig)
+                .setCreateTableOnly(false)
+                .setNewSchemaChange(useNewSchemaChange)
+                .create();
         databaseSync.build();
         env.execute(String.format("SqlServer-Doris Database Sync: %s", database));
 

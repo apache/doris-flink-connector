@@ -27,26 +27,24 @@ import org.apache.doris.flink.rest.models.RespContent;
 import org.apache.doris.flink.sink.BackendUtil;
 import org.apache.doris.flink.sink.DorisCommittable;
 import org.apache.doris.flink.sink.HttpUtil;
-import org.apache.doris.flink.sink.batch.RecordWithMeta;
+import org.apache.doris.flink.sink.writer.serializer.DorisRecord;
+import org.apache.doris.flink.sink.writer.serializer.DorisRecordSerializer;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.StatefulSink;
 import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -132,6 +130,10 @@ public class DorisWriter<IN> implements StatefulSink.StatefulSinkWriter<IN, Dori
              if(!state.getLabelPrefix().equals(labelPrefix)){
                  LOG.warn("Label prefix from previous execution {} has changed to {}.", state.getLabelPrefix(), executionOptions.getLabelPrefix());
              }
+             if (state.getDatabase() == null || state.getTable() == null) {
+                 LOG.warn("Transactions cannot be aborted when restore because the last used flink-doris-connector version less than 1.5.0.");
+                 continue;
+             }
              String key = state.getDatabase() + "." + state.getTable();
              DorisStreamLoad streamLoader = getStreamLoader(key);
              streamLoader.abortPreCommit(state.getLabelPrefix(), curCheckpointId);
@@ -152,11 +154,16 @@ public class DorisWriter<IN> implements StatefulSink.StatefulSinkWriter<IN, Dori
     @Override
     public void write(IN in, Context context) throws IOException {
         checkLoadException();
-        Tuple2<String, byte[]> rowTuple = serializeRecord(in);
-        String tableKey = rowTuple.f0;
-        byte[] serializeRow = rowTuple.f1;
-        if(serializeRow == null){
+        String tableKey = dorisOptions.getTableIdentifier();
+
+        DorisRecord record = serializer.serialize(in);
+        if(record == null || record.getRow() == null){
+            //ddl or value is null
             return;
+        }
+        //multi table load
+        if(record.getTableIdentifier() != null){
+            tableKey = record.getTableIdentifier();
         }
 
         DorisStreamLoad streamLoader = getStreamLoader(tableKey);
@@ -168,32 +175,7 @@ public class DorisWriter<IN> implements StatefulSink.StatefulSinkWriter<IN, Dori
             loadingMap.put(tableKey, true);
             globalLoading = true;
         }
-        streamLoader.writeRecord(serializeRow);
-    }
-
-    private Tuple2<String, byte[]> serializeRecord(IN in) throws IOException {
-        String tableKey = dorisOptions.getTableIdentifier();
-        byte[] serializeRow = null;
-        if(serializer != null) {
-            serializeRow = serializer.serialize(in);
-            if(Objects.isNull(serializeRow)){
-                //ddl record by JsonDebeziumSchemaSerializer
-                return Tuple2.of(tableKey, null);
-            }
-        }
-        //multi table load
-        if(in instanceof RecordWithMeta){
-            RecordWithMeta row = (RecordWithMeta) in;
-            if(StringUtils.isBlank(row.getTable())
-                    || StringUtils.isBlank(row.getDatabase())
-                    || row.getRecord() == null){
-                LOG.warn("Record or meta format is incorrect, ignore record db:{}, table:{}, row:{}", row.getDatabase(), row.getTable(), row.getRecord());
-                return Tuple2.of(tableKey, null);
-            }
-            tableKey = row.getDatabase() + "." + row.getTable();
-            serializeRow = row.getRecord().getBytes(StandardCharsets.UTF_8);
-        }
-        return Tuple2.of(tableKey, serializeRow);
+        streamLoader.writeRecord(record.getRow());
     }
 
     @Override
@@ -209,13 +191,15 @@ public class DorisWriter<IN> implements StatefulSink.StatefulSinkWriter<IN, Dori
         }
         // disable exception checker before stop load.
         globalLoading = false;
-        // clean loadingMap
-        loadingMap.clear();
 
         // submit stream load http request
         List<DorisCommittable> committableList = new ArrayList<>();
         for(Map.Entry<String, DorisStreamLoad> streamLoader : dorisStreamLoadMap.entrySet()){
             String tableIdentifier = streamLoader.getKey();
+            if(!loadingMap.getOrDefault(tableIdentifier, false)){
+                LOG.debug("skip table {}, no data need to load.", tableIdentifier);
+                continue;
+            }
             DorisStreamLoad dorisStreamLoad = streamLoader.getValue();
             LabelGenerator labelGenerator = getLabelGenerator(tableIdentifier);
             String currentLabel = labelGenerator.generateTableLabel(curCheckpointId);
@@ -229,6 +213,8 @@ public class DorisWriter<IN> implements StatefulSink.StatefulSinkWriter<IN, Dori
                 committableList.add(new DorisCommittable(dorisStreamLoad.getHostPort(), dorisStreamLoad.getDb(), txnId));
             }
         }
+        // clean loadingMap
+        loadingMap.clear();
         return committableList;
     }
 
