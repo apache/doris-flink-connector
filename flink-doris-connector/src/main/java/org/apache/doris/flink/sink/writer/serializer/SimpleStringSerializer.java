@@ -15,22 +15,20 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.flink.sink.writer;
+package org.apache.doris.flink.sink.writer.serializer;
+
+import org.apache.flink.api.java.tuple.Tuple2;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
 /**
- * Constants for load.
+ * String Serializer.
  */
-public class LoadConstants {
-    public static final String COLUMNS_KEY = "columns";
-    public static final String FIELD_DELIMITER_KEY = "column_separator";
-    public static final String FIELD_DELIMITER_DEFAULT = "\t";
-    public static final String LINE_DELIMITER_KEY = "line_delimiter";
-    public static final String LINE_DELIMITER_DEFAULT = "\n";
-    public static final String FORMAT_KEY = "format";
-    public static final String JSON = "json";
-    public static final String CSV = "csv";
-    public static final String NULL_VALUE = "\\N";
-    public static final String DORIS_DELETE_SIGN = "__DORIS_DELETE_SIGN__";
-    public static final String READ_JSON_BY_LINE = "read_json_by_line";
+public class SimpleStringSerializer implements DorisRecordSerializer<String> {
 
+    @Override
+    public DorisRecord serialize(String record) throws IOException {
+        return DorisRecord.of(record.getBytes(StandardCharsets.UTF_8));
+    }
 }

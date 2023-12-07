@@ -122,7 +122,7 @@ public class MysqlDatabaseSync extends DatabaseSync {
                 .username(config.get(MySqlSourceOptions.USERNAME))
                 .password(config.get(MySqlSourceOptions.PASSWORD))
                 .databaseList(databaseName)
-                .tableList(databaseName + "." + tableName);
+                .tableList(tableName);
 
         config.getOptional(MySqlSourceOptions.SERVER_ID).ifPresent(sourceBuilder::serverId);
         config
@@ -213,6 +213,12 @@ public class MysqlDatabaseSync extends DatabaseSync {
 
         return env.fromSource(
                 mySqlSource, WatermarkStrategy.noWatermarks(), "MySQL Source");
+    }
+
+    @Override
+    public String getTableListPrefix() {
+        String databaseName = config.get(MySqlSourceOptions.DATABASE_NAME);
+        return databaseName;
     }
 
     /**

@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.flink.sink.writer;
+package org.apache.doris.flink.sink.writer.serializer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.doris.flink.deserialization.converter.DorisRowConverter;
@@ -59,7 +59,7 @@ public class RowDataSerializer implements DorisRecordSerializer<RowData> {
     }
 
     @Override
-    public byte[] serialize(RowData record) throws IOException{
+    public DorisRecord serialize(RowData record) throws IOException{
         int maxIndex = Math.min(record.getArity(), fieldNames.length);
         String valString;
         if (JSON.equals(type)) {
@@ -69,7 +69,7 @@ public class RowDataSerializer implements DorisRecordSerializer<RowData> {
         } else {
             throw new IllegalArgumentException("The type " + type + " is not supported!");
         }
-        return valString.getBytes(StandardCharsets.UTF_8);
+        return DorisRecord.of(valString.getBytes(StandardCharsets.UTF_8));
     }
 
     public String buildJsonString(RowData record, int maxIndex) throws IOException {

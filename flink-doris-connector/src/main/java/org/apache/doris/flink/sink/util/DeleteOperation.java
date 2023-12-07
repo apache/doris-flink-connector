@@ -15,22 +15,18 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.flink.sink.writer;
+package org.apache.doris.flink.sink.util;
 
-import java.io.IOException;
-import java.io.Serializable;
+import java.util.Map;
 
-/**
- * How to serialize the record to bytes.
- * @param <T>
- */
-public interface DorisRecordSerializer<T> extends Serializable {
+import static org.apache.doris.flink.sink.writer.LoadConstants.DORIS_DELETE_SIGN;
 
-    /**
-     * define how to convert record into byte array.
-     * @param record
-     * @return byte array
-     * @throws IOException
-     */
-    byte[] serialize(T record) throws IOException;
+public class DeleteOperation {
+    public static void addDeleteSign(Map<String, Object> valueMap, boolean delete) {
+        if (delete) {
+            valueMap.put(DORIS_DELETE_SIGN, "1");
+        } else {
+            valueMap.put(DORIS_DELETE_SIGN, "0");
+        }
+    }
 }

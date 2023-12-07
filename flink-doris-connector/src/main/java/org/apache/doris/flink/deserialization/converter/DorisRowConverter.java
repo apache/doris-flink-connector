@@ -123,11 +123,11 @@ public class DorisRowConverter implements Serializable {
      * Create a nullable runtime {@link DeserializationConverter} from given {@link
      * LogicalType}.
      */
-    protected DeserializationConverter createNullableInternalConverter(LogicalType type) {
+    public DeserializationConverter createNullableInternalConverter(LogicalType type) {
         return wrapIntoNullableInternalConverter(createInternalConverter(type));
     }
 
-    protected DeserializationConverter wrapIntoNullableInternalConverter(
+    public DeserializationConverter wrapIntoNullableInternalConverter(
             DeserializationConverter deserializationConverter) {
         return val -> {
             if (val == null) {
@@ -138,11 +138,11 @@ public class DorisRowConverter implements Serializable {
         };
     }
 
-    protected SerializationConverter createNullableExternalConverter(LogicalType type) {
+    public static SerializationConverter createNullableExternalConverter(LogicalType type) {
         return wrapIntoNullableExternalConverter(createExternalConverter(type));
     }
 
-    protected SerializationConverter wrapIntoNullableExternalConverter(SerializationConverter serializationConverter) {
+    public static SerializationConverter wrapIntoNullableExternalConverter(SerializationConverter serializationConverter) {
         return (index, val) -> {
             if (val == null || val.isNullAt(index)) {
                 return null;
@@ -154,7 +154,7 @@ public class DorisRowConverter implements Serializable {
 
     /** Runtime converter to convert doris field to {@link RowData} type object. */
     @FunctionalInterface
-    interface DeserializationConverter extends Serializable {
+    public interface DeserializationConverter extends Serializable {
         /**
          * Convert a doris field object of {@link RowBatch } to the  data structure object.
          *
@@ -167,11 +167,11 @@ public class DorisRowConverter implements Serializable {
      * Runtime converter to convert {@link RowData} type object to doris field.
      */
     @FunctionalInterface
-    interface SerializationConverter extends Serializable {
+    public interface SerializationConverter extends Serializable {
         Object serialize(int index, RowData field);
     }
 
-    protected DeserializationConverter createInternalConverter(LogicalType type) {
+    public DeserializationConverter createInternalConverter(LogicalType type) {
         switch (type.getTypeRoot()) {
             case NULL:
                 return val -> null;
@@ -230,7 +230,7 @@ public class DorisRowConverter implements Serializable {
         }
     }
 
-    protected SerializationConverter createExternalConverter(LogicalType type) {
+    public static SerializationConverter createExternalConverter(LogicalType type) {
         switch (type.getTypeRoot()) {
             case NULL:
                 return ((index, val) -> null);
@@ -327,7 +327,7 @@ public class DorisRowConverter implements Serializable {
         return rowData;
     }
 
-    private List<Object> convertArrayData(ArrayData array, LogicalType type){
+    private static List<Object> convertArrayData(ArrayData array, LogicalType type){
         if(array instanceof GenericArrayData){
             return Arrays.asList(((GenericArrayData)array).toObjectArray());
         }
@@ -345,7 +345,7 @@ public class DorisRowConverter implements Serializable {
         throw new UnsupportedOperationException("Unsupported array data: " + array.getClass());
     }
 
-    private Object convertMapData(MapData map, LogicalType type) {
+    private static Object convertMapData(MapData map, LogicalType type) {
         Map<Object, Object> result = new HashMap<>();
         if (map instanceof GenericMapData) {
             GenericMapData gMap = (GenericMapData)map;
@@ -377,7 +377,7 @@ public class DorisRowConverter implements Serializable {
         throw new UnsupportedOperationException("Unsupported map data: " + map.getClass());
     }
 
-    private Object convertRowData(RowData val, int index, LogicalType type) {
+    private static Object convertRowData(RowData val, int index, LogicalType type) {
         RowType rowType = (RowType)type;
         Map<String, Object> value = new HashMap<>();
         RowData row = val.getRow(index, rowType.getFieldCount());
@@ -392,7 +392,7 @@ public class DorisRowConverter implements Serializable {
         return value;
     }
 
-    private String writeValueAsString(Object object){
+    private static String writeValueAsString(Object object){
         try {
             return objectMapper.writeValueAsString(object);
         } catch (JsonProcessingException e) {

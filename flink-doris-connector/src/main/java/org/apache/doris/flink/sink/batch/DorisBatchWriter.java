@@ -20,8 +20,9 @@ package org.apache.doris.flink.sink.batch;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
-import org.apache.doris.flink.sink.writer.DorisRecordSerializer;
 import org.apache.doris.flink.sink.writer.LabelGenerator;
+import org.apache.doris.flink.sink.writer.serializer.DorisRecord;
+import org.apache.doris.flink.sink.writer.serializer.DorisRecordSerializer;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.util.Preconditions;
@@ -31,8 +32,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.util.Objects;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -92,24 +91,19 @@ public class DorisBatchWriter<IN> implements SinkWriter<IN> {
     @Override
     public void write(IN in, Context context) throws IOException, InterruptedException {
         checkFlushException();
-        if(in instanceof RecordWithMeta){
-            RecordWithMeta row = (RecordWithMeta) in;
-            if(StringUtils.isNullOrWhitespaceOnly(row.getTable())
-                    ||StringUtils.isNullOrWhitespaceOnly(row.getDatabase())
-                    ||row.getRecord() == null){
-                LOG.warn("Record or meta format is incorrect, ignore record db:{}, table:{}, row:{}", row.getDatabase(), row.getTable(), row.getRecord());
-                return;
-            }
-            batchStreamLoad.writeRecord(row.getDatabase(), row.getTable(), row.getRecord().getBytes(StandardCharsets.UTF_8));
+        String db = this.database;
+        String tbl = this.table;
+        DorisRecord record = serializer.serialize(in);
+        if(record == null || record.getRow() == null){
+            //ddl or value is null
             return;
         }
-
-        byte[] serialize = serializer.serialize(in);
-        if(Objects.isNull(serialize)){
-            //ddl record
-            return;
+        //multi table load
+        if(record.getTableIdentifier() != null){
+            db = record.getDatabase();
+            tbl = record.getTable();
         }
-        batchStreamLoad.writeRecord(database, table, serialize);
+        batchStreamLoad.writeRecord(db, tbl, record.getRow());
     }
     @Override
     public void flush(boolean flush) throws IOException, InterruptedException {
