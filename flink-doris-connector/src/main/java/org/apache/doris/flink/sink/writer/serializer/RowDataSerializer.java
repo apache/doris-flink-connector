@@ -17,41 +17,52 @@
 
 package org.apache.doris.flink.sink.writer.serializer;
 
-import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.types.DataType;
-import org.apache.flink.types.RowKind;
-import org.apache.flink.util.Preconditions;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.doris.flink.deserialization.converter.DorisRowConverter;
 import org.apache.doris.flink.sink.EscapeHandler;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.arrow.serializers.ArrowSerializer;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.utils.TypeConversions;
+import org.apache.flink.types.RowKind;
+import org.apache.flink.util.Preconditions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.StringJoiner;
 
+import static org.apache.doris.flink.sink.writer.LoadConstants.ARROW;
 import static org.apache.doris.flink.sink.writer.LoadConstants.CSV;
 import static org.apache.doris.flink.sink.writer.LoadConstants.DORIS_DELETE_SIGN;
 import static org.apache.doris.flink.sink.writer.LoadConstants.JSON;
 import static org.apache.doris.flink.sink.writer.LoadConstants.NULL_VALUE;
 
-/** Serializer for RowData. */
+/**
+ * Serializer for RowData.
+ */
 public class RowDataSerializer implements DorisRecordSerializer<RowData> {
+    private static final Logger LOG = LoggerFactory.getLogger(RowDataSerializer.class);
     String[] fieldNames;
     String type;
     private ObjectMapper objectMapper;
     private final String fieldDelimiter;
     private final boolean enableDelete;
     private final DorisRowConverter rowConverter;
+    private ArrowSerializer arrowSerializer;
+    ByteArrayOutputStream outputStream;
+    private final int arrowBatchCnt = 1000;
+    private int arrowWriteCnt = 0;
+    private final DataType[] dataTypes;
 
-    private RowDataSerializer(
-            String[] fieldNames,
-            DataType[] dataTypes,
-            String type,
-            String fieldDelimiter,
-            boolean enableDelete) {
+    private RowDataSerializer(String[] fieldNames, DataType[] dataTypes, String type, String fieldDelimiter, boolean enableDelete) {
         this.fieldNames = fieldNames;
         this.type = type;
         this.fieldDelimiter = fieldDelimiter;
@@ -59,21 +70,79 @@ public class RowDataSerializer implements DorisRecordSerializer<RowData> {
         if (JSON.equals(type)) {
             objectMapper = new ObjectMapper();
         }
+        this.dataTypes = dataTypes;
         this.rowConverter = new DorisRowConverter().setExternalConverter(dataTypes);
     }
 
     @Override
-    public DorisRecord serialize(RowData record) throws IOException {
+    public void initial() {
+        if (ARROW.equals(type)) {
+            LogicalType[] logicalTypes = TypeConversions.fromDataToLogicalType(dataTypes);
+            RowType rowType = RowType.of(logicalTypes, fieldNames);
+            arrowSerializer = new ArrowSerializer(rowType, rowType);
+            outputStream = new ByteArrayOutputStream();
+            try {
+                arrowSerializer.open(new ByteArrayInputStream(new byte[0]), outputStream);
+            } catch (Exception e) {
+                throw new RuntimeException("failed to open arrow serializer:", e);
+            }
+        }
+    }
+
+    @Override
+    public DorisRecord serialize(RowData record) throws IOException{
         int maxIndex = Math.min(record.getArity(), fieldNames.length);
         String valString;
         if (JSON.equals(type)) {
             valString = buildJsonString(record, maxIndex);
         } else if (CSV.equals(type)) {
             valString = buildCSVString(record, maxIndex);
+        } else if (ARROW.equals(type)) {
+            arrowWriteCnt += 1;
+            arrowSerializer.write(record);
+            if (arrowWriteCnt < arrowBatchCnt) {
+                return DorisRecord.EMPTY;
+            }
+            return arrowToDorisRecord();
         } else {
             throw new IllegalArgumentException("The type " + type + " is not supported!");
         }
         return DorisRecord.of(valString.getBytes(StandardCharsets.UTF_8));
+    }
+
+    @Override
+    public DorisRecord flush() {
+        if (JSON.equals(type) || CSV.equals(type)) {
+            return DorisRecord.EMPTY;
+        } else if (ARROW.equals(type)) {
+            return arrowToDorisRecord();
+        } else {
+            throw new IllegalArgumentException("The type " + type + " is not supported!");
+        }
+    }
+
+    @Override
+    public void close() throws Exception {
+        if (ARROW.equals(type)) {
+            arrowSerializer.close();
+        }
+    }
+
+    public DorisRecord arrowToDorisRecord() {
+        if (arrowWriteCnt == 0) {
+            return DorisRecord.EMPTY;
+        }
+        arrowWriteCnt = 0;
+        try {
+            arrowSerializer.finishCurrentBatch();
+            byte[] bytes = outputStream.toByteArray();
+            outputStream.reset();
+            arrowSerializer.resetWriter();
+            return DorisRecord.of(bytes);
+        } catch (Exception e) {
+            LOG.error("Failed to convert arrow batch:", e);
+        }
+        return DorisRecord.EMPTY;
     }
 
     public String buildJsonString(RowData record, int maxIndex) throws IOException {
@@ -120,7 +189,9 @@ public class RowDataSerializer implements DorisRecordSerializer<RowData> {
         return new Builder();
     }
 
-    /** Builder for RowDataSerializer. */
+    /**
+     * Builder for RowDataSerializer.
+     */
     public static class Builder {
         private String[] fieldNames;
         private DataType[] dataTypes;
@@ -154,10 +225,10 @@ public class RowDataSerializer implements DorisRecordSerializer<RowData> {
         }
 
         public RowDataSerializer build() {
-            Preconditions.checkState(
-                    CSV.equals(type) && fieldDelimiter != null || JSON.equals(type));
+            Preconditions.checkState(CSV.equals(type) && fieldDelimiter != null || JSON.equals(type) || ARROW.equals(type));
             Preconditions.checkNotNull(dataTypes);
             Preconditions.checkNotNull(fieldNames);
+            Preconditions.checkArgument(ARROW.equals(type) && !deletable);
             return new RowDataSerializer(fieldNames, dataTypes, type, fieldDelimiter, deletable);
         }
     }

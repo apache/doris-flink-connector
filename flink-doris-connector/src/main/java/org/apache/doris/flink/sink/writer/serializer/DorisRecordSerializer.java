@@ -22,17 +22,23 @@ import java.io.Serializable;
 
 /**
  * How to serialize the record to bytes.
- *
  * @param <T>
  */
 public interface DorisRecordSerializer<T> extends Serializable {
 
     /**
      * define how to convert record into byte array.
-     *
      * @param record
      * @return [tableIdentifer,byte array]
      * @throws IOException
      */
     DorisRecord serialize(T record) throws IOException;
+
+    default void initial() {}
+
+    default DorisRecord flush() {
+        return DorisRecord.EMPTY;
+    }
+
+    default void close() throws Exception {}
 }
