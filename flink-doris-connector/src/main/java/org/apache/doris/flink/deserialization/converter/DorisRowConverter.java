@@ -357,17 +357,22 @@ public class DorisRowConverter implements Serializable {
         if (map instanceof BinaryMapData) {
             BinaryMapData bMap = (BinaryMapData)map;
             LogicalType valueType = ((MapType)type).getValueType();
+            LogicalType keyType = ((MapType) type).getKeyType();
             Map<?, ?> javaMap = bMap.toJavaMap(((MapType) type).getKeyType(), valueType);
             for (Map.Entry<?,?> entry : javaMap.entrySet()) {
                 String key = entry.getKey().toString();
                 if (LogicalTypeRoot.MAP.equals(valueType.getTypeRoot())) {
                     result.put(key, convertMapData((MapData)entry.getValue(), valueType));
                 }else if (LogicalTypeRoot.DATE.equals(valueType.getTypeRoot())) {
-                    result.put(key, Date.valueOf(LocalDate.ofEpochDay((Integer)entry.getValue())).toString());
+                    if (LogicalTypeRoot.DATE.equals(keyType.getTypeRoot())){
+                        result.put(Date.valueOf(LocalDate.ofEpochDay((Integer)entry.getKey())).toString(), Date.valueOf(LocalDate.ofEpochDay((Integer)entry.getValue())).toString());
+                    }else {
+                        result.put(key, Date.valueOf(LocalDate.ofEpochDay((Integer)entry.getValue())).toString());
+                    }
                 }else if (LogicalTypeRoot.ARRAY.equals(valueType.getTypeRoot())) {
                     result.put(key, convertArrayData((ArrayData)entry.getValue(), valueType));
                 }else if(entry.getValue() instanceof TimestampData){
-                    result.put(key, ((TimestampData)entry.getValue()).toTimestamp().toString());
+                    result.put(key, ((TimestampData)entry.getValue()).toString());
                 }else{
                     result.put(key, entry.getValue().toString());
                 }
