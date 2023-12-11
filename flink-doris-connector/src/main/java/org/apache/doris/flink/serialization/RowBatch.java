@@ -115,7 +115,7 @@ public class RowBatch {
             this.root = arrowStreamReader.getVectorSchemaRoot();
             while (arrowStreamReader.loadNextBatch()) {
                 fieldVectors = root.getFieldVectors();
-                if (fieldVectors.size() != schema.size()) {
+                if (fieldVectors.size() > schema.size()) {
                     logger.error("Schema size '{}' is not equal to arrow field size '{}'.",
                             fieldVectors.size(), schema.size());
                     throw new DorisException("Load Doris data failed, schema size of fetch data is wrong.");
