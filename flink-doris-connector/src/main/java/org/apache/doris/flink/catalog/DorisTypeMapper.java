@@ -59,6 +59,12 @@ import static org.apache.doris.flink.catalog.doris.DorisType.VARCHAR;
 
 public class DorisTypeMapper {
 
+    /** Max size of char type of Doris. */
+    public static final int MAX_CHAR_SIZE = 255;
+
+    /** Max size of varchar type of Doris. */
+    public static final int MAX_VARCHAR_SIZE = 65533;
+
     public static DataType toFlinkType(String columnName, String columnType, int precision, int scale) {
         columnType = columnType.toUpperCase();
         switch (columnType) {
@@ -119,14 +125,19 @@ public class DorisTypeMapper {
 
         @Override
         public String visit(CharType charType) {
-            return String.format("%s(%s)", DorisType.CHAR, charType.getLength());
+            long length = charType.getLength() * 3L;
+            if (length <= MAX_CHAR_SIZE) {
+                return String.format("%s(%s)", DorisType.CHAR, length);
+            } else {
+                return visit(new VarCharType(charType.getLength()));
+            }
         }
 
         @Override
         public String visit(VarCharType varCharType) {
-            //Flink varchar length max value is int, it may overflow after multiplying by 4
-            long length = varCharType.getLength();
-            return length * 4 >= 65533 ? STRING : String.format("%s(%s)", VARCHAR, length * 4);
+            //Flink varchar length max value is int, it may overflow after multiplying by 3
+            long length = varCharType.getLength() * 3L;
+            return length >= MAX_VARCHAR_SIZE ? STRING : String.format("%s(%s)", VARCHAR, length);
         }
 
         @Override
