@@ -17,12 +17,19 @@
 
 package org.apache.doris.flink.rest.models;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.util.Map;
 import java.util.Objects;
 
 public class QueryPlan {
+    @JsonProperty(value = "status")
     private int status;
-    private String opaqued_query_plan;
+
+    @JsonProperty(value = "opaqued_query_plan")
+    private String opaquedQueryPlan;
+
+    @JsonProperty(value = "partitions")
     private Map<String, Tablet> partitions;
 
     public int getStatus() {
@@ -33,12 +40,12 @@ public class QueryPlan {
         this.status = status;
     }
 
-    public String getOpaqued_query_plan() {
-        return opaqued_query_plan;
+    public String getOpaquedQueryPlan() {
+        return opaquedQueryPlan;
     }
 
-    public void setOpaqued_query_plan(String opaqued_query_plan) {
-        this.opaqued_query_plan = opaqued_query_plan;
+    public void setOpaquedQueryPlan(String opaquedQueryPlan) {
+        this.opaquedQueryPlan = opaquedQueryPlan;
     }
 
     public Map<String, Tablet> getPartitions() {
@@ -59,12 +66,12 @@ public class QueryPlan {
         }
         QueryPlan queryPlan = (QueryPlan) o;
         return status == queryPlan.status
-                && Objects.equals(opaqued_query_plan, queryPlan.opaqued_query_plan)
+                && Objects.equals(opaquedQueryPlan, queryPlan.opaquedQueryPlan)
                 && Objects.equals(partitions, queryPlan.partitions);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(status, opaqued_query_plan, partitions);
+        return Objects.hash(status, opaquedQueryPlan, partitions);
     }
 }

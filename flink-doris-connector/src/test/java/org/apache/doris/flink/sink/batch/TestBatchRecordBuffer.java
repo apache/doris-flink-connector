@@ -85,7 +85,6 @@ public class TestBatchRecordBuffer {
         recordBuffer.insert("1234567".getBytes(StandardCharsets.UTF_8));
         recordBuffer.insert("123456789012345678901234567890".getBytes(StandardCharsets.UTF_8));
 
-        //
         recordBuffer = new BatchRecordBuffer("\n".getBytes(StandardCharsets.UTF_8), 10);
         recordBuffer.ensureCapacity(2 * 1024 * 1024);
         Assert.assertEquals(recordBuffer.getBuffer().capacity(), 2 * 1024 * 1024 - 10 + 1 + 10);

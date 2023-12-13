@@ -35,11 +35,11 @@ public class DorisSinkBatchExample {
     public static void main(String[] args) throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
-        //        env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+        // env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
         env.enableCheckpointing(5000);
-        //
+
         // env.getCheckpointConfig().enableExternalizedCheckpoints(CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
-        //        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(5,
+        // env.setRestartStrategy(RestartStrategies.fixedDelayRestart(5,
         // Time.milliseconds(30000)));
         DorisBatchSink.Builder<String> builder = DorisBatchSink.builder();
         final DorisReadOptions.Builder readOptionBuilder = DorisReadOptions.builder();

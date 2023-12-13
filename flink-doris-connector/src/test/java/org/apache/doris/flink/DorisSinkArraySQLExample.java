@@ -93,11 +93,11 @@ public class DorisSinkArraySQLExample {
                         + ")");
 
         // define a dynamic aggregating query
-        //        final Table result = tEnv.sqlQuery("SELECT * from source_doris  ");
-        //
-        //        // print the result to the console
-        //        tEnv.toRetractStream(result, Row.class).print();
-        //        env.execute();
+        // final Table result = tEnv.sqlQuery("SELECT * from source_doris  ");
+
+        // print the result to the console
+        // tEnv.toRetractStream(result, Row.class).print();
+        // env.execute();
 
         tEnv.executeSql(
                 "CREATE TABLE sink ("

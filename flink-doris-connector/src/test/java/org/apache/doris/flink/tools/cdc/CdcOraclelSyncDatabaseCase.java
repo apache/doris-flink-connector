@@ -35,14 +35,13 @@ public class CdcOraclelSyncDatabaseCase {
         env.disableOperatorChaining();
         env.enableCheckpointing(10000);
 
-        //        Map<String,String> flinkMap = new HashMap<>();
-        //        flinkMap.put("execution.checkpointing.interval","10s");
-        //        flinkMap.put("pipeline.operator-chaining","false");
-        //        flinkMap.put("parallelism.default","1");
-        //
-        //
-        //        Configuration configuration = Configuration.fromMap(flinkMap);
-        //        env.configure(configuration);
+        //  Map<String,String> flinkMap = new HashMap<>();
+        //  flinkMap.put("execution.checkpointing.interval","10s");
+        //  flinkMap.put("pipeline.operator-chaining","false");
+        //  flinkMap.put("parallelism.default","1");
+
+        //  Configuration configuration = Configuration.fromMap(flinkMap);
+        //  env.configure(configuration);
 
         String database = "db1";
         String tablePrefix = "";
@@ -54,7 +53,7 @@ public class CdcOraclelSyncDatabaseCase {
         sourceConfig.put("port", "1521");
         sourceConfig.put("username", "admin");
         sourceConfig.put("password", "");
-        //        sourceConfig.put("debezium.database.tablename.case.insensitive","false");
+        // sourceConfig.put("debezium.database.tablename.case.insensitive","false");
         sourceConfig.put("debezium.log.mining.strategy", "online_catalog");
         sourceConfig.put("debezium.log.mining.continuous.mine", "true");
         Configuration config = Configuration.fromMap(sourceConfig);

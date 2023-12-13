@@ -35,14 +35,13 @@ public class CdcPostgresSyncDatabaseCase {
         env.disableOperatorChaining();
         env.enableCheckpointing(10000);
 
-        //        Map<String,String> flinkMap = new HashMap<>();
-        //        flinkMap.put("execution.checkpointing.interval","10s");
-        //        flinkMap.put("pipeline.operator-chaining","false");
-        //        flinkMap.put("parallelism.default","1");
-        //
-        //
-        //        Configuration configuration = Configuration.fromMap(flinkMap);
-        //        env.configure(configuration);
+        // Map<String,String> flinkMap = new HashMap<>();
+        // flinkMap.put("execution.checkpointing.interval","10s");
+        // flinkMap.put("pipeline.operator-chaining","false");
+        // flinkMap.put("parallelism.default","1");
+
+        // Configuration configuration = Configuration.fromMap(flinkMap);
+        // env.configure(configuration);
 
         String database = "db2";
         String tablePrefix = "";
@@ -56,9 +55,9 @@ public class CdcPostgresSyncDatabaseCase {
         sourceConfig.put("port", "5432");
         sourceConfig.put("username", "postgres");
         sourceConfig.put("password", "123456");
-        //        sourceConfig.put("debezium.database.tablename.case.insensitive","false");
-        //        sourceConfig.put("scan.incremental.snapshot.enabled","true");
-        //        sourceConfig.put("debezium.include.schema.changes","false");
+        // sourceConfig.put("debezium.database.tablename.case.insensitive","false");
+        // sourceConfig.put("scan.incremental.snapshot.enabled","true");
+        // sourceConfig.put("debezium.include.schema.changes","false");
 
         Configuration config = Configuration.fromMap(sourceConfig);
 

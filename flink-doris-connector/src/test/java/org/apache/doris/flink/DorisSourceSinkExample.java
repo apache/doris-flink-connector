@@ -139,7 +139,7 @@ public class DorisSourceSinkExample {
                         + UUID.randomUUID()
                         + "'"
                         + ")");
-        //
+
         tEnv.executeSql("INSERT INTO doris_test_sink select * from source_doris");
     }
 }

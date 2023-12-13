@@ -17,14 +17,27 @@
 
 package org.apache.doris.flink.rest.models;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.util.Objects;
 
 public class Field {
+    @JsonProperty(value = "name")
     private String name;
+
+    @JsonProperty(value = "type")
     private String type;
+
+    @JsonProperty(value = "comment")
     private String comment;
+
+    @JsonProperty(value = "precision")
     private int precision;
+
+    @JsonProperty(value = "scale")
     private int scale;
+
+    @JsonProperty(value = "aggregation_type")
     private String aggregationType;
 
     public Field() {}

@@ -31,9 +31,9 @@ public class DatabaseSyncTest {
     public void multiToOneRulesParserTest() throws Exception {
         String[][] testCase = {
             {"a_.*|b_.*", "a|b"} //  Normal condition
-            //                ,{"a_.*|b_.*","a|b|c"} // Unequal length
-            //                ,{"",""} // Null value
-            //                ,{"***....","a"} // Abnormal regular expression
+            // ,{"a_.*|b_.*","a|b|c"} // Unequal length
+            // ,{"",""} // Null value
+            // ,{"***....","a"} // Abnormal regular expression
         };
         DatabaseSync databaseSync = new MysqlDatabaseSync();
         Arrays.stream(testCase)

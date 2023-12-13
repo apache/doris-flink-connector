@@ -37,7 +37,7 @@ import java.util.UUID;
 public class DorisSinkStreamMultiTableExample {
     public static void main(String[] args) throws Exception {
         Configuration config = new Configuration();
-        //        config.setString("execution.savepoint.path","/tmp/checkpoint/chk-6");
+        // config.setString("execution.savepoint.path","/tmp/checkpoint/chk-6");
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
         env.setParallelism(1);
         env.getCheckpointConfig().setCheckpointStorage("file:///tmp/checkpoint/");
@@ -71,11 +71,11 @@ public class DorisSinkStreamMultiTableExample {
                 .setDorisOptions(dorisBuilder.build())
                 .setSerializer(new RecordWithMetaSerializer());
 
-        //        RecordWithMeta record = new RecordWithMeta("test", "test_flink_tmp1", "wangwu,1");
-        //        RecordWithMeta record1 = new RecordWithMeta("test", "test_flink_tmp", "wangwu,1");
-        //        DataStreamSource<RecordWithMeta> stringDataStreamSource = env.fromCollection(
-        //                Arrays.asList(record, record1));
-        //        stringDataStreamSource.sinkTo(builder.build());
+        // RecordWithMeta record = new RecordWithMeta("test", "test_flink_tmp1", "wangwu,1");
+        // RecordWithMeta record1 = new RecordWithMeta("test", "test_flink_tmp", "wangwu,1");
+        // DataStreamSource<RecordWithMeta> stringDataStreamSource = env.fromCollection(
+        // Arrays.asList(record, record1));
+        // stringDataStreamSource.sinkTo(builder.build());
 
         env.addSource(
                         new ParallelSourceFunction<RecordWithMeta>() {

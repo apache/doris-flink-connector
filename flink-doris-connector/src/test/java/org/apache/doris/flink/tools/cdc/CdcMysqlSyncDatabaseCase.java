@@ -49,7 +49,7 @@ public class CdcMysqlSyncDatabaseCase {
         mysqlConfig.put("hostname", "127.0.0.1");
         mysqlConfig.put("port", "3306");
         mysqlConfig.put("username", "root");
-        //        mysqlConfig.put("password","");
+        // mysqlConfig.put("password","");
         mysqlConfig.put("password", "12345678");
         Configuration config = Configuration.fromMap(mysqlConfig);
 
@@ -65,7 +65,7 @@ public class CdcMysqlSyncDatabaseCase {
         Map<String, String> tableConfig = new HashMap<>();
         tableConfig.put("replication_num", "1");
 
-        //        String includingTables = "tbl1|tbl2|tbl3";
+        // String includingTables = "tbl1|tbl2|tbl3";
         String includingTables = "a_.*|b_.*|c";
         String excludingTables = "";
         String multiToOneOrigin = "a_.*|b_.*";

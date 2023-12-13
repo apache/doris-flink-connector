@@ -139,8 +139,8 @@ public class DateToStringConverter implements CustomConverter<SchemaBuilder, Rel
 
     private String convertTimestamp(Object input) {
         if (input instanceof ZonedDateTime) {
-            // mysql timestamp will be converted to UTC storage,and the zonedDatetime here is UTC
-            // time
+            // mysql timestamp will be converted to UTC storage,
+            // and the zonedDatetime here is UTC time
             ZonedDateTime zonedDateTime = (ZonedDateTime) input;
             LocalDateTime localDateTime =
                     zonedDateTime.withZoneSameInstant(timestampZoneId).toLocalDateTime();

@@ -26,7 +26,7 @@ public class LookupJoinCdcExample {
     public static void main(String[] args) throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
-        //        env.disableOperatorChaining();
+        // env.disableOperatorChaining();
         env.enableCheckpointing(30000);
         final StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 

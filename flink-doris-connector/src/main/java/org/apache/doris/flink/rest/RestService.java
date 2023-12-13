@@ -616,7 +616,7 @@ public class RestService implements Serializable {
                 options,
                 readOptions,
                 be2Tablets,
-                queryPlan.getOpaqued_query_plan(),
+                queryPlan.getOpaquedQueryPlan(),
                 tableIdentifiers[0],
                 tableIdentifiers[1],
                 logger);

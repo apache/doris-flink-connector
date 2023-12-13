@@ -58,8 +58,8 @@ public class DorisSinkExampleRowData {
         Properties properties = new Properties();
         properties.setProperty("column_separator", ",");
         properties.setProperty("line_delimiter", "\n");
-        //        properties.setProperty("read_json_by_line", "true");
-        //        properties.setProperty("format", "json");
+        // properties.setProperty("read_json_by_line", "true");
+        // properties.setProperty("format", "json");
         DorisOptions.Builder dorisBuilder = DorisOptions.builder();
         dorisBuilder
                 .setFenodes("127.0.0.1:8030")

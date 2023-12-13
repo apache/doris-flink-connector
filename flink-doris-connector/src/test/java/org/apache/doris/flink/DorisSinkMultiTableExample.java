@@ -75,11 +75,11 @@ public class DorisSinkMultiTableExample {
                 .setDorisOptions(dorisBuilder.build())
                 .setSerializer(new RecordWithMetaSerializer());
 
-        //        RecordWithMeta record = new RecordWithMeta("test", "test_flink_tmp1", "wangwu,1");
-        //        RecordWithMeta record1 = new RecordWithMeta("test", "test_flink_tmp", "wangwu,1");
-        //        DataStreamSource<RecordWithMeta> stringDataStreamSource = env.fromCollection(
-        //                Arrays.asList(record, record1));
-        //        stringDataStreamSource.sinkTo(builder.build());
+        // RecordWithMeta record = new RecordWithMeta("test", "test_flink_tmp1", "wangwu,1");
+        // RecordWithMeta record1 = new RecordWithMeta("test", "test_flink_tmp", "wangwu,1");
+        // DataStreamSource<RecordWithMeta> stringDataStreamSource = env.fromCollection(
+        // Arrays.asList(record, record1));
+        // stringDataStreamSource.sinkTo(builder.build());
 
         env.addSource(
                         new SourceFunction<RecordWithMeta>() {

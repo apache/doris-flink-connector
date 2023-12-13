@@ -61,7 +61,7 @@ public class CDCSchemaChangeExample {
         env.setParallelism(1);
         // enable checkpoint
         env.enableCheckpointing(10000);
-        //
+
         Properties props = new Properties();
         props.setProperty("format", "json");
         props.setProperty("read_json_by_line", "true");
@@ -72,7 +72,7 @@ public class CDCSchemaChangeExample {
                         .setUsername("root")
                         .setPassword("")
                         .build();
-        //
+
         DorisExecutionOptions.Builder executionBuilder = DorisExecutionOptions.builder();
         executionBuilder
                 .setLabelPrefix("label-doris" + UUID.randomUUID())
