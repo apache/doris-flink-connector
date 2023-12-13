@@ -25,7 +25,7 @@ public class Field {
     private String comment;
     private int precision;
     private int scale;
-    private String aggregation_type;
+    private String aggregationType;
 
     public Field() {}
 
@@ -35,21 +35,21 @@ public class Field {
             String comment,
             int precision,
             int scale,
-            String aggregation_type) {
+            String aggregationType) {
         this.name = name;
         this.type = type;
         this.comment = comment;
         this.precision = precision;
         this.scale = scale;
-        this.aggregation_type = aggregation_type;
+        this.aggregationType = aggregationType;
     }
 
-    public String getAggregation_type() {
-        return aggregation_type;
+    public String getAggregationType() {
+        return aggregationType;
     }
 
-    public void setAggregation_type(String aggregation_type) {
-        this.aggregation_type = aggregation_type;
+    public void setAggregationType(String aggregationType) {
+        this.aggregationType = aggregationType;
     }
 
     public String getName() {

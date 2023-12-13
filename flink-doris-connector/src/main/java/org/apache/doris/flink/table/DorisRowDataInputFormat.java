@@ -89,7 +89,7 @@ public class DorisRowDataInputFormat extends RichInputFormat<RowData, DorisTable
     /**
      * Connects to the source database and executes the query in a <b>parallel fashion</b> if this
      * {@link InputFormat} is built using a parameterized query (i.e. using a {@link
-     * PreparedStatement}) and a proper {@link }, in a <b>non-parallel fashion</b> otherwise
+     * PreparedStatement}) and a proper, in a <b>non-parallel fashion</b> otherwise
      *
      * @param inputSplit which is ignored if this InputFormat is executed as a non-parallel source,
      *     a "hook" to the query parameters otherwise (using its <i>splitNumber</i>)

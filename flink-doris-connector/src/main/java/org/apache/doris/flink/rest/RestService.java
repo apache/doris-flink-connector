@@ -343,9 +343,9 @@ public class RestService implements Serializable {
      * @param options configuration of request
      * @param logger slf4j logger
      * @return the chosen one Doris BE node
-     * @throws IllegalArgumentException BE nodes is illegal.
-     *     <p>This method is deprecated. Because it needs ADMIN_PRIV to get backends, which is not
-     *     suitable for common users. Use getBackendsV2 instead
+     * @throws IllegalArgumentException BE nodes is illegal. This method is deprecated. Because it
+     *     needs ADMIN_PRIV to get backends, which is not suitable for common users. Use
+     *     getBackendsV2 instead
      */
     @Deprecated
     @VisibleForTesting

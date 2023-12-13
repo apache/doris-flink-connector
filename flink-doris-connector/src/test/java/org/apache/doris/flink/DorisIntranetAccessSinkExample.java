@@ -45,7 +45,7 @@ import java.util.Properties;
  * node parsed by FE is the internal network IP. When flink is deployed on a non-intranet segment,
  * the BE node will be inaccessible on the network.
  *
- * <p>In this case, you can access the BE node on the intranet by directly configuring {@link
+ * <p>In this case, you can access the BE node on the intranet by directly configuring {@link new
  * DorisOptions.builder().setBenodes().build()}, after you configure this parameter, Flink Connector
  * will not parse all BE nodes through FE nodes.
  */

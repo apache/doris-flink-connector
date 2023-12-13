@@ -64,8 +64,8 @@ public class Schema {
             String comment,
             int scale,
             int precision,
-            String aggregation_type) {
-        properties.add(new Field(name, type, comment, scale, precision, aggregation_type));
+            String aggregationType) {
+        properties.add(new Field(name, type, comment, scale, precision, aggregationType));
     }
 
     public void put(Field f) {

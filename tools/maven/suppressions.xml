@@ -23,5 +23,10 @@ under the License.
 	"http://www.puppycrawl.com/dtds/suppressions_1_1.dtd">
 
 <suppressions>
+	<!-- Java doc -->
+	<suppress files="org[\\/]apache[\\/]doris[\\/]flink[/].*" checks="JavadocType" />
 
+	<!-- exclude rules for special files -->
+	<suppress files="org[\\/]apache[\\/]doris[\\/]flink[\\/]rest[\\/]models[\\/]QueryPlan\.java" checks="ParameterName" />
+	<suppress files="org[\\/]apache[\\/]doris[\\/]flink[\\/]rest[\\/]models[\\/]QueryPlan\.java" checks="MemberName" />
 </suppressions>
