@@ -14,12 +14,14 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.tools.cdc;
+
+import org.apache.flink.util.StringUtils;
 
 import org.apache.doris.flink.catalog.doris.DataModel;
 import org.apache.doris.flink.catalog.doris.FieldSchema;
 import org.apache.doris.flink.catalog.doris.TableSchema;
-import org.apache.flink.util.StringUtils;
 
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
@@ -40,7 +42,11 @@ public abstract class SourceSchema {
     public DataModel model = DataModel.UNIQUE;
 
     public SourceSchema(
-            DatabaseMetaData metaData, String databaseName, String schemaName, String tableName, String tableComment)
+            DatabaseMetaData metaData,
+            String databaseName,
+            String schemaName,
+            String tableName,
+            String tableComment)
             throws Exception {
         this.databaseName = databaseName;
         this.schemaName = schemaName;
@@ -78,20 +84,20 @@ public abstract class SourceSchema {
 
     public abstract String convertToDorisType(String fieldType, Integer precision, Integer scale);
 
-    public String getTableIdentifier(){
+    public String getTableIdentifier() {
         return getString(databaseName, schemaName, tableName);
     }
 
     public static String getString(String databaseName, String schemaName, String tableName) {
         StringJoiner identifier = new StringJoiner(".");
-        if(!StringUtils.isNullOrWhitespaceOnly(databaseName)){
+        if (!StringUtils.isNullOrWhitespaceOnly(databaseName)) {
             identifier.add(databaseName);
         }
-        if(!StringUtils.isNullOrWhitespaceOnly(schemaName)){
+        if (!StringUtils.isNullOrWhitespaceOnly(schemaName)) {
             identifier.add(schemaName);
         }
 
-        if(!StringUtils.isNullOrWhitespaceOnly(tableName)){
+        if (!StringUtils.isNullOrWhitespaceOnly(tableName)) {
             identifier.add(tableName);
         }
 
@@ -109,15 +115,15 @@ public abstract class SourceSchema {
         return tableSchema;
     }
 
-    private List<String> buildKeys(){
+    private List<String> buildKeys() {
         return buildDistributeKeys();
     }
 
-    private List<String> buildDistributeKeys(){
-        if(!this.primaryKeys.isEmpty()){
+    private List<String> buildDistributeKeys() {
+        if (!this.primaryKeys.isEmpty()) {
             return primaryKeys;
         }
-        if(!this.fields.isEmpty()){
+        if (!this.fields.isEmpty()) {
             Map.Entry<String, FieldSchema> firstField = this.fields.entrySet().iterator().next();
             return Collections.singletonList(firstField.getKey());
         }

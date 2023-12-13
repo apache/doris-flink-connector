@@ -14,15 +14,17 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.source.reader;
+
+import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
+import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
+import org.apache.flink.connector.base.source.reader.splitreader.SplitsChange;
 
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.source.split.DorisSourceSplit;
 import org.apache.doris.flink.source.split.DorisSplitRecords;
-import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
-import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
-import org.apache.flink.connector.base.source.reader.splitreader.SplitsChange;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,11 +33,8 @@ import java.util.ArrayDeque;
 import java.util.List;
 import java.util.Queue;
 
-/**
- * The {@link SplitReader} implementation for the doris source.
- **/
-public class DorisSourceSplitReader
-        implements SplitReader<List, DorisSourceSplit> {
+/** The {@link SplitReader} implementation for the doris source. */
+public class DorisSourceSplitReader implements SplitReader<List, DorisSourceSplit> {
 
     private static final Logger LOG = LoggerFactory.getLogger(DorisSourceSplitReader.class);
 
@@ -70,7 +69,8 @@ public class DorisSourceSplitReader
             throw new IOException("Cannot fetch from another split - no split remaining");
         }
         currentSplitId = nextSplit.splitId();
-        valueReader = new DorisValueReader(nextSplit.getPartitionDefinition(), options, readOptions);
+        valueReader =
+                new DorisValueReader(nextSplit.getPartitionDefinition(), options, readOptions);
     }
 
     private DorisSplitRecords finishSplit() {
@@ -86,8 +86,7 @@ public class DorisSourceSplitReader
     }
 
     @Override
-    public void wakeUp() {
-    }
+    public void wakeUp() {}
 
     @Override
     public void close() throws Exception {

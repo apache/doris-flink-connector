@@ -14,8 +14,14 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.tools.cdc.oracle;
 
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.streaming.api.datastream.DataStreamSource;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.StringUtils;
 
 import com.ververica.cdc.connectors.base.options.StartupOptions;
 import com.ververica.cdc.connectors.base.source.jdbc.JdbcIncrementalSource;
@@ -28,11 +34,6 @@ import com.ververica.cdc.debezium.table.DebeziumOptions;
 import org.apache.doris.flink.catalog.doris.DataModel;
 import org.apache.doris.flink.tools.cdc.DatabaseSync;
 import org.apache.doris.flink.tools.cdc.SourceSchema;
-import org.apache.flink.api.common.eventtime.WatermarkStrategy;
-import org.apache.flink.streaming.api.datastream.DataStreamSource;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -70,11 +71,13 @@ public class OracleDatabaseSync extends DatabaseSync {
         try {
             Class.forName("oracle.jdbc.driver.OracleDriver");
         } catch (ClassNotFoundException ex) {
-            LOG.warn("can not found class oracle.jdbc.driver.OracleDriver, use class oracle.jdbc.OracleDriver");
+            LOG.warn(
+                    "can not found class oracle.jdbc.driver.OracleDriver, use class oracle.jdbc.OracleDriver");
             try {
                 Class.forName("oracle.jdbc.OracleDriver");
             } catch (Exception e) {
-                throw new SQLException("No suitable driver found, can not found class oracle.jdbc.driver.OracleDriver and oracle.jdbc.OracleDriver");
+                throw new SQLException(
+                        "No suitable driver found, can not found class oracle.jdbc.driver.OracleDriver and oracle.jdbc.OracleDriver");
             }
         }
     }
@@ -82,10 +85,15 @@ public class OracleDatabaseSync extends DatabaseSync {
     @Override
     public Connection getConnection() throws SQLException {
         String jdbcUrl;
-        if(!StringUtils.isNullOrWhitespaceOnly(config.get(OracleSourceOptions.URL))){
+        if (!StringUtils.isNullOrWhitespaceOnly(config.get(OracleSourceOptions.URL))) {
             jdbcUrl = config.get(OracleSourceOptions.URL);
-        }else{
-            jdbcUrl = String.format(JDBC_URL, config.get(OracleSourceOptions.HOSTNAME), config.get(OracleSourceOptions.PORT),config.get(OracleSourceOptions.DATABASE_NAME));
+        } else {
+            jdbcUrl =
+                    String.format(
+                            JDBC_URL,
+                            config.get(OracleSourceOptions.HOSTNAME),
+                            config.get(OracleSourceOptions.PORT),
+                            config.get(OracleSourceOptions.DATABASE_NAME));
         }
         Properties pro = new Properties();
         pro.setProperty("user", config.get(OracleSourceOptions.USERNAME));
@@ -103,7 +111,7 @@ public class OracleDatabaseSync extends DatabaseSync {
         try (Connection conn = getConnection()) {
             DatabaseMetaData metaData = conn.getMetaData();
             try (ResultSet tables =
-                         metaData.getTables(databaseName, schemaName, "%", new String[]{"TABLE"})) {
+                    metaData.getTables(databaseName, schemaName, "%", new String[] {"TABLE"})) {
                 while (tables.next()) {
                     String tableName = tables.getString("TABLE_NAME");
                     String tableComment = tables.getString("REMARKS");
@@ -111,8 +119,12 @@ public class OracleDatabaseSync extends DatabaseSync {
                         continue;
                     }
                     SourceSchema sourceSchema =
-                            new OracleSchema(metaData, databaseName, schemaName, tableName, tableComment);
-                    sourceSchema.setModel(!sourceSchema.primaryKeys.isEmpty() ? DataModel.UNIQUE : DataModel.DUPLICATE);
+                            new OracleSchema(
+                                    metaData, databaseName, schemaName, tableName, tableComment);
+                    sourceSchema.setModel(
+                            !sourceSchema.primaryKeys.isEmpty()
+                                    ? DataModel.UNIQUE
+                                    : DataModel.DUPLICATE);
                     schemaList.add(sourceSchema);
                 }
             }
@@ -128,11 +140,13 @@ public class OracleDatabaseSync extends DatabaseSync {
         Preconditions.checkNotNull(databaseName, "database-name in oracle is required");
         Preconditions.checkNotNull(schemaName, "schema-name in oracle is required");
         String tableName = config.get(OracleSourceOptions.TABLE_NAME);
-        //When debezium incrementally reads, it will be judged based on regexp_like.
-        //When the regular length exceeds 512, an error will be reported, like ORA-12733: regular expression too long
-        if(tableName.length() > 384){
-            //max database name length 128
-            tableName = StringUtils.isNullOrWhitespaceOnly(includingTables) ? ".*" : includingTables;
+        // When debezium incrementally reads, it will be judged based on regexp_like.
+        // When the regular length exceeds 512, an error will be reported, like ORA-12733: regular
+        // expression too long
+        if (tableName.length() > 384) {
+            // max database name length 128
+            tableName =
+                    StringUtils.isNullOrWhitespaceOnly(includingTables) ? ".*" : includingTables;
         }
 
         String url = config.get(OracleSourceOptions.URL);
@@ -149,10 +163,10 @@ public class OracleDatabaseSync extends DatabaseSync {
             startupOptions = StartupOptions.latest();
         }
 
-        //debezium properties set
+        // debezium properties set
         debeziumProperties.put("decimal.handling.mode", "string");
-        //date to string
-        debeziumProperties.putAll(OracleDateConverter.DEFAULT_PROPS);
+        // date to string
+        debeziumProperties.putAll(OracleDateConverter.defaultProps);
 
         for (Map.Entry<String, String> entry : config.toMap().entrySet()) {
             String key = entry.getKey();
@@ -167,43 +181,49 @@ public class OracleDatabaseSync extends DatabaseSync {
         JsonDebeziumDeserializationSchema schema =
                 new JsonDebeziumDeserializationSchema(false, customConverterConfigs);
 
-        if(config.getBoolean(OracleSourceOptions.SCAN_INCREMENTAL_SNAPSHOT_ENABLED, false)){
-            JdbcIncrementalSource<String> incrSource = OracleSourceBuilder.OracleIncrementalSource.<String>builder()
-                    .hostname(hostname)
-                    .url(url)
-                    .port(port)
-                    .databaseList(databaseName)
-                    .schemaList(schemaName)
-                    .tableList(tableName)
-                    .username(username)
-                    .password(password)
-                    .includeSchemaChanges(true)
-                    .startupOptions(startupOptions)
-                    .deserializer(schema)
-                    .debeziumProperties(debeziumProperties)
-                    .splitSize(config.get(SCAN_INCREMENTAL_SNAPSHOT_CHUNK_SIZE))
-                    .splitMetaGroupSize(config.get(CHUNK_META_GROUP_SIZE))
-                    .fetchSize(config.get(SCAN_SNAPSHOT_FETCH_SIZE))
-                    .connectTimeout(config.get(CONNECT_TIMEOUT))
-                    .connectionPoolSize(config.get(CONNECTION_POOL_SIZE))
-                    .connectMaxRetries(config.get(CONNECT_MAX_RETRIES))
-                    .distributionFactorUpper(config.get(SPLIT_KEY_EVEN_DISTRIBUTION_FACTOR_UPPER_BOUND))
-                    .distributionFactorLower(config.get(SPLIT_KEY_EVEN_DISTRIBUTION_FACTOR_LOWER_BOUND))
-                    .build();
-            return env.fromSource(incrSource,  WatermarkStrategy.noWatermarks(), "Oracle IncrSource");
-        }else{
-            DebeziumSourceFunction<String> oracleSource = OracleSource.<String>builder().url(url)
-                    .hostname(hostname)
-                    .port(port)
-                    .username(username)
-                    .password(password)
-                    .database(databaseName)
-                    .schemaList(schemaName)
-                    .tableList(tableName)
-                    .debeziumProperties(debeziumProperties)
-                    .startupOptions(startupOptions)
-                    .deserializer(schema)
-                    .build();
+        if (config.getBoolean(OracleSourceOptions.SCAN_INCREMENTAL_SNAPSHOT_ENABLED, false)) {
+            JdbcIncrementalSource<String> incrSource =
+                    OracleSourceBuilder.OracleIncrementalSource.<String>builder()
+                            .hostname(hostname)
+                            .url(url)
+                            .port(port)
+                            .databaseList(databaseName)
+                            .schemaList(schemaName)
+                            .tableList(tableName)
+                            .username(username)
+                            .password(password)
+                            .includeSchemaChanges(true)
+                            .startupOptions(startupOptions)
+                            .deserializer(schema)
+                            .debeziumProperties(debeziumProperties)
+                            .splitSize(config.get(SCAN_INCREMENTAL_SNAPSHOT_CHUNK_SIZE))
+                            .splitMetaGroupSize(config.get(CHUNK_META_GROUP_SIZE))
+                            .fetchSize(config.get(SCAN_SNAPSHOT_FETCH_SIZE))
+                            .connectTimeout(config.get(CONNECT_TIMEOUT))
+                            .connectionPoolSize(config.get(CONNECTION_POOL_SIZE))
+                            .connectMaxRetries(config.get(CONNECT_MAX_RETRIES))
+                            .distributionFactorUpper(
+                                    config.get(SPLIT_KEY_EVEN_DISTRIBUTION_FACTOR_UPPER_BOUND))
+                            .distributionFactorLower(
+                                    config.get(SPLIT_KEY_EVEN_DISTRIBUTION_FACTOR_LOWER_BOUND))
+                            .build();
+            return env.fromSource(
+                    incrSource, WatermarkStrategy.noWatermarks(), "Oracle IncrSource");
+        } else {
+            DebeziumSourceFunction<String> oracleSource =
+                    OracleSource.<String>builder()
+                            .url(url)
+                            .hostname(hostname)
+                            .port(port)
+                            .username(username)
+                            .password(password)
+                            .database(databaseName)
+                            .schemaList(schemaName)
+                            .tableList(tableName)
+                            .debeziumProperties(debeziumProperties)
+                            .startupOptions(startupOptions)
+                            .deserializer(schema)
+                            .build();
             return env.addSource(oracleSource, "Oracle Source");
         }
     }

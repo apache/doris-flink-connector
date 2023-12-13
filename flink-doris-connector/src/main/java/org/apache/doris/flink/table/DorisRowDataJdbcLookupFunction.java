@@ -17,20 +17,22 @@
 
 package org.apache.doris.flink.table;
 
-import org.apache.doris.flink.cfg.DorisLookupOptions;
-import org.apache.doris.flink.cfg.DorisOptions;
-import org.apache.doris.flink.lookup.DorisJdbcLookupReader;
-import org.apache.doris.flink.lookup.DorisLookupReader;
-import org.apache.doris.flink.lookup.LookupSchema;
 import org.apache.flink.annotation.VisibleForTesting;
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Preconditions;
+
+import org.apache.flink.shaded.guava31.com.google.common.cache.Cache;
+import org.apache.flink.shaded.guava31.com.google.common.cache.CacheBuilder;
+
+import org.apache.doris.flink.cfg.DorisLookupOptions;
+import org.apache.doris.flink.cfg.DorisOptions;
+import org.apache.doris.flink.lookup.DorisJdbcLookupReader;
+import org.apache.doris.flink.lookup.DorisLookupReader;
+import org.apache.doris.flink.lookup.LookupSchema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,9 +41,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-/**
- * use jdbc to query
- */
+/** use jdbc to query. */
 public class DorisRowDataJdbcLookupFunction extends TableFunction<RowData> {
     private static final Logger LOG = LoggerFactory.getLogger(DorisRowDataJdbcLookupFunction.class);
     private final DorisOptions options;
@@ -52,29 +52,38 @@ public class DorisRowDataJdbcLookupFunction extends TableFunction<RowData> {
     private DorisLookupReader lookupReader;
     private LookupSchema lookupSchema;
 
-    public DorisRowDataJdbcLookupFunction(DorisOptions options,
-                                          DorisLookupOptions lookupOptions,
-                                          String[] selectFields,
-                                          DataType[] fieldTypes,
-                                          String[] conditionFields,
-                                          int[] keyIndex) {
-        Preconditions.checkNotNull(options.getJdbcUrl(), "jdbc-url is required in jdbc mode lookup");
+    public DorisRowDataJdbcLookupFunction(
+            DorisOptions options,
+            DorisLookupOptions lookupOptions,
+            String[] selectFields,
+            DataType[] fieldTypes,
+            String[] conditionFields,
+            int[] keyIndex) {
+        Preconditions.checkNotNull(
+                options.getJdbcUrl(), "jdbc-url is required in jdbc mode lookup");
         this.options = options;
         this.cacheMaxSize = lookupOptions.getCacheMaxSize();
         this.cacheExpireMs = lookupOptions.getCacheExpireMs();
         this.lookupOptions = lookupOptions;
-        this.lookupSchema = new LookupSchema(options.getTableIdentifier(), selectFields, fieldTypes, conditionFields, keyIndex);
+        this.lookupSchema =
+                new LookupSchema(
+                        options.getTableIdentifier(),
+                        selectFields,
+                        fieldTypes,
+                        conditionFields,
+                        keyIndex);
     }
 
     @Override
     public void open(FunctionContext context) throws Exception {
         super.open(context);
-        this.cache = cacheMaxSize == -1 || cacheExpireMs == -1
-                ? null
-                : CacheBuilder.newBuilder()
-                .expireAfterWrite(cacheExpireMs, TimeUnit.MILLISECONDS)
-                .maximumSize(cacheMaxSize)
-                .build();
+        this.cache =
+                cacheMaxSize == -1 || cacheExpireMs == -1
+                        ? null
+                        : CacheBuilder.newBuilder()
+                                .expireAfterWrite(cacheExpireMs, TimeUnit.MILLISECONDS)
+                                .maximumSize(cacheMaxSize)
+                                .build();
         this.lookupReader = new DorisJdbcLookupReader(options, lookupOptions, lookupSchema);
     }
 
@@ -99,10 +108,10 @@ public class DorisRowDataJdbcLookupFunction extends TableFunction<RowData> {
 
     private void queryRecord(RowData keyRow) throws IOException {
         List<RowData> rowData = lookupReader.get(keyRow);
-        if(rowData == null){
+        if (rowData == null) {
             rowData = Collections.emptyList();
         }
-        if(cache != null){
+        if (cache != null) {
             cache.put(keyRow, rowData);
         }
         rowData.forEach(this::collect);
@@ -111,7 +120,7 @@ public class DorisRowDataJdbcLookupFunction extends TableFunction<RowData> {
     @Override
     public void close() throws Exception {
         super.close();
-        if(lookupReader != null){
+        if (lookupReader != null) {
             lookupReader.close();
         }
     }

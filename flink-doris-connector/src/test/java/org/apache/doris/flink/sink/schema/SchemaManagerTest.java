@@ -40,34 +40,35 @@ import static org.mockito.Mockito.when;
 
 public class SchemaManagerTest {
 
-    static String QUERY_RESPONSE = "{\n" +
-            "    \"data\": {\n" +
-            "        \"type\": \"result_set\",\n" +
-            "        \"meta\": [{\"name\":\"COLUMN_NAME\",\"type\":\"CHAR\"}],\n" +
-            "        \"data\": [\n" +
-            "            [\"age\"]\n" +
-            "        ],\n" +
-            "        \"time\": 15\n" +
-            "    },\n" +
-            "    \"msg\": \"success\",\n" +
-            "    \"code\": 0\n" +
-            "}";
+    static String queryResponse =
+            "{\n"
+                    + "    \"data\": {\n"
+                    + "        \"type\": \"result_set\",\n"
+                    + "        \"meta\": [{\"name\":\"COLUMN_NAME\",\"type\":\"CHAR\"}],\n"
+                    + "        \"data\": [\n"
+                    + "            [\"age\"]\n"
+                    + "        ],\n"
+                    + "        \"time\": 15\n"
+                    + "    },\n"
+                    + "    \"msg\": \"success\",\n"
+                    + "    \"code\": 0\n"
+                    + "}";
 
-    static String QUERY_NO_EXISTS_RESPONSE = "{\n" +
-            "    \"data\": {\n" +
-            "        \"type\": \"result_set\",\n" +
-            "        \"meta\": [{\"name\":\"COLUMN_NAME\",\"type\":\"CHAR\"}],\n" +
-            "        \"data\": [],\n" +
-            "        \"time\": 0\n" +
-            "    },\n" +
-            "    \"msg\": \"success\",\n" +
-            "    \"code\": 0\n" +
-            "}";
+    static String queryNoExistsResponse =
+            "{\n"
+                    + "    \"data\": {\n"
+                    + "        \"type\": \"result_set\",\n"
+                    + "        \"meta\": [{\"name\":\"COLUMN_NAME\",\"type\":\"CHAR\"}],\n"
+                    + "        \"data\": [],\n"
+                    + "        \"time\": 0\n"
+                    + "    },\n"
+                    + "    \"msg\": \"success\",\n"
+                    + "    \"code\": 0\n"
+                    + "}";
 
     HttpEntityMock entityMock;
     SchemaChangeManager schemaChangeManager;
-    static  MockedStatic<HttpClients> httpClientMockedStatic = mockStatic(HttpClients.class);
-
+    static MockedStatic<HttpClients> httpClientMockedStatic = mockStatic(HttpClients.class);
 
     @Before
     public void setUp() throws IOException {
@@ -86,22 +87,20 @@ public class SchemaManagerTest {
         when(httpResponse.getStatusLine()).thenReturn(normalLine);
         when(httpResponse.getEntity()).thenReturn(entityMock);
 
-        httpClientMockedStatic.when(()-> HttpClients.createDefault())
-                .thenReturn(httpClient);
+        httpClientMockedStatic.when(() -> HttpClients.createDefault()).thenReturn(httpClient);
     }
 
     @Test
     public void testColumnExists() throws IOException, IllegalArgumentException {
-        entityMock.setValue(QUERY_RESPONSE);
+        entityMock.setValue(queryResponse);
         boolean columnExists = schemaChangeManager.checkColumnExists("test", "test_flink", "age");
         System.out.println(columnExists);
     }
 
     @Test
     public void testColumnNotExists() throws IOException, IllegalArgumentException {
-        entityMock.setValue(QUERY_NO_EXISTS_RESPONSE);
+        entityMock.setValue(queryNoExistsResponse);
         boolean columnExists = schemaChangeManager.checkColumnExists("test", "test_flink", "age1");
         System.out.println(columnExists);
     }
-
 }

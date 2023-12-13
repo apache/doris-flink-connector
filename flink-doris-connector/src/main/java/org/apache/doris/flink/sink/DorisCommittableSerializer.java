@@ -14,6 +14,7 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.sink;
 
 import org.apache.flink.core.io.SimpleVersionedSerializer;
@@ -24,9 +25,7 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 
-/**
- * define how to serialize DorisCommittable.
- */
+/** define how to serialize DorisCommittable. */
 class DorisCommittableSerializer implements SimpleVersionedSerializer<DorisCommittable> {
 
     @Override
@@ -37,7 +36,7 @@ class DorisCommittableSerializer implements SimpleVersionedSerializer<DorisCommi
     @Override
     public byte[] serialize(DorisCommittable dorisCommittable) throws IOException {
         try (final ByteArrayOutputStream baos = new ByteArrayOutputStream();
-             final DataOutputStream out = new DataOutputStream(baos)) {
+                final DataOutputStream out = new DataOutputStream(baos)) {
             out.writeUTF(dorisCommittable.getHostPort());
             out.writeUTF(dorisCommittable.getDb());
             out.writeLong(dorisCommittable.getTxnID());
@@ -50,7 +49,7 @@ class DorisCommittableSerializer implements SimpleVersionedSerializer<DorisCommi
     @Override
     public DorisCommittable deserialize(int version, byte[] serialized) throws IOException {
         try (final ByteArrayInputStream bais = new ByteArrayInputStream(serialized);
-             final DataInputStream in = new DataInputStream(bais)) {
+                final DataInputStream in = new DataInputStream(bais)) {
             final String hostPort = in.readUTF();
             final String db = in.readUTF();
             final long txnId = in.readLong();

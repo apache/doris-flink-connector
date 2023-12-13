@@ -14,10 +14,12 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.source.enumerator;
 
-import org.apache.doris.flink.source.split.DorisSourceSplit;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
+
+import org.apache.doris.flink.source.split.DorisSourceSplit;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -27,9 +29,7 @@ import java.util.Collection;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * A serializer for the {@link PendingSplitsCheckpoint}.
- */
+/** A serializer for the {@link PendingSplitsCheckpoint}. */
 public class PendingSplitsCheckpointSerializer
         implements SimpleVersionedSerializer<PendingSplitsCheckpoint> {
 
@@ -39,7 +39,8 @@ public class PendingSplitsCheckpointSerializer
 
     private final SimpleVersionedSerializer<DorisSourceSplit> splitSerializer;
 
-    public PendingSplitsCheckpointSerializer(SimpleVersionedSerializer<DorisSourceSplit> splitSerializer) {
+    public PendingSplitsCheckpointSerializer(
+            SimpleVersionedSerializer<DorisSourceSplit> splitSerializer) {
         this.splitSerializer = checkNotNull(splitSerializer);
     }
 
@@ -58,8 +59,7 @@ public class PendingSplitsCheckpointSerializer
         Collection<DorisSourceSplit> splits = checkpoint.getSplits();
         final ArrayList<byte[]> serializedSplits = new ArrayList<>(splits.size());
 
-        int totalLen =
-                12; // four ints: magic, version of split serializer, count splits
+        int totalLen = 12; // four ints: magic, version of split serializer, count splits
 
         for (DorisSourceSplit split : splits) {
             final byte[] serSplit = splitSerializer.serialize(split);
@@ -110,13 +110,15 @@ public class PendingSplitsCheckpointSerializer
         final int splitSerializerVersion = bb.getInt();
         final int numSplits = bb.getInt();
 
-        SimpleVersionedSerializer<DorisSourceSplit> splitSerializer = this.splitSerializer;// stack cache
+        SimpleVersionedSerializer<DorisSourceSplit> splitSerializer =
+                this.splitSerializer; // stack cache
         final ArrayList<DorisSourceSplit> splits = new ArrayList<>(numSplits);
 
         for (int remaining = numSplits; remaining > 0; remaining--) {
             final byte[] bytes = new byte[bb.getInt()];
             bb.get(bytes);
-            final DorisSourceSplit split = splitSerializer.deserialize(splitSerializerVersion, bytes);
+            final DorisSourceSplit split =
+                    splitSerializer.deserialize(splitSerializerVersion, bytes);
             splits.add(split);
         }
         return new PendingSplitsCheckpoint(splits);

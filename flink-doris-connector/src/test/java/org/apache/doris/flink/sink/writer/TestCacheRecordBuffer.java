@@ -22,9 +22,7 @@ import org.junit.Test;
 
 import java.nio.charset.StandardCharsets;
 
-/**
- * test for CacheRecordBuffer.
- */
+/** test for CacheRecordBuffer. */
 public class TestCacheRecordBuffer {
 
     @Test
@@ -34,12 +32,12 @@ public class TestCacheRecordBuffer {
         recordBuffer.write("This is Test for CacheRecordBuffer!".getBytes(StandardCharsets.UTF_8));
         Assert.assertEquals(2, recordBuffer.getReadQueueSize());
         Assert.assertEquals(1, recordBuffer.getWriteQueueSize());
-        Assert.assertEquals(0,recordBuffer.getBufferCacheSize());
+        Assert.assertEquals(0, recordBuffer.getBufferCacheSize());
         byte[] buffer = new byte[16];
         int nRead = recordBuffer.read(buffer);
         Assert.assertEquals(1, recordBuffer.getReadQueueSize());
         Assert.assertEquals(2, recordBuffer.getWriteQueueSize());
-        Assert.assertEquals(1,recordBuffer.getBufferCacheSize());
+        Assert.assertEquals(1, recordBuffer.getBufferCacheSize());
         Assert.assertEquals(16, nRead);
         Assert.assertArrayEquals("This is Test for".getBytes(StandardCharsets.UTF_8), buffer);
 
@@ -50,17 +48,19 @@ public class TestCacheRecordBuffer {
         Assert.assertArrayEquals(" CacheRecord".getBytes(StandardCharsets.UTF_8), buffer);
         Assert.assertEquals(2, recordBuffer.getReadQueueSize());
         Assert.assertEquals(0, recordBuffer.getWriteQueueSize());
-        Assert.assertEquals(1,recordBuffer.getBufferCacheSize());
+        Assert.assertEquals(1, recordBuffer.getBufferCacheSize());
     }
 
     @Test
     public void testRecycleCache() throws Exception {
         CacheRecordBuffer recordBuffer = new CacheRecordBuffer(16, 4);
         recordBuffer.startBufferData();
-        recordBuffer.write("This is Test for CacheRecordBuffer.recycleCache!".getBytes(StandardCharsets.UTF_8));
+        recordBuffer.write(
+                "This is Test for CacheRecordBuffer.recycleCache!"
+                        .getBytes(StandardCharsets.UTF_8));
         Assert.assertEquals(3, recordBuffer.getReadQueueSize());
         Assert.assertEquals(1, recordBuffer.getWriteQueueSize());
-        Assert.assertEquals(0,recordBuffer.getBufferCacheSize());
+        Assert.assertEquals(0, recordBuffer.getBufferCacheSize());
 
         byte[] buffer = new byte[50];
         recordBuffer.read(buffer);
@@ -68,10 +68,10 @@ public class TestCacheRecordBuffer {
         recordBuffer.read(buffer);
         Assert.assertEquals(0, recordBuffer.getReadQueueSize());
         Assert.assertEquals(4, recordBuffer.getWriteQueueSize());
-        Assert.assertEquals(3,recordBuffer.getBufferCacheSize());
+        Assert.assertEquals(3, recordBuffer.getBufferCacheSize());
 
         recordBuffer.recycleCache();
-        Assert.assertEquals(3,recordBuffer.getBufferPoolSize());
-        Assert.assertEquals(0,recordBuffer.getBufferCacheSize());
+        Assert.assertEquals(3, recordBuffer.getBufferPoolSize());
+        Assert.assertEquals(0, recordBuffer.getBufferCacheSize());
     }
 }

@@ -14,6 +14,7 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.cfg;
 
 import org.apache.doris.flink.util.IOUtils;
@@ -22,28 +23,36 @@ import java.util.Properties;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * Options for the Doris connector.
- */
+/** Options for the Doris connector. */
 public class DorisOptions extends DorisConnectionOptions {
 
     private static final long serialVersionUID = 1L;
 
     private String tableIdentifier;
 
-
     public DorisOptions(String fenodes, String username, String password, String tableIdentifier) {
         super(fenodes, username, password);
         this.tableIdentifier = tableIdentifier;
     }
 
-    public DorisOptions(String fenodes, String username, String password, String tableIdentifier, String jdbcUrl) {
+    public DorisOptions(
+            String fenodes,
+            String username,
+            String password,
+            String tableIdentifier,
+            String jdbcUrl) {
         super(fenodes, username, password, jdbcUrl);
         this.tableIdentifier = tableIdentifier;
     }
 
-    public DorisOptions(String fenodes, String beNodes, String username, String password,
-            String tableIdentifier, String jdbcUrl, boolean redirect) {
+    public DorisOptions(
+            String fenodes,
+            String beNodes,
+            String username,
+            String password,
+            String tableIdentifier,
+            String jdbcUrl,
+            boolean redirect) {
         super(fenodes, beNodes, username, password, jdbcUrl, redirect);
         this.tableIdentifier = tableIdentifier;
     }
@@ -65,9 +74,7 @@ public class DorisOptions extends DorisConnectionOptions {
         return new Builder();
     }
 
-    /**
-     * Builder of {@link DorisOptions}.
-     */
+    /** Builder of {@link DorisOptions}. */
     public static class Builder {
         private String fenodes;
         private String benodes;
@@ -77,49 +84,37 @@ public class DorisOptions extends DorisConnectionOptions {
         private boolean autoRedirect;
         private String tableIdentifier;
 
-        /**
-         * required, tableIdentifier
-         */
+        /** required, tableIdentifier. */
         public Builder setTableIdentifier(String tableIdentifier) {
             this.tableIdentifier = tableIdentifier;
             return this;
         }
 
-        /**
-         * optional, user name.
-         */
+        /** optional, user name. */
         public Builder setUsername(String username) {
             this.username = username;
             return this;
         }
 
-        /**
-         * optional, password.
-         */
+        /** optional, password. */
         public Builder setPassword(String password) {
             this.password = password;
             return this;
         }
 
-        /**
-         * required, Frontend Http Rest url.
-         */
+        /** required, Frontend Http Rest url. */
         public Builder setFenodes(String fenodes) {
             this.fenodes = fenodes;
             return this;
         }
 
-        /**
-         * optional, Backend Http Port
-         */
+        /** optional, Backend Http Port. */
         public Builder setBenodes(String benodes) {
             this.benodes = benodes;
             return this;
         }
 
-        /**
-         * not required, fe jdbc url, for lookup query
-         */
+        /** not required, fe jdbc url, for lookup query. */
         public Builder setJdbcUrl(String jdbcUrl) {
             this.jdbcUrl = jdbcUrl;
             return this;
@@ -132,10 +127,10 @@ public class DorisOptions extends DorisConnectionOptions {
 
         public DorisOptions build() {
             checkNotNull(fenodes, "No fenodes supplied.");
-            //multi table load, don't need check
-            //checkNotNull(tableIdentifier, "No tableIdentifier supplied.");
-            return new DorisOptions(fenodes, benodes, username, password, tableIdentifier, jdbcUrl, autoRedirect);
+            // multi table load, don't need check
+            // checkNotNull(tableIdentifier, "No tableIdentifier supplied.");
+            return new DorisOptions(
+                    fenodes, benodes, username, password, tableIdentifier, jdbcUrl, autoRedirect);
         }
     }
-
 }

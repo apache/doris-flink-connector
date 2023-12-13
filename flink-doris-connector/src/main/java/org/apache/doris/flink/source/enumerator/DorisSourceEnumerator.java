@@ -14,17 +14,20 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.source.enumerator;
+
+import org.apache.flink.api.connector.source.SplitEnumerator;
+import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 
 import org.apache.doris.flink.source.DorisSource;
 import org.apache.doris.flink.source.assigners.DorisSplitAssigner;
 import org.apache.doris.flink.source.split.DorisSourceSplit;
-import org.apache.flink.api.connector.source.SplitEnumerator;
-import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
@@ -33,9 +36,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A SplitEnumerator implementation for bounded / batch {@link DorisSource} input.
- * <p>
- * This enumerator takes all backend tablets and assigns them to the readers.
- * Once tablets are processed, the source is finished.
+ *
+ * <p>This enumerator takes all backend tablets and assigns them to the readers. Once tablets are
+ * processed, the source is finished.
  */
 public class DorisSourceEnumerator
         implements SplitEnumerator<DorisSourceSplit, PendingSplitsCheckpoint> {
@@ -45,8 +48,8 @@ public class DorisSourceEnumerator
 
     private final DorisSplitAssigner splitAssigner;
 
-    public DorisSourceEnumerator(SplitEnumeratorContext<DorisSourceSplit> context,
-                                 DorisSplitAssigner splitAssigner) {
+    public DorisSourceEnumerator(
+            SplitEnumeratorContext<DorisSourceSplit> context, DorisSplitAssigner splitAssigner) {
         this.context = context;
         this.splitAssigner = checkNotNull(splitAssigner);
     }

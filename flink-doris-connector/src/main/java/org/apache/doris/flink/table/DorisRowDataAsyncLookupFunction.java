@@ -17,20 +17,22 @@
 
 package org.apache.doris.flink.table;
 
-import org.apache.doris.flink.cfg.DorisLookupOptions;
-import org.apache.doris.flink.cfg.DorisOptions;
-import org.apache.doris.flink.lookup.DorisJdbcLookupReader;
-import org.apache.doris.flink.lookup.DorisLookupReader;
-import org.apache.doris.flink.lookup.LookupSchema;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.shaded.guava30.com.google.common.cache.Cache;
-import org.apache.flink.shaded.guava30.com.google.common.cache.CacheBuilder;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.AsyncTableFunction;
 import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Preconditions;
+
+import org.apache.flink.shaded.guava30.com.google.common.cache.Cache;
+import org.apache.flink.shaded.guava30.com.google.common.cache.CacheBuilder;
+
+import org.apache.doris.flink.cfg.DorisLookupOptions;
+import org.apache.doris.flink.cfg.DorisOptions;
+import org.apache.doris.flink.lookup.DorisJdbcLookupReader;
+import org.apache.doris.flink.lookup.DorisLookupReader;
+import org.apache.doris.flink.lookup.LookupSchema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,7 +44,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 public class DorisRowDataAsyncLookupFunction extends AsyncTableFunction<RowData> {
-    private static final Logger LOG = LoggerFactory.getLogger(DorisRowDataAsyncLookupFunction.class);
+    private static final Logger LOG =
+            LoggerFactory.getLogger(DorisRowDataAsyncLookupFunction.class);
     private final DorisOptions options;
     private final DorisLookupOptions lookupOptions;
     private final long cacheMaxSize;
@@ -51,39 +54,49 @@ public class DorisRowDataAsyncLookupFunction extends AsyncTableFunction<RowData>
     private DorisLookupReader lookupReader;
     private LookupSchema lookupSchema;
 
-    public DorisRowDataAsyncLookupFunction(DorisOptions options,
-                                          DorisLookupOptions lookupOptions,
-                                          String[] selectFields,
-                                          DataType[] fieldTypes,
-                                          String[] conditionFields,
-                                          int[] keyIndex) {
-        Preconditions.checkNotNull(options.getJdbcUrl(), "jdbc-url is required in jdbc mode lookup");
+    public DorisRowDataAsyncLookupFunction(
+            DorisOptions options,
+            DorisLookupOptions lookupOptions,
+            String[] selectFields,
+            DataType[] fieldTypes,
+            String[] conditionFields,
+            int[] keyIndex) {
+        Preconditions.checkNotNull(
+                options.getJdbcUrl(), "jdbc-url is required in jdbc mode lookup");
         this.options = options;
         this.cacheMaxSize = lookupOptions.getCacheMaxSize();
         this.cacheExpireMs = lookupOptions.getCacheExpireMs();
         this.lookupOptions = lookupOptions;
-        this.lookupSchema = new LookupSchema(options.getTableIdentifier(), selectFields, fieldTypes, conditionFields, keyIndex);
+        this.lookupSchema =
+                new LookupSchema(
+                        options.getTableIdentifier(),
+                        selectFields,
+                        fieldTypes,
+                        conditionFields,
+                        keyIndex);
     }
 
     @Override
     public void open(FunctionContext context) throws Exception {
         super.open(context);
-        LOG.info("lookup options: threadSize {}, batchSize {}, queueSize {}",
-                lookupOptions.getJdbcReadThreadSize(), lookupOptions.getJdbcReadBatchSize(), lookupOptions.getJdbcReadBatchQueueSize());
-        this.cache = cacheMaxSize == -1 || cacheExpireMs == -1
-                ? null
-                : CacheBuilder.newBuilder()
-                .expireAfterWrite(cacheExpireMs, TimeUnit.MILLISECONDS)
-                .maximumSize(cacheMaxSize)
-                .build();
+        LOG.info(
+                "lookup options: threadSize {}, batchSize {}, queueSize {}",
+                lookupOptions.getJdbcReadThreadSize(),
+                lookupOptions.getJdbcReadBatchSize(),
+                lookupOptions.getJdbcReadBatchQueueSize());
+        this.cache =
+                cacheMaxSize == -1 || cacheExpireMs == -1
+                        ? null
+                        : CacheBuilder.newBuilder()
+                                .expireAfterWrite(cacheExpireMs, TimeUnit.MILLISECONDS)
+                                .maximumSize(cacheMaxSize)
+                                .build();
         this.lookupReader = new DorisJdbcLookupReader(options, lookupOptions, lookupSchema);
     }
 
-    /**
-     * This is a lookup method which is called by Flink framework in runtime.
-     *
-     */
-    public void eval(CompletableFuture<Collection<RowData>> future, Object... keys) throws IOException {
+    /** This is a lookup method which is called by Flink framework in runtime. */
+    public void eval(CompletableFuture<Collection<RowData>> future, Object... keys)
+            throws IOException {
         RowData keyRow = GenericRowData.of(keys);
         if (cache != null) {
             List<RowData> cachedRows = cache.getIfPresent(keyRow);
@@ -100,12 +113,12 @@ public class DorisRowDataAsyncLookupFunction extends AsyncTableFunction<RowData>
                             future.completeExceptionally(throwable);
                         } else {
                             if (resultRows == null || resultRows.isEmpty()) {
-                                if(cache != null){
+                                if (cache != null) {
                                     cache.put(keyRow, Collections.emptyList());
                                 }
                                 future.complete(Collections.emptyList());
                             } else {
-                                if(cache != null){
+                                if (cache != null) {
                                     cache.put(keyRow, resultRows);
                                 }
                                 future.complete(resultRows);
@@ -121,7 +134,7 @@ public class DorisRowDataAsyncLookupFunction extends AsyncTableFunction<RowData>
     @Override
     public void close() throws Exception {
         super.close();
-        if(lookupReader != null){
+        if (lookupReader != null) {
             lookupReader.close();
         }
     }

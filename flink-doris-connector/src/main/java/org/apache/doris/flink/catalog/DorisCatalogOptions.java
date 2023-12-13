@@ -14,6 +14,7 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.catalog;
 
 import org.apache.flink.configuration.ConfigOption;
@@ -24,7 +25,10 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class DorisCatalogOptions {
-    public static final ConfigOption<String> DEFAULT_DATABASE = ConfigOptions.key(CommonCatalogOptions.DEFAULT_DATABASE_KEY).stringType().noDefaultValue();
+    public static final ConfigOption<String> DEFAULT_DATABASE =
+            ConfigOptions.key(CommonCatalogOptions.DEFAULT_DATABASE_KEY)
+                    .stringType()
+                    .noDefaultValue();
 
     public static final String TABLE_PROPERTIES_PREFIX = "table.properties.";
 

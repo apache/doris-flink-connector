@@ -17,14 +17,6 @@
 
 package org.apache.doris.flink.table;
 
-import org.apache.doris.flink.cfg.DorisLookupOptions;
-import org.apache.doris.flink.cfg.DorisOptions;
-import org.apache.doris.flink.cfg.DorisReadOptions;
-import org.apache.doris.flink.deserialization.RowDataDeserializationSchema;
-import org.apache.doris.flink.exception.DorisException;
-import org.apache.doris.flink.rest.PartitionDefinition;
-import org.apache.doris.flink.rest.RestService;
-import org.apache.doris.flink.source.DorisSource;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.table.api.TableSchema;
@@ -41,6 +33,15 @@ import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushD
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
+
+import org.apache.doris.flink.cfg.DorisLookupOptions;
+import org.apache.doris.flink.cfg.DorisOptions;
+import org.apache.doris.flink.cfg.DorisReadOptions;
+import org.apache.doris.flink.deserialization.RowDataDeserializationSchema;
+import org.apache.doris.flink.exception.DorisException;
+import org.apache.doris.flink.rest.PartitionDefinition;
+import org.apache.doris.flink.rest.RestService;
+import org.apache.doris.flink.source.DorisSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,32 +52,33 @@ import java.util.stream.Collectors;
 /**
  * The {@link DorisDynamicTableSource} is used during planning.
  *
- * <p>In our example, we don't implement any of the available ability interfaces such as {@link SupportsFilterPushDown}
- * or {@link SupportsProjectionPushDown}. Therefore, the main logic can be found in {@link #getScanRuntimeProvider(ScanContext)}
- * where we instantiate the required {@link SourceFunction} and its {@link DeserializationSchema} for
- * runtime. Both instances are parameterized to return internal data structures (i.e. {@link RowData}).
+ * <p>In our example, we don't implement any of the available ability interfaces such as {@link
+ * SupportsFilterPushDown} or {@link SupportsProjectionPushDown}. Therefore, the main logic can be
+ * found in {@link #getScanRuntimeProvider(ScanContext)} where we instantiate the required {@link
+ * SourceFunction} and its {@link DeserializationSchema} for runtime. Both instances are
+ * parameterized to return internal data structures (i.e. {@link RowData}).
  */
 public final class DorisDynamicTableSource implements ScanTableSource, LookupTableSource {
 
     private static final Logger LOG = LoggerFactory.getLogger(DorisDynamicTableSource.class);
     private final DorisOptions options;
     private final DorisReadOptions readOptions;
-    private  DorisLookupOptions lookupOptions;
+    private DorisLookupOptions lookupOptions;
     private TableSchema physicalSchema;
 
-    public DorisDynamicTableSource(DorisOptions options,
-                                   DorisReadOptions readOptions,
-                                   DorisLookupOptions lookupOptions,
-                                   TableSchema physicalSchema) {
+    public DorisDynamicTableSource(
+            DorisOptions options,
+            DorisReadOptions readOptions,
+            DorisLookupOptions lookupOptions,
+            TableSchema physicalSchema) {
         this.options = options;
         this.lookupOptions = lookupOptions;
         this.readOptions = readOptions;
         this.physicalSchema = physicalSchema;
     }
 
-    public DorisDynamicTableSource(DorisOptions options,
-                                   DorisReadOptions readOptions,
-                                   TableSchema physicalSchema) {
+    public DorisDynamicTableSource(
+            DorisOptions options, DorisReadOptions readOptions, TableSchema physicalSchema) {
         this.options = options;
         this.readOptions = readOptions;
         this.physicalSchema = physicalSchema;
@@ -91,9 +93,10 @@ public final class DorisDynamicTableSource implements ScanTableSource, LookupTab
 
     @Override
     public ScanRuntimeProvider getScanRuntimeProvider(ScanContext runtimeProviderContext) {
-        readOptions.setReadFields(Arrays.stream(physicalSchema.getFieldNames())
-                .map(item->String.format("`%s`", item.trim().replace("`", "")))
-                .collect(Collectors.joining(", ")));
+        readOptions.setReadFields(
+                Arrays.stream(physicalSchema.getFieldNames())
+                        .map(item -> String.format("`%s`", item.trim().replace("`", "")))
+                        .collect(Collectors.joining(", ")));
 
         if (readOptions.getUseOldApi()) {
             List<PartitionDefinition> dorisPartitions;
@@ -102,23 +105,30 @@ public final class DorisDynamicTableSource implements ScanTableSource, LookupTab
             } catch (DorisException e) {
                 throw new RuntimeException("Failed fetch doris partitions");
             }
-            DorisRowDataInputFormat.Builder builder = DorisRowDataInputFormat.builder()
-                    .setFenodes(options.getFenodes())
-                    .setBenodes(options.getBenodes())
-                    .setUsername(options.getUsername())
-                    .setPassword(options.getPassword())
-                    .setTableIdentifier(options.getTableIdentifier())
-                    .setPartitions(dorisPartitions)
-                    .setReadOptions(readOptions)
-                    .setRowType((RowType) physicalSchema.toRowDataType().getLogicalType());
+            DorisRowDataInputFormat.Builder builder =
+                    DorisRowDataInputFormat.builder()
+                            .setFenodes(options.getFenodes())
+                            .setBenodes(options.getBenodes())
+                            .setUsername(options.getUsername())
+                            .setPassword(options.getPassword())
+                            .setTableIdentifier(options.getTableIdentifier())
+                            .setPartitions(dorisPartitions)
+                            .setReadOptions(readOptions)
+                            .setRowType((RowType) physicalSchema.toRowDataType().getLogicalType());
             return InputFormatProvider.of(builder.build());
         } else {
-            //Read data using the interface of the FLIP-27 specification
-            DorisSource<RowData> build = DorisSource.<RowData>builder()
-                    .setDorisReadOptions(readOptions)
-                    .setDorisOptions(options)
-                    .setDeserializer(new RowDataDeserializationSchema((RowType) physicalSchema.toRowDataType().getLogicalType()))
-                    .build();
+            // Read data using the interface of the FLIP-27 specification
+            DorisSource<RowData> build =
+                    DorisSource.<RowData>builder()
+                            .setDorisReadOptions(readOptions)
+                            .setDorisOptions(options)
+                            .setDeserializer(
+                                    new RowDataDeserializationSchema(
+                                            (RowType)
+                                                    physicalSchema
+                                                            .toRowDataType()
+                                                            .getLogicalType()))
+                            .build();
             return SourceProvider.of(build);
         }
     }
@@ -139,7 +149,8 @@ public final class DorisDynamicTableSource implements ScanTableSource, LookupTab
                             options,
                             lookupOptions,
                             DataType.getFieldNames(physicalRowDataType).toArray(new String[0]),
-                            DataType.getFieldDataTypes(physicalRowDataType).toArray(new DataType[0]),
+                            DataType.getFieldDataTypes(physicalRowDataType)
+                                    .toArray(new DataType[0]),
                             keyNames,
                             keyIndexs));
         } else {
@@ -148,7 +159,8 @@ public final class DorisDynamicTableSource implements ScanTableSource, LookupTab
                             options,
                             lookupOptions,
                             DataType.getFieldNames(physicalRowDataType).toArray(new String[0]),
-                            DataType.getFieldDataTypes(physicalRowDataType).toArray(new DataType[0]),
+                            DataType.getFieldDataTypes(physicalRowDataType)
+                                    .toArray(new DataType[0]),
                             keyNames,
                             keyIndexs));
         }

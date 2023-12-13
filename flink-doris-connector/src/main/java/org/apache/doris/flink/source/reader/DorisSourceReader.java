@@ -14,34 +14,39 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.source.reader;
 
-import org.apache.doris.flink.cfg.DorisOptions;
-import org.apache.doris.flink.cfg.DorisReadOptions;
-import org.apache.doris.flink.source.split.DorisSourceSplit;
-import org.apache.doris.flink.source.split.DorisSourceSplitState;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.RecordEmitter;
 import org.apache.flink.connector.base.source.reader.SingleThreadMultiplexSourceReaderBase;
 
+import org.apache.doris.flink.cfg.DorisOptions;
+import org.apache.doris.flink.cfg.DorisReadOptions;
+import org.apache.doris.flink.source.split.DorisSourceSplit;
+import org.apache.doris.flink.source.split.DorisSourceSplitState;
+
 import java.util.List;
 import java.util.Map;
 
-/**
- * A {@link SourceReader} that read records from {@link DorisSourceSplit}.
- **/
+/** A {@link SourceReader} that read records from {@link DorisSourceSplit}. */
 public class DorisSourceReader<T>
-        extends SingleThreadMultiplexSourceReaderBase<List, T, DorisSourceSplit, DorisSourceSplitState> {
+        extends SingleThreadMultiplexSourceReaderBase<
+                List, T, DorisSourceSplit, DorisSourceSplitState> {
 
-
-    public DorisSourceReader(DorisOptions options,
-                             DorisReadOptions readOptions,
-                             RecordEmitter<List, T, DorisSourceSplitState> recordEmitter,
-                             SourceReaderContext context,
-                             Configuration config) {
-        super(() -> new DorisSourceSplitReader(options, readOptions), recordEmitter, config, context);
+    public DorisSourceReader(
+            DorisOptions options,
+            DorisReadOptions readOptions,
+            RecordEmitter<List, T, DorisSourceSplitState> recordEmitter,
+            SourceReaderContext context,
+            Configuration config) {
+        super(
+                () -> new DorisSourceSplitReader(options, readOptions),
+                recordEmitter,
+                config,
+                context);
     }
 
     @Override

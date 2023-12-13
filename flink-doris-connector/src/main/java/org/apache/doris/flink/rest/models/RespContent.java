@@ -14,6 +14,7 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.rest.models;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -25,78 +26,79 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 public class RespContent {
 
     @JsonProperty(value = "TxnId")
-    private long TxnId;
+    private long txnId;
 
     @JsonProperty(value = "Label")
-    private String Label;
+    private String label;
 
     @JsonProperty(value = "Status")
-    private String Status;
+    private String status;
 
     @JsonProperty(value = "TwoPhaseCommit")
-    private String TwoPhaseCommit;
+    private String twoPhaseCommit;
 
     @JsonProperty(value = "ExistingJobStatus")
-    private String ExistingJobStatus;
+    private String existingJobStatus;
 
     @JsonProperty(value = "Message")
-    private String Message;
+    private String message;
 
     @JsonProperty(value = "NumberTotalRows")
-    private long NumberTotalRows;
+    private long numberTotalRows;
 
     @JsonProperty(value = "NumberLoadedRows")
-    private long NumberLoadedRows;
+    private long numberLoadedRows;
 
     @JsonProperty(value = "NumberFilteredRows")
-    private int NumberFilteredRows;
+    private int numberFilteredRows;
 
     @JsonProperty(value = "NumberUnselectedRows")
-    private int NumberUnselectedRows;
+    private int numberUnselectedRows;
 
     @JsonProperty(value = "LoadBytes")
-    private long LoadBytes;
+    private long loadBytes;
 
     @JsonProperty(value = "LoadTimeMs")
-    private int LoadTimeMs;
+    private int loadTimeMs;
 
     @JsonProperty(value = "BeginTxnTimeMs")
-    private int BeginTxnTimeMs;
+    private int beginTxnTimeMs;
 
     @JsonProperty(value = "StreamLoadPutTimeMs")
-    private int StreamLoadPutTimeMs;
+    private int streamLoadPutTimeMs;
 
     @JsonProperty(value = "ReadDataTimeMs")
-    private int ReadDataTimeMs;
+    private int readDataTimeMs;
 
     @JsonProperty(value = "WriteDataTimeMs")
-    private int WriteDataTimeMs;
+    private int writeDataTimeMs;
 
     @JsonProperty(value = "CommitAndPublishTimeMs")
-    private int CommitAndPublishTimeMs;
+    private int commitAndPublishTimeMs;
 
     @JsonProperty(value = "ErrorURL")
-    private String ErrorURL;
+    private String errorURL;
 
     public long getTxnId() {
-        return TxnId;
+        return txnId;
     }
 
     public String getStatus() {
-        return Status;
+        return status;
     }
 
     public String getTwoPhaseCommit() {
-        return TwoPhaseCommit;
+        return twoPhaseCommit;
     }
 
     public String getMessage() {
-        return Message;
+        return message;
     }
 
     public String getExistingJobStatus() {
-        return ExistingJobStatus;
+        return existingJobStatus;
     }
+
     @Override
     public String toString() {
         ObjectMapper mapper = new ObjectMapper();
@@ -105,10 +107,9 @@ public class RespContent {
         } catch (JsonProcessingException e) {
             return "";
         }
-
     }
 
     public String getErrorURL() {
-        return ErrorURL;
+        return errorURL;
     }
 }

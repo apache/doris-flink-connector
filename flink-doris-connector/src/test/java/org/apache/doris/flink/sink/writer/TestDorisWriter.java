@@ -17,6 +17,8 @@
 
 package org.apache.doris.flink.sink.writer;
 
+import org.apache.flink.api.connector.sink2.Sink;
+
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
@@ -24,7 +26,6 @@ import org.apache.doris.flink.sink.DorisCommittable;
 import org.apache.doris.flink.sink.HttpTestUtil;
 import org.apache.doris.flink.sink.OptionUtils;
 import org.apache.doris.flink.sink.writer.serializer.SimpleStringSerializer;
-import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.junit.Assert;
@@ -43,9 +44,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-/**
- * test for DorisWriter.
- */
+/** test for DorisWriter. */
 @Ignore
 public class TestDorisWriter {
     DorisOptions dorisOptions;
@@ -62,17 +61,31 @@ public class TestDorisWriter {
     @Test
     public void testPrepareCommit() throws Exception {
         CloseableHttpClient httpClient = mock(CloseableHttpClient.class);
-        CloseableHttpResponse preCommitResponse = HttpTestUtil.getResponse(HttpTestUtil.PRE_COMMIT_RESPONSE, true);
+        CloseableHttpResponse preCommitResponse =
+                HttpTestUtil.getResponse(HttpTestUtil.PRE_COMMIT_RESPONSE, true);
         when(httpClient.execute(any())).thenReturn(preCommitResponse);
         Map<String, DorisStreamLoad> dorisStreamLoadMap = new ConcurrentHashMap<>();
-        DorisStreamLoad dorisStreamLoad = new DorisStreamLoad("local:8040", dorisOptions, executionOptions, new LabelGenerator("", true), httpClient);
+        DorisStreamLoad dorisStreamLoad =
+                new DorisStreamLoad(
+                        "local:8040",
+                        dorisOptions,
+                        executionOptions,
+                        new LabelGenerator("", true),
+                        httpClient);
         dorisStreamLoadMap.put(dorisOptions.getTableIdentifier(), dorisStreamLoad);
         dorisStreamLoad.startLoad("", false);
         Sink.InitContext initContext = mock(Sink.InitContext.class);
         when(initContext.getRestoredCheckpointId()).thenReturn(OptionalLong.of(1));
-        DorisWriter<String> dorisWriter = new DorisWriter<String>(initContext, Collections.emptyList(), new SimpleStringSerializer(), dorisOptions, readOptions, executionOptions);
+        DorisWriter<String> dorisWriter =
+                new DorisWriter<String>(
+                        initContext,
+                        Collections.emptyList(),
+                        new SimpleStringSerializer(),
+                        dorisOptions,
+                        readOptions,
+                        executionOptions);
         dorisWriter.setDorisStreamLoadMap(dorisStreamLoadMap);
-        dorisWriter.write("doris,1",null);
+        dorisWriter.write("doris,1", null);
         Collection<DorisCommittable> committableList = dorisWriter.prepareCommit();
         Assert.assertEquals(1, committableList.size());
         DorisCommittable dorisCommittable = committableList.stream().findFirst().get();
@@ -85,16 +98,30 @@ public class TestDorisWriter {
     @Test
     public void testSnapshot() throws Exception {
         CloseableHttpClient httpClient = mock(CloseableHttpClient.class);
-        CloseableHttpResponse preCommitResponse = HttpTestUtil.getResponse(HttpTestUtil.PRE_COMMIT_RESPONSE, true);
+        CloseableHttpResponse preCommitResponse =
+                HttpTestUtil.getResponse(HttpTestUtil.PRE_COMMIT_RESPONSE, true);
         when(httpClient.execute(any())).thenReturn(preCommitResponse);
 
         Map<String, DorisStreamLoad> dorisStreamLoadMap = new ConcurrentHashMap<>();
-        DorisStreamLoad dorisStreamLoad = new DorisStreamLoad("local:8040", dorisOptions, executionOptions, new LabelGenerator("", true), httpClient);
+        DorisStreamLoad dorisStreamLoad =
+                new DorisStreamLoad(
+                        "local:8040",
+                        dorisOptions,
+                        executionOptions,
+                        new LabelGenerator("", true),
+                        httpClient);
         dorisStreamLoadMap.put(dorisOptions.getTableIdentifier(), dorisStreamLoad);
 
         Sink.InitContext initContext = mock(Sink.InitContext.class);
         when(initContext.getRestoredCheckpointId()).thenReturn(OptionalLong.of(1));
-        DorisWriter<String> dorisWriter = new DorisWriter<String>(initContext, Collections.emptyList(), new SimpleStringSerializer(), dorisOptions, readOptions, executionOptions);
+        DorisWriter<String> dorisWriter =
+                new DorisWriter<String>(
+                        initContext,
+                        Collections.emptyList(),
+                        new SimpleStringSerializer(),
+                        dorisOptions,
+                        readOptions,
+                        executionOptions);
         dorisWriter.setDorisStreamLoadMap(dorisStreamLoadMap);
         List<DorisWriterState> writerStates = dorisWriter.snapshotState(1);
 

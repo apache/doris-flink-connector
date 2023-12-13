@@ -14,10 +14,12 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.deserialization;
 
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.util.Collector;
+
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -34,15 +36,13 @@ public class RowDataDeserializationSchemaTest {
     public void deserializeTest() throws Exception {
         String[][] records = {{"flink", "1", "true"}, {"doris", "2", "false"}};
         SimpleCollector collector = new SimpleCollector();
-        RowDataDeserializationSchema deserializationSchema = new RowDataDeserializationSchema(PHYSICAL_TYPE);
+        RowDataDeserializationSchema deserializationSchema =
+                new RowDataDeserializationSchema(PHYSICAL_TYPE);
         for (String[] record : records) {
             deserializationSchema.deserialize(Arrays.asList(record), collector);
         }
 
-        List<String> expected =
-                Arrays.asList(
-                        "+I(flink,1,true)",
-                        "+I(doris,2,false)");
+        List<String> expected = Arrays.asList("+I(flink,1,true)", "+I(doris,2,false)");
 
         List<String> actual =
                 collector.list.stream().map(Object::toString).collect(Collectors.toList());

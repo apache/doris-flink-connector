@@ -17,17 +17,18 @@
 
 package org.apache.doris.flink.sink.batch;
 
+import org.apache.flink.api.connector.sink2.Sink;
+import org.apache.flink.api.connector.sink2.SinkWriter;
+import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.StringUtils;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
+
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.sink.writer.LabelGenerator;
 import org.apache.doris.flink.sink.writer.serializer.DorisRecord;
 import org.apache.doris.flink.sink.writer.serializer.DorisRecordSerializer;
-import org.apache.flink.api.connector.sink2.Sink;
-import org.apache.flink.api.connector.sink2.SinkWriter;
-import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.StringUtils;
-import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,21 +52,26 @@ public class DorisBatchWriter<IN> implements SinkWriter<IN> {
     private String database;
     private String table;
 
-    public DorisBatchWriter(Sink.InitContext initContext,
-                            DorisRecordSerializer<IN> serializer,
-                            DorisOptions dorisOptions,
-                            DorisReadOptions dorisReadOptions,
-                            DorisExecutionOptions executionOptions) {
-        if(!StringUtils.isNullOrWhitespaceOnly(dorisOptions.getTableIdentifier())){
+    public DorisBatchWriter(
+            Sink.InitContext initContext,
+            DorisRecordSerializer<IN> serializer,
+            DorisOptions dorisOptions,
+            DorisReadOptions dorisReadOptions,
+            DorisExecutionOptions executionOptions) {
+        if (!StringUtils.isNullOrWhitespaceOnly(dorisOptions.getTableIdentifier())) {
             String[] tableInfo = dorisOptions.getTableIdentifier().split("\\.");
-            Preconditions.checkState(tableInfo.length == 2, "tableIdentifier input error, the format is database.table");
+            Preconditions.checkState(
+                    tableInfo.length == 2,
+                    "tableIdentifier input error, the format is database.table");
             this.database = tableInfo[0];
             this.table = tableInfo[1];
         }
         LOG.info("labelPrefix " + executionOptions.getLabelPrefix());
         this.labelPrefix = executionOptions.getLabelPrefix() + "_" + initContext.getSubtaskId();
         this.labelGenerator = new LabelGenerator(labelPrefix, false);
-        this.scheduledExecutorService = new ScheduledThreadPoolExecutor(1, new ExecutorThreadFactory("stream-load-flush-interval"));
+        this.scheduledExecutorService =
+                new ScheduledThreadPoolExecutor(
+                        1, new ExecutorThreadFactory("stream-load-flush-interval"));
         this.serializer = serializer;
         this.dorisOptions = dorisOptions;
         this.dorisReadOptions = dorisReadOptions;
@@ -74,9 +80,13 @@ public class DorisBatchWriter<IN> implements SinkWriter<IN> {
     }
 
     public void initializeLoad() throws IOException {
-        this.batchStreamLoad = new DorisBatchStreamLoad(dorisOptions, dorisReadOptions, executionOptions, labelGenerator);
-        // when uploading data in streaming mode, we need to regularly detect whether there are exceptions.
-        scheduledExecutorService.scheduleWithFixedDelay(this::intervalFlush, flushIntervalMs, flushIntervalMs, TimeUnit.MILLISECONDS);
+        this.batchStreamLoad =
+                new DorisBatchStreamLoad(
+                        dorisOptions, dorisReadOptions, executionOptions, labelGenerator);
+        // when uploading data in streaming mode, we need to regularly detect whether there are
+        // exceptions.
+        scheduledExecutorService.scheduleWithFixedDelay(
+                this::intervalFlush, flushIntervalMs, flushIntervalMs, TimeUnit.MILLISECONDS);
     }
 
     private void intervalFlush() {
@@ -94,22 +104,23 @@ public class DorisBatchWriter<IN> implements SinkWriter<IN> {
         String db = this.database;
         String tbl = this.table;
         DorisRecord record = serializer.serialize(in);
-        if(record == null || record.getRow() == null){
-            //ddl or value is null
+        if (record == null || record.getRow() == null) {
+            // ddl or value is null
             return;
         }
-        //multi table load
-        if(record.getTableIdentifier() != null){
+        // multi table load
+        if (record.getTableIdentifier() != null) {
             db = record.getDatabase();
             tbl = record.getTable();
         }
         batchStreamLoad.writeRecord(db, tbl, record.getRow());
     }
+
     @Override
     public void flush(boolean flush) throws IOException, InterruptedException {
         checkFlushException();
         LOG.info("checkpoint flush triggered.");
-        batchStreamLoad.flush(null,  true);
+        batchStreamLoad.flush(null, true);
     }
 
     @Override

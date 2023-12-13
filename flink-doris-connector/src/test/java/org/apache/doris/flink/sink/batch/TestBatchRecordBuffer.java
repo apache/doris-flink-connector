@@ -23,39 +23,47 @@ import org.junit.Test;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 
-/**
- * test for RecordBuffer.
- */
+/** test for RecordBuffer. */
 public class TestBatchRecordBuffer {
 
     @Test
-    public void testInsert(){
-        BatchRecordBuffer recordBuffer = new BatchRecordBuffer("\n".getBytes(StandardCharsets.UTF_8),1);
+    public void testInsert() {
+        BatchRecordBuffer recordBuffer =
+                new BatchRecordBuffer("\n".getBytes(StandardCharsets.UTF_8), 1);
         recordBuffer.insert("doris,1".getBytes(StandardCharsets.UTF_8));
 
         Assert.assertEquals(1, recordBuffer.getNumOfRecords());
-        Assert.assertEquals("doris,1".getBytes(StandardCharsets.UTF_8).length, recordBuffer.getBufferSizeBytes());
+        Assert.assertEquals(
+                "doris,1".getBytes(StandardCharsets.UTF_8).length,
+                recordBuffer.getBufferSizeBytes());
 
         recordBuffer.insert("doris,2".getBytes(StandardCharsets.UTF_8));
         Assert.assertEquals(2, recordBuffer.getNumOfRecords());
-        Assert.assertEquals("doris,1\ndoris,2".getBytes(StandardCharsets.UTF_8).length - "\n".getBytes(StandardCharsets.UTF_8).length, recordBuffer.getBufferSizeBytes());
+        Assert.assertEquals(
+                "doris,1\ndoris,2".getBytes(StandardCharsets.UTF_8).length
+                        - "\n".getBytes(StandardCharsets.UTF_8).length,
+                recordBuffer.getBufferSizeBytes());
 
         ByteBuffer data = recordBuffer.getData();
-        Assert.assertEquals("doris,1\ndoris,2", new String(data.array(), data.arrayOffset(), data.limit()));
+        Assert.assertEquals(
+                "doris,1\ndoris,2", new String(data.array(), data.arrayOffset(), data.limit()));
 
-        //mock flush
+        // mock flush
         recordBuffer.clear();
         recordBuffer.insert("doris,3".getBytes(StandardCharsets.UTF_8));
         Assert.assertEquals(1, recordBuffer.getNumOfRecords());
-        Assert.assertEquals("doris,3".getBytes(StandardCharsets.UTF_8).length, recordBuffer.getBufferSizeBytes());
+        Assert.assertEquals(
+                "doris,3".getBytes(StandardCharsets.UTF_8).length,
+                recordBuffer.getBufferSizeBytes());
     }
 
     @Test
-    public void testGrowCapacity(){
-        BatchRecordBuffer recordBuffer = new BatchRecordBuffer("\n".getBytes(StandardCharsets.UTF_8),1);
+    public void testGrowCapacity() {
+        BatchRecordBuffer recordBuffer =
+                new BatchRecordBuffer("\n".getBytes(StandardCharsets.UTF_8), 1);
         recordBuffer.ensureCapacity(10);
 
-        //grow at least 1MB
+        // grow at least 1MB
         Assert.assertEquals(recordBuffer.getBuffer().capacity(), 1024 * 1024 + 1);
 
         recordBuffer.ensureCapacity(100);
@@ -64,8 +72,8 @@ public class TestBatchRecordBuffer {
         recordBuffer.ensureCapacity(1024);
         Assert.assertEquals(recordBuffer.getBuffer().capacity(), 1024 * 1024 + 1);
 
-        //not need grow
-        recordBuffer = new BatchRecordBuffer("\n".getBytes(StandardCharsets.UTF_8),16);
+        // not need grow
+        recordBuffer = new BatchRecordBuffer("\n".getBytes(StandardCharsets.UTF_8), 16);
         recordBuffer.ensureCapacity(15);
         Assert.assertEquals(recordBuffer.getBuffer().capacity(), 16);
 
@@ -73,20 +81,21 @@ public class TestBatchRecordBuffer {
         recordBuffer.ensureCapacity(8);
         Assert.assertEquals(recordBuffer.getBuffer().capacity(), 1024 * 1024 + 16);
 
-        recordBuffer = new BatchRecordBuffer("\n".getBytes(StandardCharsets.UTF_8),10);
+        recordBuffer = new BatchRecordBuffer("\n".getBytes(StandardCharsets.UTF_8), 10);
         recordBuffer.insert("1234567".getBytes(StandardCharsets.UTF_8));
         recordBuffer.insert("123456789012345678901234567890".getBytes(StandardCharsets.UTF_8));
 
         //
-        recordBuffer = new BatchRecordBuffer("\n".getBytes(StandardCharsets.UTF_8),10);
+        recordBuffer = new BatchRecordBuffer("\n".getBytes(StandardCharsets.UTF_8), 10);
         recordBuffer.ensureCapacity(2 * 1024 * 1024);
         Assert.assertEquals(recordBuffer.getBuffer().capacity(), 2 * 1024 * 1024 - 10 + 1 + 10);
 
-        //grow at least 50% of the current size
-        recordBuffer = new BatchRecordBuffer("\n".getBytes(StandardCharsets.UTF_8),5 * 1024 * 1024);
+        // grow at least 50% of the current size
+        recordBuffer =
+                new BatchRecordBuffer("\n".getBytes(StandardCharsets.UTF_8), 5 * 1024 * 1024);
         recordBuffer.insert(ByteBuffer.allocate(2 * 1024 * 1024).array());
         recordBuffer.insert(ByteBuffer.allocate(3 * 1024 * 1024 + 1).array());
-        Assert.assertEquals(recordBuffer.getBuffer().capacity(), 5 * 1024 * 1024 + 5 * 1024 * 1024 / 2);
+        Assert.assertEquals(
+                recordBuffer.getBuffer().capacity(), 5 * 1024 * 1024 + 5 * 1024 * 1024 / 2);
     }
-
 }

@@ -14,6 +14,7 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.sink;
 
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
@@ -25,9 +26,7 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Properties;
 
-/**
- * Optional Generator.
- */
+/** Optional Generator. */
 public class OptionUtils {
     public static DorisExecutionOptions buildExecutionOptional() {
         Properties properties = new Properties();

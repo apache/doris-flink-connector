@@ -25,9 +25,7 @@ import java.util.Properties;
 import static org.apache.doris.flink.sink.writer.LoadConstants.FIELD_DELIMITER_KEY;
 import static org.apache.doris.flink.sink.writer.LoadConstants.LINE_DELIMITER_KEY;
 
-/**
- * test for EscapeHandler.
- */
+/** test for EscapeHandler. */
 public class TestEscapeHandler {
     @Test
     public void testHandle() {

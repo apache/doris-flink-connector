@@ -22,9 +22,7 @@ import org.apache.flink.table.types.DataType;
 import java.io.Serializable;
 import java.util.Arrays;
 
-/**
- * record
- */
+/** record. */
 public class Record implements Serializable {
 
     LookupSchema schema;
@@ -73,9 +71,6 @@ public class Record implements Serializable {
 
     @Override
     public String toString() {
-        return "Record{" +
-                "schema=" + schema +
-                ", values=" + Arrays.toString(values) +
-                '}';
+        return "Record{" + "schema=" + schema + ", values=" + Arrays.toString(values) + '}';
     }
 }

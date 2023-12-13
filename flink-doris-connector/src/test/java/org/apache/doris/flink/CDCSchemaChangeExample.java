@@ -17,8 +17,10 @@
 
 package org.apache.doris.flink;
 
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+
 import com.ververica.cdc.connectors.mysql.source.MySqlSource;
-import com.ververica.cdc.connectors.mysql.table.StartupOptions;
 import com.ververica.cdc.connectors.shaded.org.apache.kafka.connect.json.JsonConverterConfig;
 import com.ververica.cdc.debezium.JsonDebeziumDeserializationSchema;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
@@ -27,8 +29,6 @@ import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.sink.DorisSink;
 import org.apache.doris.flink.sink.writer.serializer.JsonDebeziumSchemaSerializer;
 import org.apache.doris.flink.utils.DateToStringConverter;
-import org.apache.flink.api.common.eventtime.WatermarkStrategy;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -44,43 +44,52 @@ public class CDCSchemaChangeExample {
         JsonDebeziumDeserializationSchema schema =
                 new JsonDebeziumDeserializationSchema(false, customConverterConfigs);
 
-        MySqlSource<String> mySqlSource = MySqlSource.<String>builder()
-                .hostname("127.0.0.1")
-                .port(3306)
-                .databaseList("test") // set captured database
-                .tableList("test.t1") // set captured table
-                .username("root")
-                .password("123456")
-                .debeziumProperties(DateToStringConverter.DEFAULT_PROPS)
-                .deserializer(schema)
-                .serverTimeZone("Asia/Shanghai")
-                .includeSchemaChanges(true) // converts SourceRecord to JSON String
-                .build();
+        MySqlSource<String> mySqlSource =
+                MySqlSource.<String>builder()
+                        .hostname("127.0.0.1")
+                        .port(3306)
+                        .databaseList("test") // set captured database
+                        .tableList("test.t1") // set captured table
+                        .username("root")
+                        .password("123456")
+                        .debeziumProperties(DateToStringConverter.defaultProps)
+                        .deserializer(schema)
+                        .serverTimeZone("Asia/Shanghai")
+                        .includeSchemaChanges(true) // converts SourceRecord to JSON String
+                        .build();
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
         // enable checkpoint
         env.enableCheckpointing(10000);
-//
+        //
         Properties props = new Properties();
         props.setProperty("format", "json");
         props.setProperty("read_json_by_line", "true");
-        DorisOptions dorisOptions = DorisOptions.builder()
-                .setFenodes("127.0.0.1:8030")
-                .setTableIdentifier("test.t1")
-                .setUsername("root")
-                .setPassword("").build();
-//
-        DorisExecutionOptions.Builder  executionBuilder = DorisExecutionOptions.builder();
-        executionBuilder.setLabelPrefix("label-doris" + UUID.randomUUID())
-                .setStreamLoadProp(props).setDeletable(true);
+        DorisOptions dorisOptions =
+                DorisOptions.builder()
+                        .setFenodes("127.0.0.1:8030")
+                        .setTableIdentifier("test.t1")
+                        .setUsername("root")
+                        .setPassword("")
+                        .build();
+        //
+        DorisExecutionOptions.Builder executionBuilder = DorisExecutionOptions.builder();
+        executionBuilder
+                .setLabelPrefix("label-doris" + UUID.randomUUID())
+                .setStreamLoadProp(props)
+                .setDeletable(true);
 
         DorisSink.Builder<String> builder = DorisSink.builder();
         builder.setDorisReadOptions(DorisReadOptions.builder().build())
                 .setDorisExecutionOptions(executionBuilder.build())
                 .setDorisOptions(dorisOptions)
-                .setSerializer(JsonDebeziumSchemaSerializer.builder().setDorisOptions(dorisOptions).setNewSchemaChange(true).build());
+                .setSerializer(
+                        JsonDebeziumSchemaSerializer.builder()
+                                .setDorisOptions(dorisOptions)
+                                .setNewSchemaChange(true)
+                                .build());
 
-        env.fromSource(mySqlSource, WatermarkStrategy.noWatermarks(), "MySQL Source")//.print();
+        env.fromSource(mySqlSource, WatermarkStrategy.noWatermarks(), "MySQL Source") // .print();
                 .sinkTo(builder.build());
 
         env.execute("Print MySQL Snapshot + Binlog");
