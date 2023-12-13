@@ -360,26 +360,33 @@ public class DorisRowConverter implements Serializable {
             LogicalType keyType = ((MapType) type).getKeyType();
             Map<?, ?> javaMap = bMap.toJavaMap(((MapType) type).getKeyType(), valueType);
             for (Map.Entry<?,?> entry : javaMap.entrySet()) {
-                String key = entry.getKey().toString();
-                if (LogicalTypeRoot.MAP.equals(valueType.getTypeRoot())) {
-                    result.put(key, convertMapData((MapData)entry.getValue(), valueType));
-                }else if (LogicalTypeRoot.DATE.equals(valueType.getTypeRoot())) {
-                    if (LogicalTypeRoot.DATE.equals(keyType.getTypeRoot())){
-                        result.put(Date.valueOf(LocalDate.ofEpochDay((Integer)entry.getKey())).toString(), Date.valueOf(LocalDate.ofEpochDay((Integer)entry.getValue())).toString());
-                    }else {
-                        result.put(key, Date.valueOf(LocalDate.ofEpochDay((Integer)entry.getValue())).toString());
-                    }
-                }else if (LogicalTypeRoot.ARRAY.equals(valueType.getTypeRoot())) {
-                    result.put(key, convertArrayData((ArrayData)entry.getValue(), valueType));
-                }else if(entry.getValue() instanceof TimestampData){
-                    result.put(key, ((TimestampData)entry.getValue()).toString());
-                }else{
-                    result.put(key, entry.getValue().toString());
-                }
+                Object convertedKey = convertMapEntry(entry.getKey(), keyType);
+                Object convertedValue = convertMapEntry(entry.getValue(), valueType);
+                result.put(convertedKey,convertedValue);
             }
             return result;
         }
         throw new UnsupportedOperationException("Unsupported map data: " + map.getClass());
+    }
+
+    /**
+     * Converts the key-value pair of MAP to the actual type
+     *
+     * @param originValue the original value of key-value pair
+     * @param logicalType key or value  logical type
+     */
+    private static Object convertMapEntry(Object originValue, LogicalType logicalType) {
+        if (LogicalTypeRoot.MAP.equals(logicalType.getTypeRoot())) {
+            return convertMapData((MapData) originValue, logicalType);
+        } else if (LogicalTypeRoot.DATE.equals(logicalType.getTypeRoot())) {
+            return Date.valueOf(LocalDate.ofEpochDay((Integer) originValue)).toString();
+        } else if (LogicalTypeRoot.ARRAY.equals(logicalType.getTypeRoot())) {
+            return convertArrayData((ArrayData) originValue, logicalType);
+        } else if (originValue instanceof TimestampData) {
+            return ((TimestampData) originValue).toString();
+        } else {
+            return originValue.toString();
+        }
     }
 
     private static Object convertRowData(RowData val, int index, LogicalType type) {

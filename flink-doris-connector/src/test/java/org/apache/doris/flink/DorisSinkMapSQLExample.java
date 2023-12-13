@@ -18,9 +18,7 @@ package org.apache.doris.flink;
 
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
-import org.apache.flink.types.Row;
 
 import java.util.UUID;
 
@@ -34,17 +32,17 @@ public class DorisSinkMapSQLExample {
         tEnv.executeSql("CREATE TABLE map_doris_source (\n" +
                 "  `id` int,\n" +
                 "  `c_1` map<BOOLEAN,BOOLEAN>, \n" +
-                "  `c_2` map<TINYINT,TINYINT>, \n" +
-                "  `c_3` map<SMALLINT,SMALLINT>, \n" +
-                "  `c_4` map<INT,INT> ,\n" +
-                "  `c_5` map<BIGINT,BIGINT>, \n" +
+                "  `c_2` map<BOOLEAN,BOOLEAN>, \n" +
+                "  `c_3` map<TINYINT,TINYINT>, \n" +
+                "  `c_4` map<SMALLINT,SMALLINT>, \n" +
+                "  `c_5` map<INT,INT> ,\n" +
                 "  `c_6` map<BIGINT,BIGINT>, \n" +
-                "  `c_7` map<FLOAT,FLOAT>, \n" +
-                "  `c_8` map<DOUBLE,DOUBLE>, \n" +
-                "  `c_9` map<DECIMAL(4,2),DECIMAL(4,2)>, \n" +
-                "  `c_10` map<DATE,DATE>,\n" +
-                "  `c_11` map<DATE,DATE>, \n" +
-                "  `c_12` map<INT,DATE>, \n" +
+                "  `c_7` map<BIGINT,BIGINT>, \n" +
+                "  `c_8` map<FLOAT,FLOAT>, \n" +
+                "  `c_9` map<DOUBLE,DOUBLE>, \n" +
+                "  `c_10` map<DECIMAL(4,2),DECIMAL(4,2)>, \n" +
+                "  `c_11` map<DATE,DATE>,\n" +
+                "  `c_12` map<DATE,DATE>, \n" +
                 "  `c_13` map<TIMESTAMP,TIMESTAMP>, \n" +
                 "  `c_14` map<TIMESTAMP,TIMESTAMP>, \n" +
                 "  `c_15` map<TIMESTAMP_LTZ,TIMESTAMP_LTZ>, \n" +
@@ -74,26 +72,26 @@ public class DorisSinkMapSQLExample {
                 ");");
 
         // define a dynamic aggregating query
-        final Table result = tEnv.sqlQuery("SELECT * from map_doris_source  ");
-//
-//        // print the result to the console
-        tEnv.toRetractStream(result, Row.class).print();
-        env.execute();
+//        final Table result = tEnv.sqlQuery("SELECT * from map_doris_source  ");
+////
+////        // print the result to the console
+//        tEnv.toRetractStream(result, Row.class).print();
+//        env.execute();
 
         tEnv.executeSql("CREATE TABLE map_doris_sink (\n" +
                 "  `id` int,\n" +
                 "  `c_1` map<BOOLEAN,BOOLEAN>, \n" +
-                "  `c_2` map<TINYINT,TINYINT>, \n" +
-                "  `c_3` map<SMALLINT,SMALLINT>, \n" +
-                "  `c_4` map<INT,INT> ,\n" +
-                "  `c_5` map<BIGINT,BIGINT>, \n" +
+                "  `c_2` map<BOOLEAN,BOOLEAN>, \n" + //MAP<STRING,STRING>
+                "  `c_3` map<TINYINT,TINYINT>, \n" +
+                "  `c_4` map<SMALLINT,SMALLINT>, \n" +
+                "  `c_5` map<INT,INT> ,\n" +
                 "  `c_6` map<BIGINT,BIGINT>, \n" +
-                "  `c_7` map<FLOAT,FLOAT>, \n" +
-                "  `c_8` map<DOUBLE,DOUBLE>, \n" +
-                "  `c_9` map<DECIMAL(4,2),DECIMAL(4,2)>, \n" +//MAP<DECIMALV3(4,2),DECIMALV3(4,2)>
-                "  `c_10` map<DATE,DATE>, \n" + //MAP<DATEV2,DATEV2>
-                "  `c_11` map<DATE,DATE>, \n" + //MAP<STRING,STRING>
-                "  `c_12` map<INT,DATE>, \n" + //MAP<INT,DATEV2>
+                "  `c_7` map<BIGINT,BIGINT>, \n" +
+                "  `c_8` map<FLOAT,FLOAT>, \n" +
+                "  `c_9` map<DOUBLE,DOUBLE>, \n" +
+                "  `c_10` map<DECIMAL(4,2),DECIMAL(4,2)>, \n" +//MAP<DECIMALV3(4,2),DECIMALV3(4,2)>
+                "  `c_11` map<DATE,DATE>, \n" + //MAP<DATEV2,DATEV2>
+                "  `c_12` map<DATE,DATE>, \n" + //MAP<STRING,STRING>
                 "  `c_13` map<TIMESTAMP,TIMESTAMP>, \n" +//MAP< DATETIMEV2, DATETIMEV2>
                 "  `c_14` map<TIMESTAMP,TIMESTAMP>, \n" + //MAP<STRING,STRING>
                 "  `c_15` map<TIMESTAMP_LTZ,TIMESTAMP_LTZ>, \n" +//MAP< DATETIMEV2, DATETIMEV2>
