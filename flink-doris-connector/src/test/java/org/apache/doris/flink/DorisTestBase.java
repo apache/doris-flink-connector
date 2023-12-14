@@ -17,7 +17,8 @@
 
 package org.apache.doris.flink;
 
-import com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
+
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.slf4j.Logger;
@@ -45,7 +46,7 @@ import static org.awaitility.Awaitility.given;
 
 public abstract class DorisTestBase {
     protected static final Logger LOG = LoggerFactory.getLogger(DorisTestBase.class);
-//    protected static final String DORIS_12_DOCKER_IMAGE = "adamlee489/doris:1.2.7.1_arm";
+    // protected static final String DORIS_12_DOCKER_IMAGE = "adamlee489/doris:1.2.7.1_arm";
     protected static final String DORIS_12_DOCKER_IMAGE = "adamlee489/doris:1.2.7.1_x86";
     private static final String DRIVER_JAR =
             "https://repo1.maven.org/maven2/mysql/mysql-connector-java/8.0.16/mysql-connector-java-8.0.16.jar";
@@ -57,7 +58,7 @@ public abstract class DorisTestBase {
     protected static Connection connection;
     protected static final int DEFAULT_PARALLELISM = 4;
 
-    protected static String getFenodes(){
+    protected static String getFenodes() {
         return DORIS_CONTAINER.getHost() + ":8030";
     }
 
@@ -79,8 +80,9 @@ public abstract class DorisTestBase {
         LOG.info("Containers are stopped.");
     }
 
-    public static GenericContainer createDorisContainer(){
-        GenericContainer container =  new GenericContainer<>(DORIS_12_DOCKER_IMAGE)
+    public static GenericContainer createDorisContainer() {
+        GenericContainer container =
+                new GenericContainer<>(DORIS_12_DOCKER_IMAGE)
                         .withNetwork(Network.newNetwork())
                         .withNetworkAliases("DorisContainer")
                         .withEnv("FE_SERVERS", "fe1:127.0.0.1:9010")
@@ -92,7 +94,8 @@ public abstract class DorisTestBase {
                                 cmd -> cmd.getHostConfig().withMemorySwap(0L))
                         .withPrivilegedMode(true)
                         .withLogConsumer(
-                                new Slf4jLogConsumer(DockerLoggerFactory.getLogger(DORIS_12_DOCKER_IMAGE)));
+                                new Slf4jLogConsumer(
+                                        DockerLoggerFactory.getLogger(DORIS_12_DOCKER_IMAGE)));
 
         container.setPortBindings(
                 Lists.newArrayList(
@@ -104,14 +107,15 @@ public abstract class DorisTestBase {
         return container;
     }
 
-    protected static void initializeJdbcConnection()
-            throws SQLException, MalformedURLException {
+    protected static void initializeJdbcConnection() throws SQLException, MalformedURLException {
         URLClassLoader urlClassLoader =
                 new URLClassLoader(
                         new URL[] {new URL(DRIVER_JAR)}, DorisTestBase.class.getClassLoader());
         LOG.info("Try to connect to Doris...");
         Thread.currentThread().setContextClassLoader(urlClassLoader);
-        connection = DriverManager.getConnection(String.format(URL, DORIS_CONTAINER.getHost()), USERNAME, PASSWORD);
+        connection =
+                DriverManager.getConnection(
+                        String.format(URL, DORIS_CONTAINER.getHost()), USERNAME, PASSWORD);
         try (Statement statement = connection.createStatement()) {
             ResultSet resultSet;
             do {

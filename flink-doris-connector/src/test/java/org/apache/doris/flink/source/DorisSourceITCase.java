@@ -17,10 +17,6 @@
 
 package org.apache.doris.flink.source;
 
-import org.apache.doris.flink.cfg.DorisOptions;
-import org.apache.doris.flink.cfg.DorisReadOptions;
-import org.apache.doris.flink.deserialization.SimpleListDeserializationSchema;
-import org.apache.doris.flink.DorisTestBase;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -28,6 +24,11 @@ import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
+
+import org.apache.doris.flink.DorisTestBase;
+import org.apache.doris.flink.cfg.DorisOptions;
+import org.apache.doris.flink.cfg.DorisReadOptions;
+import org.apache.doris.flink.deserialization.SimpleListDeserializationSchema;
 import org.junit.Test;
 import org.junit.jupiter.api.Assertions;
 
@@ -36,9 +37,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-/**
- * DorisSource ITCase
- */
+/** DorisSource ITCase. */
 public class DorisSourceITCase extends DorisTestBase {
     static final String DATABASE = "test";
     static final String TABLE_READ = "tbl_read";
@@ -52,26 +51,29 @@ public class DorisSourceITCase extends DorisTestBase {
         final DorisReadOptions.Builder readOptionBuilder = DorisReadOptions.builder();
 
         DorisOptions.Builder dorisBuilder = DorisOptions.builder();
-        dorisBuilder.setFenodes(getFenodes())
+        dorisBuilder
+                .setFenodes(getFenodes())
                 .setTableIdentifier(DATABASE + "." + TABLE_READ)
                 .setUsername(USERNAME)
                 .setPassword(PASSWORD);
 
-        DorisSource<List<?>> source = DorisSource.<List<?>>builder()
-                .setDorisReadOptions(readOptionBuilder.build())
-                .setDorisOptions(dorisBuilder.build())
-                .setDeserializer(new SimpleListDeserializationSchema())
-                .build();
+        DorisSource<List<?>> source =
+                DorisSource.<List<?>>builder()
+                        .setDorisReadOptions(readOptionBuilder.build())
+                        .setDorisOptions(dorisBuilder.build())
+                        .setDeserializer(new SimpleListDeserializationSchema())
+                        .build();
         List<Object> actual = new ArrayList<>();
-        try(CloseableIterator<List<?>> iterator =
-                    env.fromSource(source, WatermarkStrategy.noWatermarks(), "Doris Source")
-                            .executeAndCollect()){
+        try (CloseableIterator<List<?>> iterator =
+                env.fromSource(source, WatermarkStrategy.noWatermarks(), "Doris Source")
+                        .executeAndCollect()) {
             while (iterator.hasNext()) {
                 actual.add(iterator.next());
             }
         }
-        List<Object> expected = Arrays.asList(Arrays.asList("doris", 18), Arrays.asList("flink", 10));
-        Assertions.assertIterableEquals(expected, actual);;
+        List<Object> expected =
+                Arrays.asList(Arrays.asList("doris", 18), Arrays.asList("flink", 10));
+        Assertions.assertIterableEquals(expected, actual);
     }
 
     @Test
@@ -94,40 +96,38 @@ public class DorisSourceITCase extends DorisTestBase {
                                 + " 'username' = '%s',"
                                 + " 'password' = '%s'"
                                 + ")",
-                        getFenodes(),
-                        DATABASE + "." + TABLE_READ_TBL,
-                        USERNAME,
-                        PASSWORD);
+                        getFenodes(), DATABASE + "." + TABLE_READ_TBL, USERNAME, PASSWORD);
         tEnv.executeSql(sourceDDL);
         TableResult tableResult = tEnv.executeSql("SELECT * FROM doris_source");
 
         List<Object> actual = new ArrayList<>();
-        try(CloseableIterator<Row> iterator = tableResult.collect()){
+        try (CloseableIterator<Row> iterator = tableResult.collect()) {
             while (iterator.hasNext()) {
                 actual.add(iterator.next().toString());
             }
         }
-        String[] expected =
-                new String[] {
-                        "+I[doris, 18]",
-                        "+I[flink, 10]"
-                };
+        String[] expected = new String[] {"+I[doris, 18]", "+I[flink, 10]"};
         Assertions.assertIterableEquals(Arrays.asList(expected), actual);
     }
 
     private void initializeTable(String table) throws Exception {
-        try(Statement statement = connection.createStatement()){
+        try (Statement statement = connection.createStatement()) {
             statement.execute(String.format("CREATE DATABASE IF NOT EXISTS %s", DATABASE));
             statement.execute(String.format("DROP TABLE IF EXISTS %s.%s", DATABASE, table));
-            statement.execute(String.format("CREATE TABLE %s.%s ( \n" +
-                    "`name` varchar(256),\n" +
-                    "`age` int\n" +
-                    ") DISTRIBUTED BY HASH(`name`) BUCKETS 1\n" +
-                    "PROPERTIES (\n" +
-                    "\"replication_num\" = \"1\"\n" +
-                    ")\n", DATABASE, table));
-            statement.execute(String.format("insert into %s.%s  values ('doris',18)", DATABASE, table));
-            statement.execute(String.format("insert into %s.%s  values ('flink',10)", DATABASE, table));
+            statement.execute(
+                    String.format(
+                            "CREATE TABLE %s.%s ( \n"
+                                    + "`name` varchar(256),\n"
+                                    + "`age` int\n"
+                                    + ") DISTRIBUTED BY HASH(`name`) BUCKETS 1\n"
+                                    + "PROPERTIES (\n"
+                                    + "\"replication_num\" = \"1\"\n"
+                                    + ")\n",
+                            DATABASE, table));
+            statement.execute(
+                    String.format("insert into %s.%s  values ('doris',18)", DATABASE, table));
+            statement.execute(
+                    String.format("insert into %s.%s  values ('flink',10)", DATABASE, table));
         }
     }
 }
