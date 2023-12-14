@@ -45,8 +45,8 @@ import static org.awaitility.Awaitility.given;
 
 public abstract class DorisTestBase {
     protected static final Logger LOG = LoggerFactory.getLogger(DorisTestBase.class);
-    protected static final String DORIS_12_DOCKER_IMAGE = "adamlee489/doris:1.2.7.1_arm";
-//    protected static final String DORIS_12_DOCKER_IMAGE = "adamlee489/doris:1.2.7.1_x86";
+//    protected static final String DORIS_12_DOCKER_IMAGE = "adamlee489/doris:1.2.7.1_arm";
+    protected static final String DORIS_12_DOCKER_IMAGE = "adamlee489/doris:1.2.7.1_x86";
     private static final String DRIVER_JAR =
             "https://repo1.maven.org/maven2/mysql/mysql-connector-java/8.0.16/mysql-connector-java-8.0.16.jar";
     private static final String DRIVER_CLASS = "com.mysql.cj.jdbc.Driver";
