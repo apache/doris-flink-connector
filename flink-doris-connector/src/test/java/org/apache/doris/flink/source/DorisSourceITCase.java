@@ -15,12 +15,12 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.flink.itcase;
+package org.apache.doris.flink.source;
 
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.deserialization.SimpleListDeserializationSchema;
-import org.apache.doris.flink.source.DorisSource;
+import org.apache.doris.flink.DorisTestBase;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;

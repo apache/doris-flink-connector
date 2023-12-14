@@ -15,13 +15,13 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.flink.itcase;
+package org.apache.doris.flink.sink;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.doris.flink.DorisTestBase;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
-import org.apache.doris.flink.sink.DorisSink;
 import org.apache.doris.flink.sink.writer.serializer.SimpleStringSerializer;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
