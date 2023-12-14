@@ -52,7 +52,7 @@ public class CDCSchemaChangeExample {
                         .tableList("test.t1") // set captured table
                         .username("root")
                         .password("123456")
-                        .debeziumProperties(DateToStringConverter.defaultProps)
+                        .debeziumProperties(DateToStringConverter.DEFAULT_PROPS)
                         .deserializer(schema)
                         .serverTimeZone("Asia/Shanghai")
                         .includeSchemaChanges(true) // converts SourceRecord to JSON String

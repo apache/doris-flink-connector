@@ -43,15 +43,15 @@ public class DateToStringConverter implements CustomConverter<SchemaBuilder, Rel
     private DateTimeFormatter timestampFormatter = DateTimeFormatter.ISO_DATE_TIME;
     private ZoneId timestampZoneId = ZoneId.systemDefault();
 
-    public static Properties defaultProps = new Properties();
+    public static final Properties DEFAULT_PROPS = new Properties();
 
     static {
-        defaultProps.setProperty("converters", "date");
-        defaultProps.setProperty("date.type", "org.apache.doris.flink.utils.DateToStringConverter");
-        defaultProps.setProperty("date.format.date", "yyyy-MM-dd");
-        defaultProps.setProperty("date.format.datetime", "yyyy-MM-dd HH:mm:ss");
-        defaultProps.setProperty("date.format.timestamp", "yyyy-MM-dd HH:mm:ss");
-        defaultProps.setProperty("date.format.timestamp.zone", "UTC");
+        DEFAULT_PROPS.setProperty("converters", "date");
+        DEFAULT_PROPS.setProperty("date.type", "org.apache.doris.flink.utils.DateToStringConverter");
+        DEFAULT_PROPS.setProperty("date.format.date", "yyyy-MM-dd");
+        DEFAULT_PROPS.setProperty("date.format.datetime", "yyyy-MM-dd HH:mm:ss");
+        DEFAULT_PROPS.setProperty("date.format.timestamp", "yyyy-MM-dd HH:mm:ss");
+        DEFAULT_PROPS.setProperty("date.format.timestamp.zone", "UTC");
     }
 
     @Override
