@@ -107,26 +107,25 @@ public class DorisLookupOptions implements Serializable {
             return this;
         }
 
-        public Builder setJdbcReadBatchSize(int jdbcReadBatchSize){
+        public Builder setJdbcReadBatchSize(int jdbcReadBatchSize) {
             this.jdbcReadBatchSize = jdbcReadBatchSize;
             return this;
         }
 
-        public Builder setJdbcReadBatchQueueSize(int jdbcReadBatchQueueSize){
+        public Builder setJdbcReadBatchQueueSize(int jdbcReadBatchQueueSize) {
             this.jdbcReadBatchQueueSize = jdbcReadBatchQueueSize;
             return this;
         }
 
-        public Builder setJdbcReadThreadSize(int jdbcReadThreadSize){
+        public Builder setJdbcReadThreadSize(int jdbcReadThreadSize) {
             this.jdbcReadThreadSize = jdbcReadThreadSize;
             return this;
         }
 
-        public Builder setAsync(boolean async){
+        public Builder setAsync(boolean async) {
             this.async = async;
             return this;
         }
-
 
         public DorisLookupOptions build() {
             return new DorisLookupOptions(

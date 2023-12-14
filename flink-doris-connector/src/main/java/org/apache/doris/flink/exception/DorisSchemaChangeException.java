@@ -17,9 +17,7 @@
 
 package org.apache.doris.flink.exception;
 
-/**
- * Doris Schema Change run exception.
- */
+/** Doris Schema Change run exception. */
 public class DorisSchemaChangeException extends RuntimeException {
     public DorisSchemaChangeException() {
         super();
@@ -37,9 +35,11 @@ public class DorisSchemaChangeException extends RuntimeException {
         super(cause);
     }
 
-    protected DorisSchemaChangeException(String message, Throwable cause,
-                                         boolean enableSuppression,
-                                         boolean writableStackTrace) {
+    protected DorisSchemaChangeException(
+            String message,
+            Throwable cause,
+            boolean enableSuppression,
+            boolean writableStackTrace) {
         super(message, cause, enableSuppression, writableStackTrace);
     }
 }

@@ -19,7 +19,7 @@ package org.apache.doris.flink.sink.committer;
 
 import org.apache.flink.api.connector.sink2.Committer;
 
-public class MockCommitRequest <CommT> implements Committer.CommitRequest<CommT>{
+public class MockCommitRequest<CommT> implements Committer.CommitRequest<CommT> {
 
     private final CommT committable;
 
@@ -38,27 +38,17 @@ public class MockCommitRequest <CommT> implements Committer.CommitRequest<CommT>
     }
 
     @Override
-    public void signalFailedWithKnownReason(Throwable throwable) {
-
-    }
+    public void signalFailedWithKnownReason(Throwable throwable) {}
 
     @Override
-    public void signalFailedWithUnknownReason(Throwable throwable) {
-
-    }
+    public void signalFailedWithUnknownReason(Throwable throwable) {}
 
     @Override
-    public void retryLater() {
-
-    }
+    public void retryLater() {}
 
     @Override
-    public void updateAndRetryLater(CommT commT) {
-
-    }
+    public void updateAndRetryLater(CommT commT) {}
 
     @Override
-    public void signalAlreadyCommitted() {
-
-    }
+    public void signalAlreadyCommitted() {}
 }

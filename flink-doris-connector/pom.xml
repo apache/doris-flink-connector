@@ -80,6 +80,9 @@ under the License.
         <log4j2.version>2.18.0</log4j2.version>
         <project.scm.id>github</project.scm.id>
         <thrift-service.version>1.0.0</thrift-service.version>
+        <checkstyle.version>8.14</checkstyle.version>
+        <maven-checkstyle-plugin.version>2.17</maven-checkstyle-plugin.version>
+        <spotless.version>2.4.2</spotless.version>
     </properties>
 
     <dependencies>
@@ -458,6 +461,78 @@ under the License.
                 <artifactId>maven-shade-plugin</artifactId>
             </plugin>
 
+<!--            TODO Wait until all code is formatted before introducing it.-->
+<!--            <plugin>-->
+<!--                <groupId>com.diffplug.spotless</groupId>-->
+<!--                <artifactId>spotless-maven-plugin</artifactId>-->
+<!--                <version>${spotless.version}</version>-->
+<!--                <configuration>-->
+<!--                    <java>-->
+<!--                        <googleJavaFormat>-->
+<!--                            <version>1.7</version>-->
+<!--                            <style>AOSP</style>-->
+<!--                        </googleJavaFormat>-->
+
+<!--                        &lt;!&ndash; \# refers to the static imports &ndash;&gt;-->
+<!--                        <importOrder>-->
+<!--                            <order>org.apache.flink,org.apache.flink.shaded,,javax,java,scala,\#-->
+<!--                            </order>-->
+<!--                        </importOrder>-->
+
+<!--                        <removeUnusedImports/>-->
+<!--                    </java>-->
+<!--                </configuration>-->
+<!--                <executions>-->
+<!--                    <execution>-->
+<!--                        <id>spotless-check</id>-->
+<!--                        <phase>validate</phase>-->
+<!--                        <goals>-->
+<!--                            <goal>check</goal>-->
+<!--                        </goals>-->
+<!--                    </execution>-->
+<!--                </executions>-->
+<!--            </plugin>-->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-checkstyle-plugin</artifactId>
+                <version>${maven-checkstyle-plugin.version}</version>
+                <dependencies>
+                    <dependency>
+                        <groupId>com.puppycrawl.tools</groupId>
+                        <artifactId>checkstyle</artifactId>
+                        <!-- Note: match version with docs/flinkDev/ide_setup.md -->
+                        <version>${checkstyle.version}</version>
+                    </dependency>
+                </dependencies>
+                <executions>
+                    <execution>
+                        <id>validate</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <suppressionsLocation>../tools/maven/suppressions.xml</suppressionsLocation>
+                    <includeTestSourceDirectory>true</includeTestSourceDirectory>
+                    <configLocation>../tools/maven/checkstyle.xml</configLocation>
+                    <logViolationsToConsole>true</logViolationsToConsole>
+                    <failOnViolation>true</failOnViolation>
+                   <!-- TODO It needs to be deleted after all code formatting is completed.-->
+                    <sourceDirectories>
+                        <directory>src/main/java/org/apache/doris/flink/source/</directory>
+                        <directory>src/main/java/org/apache/doris/flink/rest</directory>
+                        <directory>src/main/java/org/apache/doris/flink/serialization</directory>
+                        <directory>src/main/java/org/apache/doris/flink/cfg</directory>
+                        <directory>src/main/java/org/apache/doris/flink/datastream</directory>
+                        <directory>src/main/java/org/apache/doris/flink/backend</directory>
+                        <directory>src/main/java/org/apache/doris/flink/exception</directory>
+                        <directory>src/main/java/org/apache/doris/flink/rest</directory>
+                        <directory>src/main/java/org/apache/doris/flink/serialization</directory>
+                    </sourceDirectories>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>

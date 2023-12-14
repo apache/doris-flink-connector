@@ -14,6 +14,7 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.source.reader;
 
 import org.apache.doris.flink.deserialization.SimpleListDeserializationSchema;
@@ -27,9 +28,7 @@ import java.util.Collections;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Unit tests for the {@link DorisSourceReader}.
- */
+/** Unit tests for the {@link DorisSourceReader}. */
 @Ignore
 public class DorisSourceReaderTest {
 
@@ -39,8 +38,7 @@ public class DorisSourceReaderTest {
                 OptionUtils.buildDorisReadOptions(),
                 new DorisRecordEmitter<>(new SimpleListDeserializationSchema()),
                 context,
-                context.getConfiguration()
-        );
+                context.getConfiguration());
     }
 
     private static DorisSourceSplit createTestDorisSplit() throws IOException {

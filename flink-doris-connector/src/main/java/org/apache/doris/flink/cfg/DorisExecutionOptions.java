@@ -14,8 +14,8 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
-package org.apache.doris.flink.cfg;
 
+package org.apache.doris.flink.cfg;
 
 import org.apache.flink.util.Preconditions;
 
@@ -26,9 +26,7 @@ import static org.apache.doris.flink.sink.writer.LoadConstants.FORMAT_KEY;
 import static org.apache.doris.flink.sink.writer.LoadConstants.JSON;
 import static org.apache.doris.flink.sink.writer.LoadConstants.READ_JSON_BY_LINE;
 
-/**
- * Doris sink batch options.
- */
+/** Doris sink batch options. */
 public class DorisExecutionOptions implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -36,7 +34,7 @@ public class DorisExecutionOptions implements Serializable {
     public static final int DEFAULT_MAX_RETRY_TIMES = 3;
     private static final int DEFAULT_BUFFER_SIZE = 1024 * 1024;
     private static final int DEFAULT_BUFFER_COUNT = 3;
-    //batch flush
+    // batch flush
     private static final int DEFAULT_FLUSH_QUEUE_SIZE = 2;
     private static final int DEFAULT_BUFFER_FLUSH_MAX_ROWS = 50000;
     private static final int DEFAULT_BUFFER_FLUSH_MAX_BYTES = 10 * 1024 * 1024;
@@ -48,15 +46,14 @@ public class DorisExecutionOptions implements Serializable {
     private final String labelPrefix;
     private final boolean useCache;
 
-    /**
-     * Properties for the StreamLoad.
-     */
+    /** Properties for the StreamLoad. */
     private final Properties streamLoadProp;
+
     private final Boolean enableDelete;
     private Boolean enable2PC;
     private boolean force2PC;
 
-    //batch mode param
+    // batch mode param
     private final int flushQueueSize;
     private final int bufferFlushMaxRows;
     private final int bufferFlushMaxBytes;
@@ -64,22 +61,23 @@ public class DorisExecutionOptions implements Serializable {
     private final boolean enableBatchMode;
     private final boolean ignoreUpdateBefore;
 
-    public DorisExecutionOptions(int checkInterval,
-                                 int maxRetries,
-                                 int bufferSize,
-                                 int bufferCount,
-                                 String labelPrefix,
-                                 boolean useCache,
-                                 Properties streamLoadProp,
-                                 Boolean enableDelete,
-                                 Boolean enable2PC,
-                                 boolean enableBatchMode,
-                                 int flushQueueSize,
-                                 int bufferFlushMaxRows,
-                                 int bufferFlushMaxBytes,
-                                 long bufferFlushIntervalMs,
-                                 boolean ignoreUpdateBefore,
-                                 boolean force2PC) {
+    public DorisExecutionOptions(
+            int checkInterval,
+            int maxRetries,
+            int bufferSize,
+            int bufferCount,
+            String labelPrefix,
+            boolean useCache,
+            Properties streamLoadProp,
+            Boolean enableDelete,
+            Boolean enable2PC,
+            boolean enableBatchMode,
+            int flushQueueSize,
+            int bufferFlushMaxRows,
+            int bufferFlushMaxBytes,
+            long bufferFlushIntervalMs,
+            boolean ignoreUpdateBefore,
+            boolean force2PC) {
         Preconditions.checkArgument(maxRetries >= 0);
         this.checkInterval = checkInterval;
         this.maxRetries = maxRetries;
@@ -111,7 +109,7 @@ public class DorisExecutionOptions implements Serializable {
         properties.setProperty("read_json_by_line", "true");
         return new Builder().setStreamLoadProp(properties);
     }
-    
+
     public static DorisExecutionOptions defaults() {
         Properties properties = new Properties();
         properties.setProperty("format", "json");
@@ -150,7 +148,7 @@ public class DorisExecutionOptions implements Serializable {
         return labelPrefix;
     }
 
-    public boolean isUseCache () {
+    public boolean isUseCache() {
         return useCache;
     }
 
@@ -186,7 +184,7 @@ public class DorisExecutionOptions implements Serializable {
         return enableBatchMode;
     }
 
-    public boolean getIgnoreUpdateBefore(){
+    public boolean getIgnoreUpdateBefore() {
         return ignoreUpdateBefore;
     }
 
@@ -198,9 +196,7 @@ public class DorisExecutionOptions implements Serializable {
         return force2PC;
     }
 
-    /**
-     * Builder of {@link DorisExecutionOptions}.
-     */
+    /** Builder of {@link DorisExecutionOptions}. */
     public static class Builder {
         private int checkInterval = DEFAULT_CHECK_INTERVAL;
         private int maxRetries = DEFAULT_MAX_RETRY_TIMES;
@@ -212,7 +208,8 @@ public class DorisExecutionOptions implements Serializable {
         private boolean enableDelete = true;
         private boolean enable2PC = true;
 
-        //A flag used to determine whether to forcibly open 2pc. By default, the uniq model close 2pc.
+        // A flag used to determine whether to forcibly open 2pc. By default, the uniq model close
+        // 2pc.
         private boolean force2PC = false;
 
         private int flushQueueSize = DEFAULT_FLUSH_QUEUE_SIZE;
@@ -222,7 +219,6 @@ public class DorisExecutionOptions implements Serializable {
         private boolean enableBatchMode = false;
 
         private boolean ignoreUpdateBefore = true;
-
 
         public Builder setCheckInterval(Integer checkInterval) {
             this.checkInterval = checkInterval;
@@ -271,7 +267,7 @@ public class DorisExecutionOptions implements Serializable {
 
         public Builder enable2PC() {
             this.enable2PC = true;
-            //Force open 2pc
+            // Force open 2pc
             this.force2PC = true;
             return this;
         }
@@ -287,7 +283,9 @@ public class DorisExecutionOptions implements Serializable {
         }
 
         public Builder setBufferFlushIntervalMs(long bufferFlushIntervalMs) {
-            Preconditions.checkState(bufferFlushIntervalMs >= 1000, "bufferFlushIntervalMs must be greater than or equal to 1 second");
+            Preconditions.checkState(
+                    bufferFlushIntervalMs >= 1000,
+                    "bufferFlushIntervalMs must be greater than or equal to 1 second");
             this.bufferFlushIntervalMs = bufferFlushIntervalMs;
             return this;
         }
@@ -308,15 +306,29 @@ public class DorisExecutionOptions implements Serializable {
         }
 
         public DorisExecutionOptions build() {
-            //If format=json is set but read_json_by_line is not set, record may not be written.
-            if(streamLoadProp != null
+            // If format=json is set but read_json_by_line is not set, record may not be written.
+            if (streamLoadProp != null
                     && streamLoadProp.containsKey(FORMAT_KEY)
-                    && JSON.equals(streamLoadProp.getProperty(FORMAT_KEY))){
+                    && JSON.equals(streamLoadProp.getProperty(FORMAT_KEY))) {
                 streamLoadProp.put(READ_JSON_BY_LINE, true);
             }
-            return new DorisExecutionOptions(checkInterval, maxRetries, bufferSize, bufferCount, labelPrefix, useCache,
-                    streamLoadProp, enableDelete, enable2PC, enableBatchMode, flushQueueSize, bufferFlushMaxRows,
-                    bufferFlushMaxBytes, bufferFlushIntervalMs, ignoreUpdateBefore, force2PC);
+            return new DorisExecutionOptions(
+                    checkInterval,
+                    maxRetries,
+                    bufferSize,
+                    bufferCount,
+                    labelPrefix,
+                    useCache,
+                    streamLoadProp,
+                    enableDelete,
+                    enable2PC,
+                    enableBatchMode,
+                    flushQueueSize,
+                    bufferFlushMaxRows,
+                    bufferFlushMaxBytes,
+                    bufferFlushIntervalMs,
+                    ignoreUpdateBefore,
+                    force2PC);
         }
     }
 }

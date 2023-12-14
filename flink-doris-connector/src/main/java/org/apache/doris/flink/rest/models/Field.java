@@ -17,34 +17,52 @@
 
 package org.apache.doris.flink.rest.models;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.util.Objects;
 
 public class Field {
+    @JsonProperty(value = "name")
     private String name;
+
+    @JsonProperty(value = "type")
     private String type;
+
+    @JsonProperty(value = "comment")
     private String comment;
+
+    @JsonProperty(value = "precision")
     private int precision;
+
+    @JsonProperty(value = "scale")
     private int scale;
-    private String aggregation_type;
 
-    public Field() {
-    }
+    @JsonProperty(value = "aggregation_type")
+    private String aggregationType;
 
-    public Field(String name, String type, String comment, int precision, int scale, String aggregation_type) {
+    public Field() {}
+
+    public Field(
+            String name,
+            String type,
+            String comment,
+            int precision,
+            int scale,
+            String aggregationType) {
         this.name = name;
         this.type = type;
         this.comment = comment;
         this.precision = precision;
         this.scale = scale;
-        this.aggregation_type = aggregation_type;
+        this.aggregationType = aggregationType;
     }
 
-    public String getAggregation_type() {
-        return aggregation_type;
+    public String getAggregationType() {
+        return aggregationType;
     }
 
-    public void setAggregation_type(String aggregation_type) {
-        this.aggregation_type = aggregation_type;
+    public void setAggregationType(String aggregationType) {
+        this.aggregationType = aggregationType;
     }
 
     public String getName() {
@@ -96,11 +114,11 @@ public class Field {
             return false;
         }
         Field field = (Field) o;
-        return precision == field.precision &&
-                scale == field.scale &&
-                Objects.equals(name, field.name) &&
-                Objects.equals(type, field.type) &&
-                Objects.equals(comment, field.comment);
+        return precision == field.precision
+                && scale == field.scale
+                && Objects.equals(name, field.name)
+                && Objects.equals(type, field.type)
+                && Objects.equals(comment, field.comment);
     }
 
     @Override
@@ -110,12 +128,20 @@ public class Field {
 
     @Override
     public String toString() {
-        return "Field{" +
-                "name='" + name + '\'' +
-                ", type='" + type + '\'' +
-                ", comment='" + comment + '\'' +
-                ", precision=" + precision +
-                ", scale=" + scale +
-                '}';
+        return "Field{"
+                + "name='"
+                + name
+                + '\''
+                + ", type='"
+                + type
+                + '\''
+                + ", comment='"
+                + comment
+                + '\''
+                + ", precision="
+                + precision
+                + ", scale="
+                + scale
+                + '}';
     }
 }

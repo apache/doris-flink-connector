@@ -17,9 +17,7 @@
 
 package org.apache.doris.flink.exception;
 
-/**
- * Create Table exception.
- */
+/** Create Table exception. */
 public class CreateTableException extends RuntimeException {
     public CreateTableException() {
         super();
@@ -37,9 +35,11 @@ public class CreateTableException extends RuntimeException {
         super(cause);
     }
 
-    protected CreateTableException(String message, Throwable cause,
-                                   boolean enableSuppression,
-                                   boolean writableStackTrace) {
+    protected CreateTableException(
+            String message,
+            Throwable cause,
+            boolean enableSuppression,
+            boolean writableStackTrace) {
         super(message, cause, enableSuppression, writableStackTrace);
     }
 }

@@ -27,13 +27,11 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 
-/**
- * Mock Class for HttpEntity.
- */
+/** Mock Class for HttpEntity. */
 public class HttpEntityMock implements HttpEntity {
     private String value;
-    public HttpEntityMock() {
-    }
+
+    public HttpEntityMock() {}
 
     public void setValue(String value) {
         this.value = value;
@@ -70,9 +68,7 @@ public class HttpEntityMock implements HttpEntity {
     }
 
     @Override
-    public void writeTo(OutputStream outputStream) throws IOException {
-
-    }
+    public void writeTo(OutputStream outputStream) throws IOException {}
 
     @Override
     public boolean isStreaming() {
@@ -80,7 +76,5 @@ public class HttpEntityMock implements HttpEntity {
     }
 
     @Override
-    public void consumeContent() throws IOException {
-
-    }
+    public void consumeContent() throws IOException {}
 }

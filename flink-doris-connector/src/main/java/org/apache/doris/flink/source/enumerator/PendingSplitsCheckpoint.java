@@ -14,11 +14,13 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.source.enumerator;
 
 import org.apache.doris.flink.source.split.DorisSourceSplit;
 
 import javax.annotation.Nullable;
+
 import java.util.Collection;
 
 /**
@@ -27,9 +29,7 @@ import java.util.Collection;
  */
 public class PendingSplitsCheckpoint {
 
-    /**
-     * The splits in the checkpoint.
-     */
+    /** The splits in the checkpoint. */
     private final Collection<DorisSourceSplit> splits;
 
     /**
@@ -37,8 +37,7 @@ public class PendingSplitsCheckpoint {
      * repeated serialization cost for the same checkpoint object. This field is used by {@link
      * PendingSplitsCheckpointSerializer}.
      */
-    @Nullable
-    byte[] serializedFormCache;
+    @Nullable byte[] serializedFormCache;
 
     public PendingSplitsCheckpoint(Collection<DorisSourceSplit> splits) {
         this.splits = splits;

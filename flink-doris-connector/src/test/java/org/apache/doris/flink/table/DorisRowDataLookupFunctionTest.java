@@ -17,16 +17,18 @@
 
 package org.apache.doris.flink.table;
 
-import org.apache.doris.flink.cfg.DorisLookupOptions;
-import org.apache.doris.flink.cfg.DorisOptions;
-import org.apache.doris.flink.cfg.DorisReadOptions;
-import org.apache.flink.shaded.guava30.com.google.common.cache.Cache;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Collector;
+
+import org.apache.flink.shaded.guava30.com.google.common.cache.Cache;
+
+import org.apache.doris.flink.cfg.DorisLookupOptions;
+import org.apache.doris.flink.cfg.DorisOptions;
+import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -47,7 +49,7 @@ public class DorisRowDataLookupFunctionTest {
     private static String[] fieldNames = new String[] {"id1", "id2", "c_string", "c_double"};
     private static DataType[] fieldDataTypes =
             new DataType[] {
-                    DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING(), DataTypes.DOUBLE()
+                DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING(), DataTypes.DOUBLE()
             };
     private static String[] lookupKeys = new String[] {"id1", "id2"};
 
@@ -100,26 +102,30 @@ public class DorisRowDataLookupFunctionTest {
         RowData keyRowNoExist = GenericRowData.of(5, StringData.fromString("5"));
         Cache<RowData, List<RowData>> cache = lookupFunction.getCache();
         // empty data should cache
-        assertEquals(cache.getIfPresent(keyRow),
-                        Arrays.asList(GenericRowData.of(
+        assertEquals(
+                cache.getIfPresent(keyRow),
+                Arrays.asList(
+                        GenericRowData.of(
                                 4,
                                 StringData.fromString("D"),
                                 StringData.fromString("zhangsanD"),
                                 4.12)));
         assertEquals(cache.getIfPresent(keyRowNoExist), Collections.<RowData>emptyList());
 
-        //cache data expire
+        // cache data expire
         Thread.sleep(cacheExpireMs);
         assert cache.getIfPresent(keyRow) == null;
     }
 
-
-    private DorisRowDataLookupFunction buildRowDataLookupFunction(DorisLookupOptions lookupOptions) {
-        DorisOptions dorisOptions = DorisOptions.builder().setFenodes(TEST_FENODES)
-                .setTableIdentifier(LOOKUP_TABLE)
-                .setUsername("root")
-                .setPassword("")
-                .build();
+    private DorisRowDataLookupFunction buildRowDataLookupFunction(
+            DorisLookupOptions lookupOptions) {
+        DorisOptions dorisOptions =
+                DorisOptions.builder()
+                        .setFenodes(TEST_FENODES)
+                        .setTableIdentifier(LOOKUP_TABLE)
+                        .setUsername("root")
+                        .setPassword("")
+                        .build();
 
         DorisReadOptions readOptions = DorisReadOptions.builder().build();
 
@@ -151,5 +157,4 @@ public class DorisRowDataLookupFunctionTest {
             return output;
         }
     }
-
 }
