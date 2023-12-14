@@ -14,20 +14,22 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.deserialization;
 
-import org.apache.doris.flink.deserialization.converter.DorisRowConverter;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Collector;
+
+import org.apache.doris.flink.deserialization.converter.DorisRowConverter;
+
 import java.util.List;
 
-
 /**
- * A simple implementation of {@link DorisDeserializationSchema} which converts the received
- * list record into {@link GenericRowData}.
+ * A simple implementation of {@link DorisDeserializationSchema} which converts the received list
+ * record into {@link GenericRowData}.
  */
 public class RowDataDeserializationSchema implements DorisDeserializationSchema<RowData> {
 

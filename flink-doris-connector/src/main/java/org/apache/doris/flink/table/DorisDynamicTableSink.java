@@ -17,6 +17,13 @@
 
 package org.apache.doris.flink.table;
 
+import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.sink.DynamicTableSink;
+import org.apache.flink.table.connector.sink.SinkV2Provider;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.util.Preconditions;
+
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
@@ -24,12 +31,6 @@ import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.sink.DorisSink;
 import org.apache.doris.flink.sink.batch.DorisBatchSink;
 import org.apache.doris.flink.sink.writer.serializer.RowDataSerializer;
-import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.connector.ChangelogMode;
-import org.apache.flink.table.connector.sink.DynamicTableSink;
-import org.apache.flink.table.connector.sink.SinkV2Provider;
-import org.apache.flink.table.data.RowData;
-import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,9 +45,7 @@ import static org.apache.doris.flink.sink.writer.LoadConstants.FIELD_DELIMITER_D
 import static org.apache.doris.flink.sink.writer.LoadConstants.FIELD_DELIMITER_KEY;
 import static org.apache.doris.flink.sink.writer.LoadConstants.FORMAT_KEY;
 
-/**
- * DorisDynamicTableSink
- **/
+/** DorisDynamicTableSink. */
 public class DorisDynamicTableSink implements DynamicTableSink {
     private static final Logger LOG = LoggerFactory.getLogger(DorisDynamicTableSink.class);
     private final DorisOptions options;
@@ -55,11 +54,12 @@ public class DorisDynamicTableSink implements DynamicTableSink {
     private final TableSchema tableSchema;
     private final Integer sinkParallelism;
 
-    public DorisDynamicTableSink(DorisOptions options,
-                                 DorisReadOptions readOptions,
-                                 DorisExecutionOptions executionOptions,
-                                 TableSchema tableSchema,
-                                 Integer sinkParallelism) {
+    public DorisDynamicTableSink(
+            DorisOptions options,
+            DorisReadOptions readOptions,
+            DorisExecutionOptions executionOptions,
+            TableSchema tableSchema,
+            Integer sinkParallelism) {
         this.options = options;
         this.readOptions = readOptions;
         this.executionOptions = executionOptions;
@@ -69,9 +69,9 @@ public class DorisDynamicTableSink implements DynamicTableSink {
 
     @Override
     public ChangelogMode getChangelogMode(ChangelogMode changelogMode) {
-        if(executionOptions.getIgnoreUpdateBefore()){
+        if (executionOptions.getIgnoreUpdateBefore()) {
             return ChangelogMode.upsert();
-        }else{
+        } else {
             return ChangelogMode.all();
         }
     }
@@ -79,11 +79,21 @@ public class DorisDynamicTableSink implements DynamicTableSink {
     @Override
     public SinkRuntimeProvider getSinkRuntimeProvider(Context context) {
         Properties loadProperties = executionOptions.getStreamLoadProp();
-        boolean deletable = executionOptions.getDeletable() && RestService.isUniqueKeyType(options, readOptions, LOG);
+        boolean deletable =
+                executionOptions.getDeletable()
+                        && RestService.isUniqueKeyType(options, readOptions, LOG);
         if (!loadProperties.containsKey(COLUMNS_KEY)) {
             String[] fieldNames = tableSchema.getFieldNames();
             Preconditions.checkState(fieldNames != null && fieldNames.length > 0);
-            String columns = String.join(",", Arrays.stream(fieldNames).map(item -> String.format("`%s`", item.trim().replace("`", ""))).collect(Collectors.toList()));
+            String columns =
+                    String.join(
+                            ",",
+                            Arrays.stream(fieldNames)
+                                    .map(
+                                            item ->
+                                                    String.format(
+                                                            "`%s`", item.trim().replace("`", "")))
+                                    .collect(Collectors.toList()));
             if (deletable) {
                 columns = String.format("%s,%s", columns, DORIS_DELETE_SIGN);
             }
@@ -91,22 +101,26 @@ public class DorisDynamicTableSink implements DynamicTableSink {
         }
 
         RowDataSerializer.Builder serializerBuilder = RowDataSerializer.builder();
-        serializerBuilder.setFieldNames(tableSchema.getFieldNames())
+        serializerBuilder
+                .setFieldNames(tableSchema.getFieldNames())
                 .setFieldType(tableSchema.getFieldDataTypes())
                 .setType(loadProperties.getProperty(FORMAT_KEY, CSV))
                 .enableDelete(deletable)
-                .setFieldDelimiter(loadProperties.getProperty(FIELD_DELIMITER_KEY, FIELD_DELIMITER_DEFAULT));
+                .setFieldDelimiter(
+                        loadProperties.getProperty(FIELD_DELIMITER_KEY, FIELD_DELIMITER_DEFAULT));
 
-        if(!executionOptions.enableBatchMode()){
+        if (!executionOptions.enableBatchMode()) {
             DorisSink.Builder<RowData> dorisSinkBuilder = DorisSink.builder();
-            dorisSinkBuilder.setDorisOptions(options)
+            dorisSinkBuilder
+                    .setDorisOptions(options)
                     .setDorisReadOptions(readOptions)
                     .setDorisExecutionOptions(executionOptions)
                     .setSerializer(serializerBuilder.build());
             return SinkV2Provider.of(dorisSinkBuilder.build(), sinkParallelism);
-        }else{
+        } else {
             DorisBatchSink.Builder<RowData> dorisBatchSinkBuilder = DorisBatchSink.builder();
-            dorisBatchSinkBuilder.setDorisOptions(options)
+            dorisBatchSinkBuilder
+                    .setDorisOptions(options)
                     .setDorisReadOptions(readOptions)
                     .setDorisExecutionOptions(executionOptions)
                     .setSerializer(serializerBuilder.build());
@@ -116,7 +130,8 @@ public class DorisDynamicTableSink implements DynamicTableSink {
 
     @Override
     public DynamicTableSink copy() {
-        return new DorisDynamicTableSink(options, readOptions, executionOptions, tableSchema, sinkParallelism);
+        return new DorisDynamicTableSink(
+                options, readOptions, executionOptions, tableSchema, sinkParallelism);
     }
 
     @Override

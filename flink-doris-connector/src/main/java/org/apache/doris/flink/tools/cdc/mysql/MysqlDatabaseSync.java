@@ -14,7 +14,15 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.tools.cdc.mysql;
+
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.streaming.api.datastream.DataStreamSource;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.StringUtils;
 
 import com.ververica.cdc.connectors.mysql.source.MySqlSource;
 import com.ververica.cdc.connectors.mysql.source.MySqlSourceBuilder;
@@ -30,12 +38,6 @@ import org.apache.doris.flink.catalog.doris.DataModel;
 import org.apache.doris.flink.deserialization.DorisJsonDebeziumDeserializationSchema;
 import org.apache.doris.flink.tools.cdc.DatabaseSync;
 import org.apache.doris.flink.tools.cdc.SourceSchema;
-import org.apache.flink.api.common.eventtime.WatermarkStrategy;
-import org.apache.flink.streaming.api.datastream.DataStreamSource;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.table.catalog.ObjectPath;
-import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -66,11 +68,13 @@ public class MysqlDatabaseSync extends DatabaseSync {
         try {
             Class.forName("com.mysql.cj.jdbc.Driver");
         } catch (ClassNotFoundException ex) {
-            LOG.warn("can not found class com.mysql.cj.jdbc.Driver, use class com.mysql.jdbc.Driver");
+            LOG.warn(
+                    "can not found class com.mysql.cj.jdbc.Driver, use class com.mysql.jdbc.Driver");
             try {
                 Class.forName("com.mysql.jdbc.Driver");
             } catch (Exception e) {
-                throw new SQLException("No suitable driver found, can not found class com.mysql.cj.jdbc.Driver and com.mysql.jdbc.Driver");
+                throw new SQLException(
+                        "No suitable driver found, can not found class com.mysql.cj.jdbc.Driver and com.mysql.jdbc.Driver");
             }
         }
     }
@@ -79,10 +83,18 @@ public class MysqlDatabaseSync extends DatabaseSync {
     public Connection getConnection() throws SQLException {
         Properties jdbcProperties = getJdbcProperties();
         StringBuilder jdbcUrlSb = new StringBuilder(JDBC_URL);
-        jdbcProperties.forEach((key, value) -> jdbcUrlSb.append("&").append(key).append("=").append(value));
-        String jdbcUrl = String.format(jdbcUrlSb.toString(), config.get(MySqlSourceOptions.HOSTNAME), config.get(MySqlSourceOptions.PORT));
+        jdbcProperties.forEach(
+                (key, value) -> jdbcUrlSb.append("&").append(key).append("=").append(value));
+        String jdbcUrl =
+                String.format(
+                        jdbcUrlSb.toString(),
+                        config.get(MySqlSourceOptions.HOSTNAME),
+                        config.get(MySqlSourceOptions.PORT));
 
-        return DriverManager.getConnection(jdbcUrl,config.get(MySqlSourceOptions.USERNAME),config.get(MySqlSourceOptions.PASSWORD));
+        return DriverManager.getConnection(
+                jdbcUrl,
+                config.get(MySqlSourceOptions.USERNAME),
+                config.get(MySqlSourceOptions.PASSWORD));
     }
 
     @Override
@@ -92,7 +104,7 @@ public class MysqlDatabaseSync extends DatabaseSync {
         try (Connection conn = getConnection()) {
             DatabaseMetaData metaData = conn.getMetaData();
             try (ResultSet tables =
-                         metaData.getTables(databaseName, null, "%", new String[]{"TABLE"})) {
+                    metaData.getTables(databaseName, null, "%", new String[] {"TABLE"})) {
                 while (tables.next()) {
                     String tableName = tables.getString("TABLE_NAME");
                     String tableComment = tables.getString("REMARKS");
@@ -101,7 +113,10 @@ public class MysqlDatabaseSync extends DatabaseSync {
                     }
                     SourceSchema sourceSchema =
                             new MysqlSchema(metaData, databaseName, tableName, tableComment);
-                    sourceSchema.setModel(!sourceSchema.primaryKeys.isEmpty() ? DataModel.UNIQUE : DataModel.DUPLICATE);
+                    sourceSchema.setModel(
+                            !sourceSchema.primaryKeys.isEmpty()
+                                    ? DataModel.UNIQUE
+                                    : DataModel.DUPLICATE);
                     schemaList.add(sourceSchema);
                 }
             }
@@ -125,32 +140,23 @@ public class MysqlDatabaseSync extends DatabaseSync {
                 .tableList(tableName);
 
         config.getOptional(MySqlSourceOptions.SERVER_ID).ifPresent(sourceBuilder::serverId);
-        config
-                .getOptional(MySqlSourceOptions.SERVER_TIME_ZONE)
+        config.getOptional(MySqlSourceOptions.SERVER_TIME_ZONE)
                 .ifPresent(sourceBuilder::serverTimeZone);
-        config
-                .getOptional(MySqlSourceOptions.SCAN_SNAPSHOT_FETCH_SIZE)
+        config.getOptional(MySqlSourceOptions.SCAN_SNAPSHOT_FETCH_SIZE)
                 .ifPresent(sourceBuilder::fetchSize);
-        config
-                .getOptional(MySqlSourceOptions.CONNECT_TIMEOUT)
+        config.getOptional(MySqlSourceOptions.CONNECT_TIMEOUT)
                 .ifPresent(sourceBuilder::connectTimeout);
-        config
-                .getOptional(MySqlSourceOptions.CONNECT_MAX_RETRIES)
+        config.getOptional(MySqlSourceOptions.CONNECT_MAX_RETRIES)
                 .ifPresent(sourceBuilder::connectMaxRetries);
-        config
-                .getOptional(MySqlSourceOptions.CONNECTION_POOL_SIZE)
+        config.getOptional(MySqlSourceOptions.CONNECTION_POOL_SIZE)
                 .ifPresent(sourceBuilder::connectionPoolSize);
-        config
-                .getOptional(MySqlSourceOptions.HEARTBEAT_INTERVAL)
+        config.getOptional(MySqlSourceOptions.HEARTBEAT_INTERVAL)
                 .ifPresent(sourceBuilder::heartbeatInterval);
-        config
-                .getOptional(MySqlSourceOptions.SCAN_NEWLY_ADDED_TABLE_ENABLED)
+        config.getOptional(MySqlSourceOptions.SCAN_NEWLY_ADDED_TABLE_ENABLED)
                 .ifPresent(sourceBuilder::scanNewlyAddedTableEnabled);
-        config
-                .getOptional(MySqlSourceOptions.SCAN_INCREMENTAL_SNAPSHOT_CHUNK_SIZE)
+        config.getOptional(MySqlSourceOptions.SCAN_INCREMENTAL_SNAPSHOT_CHUNK_SIZE)
                 .ifPresent(sourceBuilder::splitSize);
-        config
-                .getOptional(MySqlSourceOptions.SCAN_INCREMENTAL_CLOSE_IDLE_READER_ENABLED)
+        config.getOptional(MySqlSourceOptions.SCAN_INCREMENTAL_CLOSE_IDLE_READER_ENABLED)
                 .ifPresent(sourceBuilder::closeIdleReaders);
 
         setChunkColumns(sourceBuilder);
@@ -168,14 +174,11 @@ public class MysqlDatabaseSync extends DatabaseSync {
             if (file != null && pos != null) {
                 offsetBuilder.setBinlogFilePosition(file, pos);
             }
-            config
-                    .getOptional(MySqlSourceOptions.SCAN_STARTUP_SPECIFIC_OFFSET_GTID_SET)
+            config.getOptional(MySqlSourceOptions.SCAN_STARTUP_SPECIFIC_OFFSET_GTID_SET)
                     .ifPresent(offsetBuilder::setGtidSet);
-            config
-                    .getOptional(MySqlSourceOptions.SCAN_STARTUP_SPECIFIC_OFFSET_SKIP_EVENTS)
+            config.getOptional(MySqlSourceOptions.SCAN_STARTUP_SPECIFIC_OFFSET_SKIP_EVENTS)
                     .ifPresent(offsetBuilder::setSkipEvents);
-            config
-                    .getOptional(MySqlSourceOptions.SCAN_STARTUP_SPECIFIC_OFFSET_SKIP_ROWS)
+            config.getOptional(MySqlSourceOptions.SCAN_STARTUP_SPECIFIC_OFFSET_SKIP_ROWS)
                     .ifPresent(offsetBuilder::setSkipRows);
             sourceBuilder.startupOptions(StartupOptions.specificOffset(offsetBuilder.build()));
         } else if ("timestamp".equalsIgnoreCase(startupMode)) {
@@ -186,8 +189,8 @@ public class MysqlDatabaseSync extends DatabaseSync {
 
         Properties jdbcProperties = new Properties();
         Properties debeziumProperties = new Properties();
-        //date to string
-        debeziumProperties.putAll(DateToStringConverter.DEFAULT_PROPS);
+        // date to string
+        debeziumProperties.putAll(DateToStringConverter.defaultProps);
 
         for (Map.Entry<String, String> entry : config.toMap().entrySet()) {
             String key = entry.getKey();
@@ -209,10 +212,10 @@ public class MysqlDatabaseSync extends DatabaseSync {
             customConverterConfigs.put(JsonConverterConfig.DECIMAL_FORMAT_CONFIG, "numeric");
             schema = new JsonDebeziumDeserializationSchema(false, customConverterConfigs);
         }
-        MySqlSource<String> mySqlSource = sourceBuilder.deserializer(schema).includeSchemaChanges(true).build();
+        MySqlSource<String> mySqlSource =
+                sourceBuilder.deserializer(schema).includeSchemaChanges(true).build();
 
-        return env.fromSource(
-                mySqlSource, WatermarkStrategy.noWatermarks(), "MySQL Source");
+        return env.fromSource(mySqlSource, WatermarkStrategy.noWatermarks(), "MySQL Source");
     }
 
     @Override
@@ -222,25 +225,27 @@ public class MysqlDatabaseSync extends DatabaseSync {
     }
 
     /**
-     * set chunkkeyColumn,eg: db.table1:column1,db.table2:column2
+     * set chunkkeyColumn,eg: db.table1:column1,db.table2:column2.
+     *
      * @param sourceBuilder
      */
     private void setChunkColumns(MySqlSourceBuilder<String> sourceBuilder) {
         Map<ObjectPath, String> chunkColumnMap = getChunkColumnMap();
-        for(Map.Entry<ObjectPath, String> entry : chunkColumnMap.entrySet()){
+        for (Map.Entry<ObjectPath, String> entry : chunkColumnMap.entrySet()) {
             sourceBuilder.chunkKeyColumn(entry.getKey(), entry.getValue());
         }
     }
 
-    private Map<ObjectPath, String> getChunkColumnMap(){
+    private Map<ObjectPath, String> getChunkColumnMap() {
         Map<ObjectPath, String> chunkMap = new HashMap<>();
-        String chunkColumn = config.getString(MySqlSourceOptions.SCAN_INCREMENTAL_SNAPSHOT_CHUNK_KEY_COLUMN);
-        if(!StringUtils.isNullOrWhitespaceOnly(chunkColumn)){
+        String chunkColumn =
+                config.getString(MySqlSourceOptions.SCAN_INCREMENTAL_SNAPSHOT_CHUNK_KEY_COLUMN);
+        if (!StringUtils.isNullOrWhitespaceOnly(chunkColumn)) {
             final Pattern chunkPattern = Pattern.compile("(\\S+)\\.(\\S+):(\\S+)");
             String[] tblColumns = chunkColumn.split(",");
-            for(String tblCol : tblColumns){
+            for (String tblCol : tblColumns) {
                 Matcher matcher = chunkPattern.matcher(tblCol);
-                if(matcher.find()){
+                if (matcher.find()) {
                     String db = matcher.group(1);
                     String table = matcher.group(2);
                     String col = matcher.group(3);
@@ -251,7 +256,7 @@ public class MysqlDatabaseSync extends DatabaseSync {
         return chunkMap;
     }
 
-    private Properties getJdbcProperties(){
+    private Properties getJdbcProperties() {
         Properties jdbcProps = new Properties();
         for (Map.Entry<String, String> entry : config.toMap().entrySet()) {
             String key = entry.getKey();

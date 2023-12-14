@@ -14,20 +14,21 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.catalog;
 
-import org.apache.doris.flink.cfg.DorisConnectionOptions;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.factories.CatalogFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 
+import org.apache.doris.flink.cfg.DorisConnectionOptions;
+
 import java.util.HashSet;
 import java.util.Set;
 
 import static org.apache.doris.flink.catalog.DorisCatalogOptions.DEFAULT_DATABASE;
-import static org.apache.doris.flink.table.DorisConfigOptions.JDBC_URL;
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_BATCH_SIZE;
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_DESERIALIZE_ARROW_ASYNC;
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_DESERIALIZE_QUEUE_SIZE;
@@ -41,6 +42,7 @@ import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_REQUEST_RETR
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_TABLET_SIZE;
 import static org.apache.doris.flink.table.DorisConfigOptions.FENODES;
 import static org.apache.doris.flink.table.DorisConfigOptions.IDENTIFIER;
+import static org.apache.doris.flink.table.DorisConfigOptions.JDBC_URL;
 import static org.apache.doris.flink.table.DorisConfigOptions.PASSWORD;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_BUFFER_COUNT;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_BUFFER_SIZE;
@@ -56,9 +58,7 @@ import static org.apache.doris.flink.table.DorisConfigOptions.STREAM_LOAD_PROP_P
 import static org.apache.doris.flink.table.DorisConfigOptions.TABLE_IDENTIFIER;
 import static org.apache.doris.flink.table.DorisConfigOptions.USERNAME;
 
-/**
- * Factory for {@link DorisCatalog}.
- */
+/** Factory for {@link DorisCatalog}. */
 public class DorisCatalogFactory implements CatalogFactory {
 
     @Override

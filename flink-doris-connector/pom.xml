@@ -218,12 +218,6 @@ under the License.
         </dependency>
 
         <dependency>
-            <groupId>com.google.guava</groupId>
-            <artifactId>guava</artifactId>
-            <version>31.1-jre</version>
-        </dependency>
-
-        <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-log4j12</artifactId>
             <version>1.7.25</version>
@@ -460,38 +454,36 @@ under the License.
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
             </plugin>
+            <plugin>
+                <groupId>com.diffplug.spotless</groupId>
+                <artifactId>spotless-maven-plugin</artifactId>
+                <version>${spotless.version}</version>
+                <configuration>
+                    <java>
+                        <googleJavaFormat>
+                            <version>1.7</version>
+                            <style>AOSP</style>
+                        </googleJavaFormat>
 
-<!--            TODO Wait until all code is formatted before introducing it.-->
-<!--            <plugin>-->
-<!--                <groupId>com.diffplug.spotless</groupId>-->
-<!--                <artifactId>spotless-maven-plugin</artifactId>-->
-<!--                <version>${spotless.version}</version>-->
-<!--                <configuration>-->
-<!--                    <java>-->
-<!--                        <googleJavaFormat>-->
-<!--                            <version>1.7</version>-->
-<!--                            <style>AOSP</style>-->
-<!--                        </googleJavaFormat>-->
+                        <!-- \# refers to the static imports -->
+                        <importOrder>
+                            <order>org.apache.flink,org.apache.flink.shaded,,javax,java,scala,\#
+                            </order>
+                        </importOrder>
 
-<!--                        &lt;!&ndash; \# refers to the static imports &ndash;&gt;-->
-<!--                        <importOrder>-->
-<!--                            <order>org.apache.flink,org.apache.flink.shaded,,javax,java,scala,\#-->
-<!--                            </order>-->
-<!--                        </importOrder>-->
-
-<!--                        <removeUnusedImports/>-->
-<!--                    </java>-->
-<!--                </configuration>-->
-<!--                <executions>-->
-<!--                    <execution>-->
-<!--                        <id>spotless-check</id>-->
-<!--                        <phase>validate</phase>-->
-<!--                        <goals>-->
-<!--                            <goal>check</goal>-->
-<!--                        </goals>-->
-<!--                    </execution>-->
-<!--                </executions>-->
-<!--            </plugin>-->
+                        <removeUnusedImports/>
+                    </java>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>spotless-check</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-checkstyle-plugin</artifactId>
@@ -519,18 +511,6 @@ under the License.
                     <configLocation>../tools/maven/checkstyle.xml</configLocation>
                     <logViolationsToConsole>true</logViolationsToConsole>
                     <failOnViolation>true</failOnViolation>
-                   <!-- TODO It needs to be deleted after all code formatting is completed.-->
-                    <sourceDirectories>
-                        <directory>src/main/java/org/apache/doris/flink/source/</directory>
-                        <directory>src/main/java/org/apache/doris/flink/rest</directory>
-                        <directory>src/main/java/org/apache/doris/flink/serialization</directory>
-                        <directory>src/main/java/org/apache/doris/flink/cfg</directory>
-                        <directory>src/main/java/org/apache/doris/flink/datastream</directory>
-                        <directory>src/main/java/org/apache/doris/flink/backend</directory>
-                        <directory>src/main/java/org/apache/doris/flink/exception</directory>
-                        <directory>src/main/java/org/apache/doris/flink/rest</directory>
-                        <directory>src/main/java/org/apache/doris/flink/serialization</directory>
-                    </sourceDirectories>
                 </configuration>
             </plugin>
             <plugin>
