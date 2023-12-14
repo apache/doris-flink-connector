@@ -82,6 +82,7 @@ under the License.
         <thrift-service.version>1.0.0</thrift-service.version>
         <checkstyle.version>8.14</checkstyle.version>
         <maven-checkstyle-plugin.version>2.17</maven-checkstyle-plugin.version>
+        <spotless.version>2.4.2</spotless.version>
     </properties>
 
     <dependencies>
@@ -458,6 +459,36 @@ under the License.
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>com.diffplug.spotless</groupId>
+                <artifactId>spotless-maven-plugin</artifactId>
+                <version>${spotless.version}</version>
+                <configuration>
+                    <java>
+                        <googleJavaFormat>
+                            <version>1.7</version>
+                            <style>AOSP</style>
+                        </googleJavaFormat>
+
+                        <!-- \# refers to the static imports -->
+                        <importOrder>
+                            <order>org.apache.flink,org.apache.flink.shaded,,javax,java,scala,\#
+                            </order>
+                        </importOrder>
+
+                        <removeUnusedImports/>
+                    </java>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>spotless-check</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
