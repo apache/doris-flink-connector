@@ -14,11 +14,10 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.source.split;
 
-/**
- * State of the reader, essentially a mutable version of the {@link DorisSourceSplit}.
- **/
+/** State of the reader, essentially a mutable version of the {@link DorisSourceSplit}. */
 public class DorisSourceSplitState {
 
     private final DorisSourceSplit split;

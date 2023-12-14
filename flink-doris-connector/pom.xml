@@ -80,6 +80,8 @@ under the License.
         <log4j2.version>2.18.0</log4j2.version>
         <project.scm.id>github</project.scm.id>
         <thrift-service.version>1.0.0</thrift-service.version>
+        <checkstyle.version>8.14</checkstyle.version>
+        <maven-checkstyle-plugin.version>2.17</maven-checkstyle-plugin.version>
     </properties>
 
     <dependencies>
@@ -457,7 +459,46 @@ under the License.
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
             </plugin>
-
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-checkstyle-plugin</artifactId>
+                <version>${maven-checkstyle-plugin.version}</version>
+                <dependencies>
+                    <dependency>
+                        <groupId>com.puppycrawl.tools</groupId>
+                        <artifactId>checkstyle</artifactId>
+                        <!-- Note: match version with docs/flinkDev/ide_setup.md -->
+                        <version>${checkstyle.version}</version>
+                    </dependency>
+                </dependencies>
+                <executions>
+                    <execution>
+                        <id>validate</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <suppressionsLocation>../tools/maven/suppressions.xml</suppressionsLocation>
+                    <includeTestSourceDirectory>true</includeTestSourceDirectory>
+                    <configLocation>../tools/maven/checkstyle.xml</configLocation>
+                    <logViolationsToConsole>true</logViolationsToConsole>
+                    <failOnViolation>true</failOnViolation>
+                    <sourceDirectories>
+                        <directory>src/main/java/org/apache/doris/flink/source/</directory>
+                        <directory>src/main/java/org/apache/doris/flink/rest</directory>
+                        <directory>src/main/java/org/apache/doris/flink/serialization</directory>
+                        <directory>src/main/java/org/apache/doris/flink/cfg</directory>
+                        <directory>src/main/java/org/apache/doris/flink/datastream</directory>
+                        <directory>src/main/java/org/apache/doris/flink/backend</directory>
+                        <directory>src/main/java/org/apache/doris/flink/exception</directory>
+                        <directory>src/main/java/org/apache/doris/flink/rest</directory>
+                        <directory>src/main/java/org/apache/doris/flink/serialization</directory>
+                    </sourceDirectories>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>

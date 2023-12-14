@@ -43,23 +43,27 @@ public class DateToStringConverter implements CustomConverter<SchemaBuilder, Rel
     private DateTimeFormatter timestampFormatter = DateTimeFormatter.ISO_DATE_TIME;
     private ZoneId timestampZoneId = ZoneId.systemDefault();
 
-    public static Properties DEFAULT_PROPS = new Properties();
+    public static Properties defaultProps = new Properties();
 
     static {
-        DEFAULT_PROPS.setProperty("converters", "date");
-        DEFAULT_PROPS.setProperty("date.type", "org.apache.doris.flink.utils.DateToStringConverter");
-        DEFAULT_PROPS.setProperty("date.format.date", "yyyy-MM-dd");
-        DEFAULT_PROPS.setProperty("date.format.datetime", "yyyy-MM-dd HH:mm:ss");
-        DEFAULT_PROPS.setProperty("date.format.timestamp", "yyyy-MM-dd HH:mm:ss");
-        DEFAULT_PROPS.setProperty("date.format.timestamp.zone", "UTC");
+        defaultProps.setProperty("converters", "date");
+        defaultProps.setProperty("date.type", "org.apache.doris.flink.utils.DateToStringConverter");
+        defaultProps.setProperty("date.format.date", "yyyy-MM-dd");
+        defaultProps.setProperty("date.format.datetime", "yyyy-MM-dd HH:mm:ss");
+        defaultProps.setProperty("date.format.timestamp", "yyyy-MM-dd HH:mm:ss");
+        defaultProps.setProperty("date.format.timestamp.zone", "UTC");
     }
 
     @Override
     public void configure(Properties props) {
         readProps(props, "format.date", p -> dateFormatter = DateTimeFormatter.ofPattern(p));
         readProps(props, "format.time", p -> timeFormatter = DateTimeFormatter.ofPattern(p));
-        readProps(props, "format.datetime", p -> datetimeFormatter = DateTimeFormatter.ofPattern(p));
-        readProps(props, "format.timestamp", p -> timestampFormatter = DateTimeFormatter.ofPattern(p));
+        readProps(
+                props, "format.datetime", p -> datetimeFormatter = DateTimeFormatter.ofPattern(p));
+        readProps(
+                props,
+                "format.timestamp",
+                p -> timestampFormatter = DateTimeFormatter.ofPattern(p));
         readProps(props, "format.timestamp.zone", z -> timestampZoneId = ZoneId.of(z));
     }
 
@@ -77,7 +81,8 @@ public class DateToStringConverter implements CustomConverter<SchemaBuilder, Rel
     }
 
     @Override
-    public void converterFor(RelationalColumn column, ConverterRegistration<SchemaBuilder> registration) {
+    public void converterFor(
+            RelationalColumn column, ConverterRegistration<SchemaBuilder> registration) {
         String sqlType = column.typeName().toUpperCase();
         SchemaBuilder schemaBuilder = null;
         Converter converter = null;
@@ -134,14 +139,15 @@ public class DateToStringConverter implements CustomConverter<SchemaBuilder, Rel
 
     private String convertTimestamp(Object input) {
         if (input instanceof ZonedDateTime) {
-            // mysql timestamp will be converted to UTC storage,and the zonedDatetime here is UTC time
+            // mysql timestamp will be converted to UTC storage,
+            // and the zonedDatetime here is UTC time
             ZonedDateTime zonedDateTime = (ZonedDateTime) input;
-            LocalDateTime localDateTime = zonedDateTime.withZoneSameInstant(timestampZoneId).toLocalDateTime();
+            LocalDateTime localDateTime =
+                    zonedDateTime.withZoneSameInstant(timestampZoneId).toLocalDateTime();
             return timestampFormatter.format(localDateTime);
         } else if (input instanceof Timestamp) {
             return timestampFormatter.format(((Timestamp) input).toLocalDateTime());
         }
         return null;
     }
-
 }

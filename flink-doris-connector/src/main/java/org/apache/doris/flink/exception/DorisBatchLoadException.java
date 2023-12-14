@@ -17,9 +17,7 @@
 
 package org.apache.doris.flink.exception;
 
-/**
- * Doris batch load run exception.
- */
+/** Doris batch load run exception. */
 public class DorisBatchLoadException extends RuntimeException {
     public DorisBatchLoadException() {
         super();
@@ -37,9 +35,11 @@ public class DorisBatchLoadException extends RuntimeException {
         super(cause);
     }
 
-    protected DorisBatchLoadException(String message, Throwable cause,
-                                      boolean enableSuppression,
-                                      boolean writableStackTrace) {
+    protected DorisBatchLoadException(
+            String message,
+            Throwable cause,
+            boolean enableSuppression,
+            boolean writableStackTrace) {
         super(message, cause, enableSuppression, writableStackTrace);
     }
 }

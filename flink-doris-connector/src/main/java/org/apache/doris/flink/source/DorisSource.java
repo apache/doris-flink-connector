@@ -14,7 +14,18 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.source;
+
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.connector.source.Boundedness;
+import org.apache.flink.api.connector.source.Source;
+import org.apache.flink.api.connector.source.SourceReader;
+import org.apache.flink.api.connector.source.SourceReaderContext;
+import org.apache.flink.api.connector.source.SplitEnumerator;
+import org.apache.flink.api.connector.source.SplitEnumeratorContext;
+import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
+import org.apache.flink.core.io.SimpleVersionedSerializer;
 
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
@@ -30,15 +41,6 @@ import org.apache.doris.flink.source.reader.DorisRecordEmitter;
 import org.apache.doris.flink.source.reader.DorisSourceReader;
 import org.apache.doris.flink.source.split.DorisSourceSplit;
 import org.apache.doris.flink.source.split.DorisSourceSplitSerializer;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.connector.source.Boundedness;
-import org.apache.flink.api.connector.source.Source;
-import org.apache.flink.api.connector.source.SourceReader;
-import org.apache.flink.api.connector.source.SourceReaderContext;
-import org.apache.flink.api.connector.source.SplitEnumerator;
-import org.apache.flink.api.connector.source.SplitEnumeratorContext;
-import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
-import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,11 +48,10 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-/**
- * DorisSource based on FLIP-27 which is a BOUNDED stream.
- **/
-public class DorisSource<OUT> implements Source<OUT, DorisSourceSplit, PendingSplitsCheckpoint>,
-        ResultTypeQueryable<OUT> {
+/** DorisSource based on FLIP-27 which is a BOUNDED stream. */
+public class DorisSource<OUT>
+        implements Source<OUT, DorisSourceSplit, PendingSplitsCheckpoint>,
+                ResultTypeQueryable<OUT> {
 
     private static final Logger LOG = LoggerFactory.getLogger(DorisSource.class);
 
@@ -61,10 +62,11 @@ public class DorisSource<OUT> implements Source<OUT, DorisSourceSplit, PendingSp
     private final Boundedness boundedness;
     private final DorisDeserializationSchema<OUT> deserializer;
 
-    public DorisSource(DorisOptions options,
-                       DorisReadOptions readOptions,
-                       Boundedness boundedness,
-                       DorisDeserializationSchema<OUT> deserializer) {
+    public DorisSource(
+            DorisOptions options,
+            DorisReadOptions readOptions,
+            Boundedness boundedness,
+            DorisDeserializationSchema<OUT> deserializer) {
         this.options = options;
         this.readOptions = readOptions;
         this.boundedness = boundedness;
@@ -77,20 +79,22 @@ public class DorisSource<OUT> implements Source<OUT, DorisSourceSplit, PendingSp
     }
 
     @Override
-    public SourceReader<OUT, DorisSourceSplit> createReader(SourceReaderContext readerContext) throws Exception {
+    public SourceReader<OUT, DorisSourceSplit> createReader(SourceReaderContext readerContext)
+            throws Exception {
         return new DorisSourceReader<>(
                 options,
                 readOptions,
                 new DorisRecordEmitter<>(deserializer),
                 readerContext,
-                readerContext.getConfiguration()
-        );
+                readerContext.getConfiguration());
     }
 
     @Override
-    public SplitEnumerator<DorisSourceSplit, PendingSplitsCheckpoint> createEnumerator(SplitEnumeratorContext<DorisSourceSplit> context) throws Exception {
+    public SplitEnumerator<DorisSourceSplit, PendingSplitsCheckpoint> createEnumerator(
+            SplitEnumeratorContext<DorisSourceSplit> context) throws Exception {
         List<DorisSourceSplit> dorisSourceSplits = new ArrayList<>();
-        List<PartitionDefinition> partitions = RestService.findPartitions(options, readOptions, LOG);
+        List<PartitionDefinition> partitions =
+                RestService.findPartitions(options, readOptions, LOG);
         partitions.forEach(m -> dorisSourceSplits.add(new DorisSourceSplit(m)));
         DorisSplitAssigner splitAssigner = new SimpleSplitAssigner(dorisSourceSplits);
 
@@ -99,8 +103,8 @@ public class DorisSource<OUT> implements Source<OUT, DorisSourceSplit, PendingSp
 
     @Override
     public SplitEnumerator<DorisSourceSplit, PendingSplitsCheckpoint> restoreEnumerator(
-            SplitEnumeratorContext<DorisSourceSplit> context,
-            PendingSplitsCheckpoint checkpoint) throws Exception {
+            SplitEnumeratorContext<DorisSourceSplit> context, PendingSplitsCheckpoint checkpoint)
+            throws Exception {
         Collection<DorisSourceSplit> splits = checkpoint.getSplits();
         DorisSplitAssigner splitAssigner = new SimpleSplitAssigner(splits);
         return new DorisSourceEnumerator(context, splitAssigner);
@@ -127,9 +131,9 @@ public class DorisSource<OUT> implements Source<OUT, DorisSourceSplit, PendingSp
 
     /**
      * build for DorisSource.
+     *
      * @param <OUT> record type.
      */
-
     public static class DorisSourceBuilder<OUT> {
 
         private DorisOptions options;
@@ -142,7 +146,6 @@ public class DorisSource<OUT> implements Source<OUT, DorisSourceSplit, PendingSp
         DorisSourceBuilder() {
             boundedness = Boundedness.BOUNDED;
         }
-
 
         public DorisSourceBuilder<OUT> setDorisOptions(DorisOptions options) {
             this.options = options;
@@ -159,17 +162,17 @@ public class DorisSource<OUT> implements Source<OUT, DorisSourceSplit, PendingSp
             return this;
         }
 
-        public DorisSourceBuilder<OUT> setDeserializer(DorisDeserializationSchema<OUT> deserializer) {
+        public DorisSourceBuilder<OUT> setDeserializer(
+                DorisDeserializationSchema<OUT> deserializer) {
             this.deserializer = deserializer;
             return this;
         }
 
         public DorisSource<OUT> build() {
-            if(readOptions == null){
+            if (readOptions == null) {
                 readOptions = DorisReadOptions.builder().build();
             }
             return new DorisSource<>(options, readOptions, boundedness, deserializer);
         }
     }
-
 }

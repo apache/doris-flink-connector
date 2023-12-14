@@ -17,9 +17,7 @@
 
 package org.apache.doris.flink.exception;
 
-/**
- * Doris runtime exception.
- */
+/** Doris runtime exception. */
 public class DorisRuntimeException extends RuntimeException {
     public DorisRuntimeException() {
         super();
@@ -37,9 +35,11 @@ public class DorisRuntimeException extends RuntimeException {
         super(cause);
     }
 
-    protected DorisRuntimeException(String message, Throwable cause,
-                                    boolean enableSuppression,
-                                    boolean writableStackTrace) {
+    protected DorisRuntimeException(
+            String message,
+            Throwable cause,
+            boolean enableSuppression,
+            boolean writableStackTrace) {
         super(message, cause, enableSuppression, writableStackTrace);
     }
 }

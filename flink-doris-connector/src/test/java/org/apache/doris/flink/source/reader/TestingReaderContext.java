@@ -14,6 +14,7 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.source.reader;
 
 import org.apache.flink.api.connector.source.SourceEvent;
@@ -27,9 +28,7 @@ import org.apache.flink.util.UserCodeClassLoader;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * A testing implementation of the {@link SourceReaderContext}.
- */
+/** A testing implementation of the {@link SourceReaderContext}. */
 public class TestingReaderContext implements SourceReaderContext {
 
     private final SourceReaderMetricGroup metrics;

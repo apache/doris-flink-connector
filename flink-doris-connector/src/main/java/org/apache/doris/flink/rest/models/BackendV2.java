@@ -22,9 +22,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.List;
 
-/**
- * Be response model
- **/
+/** Be response model. */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class BackendV2 {
 
@@ -42,8 +40,10 @@ public class BackendV2 {
     public static class BackendRowV2 {
         @JsonProperty("ip")
         public String ip;
+
         @JsonProperty("http_port")
         public int httpPort;
+
         @JsonProperty("is_alive")
         public boolean isAlive;
 
@@ -71,17 +71,16 @@ public class BackendV2 {
             isAlive = alive;
         }
 
-        public String toBackendString(){
+        public String toBackendString() {
             return ip + ":" + httpPort;
         }
 
-        public static BackendRowV2 of(String ip, int httpPort, boolean alive){
+        public static BackendRowV2 of(String ip, int httpPort, boolean alive) {
             BackendRowV2 rowV2 = new BackendRowV2();
             rowV2.setIp(ip);
             rowV2.setHttpPort(httpPort);
             rowV2.setAlive(alive);
             return rowV2;
         }
-
     }
 }

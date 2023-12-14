@@ -41,9 +41,7 @@ import org.apache.thrift.transport.TTransportException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Client to request Doris BE
- */
+/** Client to request Doris BE. */
 public class BackendClient {
     private static Logger logger = LoggerFactory.getLogger(BackendClient.class);
 
@@ -59,11 +57,23 @@ public class BackendClient {
 
     public BackendClient(Routing routing, DorisReadOptions readOptions) {
         this.routing = routing;
-        this.connectTimeout = readOptions.getRequestConnectTimeoutMs() == null ? ConfigurationOptions.DORIS_REQUEST_CONNECT_TIMEOUT_MS_DEFAULT : readOptions.getRequestConnectTimeoutMs();
-        this.socketTimeout = readOptions.getRequestReadTimeoutMs() == null ? ConfigurationOptions.DORIS_REQUEST_READ_TIMEOUT_MS_DEFAULT : readOptions.getRequestReadTimeoutMs();
-        this.retries = readOptions.getRequestRetries() == null ? ConfigurationOptions.DORIS_REQUEST_RETRIES_DEFAULT : readOptions.getRequestRetries();
-        logger.trace("connect timeout set to '{}'. socket timeout set to '{}'. retries set to '{}'.",
-                this.connectTimeout, this.socketTimeout, this.retries);
+        this.connectTimeout =
+                readOptions.getRequestConnectTimeoutMs() == null
+                        ? ConfigurationOptions.DORIS_REQUEST_CONNECT_TIMEOUT_MS_DEFAULT
+                        : readOptions.getRequestConnectTimeoutMs();
+        this.socketTimeout =
+                readOptions.getRequestReadTimeoutMs() == null
+                        ? ConfigurationOptions.DORIS_REQUEST_READ_TIMEOUT_MS_DEFAULT
+                        : readOptions.getRequestReadTimeoutMs();
+        this.retries =
+                readOptions.getRequestRetries() == null
+                        ? ConfigurationOptions.DORIS_REQUEST_RETRIES_DEFAULT
+                        : readOptions.getRequestRetries();
+        logger.trace(
+                "connect timeout set to '{}'. socket timeout set to '{}'. retries set to '{}'.",
+                this.connectTimeout,
+                this.socketTimeout,
+                this.retries);
         open();
     }
 
@@ -74,10 +84,19 @@ public class BackendClient {
             logger.debug("Attempt {} to connect {}.", attempt, routing);
             try {
                 TBinaryProtocol.Factory factory = new TBinaryProtocol.Factory();
-                transport = new TSocket(new TConfiguration(), routing.getHost(), routing.getPort(), socketTimeout, connectTimeout);
+                transport =
+                        new TSocket(
+                                new TConfiguration(),
+                                routing.getHost(),
+                                routing.getPort(),
+                                socketTimeout,
+                                connectTimeout);
                 TProtocol protocol = factory.getProtocol(transport);
                 client = new TDorisExternalService.Client(protocol);
-                logger.trace("Connect status before open transport to {} is '{}'.", routing, isConnected);
+                logger.trace(
+                        "Connect status before open transport to {} is '{}'.",
+                        routing,
+                        isConnected);
                 if (!transport.isOpen()) {
                     transport.open();
                     isConnected = true;
@@ -129,8 +148,11 @@ public class BackendClient {
                     continue;
                 }
                 if (!TStatusCode.OK.equals(result.getStatus().getStatusCode())) {
-                    logger.warn("The status of open scanner result from {} is '{}', error message is: {}.",
-                            routing, result.getStatus().getStatusCode(), result.getStatus().getErrorMsgs());
+                    logger.warn(
+                            "The status of open scanner result from {} is '{}', error message is: {}.",
+                            routing,
+                            result.getStatus().getStatusCode(),
+                            result.getStatus().getErrorMsgs());
                     continue;
                 }
                 return result;
@@ -144,7 +166,7 @@ public class BackendClient {
     }
 
     /**
-     * get next row batch from Doris BE
+     * get next row batch from Doris BE.
      *
      * @param nextBatchParams thrift struct to required by request
      * @return scan batch result
@@ -166,8 +188,11 @@ public class BackendClient {
                     continue;
                 }
                 if (!TStatusCode.OK.equals(result.getStatus().getStatusCode())) {
-                    logger.warn("The status of get next result from {} is '{}', error message is: {}.",
-                            routing, result.getStatus().getStatusCode(), result.getStatus().getErrorMsgs());
+                    logger.warn(
+                            "The status of get next result from {} is '{}', error message is: {}.",
+                            routing,
+                            result.getStatus().getStatusCode(),
+                            result.getStatus().getErrorMsgs());
                     continue;
                 }
                 return result;
@@ -177,9 +202,14 @@ public class BackendClient {
             }
         }
         if (result != null && (TStatusCode.OK != (result.getStatus().getStatusCode()))) {
-            logger.error(ErrorMessages.DORIS_INTERNAL_FAIL_MESSAGE, routing, result.getStatus().getStatusCode(),
+            logger.error(
+                    ErrorMessages.DORIS_INTERNAL_FAIL_MESSAGE,
+                    routing,
+                    result.getStatus().getStatusCode(),
                     result.getStatus().getErrorMsgs());
-            throw new DorisInternalException(routing.toString(), result.getStatus().getStatusCode(),
+            throw new DorisInternalException(
+                    routing.toString(),
+                    result.getStatus().getStatusCode(),
                     result.getStatus().getErrorMsgs());
         }
         logger.error(ErrorMessages.CONNECT_FAILED_MESSAGE, routing);
@@ -202,8 +232,11 @@ public class BackendClient {
                     continue;
                 }
                 if (!TStatusCode.OK.equals(result.getStatus().getStatusCode())) {
-                    logger.warn("The status of get next result from {} is '{}', error message is: {}.",
-                            routing, result.getStatus().getStatusCode(), result.getStatus().getErrorMsgs());
+                    logger.warn(
+                            "The status of get next result from {} is '{}', error message is: {}.",
+                            routing,
+                            result.getStatus().getStatusCode(),
+                            result.getStatus().getErrorMsgs());
                     continue;
                 }
                 break;

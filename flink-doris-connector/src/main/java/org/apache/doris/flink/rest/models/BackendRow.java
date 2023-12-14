@@ -25,44 +25,49 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 public class BackendRow {
 
     @JsonProperty(value = "HttpPort")
-    private String HttpPort;
+    private String httpPort;
 
     @JsonProperty(value = "IP")
-    private String IP;
+    private String ip;
 
     @JsonProperty(value = "Alive")
-    private Boolean Alive;
+    private Boolean alive;
 
     public String getHttpPort() {
-        return HttpPort;
+        return httpPort;
     }
 
     public void setHttpPort(String httpPort) {
-        HttpPort = httpPort;
+        this.httpPort = httpPort;
     }
 
-    public String getIP() {
-        return IP;
+    public String getIp() {
+        return ip;
     }
 
-    public void setIP(String IP) {
-        this.IP = IP;
+    public void setIp(String ip) {
+        this.ip = ip;
     }
 
     public Boolean getAlive() {
-        return Alive;
+        return alive;
     }
 
     public void setAlive(Boolean alive) {
-        Alive = alive;
+        this.alive = alive;
     }
 
     @Override
     public String toString() {
-        return "BackendRow{" +
-                "HttpPort='" + HttpPort + '\'' +
-                ", IP='" + IP + '\'' +
-                ", Alive=" + Alive +
-                '}';
+        return "BackendRow{"
+                + "HttpPort='"
+                + httpPort
+                + '\''
+                + ", IP='"
+                + ip
+                + '\''
+                + ", Alive="
+                + alive
+                + '}';
     }
 }
