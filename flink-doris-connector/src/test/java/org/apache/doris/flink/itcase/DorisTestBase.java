@@ -115,7 +115,7 @@ public abstract class DorisTestBase {
         try (Statement statement = connection.createStatement()) {
             ResultSet resultSet;
             do {
-                LOG.info("Wait for BE status to be normal...");
+                LOG.info("Wait for the Backend to start successfully...");
                 resultSet = statement.executeQuery("show backends");
             } while (!isBeReady(resultSet, Duration.ofSeconds(1L)));
         }
