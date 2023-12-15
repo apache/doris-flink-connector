@@ -26,11 +26,4 @@ under the License.
 	<!-- Java doc -->
 	<suppress files="org[\\/]apache[\\/]doris[\\/]flink[/].*" checks="JavadocType" />
 
-   <!-- For test case -->
-	<suppress files="org[\\/]apache[\\/]doris[\\/]flink[\\/]sink[\\/]writer[\\/]TestDorisWriter\.java" checks="IllegalImport" />
-	<suppress files="org[\\/]apache[\\/]doris[\\/]flink[\\/]sink[\\/]writer[\\/]TestDorisStreamLoad\.java" checks="IllegalImport" />
-	<suppress files="org[\\/]apache[\\/]doris[\\/]flink[\\/]sink[\\/]committer[\\/]TestDorisCommitter\.java" checks="IllegalImport" />
-	<suppress files="org[\\/]apache[\\/]doris[\\/]flink[\\/]sink[\\/]schema[\\/]SchemaManagerTest\.java" checks="IllegalImport" />
-	<suppress files="org[\\/]apache[\\/]doris[\\/]flink[\\/]sink[\\/]HttpTestUtil\.java" checks="IllegalImport" />
-
 </suppressions>
