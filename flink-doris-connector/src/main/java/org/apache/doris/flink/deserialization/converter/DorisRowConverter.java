@@ -347,22 +347,24 @@ public class DorisRowConverter implements Serializable {
 
     private static Object convertMapData(MapData map, LogicalType type) {
         Map<Object, Object> result = new HashMap<>();
+        LogicalType valueType = ((MapType) type).getValueType();
+        LogicalType keyType = ((MapType) type).getKeyType();
         if (map instanceof GenericMapData) {
-            GenericMapData gMap = (GenericMapData)map;
-            for (Object key : ((GenericArrayData)gMap.keyArray()).toObjectArray()) {
-                result.put(key, gMap.get(key));
+            GenericMapData gMap = (GenericMapData) map;
+            for (Object key : ((GenericArrayData) gMap.keyArray()).toObjectArray()) {
+                Object convertedKey = convertMapEntry(key, keyType);
+                Object convertedValue = convertMapEntry(gMap.get(key), valueType);
+                result.put(convertedKey, convertedValue);
             }
             return result;
         }
         if (map instanceof BinaryMapData) {
-            BinaryMapData bMap = (BinaryMapData)map;
-            LogicalType valueType = ((MapType)type).getValueType();
-            LogicalType keyType = ((MapType) type).getKeyType();
+            BinaryMapData bMap = (BinaryMapData) map;
             Map<?, ?> javaMap = bMap.toJavaMap(((MapType) type).getKeyType(), valueType);
-            for (Map.Entry<?,?> entry : javaMap.entrySet()) {
+            for (Map.Entry<?, ?> entry : javaMap.entrySet()) {
                 Object convertedKey = convertMapEntry(entry.getKey(), keyType);
                 Object convertedValue = convertMapEntry(entry.getValue(), valueType);
-                result.put(convertedKey,convertedValue);
+                result.put(convertedKey, convertedValue);
             }
             return result;
         }
@@ -382,6 +384,8 @@ public class DorisRowConverter implements Serializable {
             return Date.valueOf(LocalDate.ofEpochDay((Integer) originValue)).toString();
         } else if (LogicalTypeRoot.ARRAY.equals(logicalType.getTypeRoot())) {
             return convertArrayData((ArrayData) originValue, logicalType);
+        } else if (LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE.equals(logicalType.getTypeRoot())) {
+            return (((TimestampData) originValue).toTimestamp()).toString();
         } else if (originValue instanceof TimestampData) {
             return ((TimestampData) originValue).toString();
         } else {
