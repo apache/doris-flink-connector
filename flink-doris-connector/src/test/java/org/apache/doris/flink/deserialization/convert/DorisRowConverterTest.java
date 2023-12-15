@@ -208,7 +208,6 @@ public class DorisRowConverterTest implements Serializable {
         for (int i = 0; i < rowData.getArity(); i++) {
             row.add(converter.convertExternal(rowData, i));
         }
-        System.out.println(row.toString());
         Assert.assertEquals("[{\"true\":\"false\"}, {\"1.2\":\"1.3\"}, {\"1.2345\":\"1.2345\"}, {\"24\":\"24\"}, {\"10\":\"10\"}, {\"1\":\"1\"}, {\"32\":\"32\"}, {\"64\":\"64\"}, {\"128\":\"128\"}, {\"10.123\":\"10.123\"}, {\"2021-01-01T08:00\":\"2021-01-01T08:00\"}, {\"2021-01-01T08:00\":\"2021-01-01T08:00\"}, {\"2021-01-01\":\"2021-01-01\"}, {\"a\":\"a\"}, {\"doris\":\"doris\"}]", row.toString());
     }
 

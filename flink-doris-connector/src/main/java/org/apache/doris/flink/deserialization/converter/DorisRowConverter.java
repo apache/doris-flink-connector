@@ -357,8 +357,7 @@ public class DorisRowConverter implements Serializable {
                 result.put(convertedKey, convertedValue);
             }
             return result;
-        }
-        if (map instanceof BinaryMapData) {
+        } else if (map instanceof BinaryMapData) {
             BinaryMapData bMap = (BinaryMapData) map;
             Map<?, ?> javaMap = bMap.toJavaMap(((MapType) type).getKeyType(), valueType);
             for (Map.Entry<?, ?> entry : javaMap.entrySet()) {
