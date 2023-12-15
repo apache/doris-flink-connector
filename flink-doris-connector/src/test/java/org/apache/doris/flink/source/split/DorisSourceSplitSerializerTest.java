@@ -14,6 +14,7 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.source.split;
 
 import org.apache.doris.flink.sink.OptionUtils;
@@ -21,15 +22,12 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Unit tests for the {@link DorisSourceSplitSerializer}.
- */
+/** Unit tests for the {@link DorisSourceSplitSerializer}. */
 public class DorisSourceSplitSerializerTest {
 
     @Test
     public void serializeSplit() throws Exception {
-        final DorisSourceSplit split =
-                new DorisSourceSplit(OptionUtils.buildPartitionDef());
+        final DorisSourceSplit split = new DorisSourceSplit(OptionUtils.buildPartitionDef());
 
         DorisSourceSplit deSerialized = serializeAndDeserializeSplit(split);
         assertEquals(split, deSerialized);
@@ -40,5 +38,4 @@ public class DorisSourceSplitSerializerTest {
         byte[] serialized = splitSerializer.serialize(split);
         return splitSerializer.deserialize(splitSerializer.getVersion(), serialized);
     }
-
 }

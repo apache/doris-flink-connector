@@ -18,7 +18,6 @@
 package org.apache.doris.flink.tools.cdc;
 
 public enum SourceConnector {
-
     MYSQL("mysql"),
     ORACLE("oracle"),
     POSTGRES("postgres"),

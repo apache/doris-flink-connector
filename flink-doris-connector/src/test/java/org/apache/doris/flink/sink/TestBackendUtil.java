@@ -30,12 +30,13 @@ import java.util.List;
 public class TestBackendUtil {
 
     @Test
-    public void testGetAvailableBackend() throws Exception{
-        List<BackendV2.BackendRowV2> backends = Arrays.asList(
-                newBackend("127.0.0.1", 8040),
-                newBackend("127.0.0.2", 8040),
-                newBackend("127.0.0.3", 8040));
-        BackendUtil backendUtil =  new BackendUtil(backends);
+    public void testGetAvailableBackend() throws Exception {
+        List<BackendV2.BackendRowV2> backends =
+                Arrays.asList(
+                        newBackend("127.0.0.1", 8040),
+                        newBackend("127.0.0.2", 8040),
+                        newBackend("127.0.0.3", 8040));
+        BackendUtil backendUtil = new BackendUtil(backends);
         Assert.assertEquals(backends.get(0).toBackendString(), backendUtil.getAvailableBackend());
         Assert.assertEquals(backends.get(1).toBackendString(), backendUtil.getAvailableBackend());
         Assert.assertEquals(backends.get(2).toBackendString(), backendUtil.getAvailableBackend());
@@ -43,13 +44,13 @@ public class TestBackendUtil {
     }
 
     @Test
-    public void testTryHttpConnection(){
+    public void testTryHttpConnection() {
         BackendUtil backendUtil = new BackendUtil(new ArrayList<>());
         boolean flag = backendUtil.tryHttpConnection("127.0.0.1:8040");
         Assert.assertFalse(flag);
     }
 
-    private BackendV2.BackendRowV2 newBackend(String host, int port){
+    private BackendV2.BackendRowV2 newBackend(String host, int port) {
         BackendV2.BackendRowV2 backend = new BackendV2.BackendRowV2();
         backend.setIp(host);
         backend.setHttpPort(port);

@@ -22,9 +22,7 @@ import org.junit.Test;
 
 import java.nio.charset.StandardCharsets;
 
-/**
- * test for RecordBuffer.
- */
+/** test for RecordBuffer. */
 public class TestRecordBuffer {
 
     @Test

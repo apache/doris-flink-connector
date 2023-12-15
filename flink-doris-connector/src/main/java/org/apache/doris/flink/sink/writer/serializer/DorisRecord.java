@@ -14,6 +14,7 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.sink.writer.serializer;
 
 import java.io.Serializable;
@@ -23,8 +24,7 @@ public class DorisRecord implements Serializable {
     private String table;
     private byte[] row;
 
-    public DorisRecord() {
-    }
+    public DorisRecord() {}
 
     public DorisRecord(String database, String table, byte[] row) {
         this.database = database;
@@ -32,8 +32,8 @@ public class DorisRecord implements Serializable {
         this.row = row;
     }
 
-    public String getTableIdentifier(){
-        if(database == null || table == null){
+    public String getTableIdentifier() {
+        if (database == null || table == null) {
             return null;
         }
         return database + "." + table;
@@ -68,9 +68,9 @@ public class DorisRecord implements Serializable {
     }
 
     public static DorisRecord of(String tableIdentifier, byte[] row) {
-        if(tableIdentifier != null) {
+        if (tableIdentifier != null) {
             String[] dbTbl = tableIdentifier.split("\\.");
-            if(dbTbl.length == 2){
+            if (dbTbl.length == 2) {
                 String database = dbTbl[0];
                 String table = dbTbl[1];
                 return new DorisRecord(database, table, row);
@@ -82,5 +82,4 @@ public class DorisRecord implements Serializable {
     public static DorisRecord of(byte[] row) {
         return new DorisRecord(null, null, row);
     }
-
 }

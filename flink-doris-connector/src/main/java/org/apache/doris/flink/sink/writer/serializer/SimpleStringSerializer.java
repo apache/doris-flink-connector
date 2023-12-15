@@ -17,14 +17,10 @@
 
 package org.apache.doris.flink.sink.writer.serializer;
 
-import org.apache.flink.api.java.tuple.Tuple2;
-
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
-/**
- * String Serializer.
- */
+/** String Serializer. */
 public class SimpleStringSerializer implements DorisRecordSerializer<String> {
 
     @Override

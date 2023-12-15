@@ -44,8 +44,8 @@ public class ExecutionPool implements Closeable {
     private static final Logger LOG = LoggerFactory.getLogger(ExecutionPool.class);
     private ActionWatcher readActionWatcher;
     final ArrayBlockingQueue<Get> queue;
-    private AtomicBoolean started; //determine whether the executionPool is running
-    private AtomicBoolean workerStated; //determine whether the worker is running
+    private AtomicBoolean started; // determine whether the executionPool is running
+    private AtomicBoolean workerStated; // determine whether the worker is running
     ExecutorService actionWatcherExecutorService;
     ExecutorService workerExecutorService;
     ThreadFactory workerThreadFactory;
@@ -74,8 +74,24 @@ public class ExecutionPool implements Closeable {
     private void start() {
         if (started.compareAndSet(false, true)) {
             workerStated.set(true);
-            workerExecutorService = new ThreadPoolExecutor(workers.length, workers.length, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>(1), workerThreadFactory, new ThreadPoolExecutor.AbortPolicy());
-            actionWatcherExecutorService = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>(1), actionWatcherThreadFactory, new ThreadPoolExecutor.AbortPolicy());
+            workerExecutorService =
+                    new ThreadPoolExecutor(
+                            workers.length,
+                            workers.length,
+                            0L,
+                            TimeUnit.MILLISECONDS,
+                            new LinkedBlockingQueue<>(1),
+                            workerThreadFactory,
+                            new ThreadPoolExecutor.AbortPolicy());
+            actionWatcherExecutorService =
+                    new ThreadPoolExecutor(
+                            1,
+                            1,
+                            0L,
+                            TimeUnit.MILLISECONDS,
+                            new LinkedBlockingQueue<>(1),
+                            actionWatcherThreadFactory,
+                            new ThreadPoolExecutor.AbortPolicy());
             for (int i = 0; i < workers.length; ++i) {
                 workerExecutorService.execute(workers[i]);
             }
@@ -114,7 +130,7 @@ public class ExecutionPool implements Closeable {
     }
 
     public boolean submit(GetAction action) {
-        //if has semaphore, try to obtain the semaphore, otherwise return submit failure
+        // if has semaphore, try to obtain the semaphore, otherwise return submit failure
         if (semaphore != null) {
             try {
                 boolean acquire = semaphore.tryAcquire(2000L, TimeUnit.MILLISECONDS);
@@ -127,24 +143,22 @@ public class ExecutionPool implements Closeable {
             action.setSemaphore(semaphore);
         }
 
-        //try to submit to worker
+        // try to submit to worker
         for (int i = 0; i < workers.length; ++i) {
             Worker worker = workers[i];
             if (worker.offer(action)) {
                 return true;
             }
         }
-        //If submit fails, it will be released, and if successful, the worker will be responsible for the release
+        // If submit fails, it will be released, and if successful, the worker will be responsible
+        // for the release
         if (semaphore != null) {
             semaphore.release();
         }
         return false;
     }
 
-    /**
-     * monitor the query action
-     * and submit it to the worker as soon as the data arrives
-     */
+    /** monitor the query action and submit it to the worker as soon as the data arrives. */
     class ActionWatcher implements Runnable {
         private int batchSize;
 
@@ -166,13 +180,15 @@ public class ExecutionPool implements Closeable {
                         LOG.debug("fetch {} records from queue", recordList.size());
                         Map<String, List<Get>> getsByTable = new HashMap<>();
                         for (Get get : recordList) {
-                            List<Get> list = getsByTable.computeIfAbsent(get.getRecord().getTableIdentifier(), (s) -> new ArrayList<>());
+                            List<Get> list =
+                                    getsByTable.computeIfAbsent(
+                                            get.getRecord().getTableIdentifier(),
+                                            (s) -> new ArrayList<>());
                             list.add(get);
                         }
                         for (Map.Entry<String, List<Get>> entry : getsByTable.entrySet()) {
                             GetAction getAction = new GetAction(entry.getValue());
-                            while (!submit(getAction)) {
-                            }
+                            while (!submit(getAction)) {}
                         }
                     }
                 } catch (InterruptedException e) {
@@ -190,9 +206,7 @@ public class ExecutionPool implements Closeable {
 
         @Override
         public String toString() {
-            return "ActionWatcher{" +
-                    "batchSize=" + batchSize +
-                    '}';
+            return "ActionWatcher{" + "batchSize=" + batchSize + '}';
         }
     }
 

@@ -14,14 +14,12 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
-package org.apache.doris.flink.cfg;
 
+package org.apache.doris.flink.cfg;
 
 import java.io.Serializable;
 
-/**
- * Doris read Options
- */
+/** Doris read Options. */
 public class DorisReadOptions implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -39,9 +37,19 @@ public class DorisReadOptions implements Serializable {
     private Boolean deserializeArrowAsync;
     private boolean useOldApi;
 
-    public DorisReadOptions(String readFields, String filterQuery, Integer requestTabletSize, Integer requestConnectTimeoutMs, Integer requestReadTimeoutMs,
-                            Integer requestQueryTimeoutS, Integer requestRetries, Integer requestBatchSize, Long execMemLimit,
-                            Integer deserializeQueueSize, Boolean deserializeArrowAsync, boolean useOldApi) {
+    public DorisReadOptions(
+            String readFields,
+            String filterQuery,
+            Integer requestTabletSize,
+            Integer requestConnectTimeoutMs,
+            Integer requestReadTimeoutMs,
+            Integer requestQueryTimeoutS,
+            Integer requestRetries,
+            Integer requestBatchSize,
+            Long execMemLimit,
+            Integer deserializeQueueSize,
+            Boolean deserializeArrowAsync,
+            boolean useOldApi) {
         this.readFields = readFields;
         this.filterQuery = filterQuery;
         this.requestTabletSize = requestTabletSize;
@@ -120,9 +128,7 @@ public class DorisReadOptions implements Serializable {
         return DorisReadOptions.builder().build();
     }
 
-    /**
-     * Builder of {@link DorisReadOptions}.
-     */
+    /** Builder of {@link DorisReadOptions}. */
     public static class Builder {
 
         private String readFields;
@@ -137,7 +143,6 @@ public class DorisReadOptions implements Serializable {
         private Integer deserializeQueueSize;
         private Boolean deserializeArrowAsync;
         private Boolean useOldApi = false;
-
 
         public Builder setReadFields(String readFields) {
             this.readFields = readFields;
@@ -200,10 +205,19 @@ public class DorisReadOptions implements Serializable {
         }
 
         public DorisReadOptions build() {
-            return new DorisReadOptions(readFields, filterQuery, requestTabletSize, requestConnectTimeoutMs, requestReadTimeoutMs, requestQueryTimeoutS, requestRetries, requestBatchSize, execMemLimit, deserializeQueueSize, deserializeArrowAsync, useOldApi);
+            return new DorisReadOptions(
+                    readFields,
+                    filterQuery,
+                    requestTabletSize,
+                    requestConnectTimeoutMs,
+                    requestReadTimeoutMs,
+                    requestQueryTimeoutS,
+                    requestRetries,
+                    requestBatchSize,
+                    execMemLimit,
+                    deserializeQueueSize,
+                    deserializeArrowAsync,
+                    useOldApi);
         }
-
     }
-
-
 }

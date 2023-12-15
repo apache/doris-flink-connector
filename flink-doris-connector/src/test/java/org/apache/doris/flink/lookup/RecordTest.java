@@ -19,6 +19,7 @@ package org.apache.doris.flink.lookup;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.types.DataType;
+
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -33,17 +34,18 @@ public class RecordTest {
     private LookupSchema schema;
 
     @Before
-    public void before(){
+    public void before() {
         String tableIdentifier = "db.tbl";
-        String[] selectFields = new String[]{"a","b","c"};
-        DataType[] fieldTypes = new DataType[]{DataTypes.INT(),DataTypes.STRING(),DataTypes.DOUBLE()};
-        schema = new LookupSchema(tableIdentifier,selectFields,fieldTypes,null,null);
+        String[] selectFields = new String[] {"a", "b", "c"};
+        DataType[] fieldTypes =
+                new DataType[] {DataTypes.INT(), DataTypes.STRING(), DataTypes.DOUBLE()};
+        schema = new LookupSchema(tableIdentifier, selectFields, fieldTypes, null, null);
     }
 
     @Test
-    public void testLookupOneKey(){
-        String[] conditionFields = new String[]{"a"};
-        int[] keyIndex = new int[]{1};
+    public void testLookupOneKey() {
+        String[] conditionFields = new String[] {"a"};
+        int[] keyIndex = new int[] {1};
         Object[] values = new Object[schema.getFieldTypes().length];
         values[0] = 1001;
         Record record = appendValues(conditionFields, keyIndex, values);
@@ -54,9 +56,9 @@ public class RecordTest {
     }
 
     @Test
-    public void testLookupTwoKey(){
-        String[] conditionFields = new String[]{"a","b"};
-        int[] keyIndex = new int[]{1,2};
+    public void testLookupTwoKey() {
+        String[] conditionFields = new String[] {"a", "b"};
+        int[] keyIndex = new int[] {1, 2};
         Object[] values = new Object[schema.getFieldTypes().length];
         values[0] = 1001;
         values[1] = "doris";
@@ -68,9 +70,9 @@ public class RecordTest {
     }
 
     @Test
-    public void testLookupOnlyTwoKey(){
-        String[] conditionFields = new String[]{"b"};
-        int[] keyIndex = new int[]{2};
+    public void testLookupOnlyTwoKey() {
+        String[] conditionFields = new String[] {"b"};
+        int[] keyIndex = new int[] {2};
         Object[] values = new Object[schema.getFieldTypes().length];
         values[0] = "doris";
         Record record = appendValues(conditionFields, keyIndex, values);
@@ -81,9 +83,9 @@ public class RecordTest {
     }
 
     @Test
-    public void testDeduplicateRecords(){
-        String[] conditionFields = new String[]{"b","c"};
-        int[] keyIndex = new int[]{2};
+    public void testDeduplicateRecords() {
+        String[] conditionFields = new String[] {"b", "c"};
+        int[] keyIndex = new int[] {2};
         Object[] values = new Object[schema.getFieldTypes().length];
         values[0] = "doris";
         values[1] = "18";
@@ -108,12 +110,12 @@ public class RecordTest {
         Assert.assertTrue(gets.size() == 2);
     }
 
-    private Record appendValues(String[] conditionFields, int[] keyIndex, Object[] values){
+    private Record appendValues(String[] conditionFields, int[] keyIndex, Object[] values) {
         schema.setKeyIndex(keyIndex);
         schema.setConditionFields(conditionFields);
         Record record = new Record(schema);
-        for(int i=0;i<schema.getFieldTypes().length;i++){
-            record.setObject(i,values[i]);
+        for (int i = 0; i < schema.getFieldTypes().length; i++) {
+            record.setObject(i, values[i]);
         }
         return record;
     }

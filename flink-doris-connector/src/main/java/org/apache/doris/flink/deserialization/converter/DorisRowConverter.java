@@ -14,11 +14,9 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.deserialization.converter;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.doris.flink.serialization.RowBatch;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.GenericArrayData;
@@ -42,6 +40,10 @@ import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.ZonedTimestampType;
 import org.apache.flink.util.Preconditions;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.doris.flink.serialization.RowBatch;
+
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.sql.Date;
@@ -62,7 +64,7 @@ public class DorisRowConverter implements Serializable {
     private SerializationConverter[] serializationConverters;
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
-    public DorisRowConverter(){}
+    public DorisRowConverter() {}
 
     public DorisRowConverter(RowType rowType) {
         checkNotNull(rowType);
@@ -96,20 +98,21 @@ public class DorisRowConverter implements Serializable {
     }
 
     /**
-     * Convert data retrieved from {@link RowBatch} to  {@link RowData}.
+     * Convert data retrieved from {@link RowBatch} to {@link RowData}.
      *
      * @param record from rowBatch
      */
     public GenericRowData convertInternal(List record) {
         GenericRowData rowData = new GenericRowData(deserializationConverters.length);
-        for (int i = 0; i < deserializationConverters.length ; i++) {
+        for (int i = 0; i < deserializationConverters.length; i++) {
             rowData.setField(i, deserializationConverters[i].deserialize(record.get(i)));
         }
         return rowData;
     }
 
     /**
-     * Convert data from {@link RowData} to {@link RowBatch}
+     * Convert data from {@link RowData} to {@link RowBatch}.
+     *
      * @param rowData record from flink rowdata
      * @param index the field index
      * @return java type value.
@@ -118,10 +121,8 @@ public class DorisRowConverter implements Serializable {
         return serializationConverters[index].serialize(index, rowData);
     }
 
-
     /**
-     * Create a nullable runtime {@link DeserializationConverter} from given {@link
-     * LogicalType}.
+     * Create a nullable runtime {@link DeserializationConverter} from given {@link LogicalType}.
      */
     public DeserializationConverter createNullableInternalConverter(LogicalType type) {
         return wrapIntoNullableInternalConverter(createInternalConverter(type));
@@ -142,7 +143,8 @@ public class DorisRowConverter implements Serializable {
         return wrapIntoNullableExternalConverter(createExternalConverter(type));
     }
 
-    public static SerializationConverter wrapIntoNullableExternalConverter(SerializationConverter serializationConverter) {
+    public static SerializationConverter wrapIntoNullableExternalConverter(
+            SerializationConverter serializationConverter) {
         return (index, val) -> {
             if (val == null || val.isNullAt(index)) {
                 return null;
@@ -156,16 +158,14 @@ public class DorisRowConverter implements Serializable {
     @FunctionalInterface
     public interface DeserializationConverter extends Serializable {
         /**
-         * Convert a doris field object of {@link RowBatch } to the  data structure object.
+         * Convert a doris field object of {@link RowBatch } to the data structure object.
          *
          * @param field
          */
         Object deserialize(Object field);
     }
 
-    /**
-     * Runtime converter to convert {@link RowData} type object to doris field.
-     */
+    /** Runtime converter to convert {@link RowData} type object to doris field. */
     @FunctionalInterface
     public interface SerializationConverter extends Serializable {
         Object serialize(int index, RowData field);
@@ -196,19 +196,23 @@ public class DorisRowConverter implements Serializable {
                     if (val instanceof LocalDateTime) {
                         return TimestampData.fromLocalDateTime((LocalDateTime) val);
                     } else {
-                        throw new UnsupportedOperationException("timestamp type must be java.time.LocalDateTime, the actual type is: " + val.getClass().getName());
+                        throw new UnsupportedOperationException(
+                                "timestamp type must be java.time.LocalDateTime, the actual type is: "
+                                        + val.getClass().getName());
                     }
                 };
             case DATE:
                 return val -> {
                     if (val instanceof LocalDate) {
-                        //doris source
+                        // doris source
                         return (int) ((LocalDate) val).toEpochDay();
                     } else if (val instanceof Date) {
-                        //doris lookup
+                        // doris lookup
                         return (int) ((Date) val).toLocalDate().toEpochDay();
                     } else {
-                        throw new UnsupportedOperationException("timestamp type must be java.time.LocalDate, the actual type is: " + val.getClass());
+                        throw new UnsupportedOperationException(
+                                "timestamp type must be java.time.LocalDate, the actual type is: "
+                                        + val.getClass());
                     }
                 };
             case CHAR:
@@ -245,7 +249,8 @@ public class DorisRowConverter implements Serializable {
             case DECIMAL:
                 final int decimalPrecision = ((DecimalType) type).getPrecision();
                 final int decimalScale = ((DecimalType) type).getScale();
-                return (index, val) -> val.getDecimal(index, decimalPrecision, decimalScale).toBigDecimal();
+                return (index, val) ->
+                        val.getDecimal(index, decimalPrecision, decimalScale).toBigDecimal();
             case TINYINT:
                 return (index, val) -> val.getByte(index);
             case SMALLINT:
@@ -300,12 +305,14 @@ public class DorisRowConverter implements Serializable {
         return arrayData;
     }
 
-    private MapData convertMapData(Map<Object, Object> map, LogicalType type){
+    private MapData convertMapData(Map<Object, Object> map, LogicalType type) {
         MapType mapType = (MapType) type;
-        DeserializationConverter keyConverter = createNullableInternalConverter(mapType.getKeyType());
-        DeserializationConverter valueConverter = createNullableInternalConverter(mapType.getValueType());
+        DeserializationConverter keyConverter =
+                createNullableInternalConverter(mapType.getKeyType());
+        DeserializationConverter valueConverter =
+                createNullableInternalConverter(mapType.getValueType());
         Map<Object, Object> result = new HashMap<>();
-        for(Map.Entry<Object, Object> entry : map.entrySet()){
+        for (Map.Entry<Object, Object> entry : map.entrySet()) {
             Object key = keyConverter.deserialize(entry.getKey());
             Object value = valueConverter.deserialize(entry.getValue());
             result.put(key, value);
@@ -318,8 +325,9 @@ public class DorisRowConverter implements Serializable {
         RowType rowType = (RowType) type;
         GenericRowData rowData = new GenericRowData(row.size());
         int index = 0;
-        for(Map.Entry<String, ?> entry : row.entrySet()){
-            DeserializationConverter converter = createNullableInternalConverter(rowType.getTypeAt(index));
+        for (Map.Entry<String, ?> entry : row.entrySet()) {
+            DeserializationConverter converter =
+                    createNullableInternalConverter(rowType.getTypeAt(index));
             Object value = converter.deserialize(entry.getValue());
             rowData.setField(index, value);
             index++;
@@ -327,18 +335,23 @@ public class DorisRowConverter implements Serializable {
         return rowData;
     }
 
-    private static List<Object> convertArrayData(ArrayData array, LogicalType type){
-        if(array instanceof GenericArrayData){
-            return Arrays.asList(((GenericArrayData)array).toObjectArray());
+    private static List<Object> convertArrayData(ArrayData array, LogicalType type) {
+        if (array instanceof GenericArrayData) {
+            return Arrays.asList(((GenericArrayData) array).toObjectArray());
         }
-        if(array instanceof BinaryArrayData){
-            LogicalType elementType = ((ArrayType)type).getElementType();
-            List<Object> values = Arrays.asList(((BinaryArrayData) array).toObjectArray(elementType));
-            if(LogicalTypeRoot.DATE.equals(elementType.getTypeRoot())) {
-                return values.stream().map(date -> Date.valueOf(LocalDate.ofEpochDay((Integer)date))).collect(Collectors.toList());
+        if (array instanceof BinaryArrayData) {
+            LogicalType elementType = ((ArrayType) type).getElementType();
+            List<Object> values =
+                    Arrays.asList(((BinaryArrayData) array).toObjectArray(elementType));
+            if (LogicalTypeRoot.DATE.equals(elementType.getTypeRoot())) {
+                return values.stream()
+                        .map(date -> Date.valueOf(LocalDate.ofEpochDay((Integer) date)))
+                        .collect(Collectors.toList());
             }
             if (LogicalTypeRoot.ARRAY.equals(elementType.getTypeRoot())) {
-                return values.stream().map(arr -> convertArrayData((ArrayData)arr, elementType)).collect(Collectors.toList());
+                return values.stream()
+                        .map(arr -> convertArrayData((ArrayData) arr, elementType))
+                        .collect(Collectors.toList());
             }
             return values;
         }
@@ -352,6 +365,7 @@ public class DorisRowConverter implements Serializable {
         if (map instanceof GenericMapData) {
             GenericMapData gMap = (GenericMapData) map;
             for (Object key : ((GenericArrayData) gMap.keyArray()).toObjectArray()) {
+
                 Object convertedKey = convertMapEntry(key, keyType);
                 Object convertedValue = convertMapEntry(gMap.get(key), valueType);
                 result.put(convertedKey, convertedValue);
@@ -393,12 +407,12 @@ public class DorisRowConverter implements Serializable {
     }
 
     private static Object convertRowData(RowData val, int index, LogicalType type) {
-        RowType rowType = (RowType)type;
+        RowType rowType = (RowType) type;
         Map<String, Object> value = new HashMap<>();
         RowData row = val.getRow(index, rowType.getFieldCount());
 
         List<RowType.RowField> fields = rowType.getFields();
-        for(int i = 0;i< fields.size(); i++){
+        for (int i = 0; i < fields.size(); i++) {
             RowType.RowField rowField = fields.get(i);
             SerializationConverter converter = createNullableExternalConverter(rowField.getType());
             Object valTmp = converter.serialize(i, row);
@@ -407,7 +421,7 @@ public class DorisRowConverter implements Serializable {
         return value;
     }
 
-    private static String writeValueAsString(Object object){
+    private static String writeValueAsString(Object object) {
         try {
             return objectMapper.writeValueAsString(object);
         } catch (JsonProcessingException e) {

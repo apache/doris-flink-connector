@@ -19,14 +19,13 @@ package org.apache.doris.flink.sink.writer;
 
 import java.util.Objects;
 
-/**
- * hold state for DorisWriter.
- */
+/** hold state for DorisWriter. */
 public class DorisWriterState {
     String labelPrefix;
     String database;
     String table;
     int subtaskId;
+
     public DorisWriterState(String labelPrefix) {
         this.labelPrefix = labelPrefix;
     }
@@ -76,11 +75,18 @@ public class DorisWriterState {
 
     @Override
     public String toString() {
-        return "DorisWriterState{" +
-                "labelPrefix='" + labelPrefix + '\'' +
-                ", database='" + database + '\'' +
-                ", table='" + table + '\'' +
-                ", subtaskId=" + subtaskId +
-                '}';
+        return "DorisWriterState{"
+                + "labelPrefix='"
+                + labelPrefix
+                + '\''
+                + ", database='"
+                + database
+                + '\''
+                + ", table='"
+                + table
+                + '\''
+                + ", subtaskId="
+                + subtaskId
+                + '}';
     }
 }

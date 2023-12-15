@@ -24,7 +24,6 @@ import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.rest.models.BackendV2;
 import org.apache.doris.flink.rest.models.BackendV2.BackendRowV2;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,22 +51,24 @@ public class BackendUtil {
     private List<BackendV2.BackendRowV2> initBackends(String beNodes) {
         List<BackendV2.BackendRowV2> backends = new ArrayList<>();
         List<String> nodes = Arrays.asList(beNodes.split(","));
-        nodes.forEach(node -> {
-            if (tryHttpConnection(node)) {
-                node = node.trim();
-                String[] ipAndPort = node.split(":");
-                BackendRowV2 backendRowV2 = new BackendRowV2();
-                backendRowV2.setIp(ipAndPort[0]);
-                backendRowV2.setHttpPort(Integer.parseInt(ipAndPort[1]));
-                backendRowV2.setAlive(true);
-                backends.add(backendRowV2);
-            }
-        });
+        nodes.forEach(
+                node -> {
+                    if (tryHttpConnection(node)) {
+                        node = node.trim();
+                        String[] ipAndPort = node.split(":");
+                        BackendRowV2 backendRowV2 = new BackendRowV2();
+                        backendRowV2.setIp(ipAndPort[0]);
+                        backendRowV2.setHttpPort(Integer.parseInt(ipAndPort[1]));
+                        backendRowV2.setAlive(true);
+                        backends.add(backendRowV2);
+                    }
+                });
         return backends;
     }
 
-    public static BackendUtil getInstance(DorisOptions dorisOptions, DorisReadOptions readOptions, Logger logger){
-        if(StringUtils.isNotEmpty(dorisOptions.getBenodes())){
+    public static BackendUtil getInstance(
+            DorisOptions dorisOptions, DorisReadOptions readOptions, Logger logger) {
+        if (StringUtils.isNotEmpty(dorisOptions.getBenodes())) {
             return new BackendUtil(dorisOptions.getBenodes());
         } else {
             return new BackendUtil(RestService.getBackendsV2(dorisOptions, readOptions, logger));
@@ -90,7 +91,7 @@ public class BackendUtil {
         try {
             backend = "http://" + backend;
             URL url = new URL(backend);
-            HttpURLConnection co =  (HttpURLConnection) url.openConnection();
+            HttpURLConnection co = (HttpURLConnection) url.openConnection();
             co.setConnectTimeout(60000);
             co.connect();
             co.disconnect();

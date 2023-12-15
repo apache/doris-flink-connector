@@ -14,6 +14,7 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.source.split;
 
 import org.junit.Test;
@@ -22,9 +23,7 @@ import java.util.Collections;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Unit tests for the {@link DorisSplitRecords} class.
- */
+/** Unit tests for the {@link DorisSplitRecords} class. */
 public class DorisSplitRecordsTest {
 
     @Test
@@ -34,5 +33,4 @@ public class DorisSplitRecordsTest {
 
         assertEquals(Collections.singleton(split), records.finishedSplits());
     }
-
 }

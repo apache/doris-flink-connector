@@ -45,9 +45,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
-/**
- * Test for Doris Committer.
- */
+/** Test for Doris Committer. */
 public class TestDorisCommitter {
 
     DorisCommitter dorisCommitter;
@@ -55,8 +53,7 @@ public class TestDorisCommitter {
     HttpEntityMock entityMock;
     private MockedStatic<RestService> restServiceMockedStatic;
     private MockedStatic<BackendUtil> backendUtilMockedStatic;
-    @Rule
-    public ExpectedException thrown= ExpectedException.none();
+    @Rule public ExpectedException thrown = ExpectedException.none();
 
     @Before
     public void setUp() throws Exception {
@@ -74,21 +71,26 @@ public class TestDorisCommitter {
         when(httpResponse.getStatusLine()).thenReturn(normalLine);
         when(httpResponse.getEntity()).thenReturn(entityMock);
 
-        restServiceMockedStatic.when(()-> RestService.getBackendsV2(any(),any(),any()))
-                .thenReturn(Collections.singletonList(BackendV2.BackendRowV2.of("127.0.0.1", 8040,true)));
-        backendUtilMockedStatic.when(()-> BackendUtil.tryHttpConnection(any())).thenReturn(true);
+        restServiceMockedStatic
+                .when(() -> RestService.getBackendsV2(any(), any(), any()))
+                .thenReturn(
+                        Collections.singletonList(
+                                BackendV2.BackendRowV2.of("127.0.0.1", 8040, true)));
+        backendUtilMockedStatic.when(() -> BackendUtil.tryHttpConnection(any())).thenReturn(true);
 
         dorisCommitter = new DorisCommitter(dorisOptions, readOptions, 3, httpClient);
     }
 
     @Test
     public void testCommitted() throws Exception {
-        String response = "{\n" +
-                "\"status\": \"Fail\",\n" +
-                "\"msg\": \"errCode = 2, detailMessage = transaction [2] is already visible, not pre-committed.\"\n" +
-                "}";
+        String response =
+                "{\n"
+                        + "\"status\": \"Fail\",\n"
+                        + "\"msg\": \"errCode = 2, detailMessage = transaction [2] is already visible, not pre-committed.\"\n"
+                        + "}";
         this.entityMock.setValue(response);
-        final MockCommitRequest<DorisCommittable> request = new MockCommitRequest<>(dorisCommittable);
+        final MockCommitRequest<DorisCommittable> request =
+                new MockCommitRequest<>(dorisCommittable);
         dorisCommitter.commit(Collections.singletonList(request));
     }
 
@@ -97,12 +99,14 @@ public class TestDorisCommitter {
         thrown.expect(DorisRuntimeException.class);
         thrown.expectMessage("commit transaction error");
 
-        String response = "{\n" +
-                "\"status\": \"Fail\",\n" +
-                "\"msg\": \"errCode = 2, detailMessage = transaction [25] is already aborted. abort reason: User Abort\"\n" +
-                "}";
+        String response =
+                "{\n"
+                        + "\"status\": \"Fail\",\n"
+                        + "\"msg\": \"errCode = 2, detailMessage = transaction [25] is already aborted. abort reason: User Abort\"\n"
+                        + "}";
         this.entityMock.setValue(response);
-        final MockCommitRequest<DorisCommittable> request = new MockCommitRequest<>(dorisCommittable);
+        final MockCommitRequest<DorisCommittable> request =
+                new MockCommitRequest<>(dorisCommittable);
         dorisCommitter.commit(Collections.singletonList(request));
     }
 

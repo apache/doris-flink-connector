@@ -14,6 +14,7 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink;
 
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -31,27 +32,27 @@ public class DorisSourceExample {
 
         // register a table in the catalog
         tEnv.executeSql(
-                "CREATE TABLE doris_source (" +
-                        "bigint_1 BIGINT," +
-                        "char_1 STRING," +
-                        "date_1 STRING," +
-                        "datetime_1 STRING," +
-                        "decimal_1 DECIMAL(5,2)," +
-                        "double_1 DOUBLE," +
-                        "float_1 FLOAT ," +
-                        "int_1 INT ," +
-                        "largeint_1 STRING, " +
-                        "smallint_1 SMALLINT, " +
-                        "tinyint_1 TINYINT, " +
-                        "varchar_1 STRING " +
-                        ") " +
-                        "WITH (\n" +
-                        "  'connector' = 'doris',\n" +
-                        "  'fenodes' = 'FE_IP:8030',\n" +
-                        "  'table.identifier' = 'db.table',\n" +
-                        "  'username' = 'root',\n" +
-                        "  'password' = ''\n" +
-                        ")");
+                "CREATE TABLE doris_source ("
+                        + "bigint_1 BIGINT,"
+                        + "char_1 STRING,"
+                        + "date_1 STRING,"
+                        + "datetime_1 STRING,"
+                        + "decimal_1 DECIMAL(5,2),"
+                        + "double_1 DOUBLE,"
+                        + "float_1 FLOAT ,"
+                        + "int_1 INT ,"
+                        + "largeint_1 STRING, "
+                        + "smallint_1 SMALLINT, "
+                        + "tinyint_1 TINYINT, "
+                        + "varchar_1 STRING "
+                        + ") "
+                        + "WITH (\n"
+                        + "  'connector' = 'doris',\n"
+                        + "  'fenodes' = 'FE_IP:8030',\n"
+                        + "  'table.identifier' = 'db.table',\n"
+                        + "  'username' = 'root',\n"
+                        + "  'password' = ''\n"
+                        + ")");
 
         // define a dynamic aggregating query
         final Table result = tEnv.sqlQuery("SELECT * from doris_source  ");

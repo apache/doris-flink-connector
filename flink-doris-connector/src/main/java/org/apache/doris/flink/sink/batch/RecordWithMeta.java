@@ -22,8 +22,7 @@ public class RecordWithMeta {
     private String table;
     private String record;
 
-    public RecordWithMeta() {
-    }
+    public RecordWithMeta() {}
 
     public RecordWithMeta(String database, String table, String record) {
         this.database = database;
@@ -58,5 +57,4 @@ public class RecordWithMeta {
     public String getTableIdentifier() {
         return this.database + "." + this.table;
     }
-
 }

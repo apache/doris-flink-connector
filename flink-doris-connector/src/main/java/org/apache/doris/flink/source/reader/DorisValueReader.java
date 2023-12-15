@@ -74,14 +74,21 @@ public class DorisValueReader implements AutoCloseable {
     protected Schema schema;
     protected boolean asyncThreadStarted;
 
-    public DorisValueReader(PartitionDefinition partition, DorisOptions options, DorisReadOptions readOptions) {
+    public DorisValueReader(
+            PartitionDefinition partition, DorisOptions options, DorisReadOptions readOptions) {
         this.partition = partition;
         this.options = options;
         this.readOptions = readOptions;
         this.client = backendClient();
-        this.deserializeArrowToRowBatchAsync = readOptions.getDeserializeArrowAsync() == null ? DORIS_DESERIALIZE_ARROW_ASYNC_DEFAULT : readOptions.getDeserializeArrowAsync();
+        this.deserializeArrowToRowBatchAsync =
+                readOptions.getDeserializeArrowAsync() == null
+                        ? DORIS_DESERIALIZE_ARROW_ASYNC_DEFAULT
+                        : readOptions.getDeserializeArrowAsync();
 
-        Integer blockingQueueSize = readOptions.getDeserializeQueueSize() == null ? DORIS_DESERIALIZE_QUEUE_SIZE_DEFAULT : readOptions.getDeserializeQueueSize();
+        Integer blockingQueueSize =
+                readOptions.getDeserializeQueueSize() == null
+                        ? DORIS_DESERIALIZE_QUEUE_SIZE_DEFAULT
+                        : readOptions.getDeserializeQueueSize();
         if (this.deserializeArrowToRowBatchAsync) {
             this.rowBatchBlockingQueue = new ArrayBlockingQueue(blockingQueueSize);
         }
@@ -117,49 +124,70 @@ public class DorisValueReader implements AutoCloseable {
         params.database = partition.getDatabase();
         params.table = partition.getTable();
 
-        params.tablet_ids = Arrays.asList(partition.getTabletIds().toArray(new Long[]{}));
+        params.tablet_ids = Arrays.asList(partition.getTabletIds().toArray(new Long[] {}));
         params.opaqued_query_plan = partition.getQueryPlan();
         // max row number of one read batch
-        Integer batchSize = readOptions.getRequestBatchSize() == null ? DORIS_BATCH_SIZE_DEFAULT : readOptions.getRequestBatchSize();
-        Integer queryDorisTimeout = readOptions.getRequestQueryTimeoutS() == null ? DORIS_REQUEST_QUERY_TIMEOUT_S_DEFAULT : readOptions.getRequestQueryTimeoutS();
-        Long execMemLimit = readOptions.getExecMemLimit() == null ? DORIS_EXEC_MEM_LIMIT_DEFAULT : readOptions.getExecMemLimit();
+        Integer batchSize =
+                readOptions.getRequestBatchSize() == null
+                        ? DORIS_BATCH_SIZE_DEFAULT
+                        : readOptions.getRequestBatchSize();
+        Integer queryDorisTimeout =
+                readOptions.getRequestQueryTimeoutS() == null
+                        ? DORIS_REQUEST_QUERY_TIMEOUT_S_DEFAULT
+                        : readOptions.getRequestQueryTimeoutS();
+        Long execMemLimit =
+                readOptions.getExecMemLimit() == null
+                        ? DORIS_EXEC_MEM_LIMIT_DEFAULT
+                        : readOptions.getExecMemLimit();
         params.setBatchSize(batchSize);
         params.setQueryTimeout(queryDorisTimeout);
         params.setMemLimit(execMemLimit);
         params.setUser(options.getUsername());
         params.setPasswd(options.getPassword());
-        LOG.debug("Open scan params is,cluster:{},database:{},table:{},tabletId:{},batch size:{},query timeout:{},execution memory limit:{},user:{},query plan: {}",
-                params.getCluster(), params.getDatabase(), params.getTable(), params.getTabletIds(), params.getBatchSize(), params.getQueryTimeout(), params.getMemLimit(), params.getUser(), params.getOpaquedQueryPlan());
+        LOG.debug(
+                "Open scan params is,cluster:{},database:{},table:{},tabletId:{},batch size:{},query timeout:{},execution memory limit:{},user:{},query plan: {}",
+                params.getCluster(),
+                params.getDatabase(),
+                params.getTable(),
+                params.getTabletIds(),
+                params.getBatchSize(),
+                params.getQueryTimeout(),
+                params.getMemLimit(),
+                params.getUser(),
+                params.getOpaquedQueryPlan());
         return params;
     }
 
-    protected Thread asyncThread = new Thread(new Runnable() {
-        @Override
-        public void run() {
-            clientLock.lock();
-            try{
-                TScanNextBatchParams nextBatchParams = new TScanNextBatchParams();
-                nextBatchParams.setContextId(contextId);
-                while (!eos.get()) {
-                    nextBatchParams.setOffset(offset);
-                    TScanBatchResult nextResult = client.getNext(nextBatchParams);
-                    eos.set(nextResult.isEos());
-                    if (!eos.get()) {
-                        RowBatch rowBatch = new RowBatch(nextResult, schema).readArrow();
-                        offset += rowBatch.getReadRowCount();
-                        rowBatch.close();
-                        try {
-                            rowBatchBlockingQueue.put(rowBatch);
-                        } catch (InterruptedException e) {
-                            throw new DorisRuntimeException(e);
+    protected Thread asyncThread =
+            new Thread(
+                    new Runnable() {
+                        @Override
+                        public void run() {
+                            clientLock.lock();
+                            try {
+                                TScanNextBatchParams nextBatchParams = new TScanNextBatchParams();
+                                nextBatchParams.setContextId(contextId);
+                                while (!eos.get()) {
+                                    nextBatchParams.setOffset(offset);
+                                    TScanBatchResult nextResult = client.getNext(nextBatchParams);
+                                    eos.set(nextResult.isEos());
+                                    if (!eos.get()) {
+                                        RowBatch rowBatch =
+                                                new RowBatch(nextResult, schema).readArrow();
+                                        offset += rowBatch.getReadRowCount();
+                                        rowBatch.close();
+                                        try {
+                                            rowBatchBlockingQueue.put(rowBatch);
+                                        } catch (InterruptedException e) {
+                                            throw new DorisRuntimeException(e);
+                                        }
+                                    }
+                                }
+                            } finally {
+                                clientLock.unlock();
+                            }
                         }
-                    }
-                }
-            } finally {
-                clientLock.unlock();
-            }
-        }
-    });
+                    });
 
     protected boolean asyncThreadStarted() {
         boolean started = false;
@@ -202,7 +230,7 @@ public class DorisValueReader implements AutoCloseable {
             }
         } else {
             clientLock.lock();
-            try{
+            try {
                 // Arrow data was acquired synchronously during the iterative process
                 if (!eos.get() && (rowBatch == null || !rowBatch.hasNext())) {
                     if (rowBatch != null) {

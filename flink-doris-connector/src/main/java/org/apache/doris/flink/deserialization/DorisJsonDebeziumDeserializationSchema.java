@@ -17,7 +17,9 @@
 
 package org.apache.doris.flink.deserialization;
 
-import org.apache.doris.flink.exception.DorisException;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.util.Collector;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -30,9 +32,7 @@ import com.ververica.cdc.connectors.shaded.org.apache.kafka.connect.data.Schema;
 import com.ververica.cdc.connectors.shaded.org.apache.kafka.connect.data.Struct;
 import com.ververica.cdc.connectors.shaded.org.apache.kafka.connect.source.SourceRecord;
 import com.ververica.cdc.debezium.DebeziumDeserializationSchema;
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.util.Collector;
+import org.apache.doris.flink.exception.DorisException;
 
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
@@ -40,12 +40,12 @@ import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.Map;
 
-/**
- * Currently just use for synchronous mysql non-default.
- */
-public class DorisJsonDebeziumDeserializationSchema implements DebeziumDeserializationSchema<String> {
+/** Currently just use for synchronous mysql non-default. */
+public class DorisJsonDebeziumDeserializationSchema
+        implements DebeziumDeserializationSchema<String> {
 
-    private static final JsonNodeFactory JSON_NODE_FACTORY = JsonNodeFactory.withExactBigDecimals(true);
+    private static final JsonNodeFactory JSON_NODE_FACTORY =
+            JsonNodeFactory.withExactBigDecimals(true);
     private final ObjectMapper objectMapper;
 
     public DorisJsonDebeziumDeserializationSchema() {
@@ -53,7 +53,8 @@ public class DorisJsonDebeziumDeserializationSchema implements DebeziumDeseriali
     }
 
     @Override
-    public void deserialize(SourceRecord sourceRecord, Collector<String> collector) throws Exception {
+    public void deserialize(SourceRecord sourceRecord, Collector<String> collector)
+            throws Exception {
         Schema schema = sourceRecord.valueSchema();
         Object value = sourceRecord.value();
         JsonNode jsonValue = convertToJson(schema, value);
@@ -63,8 +64,8 @@ public class DorisJsonDebeziumDeserializationSchema implements DebeziumDeseriali
 
     private JsonNode convertToJson(Schema schema, Object value) throws DorisException {
         if (value == null) {
-            if (schema == null) // Any schema is valid and we don't have a default, so treat this as an optional schema
-            {
+            // Any schema is valid and we don't have a default, so treat this as an optional schema
+            if (schema == null) {
                 return null;
             }
             if (schema.isOptional()) {
@@ -80,7 +81,9 @@ public class DorisJsonDebeziumDeserializationSchema implements DebeziumDeseriali
                 schemaType = ConnectSchema.schemaType(value.getClass());
                 if (schemaType == null) {
                     throw new DorisException(
-                            "Java class " + value.getClass() + " does not have corresponding schema type.");
+                            "Java class "
+                                    + value.getClass()
+                                    + " does not have corresponding schema type.");
                 }
             } else {
                 schemaType = schema.type();
@@ -111,65 +114,74 @@ public class DorisJsonDebeziumDeserializationSchema implements DebeziumDeseriali
                     } else if (value instanceof BigDecimal) {
                         return JSON_NODE_FACTORY.numberNode((BigDecimal) value);
                     } else {
-                        throw new DorisException("Invalid type for bytes type: " + value.getClass());
+                        throw new DorisException(
+                                "Invalid type for bytes type: " + value.getClass());
                     }
-                case ARRAY: {
-                    Collection<?> collection = (Collection<?>) value;
-                    ArrayNode list = JSON_NODE_FACTORY.arrayNode();
-                    for (Object elem : collection) {
-                        Schema valueSchema = schema == null ? null : schema.valueSchema();
-                        JsonNode fieldValue = convertToJson(valueSchema, elem);
-                        list.add(fieldValue);
+                case ARRAY:
+                    {
+                        Collection<?> collection = (Collection<?>) value;
+                        ArrayNode list = JSON_NODE_FACTORY.arrayNode();
+                        for (Object elem : collection) {
+                            Schema valueSchema = schema == null ? null : schema.valueSchema();
+                            JsonNode fieldValue = convertToJson(valueSchema, elem);
+                            list.add(fieldValue);
+                        }
+                        return list;
                     }
-                    return list;
-                }
-                case MAP: {
-                    Map<?, ?> map = (Map<?, ?>) value;
-                    // If true, using string keys and JSON object; if false, using non-string keys and Array-encoding
-                    boolean objectMode;
-                    if (schema == null) {
-                        objectMode = true;
+                case MAP:
+                    {
+                        Map<?, ?> map = (Map<?, ?>) value;
+                        // If true, using string keys and JSON object; if false, using non-string
+                        // keys and Array-encoding
+                        boolean objectMode;
+                        if (schema == null) {
+                            objectMode = true;
+                            for (Map.Entry<?, ?> entry : map.entrySet()) {
+                                if (!(entry.getKey() instanceof String)) {
+                                    objectMode = false;
+                                    break;
+                                }
+                            }
+                        } else {
+                            objectMode = schema.keySchema().type() == Schema.Type.STRING;
+                        }
+                        ObjectNode obj = null;
+                        ArrayNode list = null;
+                        if (objectMode) {
+                            obj = JSON_NODE_FACTORY.objectNode();
+                        } else {
+                            list = JSON_NODE_FACTORY.arrayNode();
+                        }
                         for (Map.Entry<?, ?> entry : map.entrySet()) {
-                            if (!(entry.getKey() instanceof String)) {
-                                objectMode = false;
-                                break;
+                            Schema keySchema = schema == null ? null : schema.keySchema();
+                            Schema valueSchema = schema == null ? null : schema.valueSchema();
+                            JsonNode mapKey = convertToJson(keySchema, entry.getKey());
+                            JsonNode mapValue = convertToJson(valueSchema, entry.getValue());
+
+                            if (objectMode) {
+                                obj.set(mapKey.asText(), mapValue);
+                            } else {
+                                list.add(JSON_NODE_FACTORY.arrayNode().add(mapKey).add(mapValue));
                             }
                         }
-                    } else {
-                        objectMode = schema.keySchema().type() == Schema.Type.STRING;
+                        return objectMode ? obj : list;
                     }
-                    ObjectNode obj = null;
-                    ArrayNode list = null;
-                    if (objectMode) {
-                        obj = JSON_NODE_FACTORY.objectNode();
-                    } else {
-                        list = JSON_NODE_FACTORY.arrayNode();
-                    }
-                    for (Map.Entry<?, ?> entry : map.entrySet()) {
-                        Schema keySchema = schema == null ? null : schema.keySchema();
-                        Schema valueSchema = schema == null ? null : schema.valueSchema();
-                        JsonNode mapKey = convertToJson(keySchema, entry.getKey());
-                        JsonNode mapValue = convertToJson(valueSchema, entry.getValue());
-
-                        if (objectMode) {
-                            obj.set(mapKey.asText(), mapValue);
-                        } else {
-                            list.add(JSON_NODE_FACTORY.arrayNode().add(mapKey).add(mapValue));
+                case STRUCT:
+                    {
+                        Struct struct = (Struct) value;
+                        if (!struct.schema().equals(schema)) {
+                            throw new DorisException("Mismatching schema.");
                         }
+                        ObjectNode obj = JSON_NODE_FACTORY.objectNode();
+                        for (Field field : schema.fields()) {
+                            obj.set(
+                                    field.name(),
+                                    convertToJson(
+                                            field.schema(),
+                                            struct.getWithoutDefault(field.name())));
+                        }
+                        return obj;
                     }
-                    return objectMode ? obj : list;
-                }
-                case STRUCT: {
-                    Struct struct = (Struct) value;
-                    if (!struct.schema().equals(schema)) {
-                        throw new DorisException("Mismatching schema.");
-                    }
-                    ObjectNode obj = JSON_NODE_FACTORY.objectNode();
-                    for (Field field : schema.fields()) {
-                        obj.set(field.name(), convertToJson(field.schema(), struct.getWithoutDefault(field.name())));
-                    }
-                    return obj;
-                }
             }
             throw new DorisException("Couldn't convert " + value + " to JSON.");
         } catch (ClassCastException e) {

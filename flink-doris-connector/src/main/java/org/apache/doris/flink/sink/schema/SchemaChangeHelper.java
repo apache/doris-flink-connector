@@ -17,11 +17,11 @@
 
 package org.apache.doris.flink.sink.schema;
 
-import org.apache.doris.flink.catalog.doris.FieldSchema;
+import org.apache.flink.util.StringUtils;
 
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.compress.utils.Lists;
-import org.apache.flink.util.StringUtils;
+import org.apache.doris.flink.catalog.doris.FieldSchema;
 
 import java.util.List;
 import java.util.Map;
@@ -35,9 +35,11 @@ public class SchemaChangeHelper {
     private static final String ADD_DDL = "ALTER TABLE %s ADD COLUMN %s %s";
     private static final String DROP_DDL = "ALTER TABLE %s DROP COLUMN %s";
     private static final String RENAME_DDL = "ALTER TABLE %s RENAME COLUMN %s %s";
-    private static final String CHECK_COLUMN_EXISTS = "SELECT COLUMN_NAME FROM information_schema.`COLUMNS` WHERE TABLE_SCHEMA = '%s' AND TABLE_NAME = '%s' AND COLUMN_NAME = '%s'";
+    private static final String CHECK_COLUMN_EXISTS =
+            "SELECT COLUMN_NAME FROM information_schema.`COLUMNS` WHERE TABLE_SCHEMA = '%s' AND TABLE_NAME = '%s' AND COLUMN_NAME = '%s'";
 
-    public static void compareSchema(Map<String, FieldSchema> updateFiledSchemaMap,
+    public static void compareSchema(
+            Map<String, FieldSchema> updateFiledSchemaMap,
             Map<String, FieldSchema> originFieldSchemaMap) {
         dropFieldSchemas.clear();
         addFieldSchemas.clear();
@@ -59,7 +61,10 @@ public class SchemaChangeHelper {
         }
     }
 
-    public static List<String> generateRenameDDLSql(String table, String oldColumnName, String newColumnName,
+    public static List<String> generateRenameDDLSql(
+            String table,
+            String oldColumnName,
+            String newColumnName,
             Map<String, FieldSchema> originFieldSchemaMap) {
         ddlSchemas.clear();
         List<String> ddlList = Lists.newArrayList();
@@ -93,7 +98,7 @@ public class SchemaChangeHelper {
         return ddlList;
     }
 
-    public static String buildAddColumnDDL(String tableIdentifier, FieldSchema fieldSchema){
+    public static String buildAddColumnDDL(String tableIdentifier, FieldSchema fieldSchema) {
         String name = fieldSchema.getName();
         String type = fieldSchema.getTypeString();
         String defaultValue = fieldSchema.getDefaultValue();
@@ -108,15 +113,16 @@ public class SchemaChangeHelper {
         return addDDL;
     }
 
-    public static String buildDropColumnDDL(String tableIdentifier, String columName){
+    public static String buildDropColumnDDL(String tableIdentifier, String columName) {
         return String.format(DROP_DDL, tableIdentifier, columName);
     }
 
-    public static String buildRenameColumnDDL(String tableIdentifier, String oldColumnName, String newColumnName){
+    public static String buildRenameColumnDDL(
+            String tableIdentifier, String oldColumnName, String newColumnName) {
         return String.format(RENAME_DDL, tableIdentifier, oldColumnName, newColumnName);
     }
 
-    public static String buildColumnExistsQuery(String database, String table, String column){
+    public static String buildColumnExistsQuery(String database, String table, String column) {
         return String.format(CHECK_COLUMN_EXISTS, database, table, column);
     }
 
@@ -141,5 +147,4 @@ public class SchemaChangeHelper {
             return isDropColumn;
         }
     }
-
 }
