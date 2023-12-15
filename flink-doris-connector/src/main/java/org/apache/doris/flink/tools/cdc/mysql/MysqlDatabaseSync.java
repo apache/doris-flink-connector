@@ -190,7 +190,7 @@ public class MysqlDatabaseSync extends DatabaseSync {
         Properties jdbcProperties = new Properties();
         Properties debeziumProperties = new Properties();
         // date to string
-        debeziumProperties.putAll(DateToStringConverter.defaultProps);
+        debeziumProperties.putAll(DateToStringConverter.DEFAULT_PROPS);
 
         for (Map.Entry<String, String> entry : config.toMap().entrySet()) {
             String key = entry.getKey();

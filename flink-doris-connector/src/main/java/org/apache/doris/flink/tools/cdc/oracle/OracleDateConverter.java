@@ -44,15 +44,15 @@ public class OracleDateConverter implements CustomConverter<SchemaBuilder, Relat
     private static final Pattern TIMESTAMP_OR_DATE_REGEX =
             Pattern.compile("^TIMESTAMP[(]\\d[)]$|^DATE$", Pattern.CASE_INSENSITIVE);
     private ZoneId timestampZoneId = ZoneId.systemDefault();
-    public static Properties defaultProps = new Properties();
-    private final String datetimePattern = "yyyy-MM-dd HH:mm:ss";
-    private final String datetimeV2Pattern = "yyyy-MM-dd HH:mm:ss.SSSSSS";
+    public static final Properties DEFAULT_PROPS = new Properties();
+    private static final String DATETIME_PATTERN = "yyyy-MM-dd HH:mm:ss";
+    private static final String DATETIMEV2_PATTERN = "yyyy-MM-dd HH:mm:ss.SSSSSS";
     private final DateTimeFormatter dateTimeV2Formatter =
-            DateTimeFormatter.ofPattern(datetimeV2Pattern);
+            DateTimeFormatter.ofPattern(DATETIMEV2_PATTERN);
 
     static {
-        defaultProps.setProperty("converters", "oracleDate");
-        defaultProps.setProperty(
+        DEFAULT_PROPS.setProperty("converters", "oracleDate");
+        DEFAULT_PROPS.setProperty(
                 "oracleDate.type", "org.apache.doris.flink.tools.cdc.oracle.OracleDateConverter");
     }
 
@@ -134,14 +134,14 @@ public class OracleDateConverter implements CustomConverter<SchemaBuilder, Relat
     }
 
     private String completeMilliseconds(String stringValue) {
-        if (stringValue.length() == datetimeV2Pattern.length()) {
+        if (stringValue.length() == DATETIMEV2_PATTERN.length()) {
             return stringValue;
         }
         StringBuilder sb = new StringBuilder(stringValue);
-        if (stringValue.length() == datetimePattern.length()) {
+        if (stringValue.length() == DATETIME_PATTERN.length()) {
             sb.append(".");
         }
-        while (sb.toString().length() < datetimeV2Pattern.length()) {
+        while (sb.toString().length() < DATETIMEV2_PATTERN.length()) {
             sb.append(0);
         }
         return sb.toString();

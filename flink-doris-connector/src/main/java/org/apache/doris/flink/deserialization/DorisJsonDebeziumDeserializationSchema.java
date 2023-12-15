@@ -64,10 +64,8 @@ public class DorisJsonDebeziumDeserializationSchema
 
     private JsonNode convertToJson(Schema schema, Object value) throws DorisException {
         if (value == null) {
-            if (schema
-                    == null) // Any schema is valid and we don't have a default, so treat this as an
-            // optional schema
-            {
+            // Any schema is valid and we don't have a default, so treat this as an optional schema
+            if (schema == null) {
                 return null;
             }
             if (schema.isOptional()) {

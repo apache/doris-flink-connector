@@ -157,8 +157,8 @@ public class DorisStreamLoad implements Serializable {
         LOG.info("abort for labelSuffix {}. start chkId {}.", labelSuffix, chkID);
         while (true) {
             try {
-                // TODO: According to label abort txn. Currently, it can only be aborted based on
-                // txnid,
+                // TODO: According to label abort txn. Currently,
+                //  it can only be aborted based on txnid,
                 //  so we must first request a streamload based on the label to get the txnid.
                 String label = labelGenerator.generateTableLabel(startChkID);
                 HttpPutBuilder builder = new HttpPutBuilder();

@@ -148,7 +148,7 @@ public class PostgresDatabaseSync extends DatabaseSync {
 
         // debezium properties set
         Properties debeziumProperties = new Properties();
-        debeziumProperties.putAll(PostgresDateConverter.defaultProps);
+        debeziumProperties.putAll(PostgresDateConverter.DEFAULT_PROPS);
         debeziumProperties.put("decimal.handling.mode", "string");
 
         for (Map.Entry<String, String> entry : config.toMap().entrySet()) {

@@ -123,8 +123,8 @@ public class DorisWriter<IN>
         }
         // get main work thread.
         executorThread = Thread.currentThread();
-        // when uploading data in streaming mode, we need to regularly detect whether there are
-        // exceptions.
+        // when uploading data in streaming mode,
+        // we need to regularly detect whether there are exceptions.
         scheduledExecutorService.scheduleWithFixedDelay(
                 this::checkDone, 200, intervalTime, TimeUnit.MILLISECONDS);
     }

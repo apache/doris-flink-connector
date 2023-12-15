@@ -30,8 +30,9 @@ import static org.apache.doris.flink.sink.writer.LoadConstants.CSV;
 import static org.apache.doris.flink.sink.writer.LoadConstants.JSON;
 
 /**
- * Serializer for {@link Row}. Quick way to support RowSerializer on existing code TODO: support
- * original Doris to Row serializer
+ * Serializer for {@link Row}. Quick way to support RowSerializer on existing code.
+ *
+ * <p>TODO: support original Doris to Row serializer
  */
 public class RowSerializer implements DorisRecordSerializer<Row> {
     /** converter {@link Row} to {@link RowData}. */

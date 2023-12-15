@@ -141,8 +141,8 @@ public class OracleDatabaseSync extends DatabaseSync {
         Preconditions.checkNotNull(schemaName, "schema-name in oracle is required");
         String tableName = config.get(OracleSourceOptions.TABLE_NAME);
         // When debezium incrementally reads, it will be judged based on regexp_like.
-        // When the regular length exceeds 512, an error will be reported, like ORA-12733: regular
-        // expression too long
+        // When the regular length exceeds 512, an error will be reported,
+        // like ORA-12733: regular expression too long
         if (tableName.length() > 384) {
             // max database name length 128
             tableName =
@@ -166,7 +166,7 @@ public class OracleDatabaseSync extends DatabaseSync {
         // debezium properties set
         debeziumProperties.put("decimal.handling.mode", "string");
         // date to string
-        debeziumProperties.putAll(OracleDateConverter.defaultProps);
+        debeziumProperties.putAll(OracleDateConverter.DEFAULT_PROPS);
 
         for (Map.Entry<String, String> entry : config.toMap().entrySet()) {
             String key = entry.getKey();

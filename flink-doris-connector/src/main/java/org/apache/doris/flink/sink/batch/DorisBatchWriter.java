@@ -83,8 +83,8 @@ public class DorisBatchWriter<IN> implements SinkWriter<IN> {
         this.batchStreamLoad =
                 new DorisBatchStreamLoad(
                         dorisOptions, dorisReadOptions, executionOptions, labelGenerator);
-        // when uploading data in streaming mode, we need to regularly detect whether there are
-        // exceptions.
+        // when uploading data in streaming mode,
+        // we need to regularly detect whether there areexceptions.
         scheduledExecutorService.scheduleWithFixedDelay(
                 this::intervalFlush, flushIntervalMs, flushIntervalMs, TimeUnit.MILLISECONDS);
     }

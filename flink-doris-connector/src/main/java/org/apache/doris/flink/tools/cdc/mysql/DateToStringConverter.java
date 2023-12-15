@@ -43,16 +43,16 @@ public class DateToStringConverter implements CustomConverter<SchemaBuilder, Rel
     private DateTimeFormatter timestampFormatter = DateTimeFormatter.ISO_DATE_TIME;
     private ZoneId timestampZoneId = ZoneId.systemDefault();
 
-    public static Properties defaultProps = new Properties();
+    public static final Properties DEFAULT_PROPS = new Properties();
 
     static {
-        defaultProps.setProperty("converters", "date");
-        defaultProps.setProperty(
+        DEFAULT_PROPS.setProperty("converters", "date");
+        DEFAULT_PROPS.setProperty(
                 "date.type", "org.apache.doris.flink.tools.cdc.mysql.DateToStringConverter");
-        defaultProps.setProperty("date.format.date", "yyyy-MM-dd");
-        defaultProps.setProperty("date.format.datetime", "yyyy-MM-dd HH:mm:ss.SSSSSS");
-        defaultProps.setProperty("date.format.timestamp", "yyyy-MM-dd HH:mm:ss.SSSSSS");
-        defaultProps.setProperty("date.format.timestamp.zone", "UTC+8");
+        DEFAULT_PROPS.setProperty("date.format.date", "yyyy-MM-dd");
+        DEFAULT_PROPS.setProperty("date.format.datetime", "yyyy-MM-dd HH:mm:ss.SSSSSS");
+        DEFAULT_PROPS.setProperty("date.format.timestamp", "yyyy-MM-dd HH:mm:ss.SSSSSS");
+        DEFAULT_PROPS.setProperty("date.format.timestamp.zone", "UTC+8");
     }
 
     @Override
@@ -140,8 +140,8 @@ public class DateToStringConverter implements CustomConverter<SchemaBuilder, Rel
 
     private String convertTimestamp(Object input) {
         if (input instanceof ZonedDateTime) {
-            // mysql timestamp will be converted to UTC storage,and the zonedDatetime here is UTC
-            // time
+            // mysql timestamp will be converted to UTC storage,
+            // and the zonedDatetime here is UTC time
             ZonedDateTime zonedDateTime = (ZonedDateTime) input;
             LocalDateTime localDateTime =
                     zonedDateTime.withZoneSameInstant(timestampZoneId).toLocalDateTime();

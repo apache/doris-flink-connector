@@ -143,7 +143,7 @@ public class SqlServerDatabaseSync extends DatabaseSync {
 
         // debezium properties set
         Properties debeziumProperties = new Properties();
-        debeziumProperties.putAll(SqlServerDateConverter.defaultProps);
+        debeziumProperties.putAll(SqlServerDateConverter.DEFAULT_PROPS);
         debeziumProperties.put("decimal.handling.mode", "string");
 
         for (Map.Entry<String, String> entry : config.toMap().entrySet()) {

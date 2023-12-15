@@ -39,14 +39,14 @@ public class PostgresDateConverter implements CustomConverter<SchemaBuilder, Rel
     private DateTimeFormatter dateFormatter = DateTimeFormatter.ISO_DATE;
     private DateTimeFormatter timestampFormatter = DateTimeFormatter.ISO_DATE_TIME;
 
-    public static Properties defaultProps = new Properties();
+    public static final Properties DEFAULT_PROPS = new Properties();
 
     static {
-        defaultProps.setProperty("converters", "date");
-        defaultProps.setProperty(
+        DEFAULT_PROPS.setProperty("converters", "date");
+        DEFAULT_PROPS.setProperty(
                 "date.type", "org.apache.doris.flink.tools.cdc.postgres.PostgresDateConverter");
-        defaultProps.setProperty("date.format.date", "yyyy-MM-dd");
-        defaultProps.setProperty("date.format.timestamp", "yyyy-MM-dd HH:mm:ss.SSSSSS");
+        DEFAULT_PROPS.setProperty("date.format.date", "yyyy-MM-dd");
+        DEFAULT_PROPS.setProperty("date.format.timestamp", "yyyy-MM-dd HH:mm:ss.SSSSSS");
     }
 
     @Override
