@@ -39,11 +39,12 @@ public class PostgresDateConverter implements CustomConverter<SchemaBuilder, Rel
     private DateTimeFormatter dateFormatter = DateTimeFormatter.ISO_DATE;
     private DateTimeFormatter timestampFormatter = DateTimeFormatter.ISO_DATE_TIME;
 
-    public static Properties DEFAULT_PROPS = new Properties();
+    public static final Properties DEFAULT_PROPS = new Properties();
 
     static {
         DEFAULT_PROPS.setProperty("converters", "date");
-        DEFAULT_PROPS.setProperty("date.type", "org.apache.doris.flink.tools.cdc.postgres.PostgresDateConverter");
+        DEFAULT_PROPS.setProperty(
+                "date.type", "org.apache.doris.flink.tools.cdc.postgres.PostgresDateConverter");
         DEFAULT_PROPS.setProperty("date.format.date", "yyyy-MM-dd");
         DEFAULT_PROPS.setProperty("date.format.timestamp", "yyyy-MM-dd HH:mm:ss.SSSSSS");
     }
@@ -51,7 +52,10 @@ public class PostgresDateConverter implements CustomConverter<SchemaBuilder, Rel
     @Override
     public void configure(Properties props) {
         readProps(props, "format.date", p -> dateFormatter = DateTimeFormatter.ofPattern(p));
-        readProps(props, "format.timestamp", p -> timestampFormatter = DateTimeFormatter.ofPattern(p));
+        readProps(
+                props,
+                "format.timestamp",
+                p -> timestampFormatter = DateTimeFormatter.ofPattern(p));
     }
 
     private void readProps(Properties properties, String settingKey, Consumer<String> callback) {
@@ -68,7 +72,8 @@ public class PostgresDateConverter implements CustomConverter<SchemaBuilder, Rel
     }
 
     @Override
-    public void converterFor(RelationalColumn column, ConverterRegistration<SchemaBuilder> registration) {
+    public void converterFor(
+            RelationalColumn column, ConverterRegistration<SchemaBuilder> registration) {
         String sqlType = column.typeName().toUpperCase();
         SchemaBuilder schemaBuilder = null;
         Converter converter = null;
@@ -95,7 +100,7 @@ public class PostgresDateConverter implements CustomConverter<SchemaBuilder, Rel
         } else if (input instanceof Integer) {
             LocalDate date = LocalDate.ofEpochDay((Integer) input);
             return dateFormatter.format(date);
-        } else if (input instanceof Date){
+        } else if (input instanceof Date) {
             return dateFormatter.format(((Date) input).toLocalDate());
         }
         return null;
@@ -111,8 +116,8 @@ public class PostgresDateConverter implements CustomConverter<SchemaBuilder, Rel
     private String convertTimestamp(Object input) {
         if (input instanceof Timestamp) {
             return timestampFormatter.format(((Timestamp) input).toLocalDateTime());
-        } else if (input instanceof Instant){
-            LocalDateTime ldt =  LocalDateTime.ofInstant(((Instant) input), ZoneOffset.UTC);
+        } else if (input instanceof Instant) {
+            LocalDateTime ldt = LocalDateTime.ofInstant(((Instant) input), ZoneOffset.UTC);
             return timestampFormatter.format(ldt);
         }
         return null;

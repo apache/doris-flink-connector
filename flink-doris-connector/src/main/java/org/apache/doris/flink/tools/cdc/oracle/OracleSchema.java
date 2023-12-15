@@ -14,6 +14,7 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.tools.cdc.oracle;
 
 import org.apache.doris.flink.tools.cdc.SourceSchema;
@@ -22,8 +23,14 @@ import java.sql.DatabaseMetaData;
 
 public class OracleSchema extends SourceSchema {
 
-    public OracleSchema(DatabaseMetaData metaData, String databaseName, String schemaName, String tableName, String tableComment) throws Exception {
-        super(metaData, databaseName, schemaName,  tableName, tableComment);
+    public OracleSchema(
+            DatabaseMetaData metaData,
+            String databaseName,
+            String schemaName,
+            String tableName,
+            String tableComment)
+            throws Exception {
+        super(metaData, databaseName, schemaName, tableName, tableComment);
     }
 
     @Override

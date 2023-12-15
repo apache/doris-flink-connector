@@ -17,8 +17,7 @@
 
 package org.apache.doris.flink;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
-
+import com.google.common.collect.Lists;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.slf4j.Logger;

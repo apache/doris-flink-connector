@@ -14,12 +14,9 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.table;
 
-import org.apache.doris.flink.cfg.DorisExecutionOptions;
-import org.apache.doris.flink.cfg.DorisLookupOptions;
-import org.apache.doris.flink.cfg.DorisOptions;
-import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableSchema;
@@ -30,6 +27,11 @@ import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.utils.TableSchemaUtils;
+
+import org.apache.doris.flink.cfg.DorisExecutionOptions;
+import org.apache.doris.flink.cfg.DorisLookupOptions;
+import org.apache.doris.flink.cfg.DorisOptions;
+import org.apache.doris.flink.cfg.DorisReadOptions;
 
 import java.util.HashSet;
 import java.util.Map;
@@ -80,14 +82,14 @@ import static org.apache.doris.flink.table.DorisConfigOptions.STREAM_LOAD_PROP_P
 import static org.apache.doris.flink.table.DorisConfigOptions.TABLE_IDENTIFIER;
 import static org.apache.doris.flink.table.DorisConfigOptions.USERNAME;
 
-
 /**
  * The {@link DorisDynamicTableFactory} translates the catalog table to a table source.
  *
  * <p>Because the table source requires a decoding format, we are discovering the format using the
  * provided {@link FactoryUtil} for convenience.
  */
-public final class DorisDynamicTableFactory implements DynamicTableSourceFactory, DynamicTableSinkFactory {
+public final class DorisDynamicTableFactory
+        implements DynamicTableSourceFactory, DynamicTableSinkFactory {
 
     @Override
     public String factoryIdentifier() {
@@ -158,14 +160,17 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
     public DynamicTableSource createDynamicTableSource(Context context) {
         // either implement your custom validation logic here ...
         // or use the provided helper utility
-        final FactoryUtil.TableFactoryHelper helper = FactoryUtil.createTableFactoryHelper(this, context);
+        final FactoryUtil.TableFactoryHelper helper =
+                FactoryUtil.createTableFactoryHelper(this, context);
         // validate all options
         helper.validateExcept(STREAM_LOAD_PROP_PREFIX);
         // get the validated options
         final ReadableConfig options = helper.getOptions();
         // derive the produced data type (excluding computed columns) from the catalog table
-        final DataType producedDataType = context.getCatalogTable().getSchema().toPhysicalRowDataType();
-        TableSchema physicalSchema = TableSchemaUtils.getPhysicalSchema(context.getCatalogTable().getSchema());
+        final DataType producedDataType =
+                context.getCatalogTable().getSchema().toPhysicalRowDataType();
+        TableSchema physicalSchema =
+                TableSchemaUtils.getPhysicalSchema(context.getCatalogTable().getSchema());
         // create and return dynamic table source
         return new DorisDynamicTableSource(
                 getDorisOptions(helper.getOptions()),
@@ -177,12 +182,13 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
     private DorisOptions getDorisOptions(ReadableConfig readableConfig) {
         final String fenodes = readableConfig.get(FENODES);
         final String benodes = readableConfig.get(BENODES);
-        final DorisOptions.Builder builder = DorisOptions.builder()
-                .setFenodes(fenodes)
-                .setBenodes(benodes)
-                .setAutoRedirect(readableConfig.get(AUTO_REDIRECT))
-                .setJdbcUrl(readableConfig.get(JDBC_URL))
-                .setTableIdentifier(readableConfig.get(TABLE_IDENTIFIER));
+        final DorisOptions.Builder builder =
+                DorisOptions.builder()
+                        .setFenodes(fenodes)
+                        .setBenodes(benodes)
+                        .setAutoRedirect(readableConfig.get(AUTO_REDIRECT))
+                        .setJdbcUrl(readableConfig.get(JDBC_URL))
+                        .setTableIdentifier(readableConfig.get(TABLE_IDENTIFIER));
 
         readableConfig.getOptional(USERNAME).ifPresent(builder::setUsername);
         readableConfig.getOptional(PASSWORD).ifPresent(builder::setPassword);
@@ -206,7 +212,8 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
         return builder.build();
     }
 
-    private DorisExecutionOptions getDorisExecutionOptions(ReadableConfig readableConfig, Properties streamLoadProp) {
+    private DorisExecutionOptions getDorisExecutionOptions(
+            ReadableConfig readableConfig, Properties streamLoadProp) {
         final DorisExecutionOptions.Builder builder = DorisExecutionOptions.builder();
         builder.setCheckInterval(readableConfig.get(SINK_CHECK_INTERVAL));
         builder.setMaxRetries(readableConfig.get(SINK_MAX_RETRIES));
@@ -219,8 +226,8 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
 
         if (!readableConfig.get(SINK_ENABLE_2PC)) {
             builder.disable2PC();
-        } else if (readableConfig.getOptional(SINK_ENABLE_2PC).isPresent()){
-            //force open 2pc
+        } else if (readableConfig.getOptional(SINK_ENABLE_2PC).isPresent()) {
+            // force open 2pc
             builder.enable2PC();
         }
 
@@ -246,7 +253,7 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
         return streamLoadProp;
     }
 
-    private DorisLookupOptions getDorisLookupOptions(ReadableConfig readableConfig){
+    private DorisLookupOptions getDorisLookupOptions(ReadableConfig readableConfig) {
         final DorisLookupOptions.Builder builder = DorisLookupOptions.builder();
         builder.setCacheExpireMs(readableConfig.get(LOOKUP_CACHE_TTL).toMillis());
         builder.setCacheMaxSize(readableConfig.get(LOOKUP_CACHE_MAX_ROWS));
@@ -261,8 +268,7 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
     @Override
     public DynamicTableSink createDynamicTableSink(Context context) {
         final FactoryUtil.TableFactoryHelper helper =
-                FactoryUtil.createTableFactoryHelper(
-                        this, context);
+                FactoryUtil.createTableFactoryHelper(this, context);
 
         // validate all options
         helper.validateExcept(STREAM_LOAD_PROP_PREFIX);
@@ -278,7 +284,6 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
                 getDorisReadOptions(helper.getOptions()),
                 getDorisExecutionOptions(helper.getOptions(), streamLoadProp),
                 physicalSchema,
-                parallelism
-        );
+                parallelism);
     }
 }

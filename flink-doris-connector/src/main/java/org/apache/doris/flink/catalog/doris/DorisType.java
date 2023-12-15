@@ -14,6 +14,7 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.catalog.doris;
 
 public class DorisType {
@@ -38,5 +39,4 @@ public class DorisType {
     public static final String BITMAP = "BITMAP";
     public static final String ARRAY = "ARRAY";
     public static final String JSONB = "JSONB";
-
 }

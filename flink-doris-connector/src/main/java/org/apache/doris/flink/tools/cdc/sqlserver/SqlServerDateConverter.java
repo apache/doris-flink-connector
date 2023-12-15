@@ -14,6 +14,7 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.tools.cdc.sqlserver;
 
 import com.ververica.cdc.connectors.shaded.org.apache.kafka.connect.data.SchemaBuilder;
@@ -34,11 +35,12 @@ public class SqlServerDateConverter implements CustomConverter<SchemaBuilder, Re
     private DateTimeFormatter dateFormatter = DateTimeFormatter.ISO_DATE;
     private DateTimeFormatter timestampFormatter = DateTimeFormatter.ISO_DATE_TIME;
 
-    public static Properties DEFAULT_PROPS = new Properties();
+    public static final Properties DEFAULT_PROPS = new Properties();
 
     static {
         DEFAULT_PROPS.setProperty("converters", "date");
-        DEFAULT_PROPS.setProperty("date.type", "org.apache.doris.flink.tools.cdc.sqlserver.SqlServerDateConverter");
+        DEFAULT_PROPS.setProperty(
+                "date.type", "org.apache.doris.flink.tools.cdc.sqlserver.SqlServerDateConverter");
         DEFAULT_PROPS.setProperty("date.format.date", "yyyy-MM-dd");
         DEFAULT_PROPS.setProperty("date.format.timestamp", "yyyy-MM-dd HH:mm:ss.SSSSSS");
     }
@@ -46,7 +48,10 @@ public class SqlServerDateConverter implements CustomConverter<SchemaBuilder, Re
     @Override
     public void configure(Properties props) {
         readProps(props, "format.date", p -> dateFormatter = DateTimeFormatter.ofPattern(p));
-        readProps(props, "format.timestamp", p -> timestampFormatter = DateTimeFormatter.ofPattern(p));
+        readProps(
+                props,
+                "format.timestamp",
+                p -> timestampFormatter = DateTimeFormatter.ofPattern(p));
     }
 
     private void readProps(Properties properties, String settingKey, Consumer<String> callback) {
@@ -63,7 +68,9 @@ public class SqlServerDateConverter implements CustomConverter<SchemaBuilder, Re
     }
 
     @Override
-    public void converterFor(RelationalColumn column, CustomConverter.ConverterRegistration<SchemaBuilder> registration) {
+    public void converterFor(
+            RelationalColumn column,
+            CustomConverter.ConverterRegistration<SchemaBuilder> registration) {
         String sqlType = column.typeName().toUpperCase();
         SchemaBuilder schemaBuilder = null;
         CustomConverter.Converter converter = null;
@@ -71,7 +78,9 @@ public class SqlServerDateConverter implements CustomConverter<SchemaBuilder, Re
             schemaBuilder = SchemaBuilder.string().optional();
             converter = this::convertDate;
         }
-        if ("SMALLDATETIME".equals(sqlType) || "DATETIME".equals(sqlType) || "DATETIME2".equals(sqlType)) {
+        if ("SMALLDATETIME".equals(sqlType)
+                || "DATETIME".equals(sqlType)
+                || "DATETIME2".equals(sqlType)) {
             schemaBuilder = SchemaBuilder.string().optional();
             converter = this::convertDateTime;
         }
@@ -88,10 +97,9 @@ public class SqlServerDateConverter implements CustomConverter<SchemaBuilder, Re
     }
 
     private String convertDate(Object input) {
-        if (input instanceof Date){
+        if (input instanceof Date) {
             return dateFormatter.format(((Date) input).toLocalDate());
         }
         return null;
     }
-
 }

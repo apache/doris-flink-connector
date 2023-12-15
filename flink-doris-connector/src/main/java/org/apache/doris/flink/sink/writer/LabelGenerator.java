@@ -14,15 +14,14 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.sink.writer;
 
 import org.apache.flink.util.Preconditions;
 
 import java.util.UUID;
 
-/**
- * Generator label for stream load.
- */
+/** Generator label for stream load. */
 public class LabelGenerator {
     private String labelPrefix;
     private boolean enable2PC;
@@ -34,7 +33,8 @@ public class LabelGenerator {
         this.enable2PC = enable2PC;
     }
 
-    public LabelGenerator(String labelPrefix, boolean enable2PC, String tableIdentifier, int subtaskId) {
+    public LabelGenerator(
+            String labelPrefix, boolean enable2PC, String tableIdentifier, int subtaskId) {
         this(labelPrefix, enable2PC);
         // The label of stream load can not contain `.`
         this.tableIdentifier = tableIdentifier.replace(".", "_");

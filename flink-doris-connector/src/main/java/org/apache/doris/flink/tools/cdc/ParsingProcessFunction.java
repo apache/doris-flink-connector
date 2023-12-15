@@ -14,14 +14,16 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.tools.cdc;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -41,7 +43,9 @@ public class ParsingProcessFunction extends ProcessFunction<String, Void> {
     }
 
     @Override
-    public void processElement(String record, ProcessFunction<String, Void>.Context context, Collector<Void> collector) throws Exception {
+    public void processElement(
+            String record, ProcessFunction<String, Void>.Context context, Collector<Void> collector)
+            throws Exception {
         JsonNode recordRoot = objectMapper.readValue(record, JsonNode.class);
         String tableName = extractJsonNode(recordRoot.get("source"), "table");
         String dorisName = converter.convert(tableName);
@@ -58,7 +62,6 @@ public class ParsingProcessFunction extends ProcessFunction<String, Void> {
     }
 
     public static OutputTag<String> createRecordOutputTag(String tableName) {
-        return new OutputTag<String>("record-" + tableName) {
-        };
+        return new OutputTag<String>("record-" + tableName) {};
     }
 }

@@ -14,10 +14,12 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.tools.cdc.mysql;
 
-import org.apache.doris.flink.catalog.doris.DorisType;
 import org.apache.flink.util.Preconditions;
+
+import org.apache.doris.flink.catalog.doris.DorisType;
 
 public class MysqlType {
     private static final String BIT = "BIT";
@@ -132,17 +134,24 @@ public class MysqlType {
             case DECIMAL_UNSIGNED:
             case DECIMAL_UNSIGNED_ZEROFILL:
                 return length != null && length <= 38
-                        ? String.format("%s(%s,%s)", DorisType.DECIMAL_V3, length, scale != null && scale >= 0 ? scale : 0)
+                        ? String.format(
+                                "%s(%s,%s)",
+                                DorisType.DECIMAL_V3,
+                                length,
+                                scale != null && scale >= 0 ? scale : 0)
                         : DorisType.STRING;
             case DATE:
                 return DorisType.DATE_V2;
             case DATETIME:
             case TIMESTAMP:
-                return String.format("%s(%s)", DorisType.DATETIME_V2, Math.min(length == null ? 0 : length, 6));
+                return String.format(
+                        "%s(%s)", DorisType.DATETIME_V2, Math.min(length == null ? 0 : length, 6));
             case CHAR:
             case VARCHAR:
                 Preconditions.checkNotNull(length);
-                return length * 3 > 65533 ? DorisType.STRING : String.format("%s(%s)", DorisType.VARCHAR, length * 3);
+                return length * 3 > 65533
+                        ? DorisType.STRING
+                        : String.format("%s(%s)", DorisType.VARCHAR, length * 3);
             case TINYTEXT:
             case TEXT:
             case MEDIUMTEXT:
@@ -161,6 +170,5 @@ public class MysqlType {
             default:
                 throw new UnsupportedOperationException("Unsupported MySQL Type: " + type);
         }
-
     }
 }

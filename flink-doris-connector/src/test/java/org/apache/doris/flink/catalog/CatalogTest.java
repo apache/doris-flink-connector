@@ -37,8 +37,7 @@ import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.CollectionUtil;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
-
+import com.google.common.collect.Lists;
 import org.apache.doris.flink.cfg.DorisConnectionOptions;
 import org.junit.Before;
 import org.junit.Ignore;

@@ -14,10 +14,12 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.tools.cdc.oracle;
 
-import org.apache.doris.flink.catalog.doris.DorisType;
 import org.apache.flink.util.Preconditions;
+
+import org.apache.doris.flink.catalog.doris.DorisType;
 
 public class OracleType {
     private static final String VARCHAR2 = "VARCHAR2";
@@ -43,12 +45,12 @@ public class OracleType {
 
     public static String toDorisType(String oracleType, Integer precision, Integer scale) {
         oracleType = oracleType.toUpperCase();
-        if(oracleType.startsWith(INTERVAL)){
+        if (oracleType.startsWith(INTERVAL)) {
             oracleType = oracleType.substring(0, 8);
         } else if (oracleType.startsWith(TIMESTAMP)) {
             return String.format("%s(%s)", DorisType.DATETIME_V2, 6);
         }
-        switch (oracleType){
+        switch (oracleType) {
             case NUMBER:
                 if (scale <= 0) {
                     precision -= scale;
@@ -72,7 +74,11 @@ public class OracleType {
                     precision = scale;
                 }
                 return precision != null && precision <= 38
-                        ? String.format("%s(%s,%s)", DorisType.DECIMAL_V3, precision, scale != null && scale >= 0 ? scale : 0)
+                        ? String.format(
+                                "%s(%s,%s)",
+                                DorisType.DECIMAL_V3,
+                                precision,
+                                scale != null && scale >= 0 ? scale : 0)
                         : DorisType.STRING;
             case FLOAT:
                 return DorisType.DOUBLE;
@@ -84,7 +90,9 @@ public class OracleType {
             case NCHAR:
             case NVARCHAR2:
                 Preconditions.checkNotNull(precision);
-                return precision * 3 > 65533 ? DorisType.STRING : String.format("%s(%s)", DorisType.VARCHAR, precision * 3);
+                return precision * 3 > 65533
+                        ? DorisType.STRING
+                        : String.format("%s(%s)", DorisType.VARCHAR, precision * 3);
             case LONG:
             case RAW:
             case LONG_RAW:

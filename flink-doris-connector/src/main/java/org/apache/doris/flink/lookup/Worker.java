@@ -17,12 +17,13 @@
 
 package org.apache.doris.flink.lookup;
 
+import org.apache.flink.annotation.VisibleForTesting;
+
 import org.apache.doris.flink.cfg.DorisLookupOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.connection.JdbcConnectionProvider;
 import org.apache.doris.flink.connection.SimpleJdbcConnectionProvider;
 import org.apache.doris.flink.exception.DorisRuntimeException;
-import org.apache.flink.annotation.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,7 +51,11 @@ public class Worker implements Runnable {
     private final int maxRetryTimes;
     private AtomicReference<Throwable> exception = new AtomicReference<>(null);
 
-    public Worker(AtomicBoolean started, DorisOptions options, DorisLookupOptions lookupOptions, int index) {
+    public Worker(
+            AtomicBoolean started,
+            DorisOptions options,
+            DorisLookupOptions lookupOptions,
+            int index) {
         this.started = started;
         this.name = "Worker-" + index;
         this.jdbcConnectionProvider = new SimpleJdbcConnectionProvider(options);
@@ -71,9 +76,9 @@ public class Worker implements Runnable {
             try {
                 GetAction action = queue.poll(2000L, TimeUnit.MILLISECONDS);
                 if (action != null) {
-                    try{
+                    try {
                         handle(action);
-                    }finally {
+                    } finally {
                         if (action.getSemaphore() != null) {
                             action.getSemaphore().release();
                         }
@@ -96,7 +101,10 @@ public class Worker implements Runnable {
         LookupSchema schema = action.getGetList().get(0).getRecord().getSchema();
         List<Get> recordList = action.getGetList();
         List<Get> deduplicateList = deduplicateRecords(recordList);
-        LOG.debug("record size {}, after deduplicate size {}", recordList.size(), deduplicateList.size());
+        LOG.debug(
+                "record size {}, after deduplicate size {}",
+                recordList.size(),
+                deduplicateList.size());
         StringBuilder sb = new StringBuilder();
         boolean first;
         for (int i = 0; i < deduplicateList.size(); i++) {
@@ -118,7 +126,8 @@ public class Worker implements Runnable {
 
         String sql = sb.toString();
         try {
-            Map<RecordKey, List<Record>> resultRecordMap = executeQuery(sql, deduplicateList, schema);
+            Map<RecordKey, List<Record>> resultRecordMap =
+                    executeQuery(sql, deduplicateList, schema);
             for (Get get : recordList) {
                 Record record = get.getRecord();
                 if (get.getFuture() != null) {
@@ -137,20 +146,27 @@ public class Worker implements Runnable {
     }
 
     /**
-     * Sometimes, there will be duplicate key filtering conditions in a batch of data,
-     * which can be removed in advance to reduce query pressure.
-     * */
+     * Sometimes, there will be duplicate key filtering conditions in a batch of data, which can be
+     * removed in advance to reduce query pressure.
+     */
     @VisibleForTesting
     public static List<Get> deduplicateRecords(List<Get> recordList) {
-        if(recordList == null || recordList.size() <= 1){
+        if (recordList == null || recordList.size() <= 1) {
             return recordList;
         }
-        Set<Get> recordSet = new TreeSet<>((r1, r2) -> Arrays.equals(r1.getRecord().getValues(), r2.getRecord().getValues()) ? 0 : -1);
+        Set<Get> recordSet =
+                new TreeSet<>(
+                        (r1, r2) ->
+                                Arrays.equals(
+                                                r1.getRecord().getValues(),
+                                                r2.getRecord().getValues())
+                                        ? 0
+                                        : -1);
         recordSet.addAll(recordList);
         return new ArrayList<>(recordSet);
     }
 
-    private void appendSelect(StringBuilder sb, LookupSchema schema){
+    private void appendSelect(StringBuilder sb, LookupSchema schema) {
         String[] selectFields = schema.getSelectFields();
         sb.append("select ");
         for (int i = 0; i < selectFields.length; i++) {
@@ -163,11 +179,10 @@ public class Worker implements Runnable {
         sb.append(" from ").append(schema.getTableIdentifier());
     }
 
-    private Map<RecordKey, List<Record>> executeQuery(String sql,
-                                                      List<Get> recordList,
-                                                      LookupSchema schema) {
+    private Map<RecordKey, List<Record>> executeQuery(
+            String sql, List<Get> recordList, LookupSchema schema) {
         Map<RecordKey, List<Record>> resultRecordMap = new HashMap<>();
-        //retry strategy
+        // retry strategy
         for (int retry = 0; retry <= maxRetryTimes; retry++) {
             resultRecordMap = new HashMap<>();
             try {
@@ -188,12 +203,18 @@ public class Worker implements Runnable {
                             for (int index = 0; index < schema.getFieldTypes().length; index++) {
                                 record.setObject(index, rs.getObject(index + 1));
                             }
-                            List<Record> records = resultRecordMap.computeIfAbsent(new RecordKey(record), m -> new ArrayList<>());
+                            List<Record> records =
+                                    resultRecordMap.computeIfAbsent(
+                                            new RecordKey(record), m -> new ArrayList<>());
                             records.add(record);
                         }
                     }
                 }
-                LOG.debug("query cost {}ms, batch {} records, sql is {}", System.currentTimeMillis()-start, recordList.size(), sql);
+                LOG.debug(
+                        "query cost {}ms, batch {} records, sql is {}",
+                        System.currentTimeMillis() - start,
+                        recordList.size(),
+                        sql);
                 return resultRecordMap;
             } catch (Exception e) {
                 LOG.error(String.format("query doris error, retry times = %d", retry), e);

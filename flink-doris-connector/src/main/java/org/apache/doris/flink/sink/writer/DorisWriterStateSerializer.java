@@ -25,12 +25,11 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 
-/**
- * Serializer for DorisWriterState.
- */
+/** Serializer for DorisWriterState. */
 public class DorisWriterStateSerializer implements SimpleVersionedSerializer<DorisWriterState> {
 
     private static final int VERSION = 2;
+
     @Override
     public int getVersion() {
         return VERSION;
@@ -39,7 +38,7 @@ public class DorisWriterStateSerializer implements SimpleVersionedSerializer<Dor
     @Override
     public byte[] serialize(DorisWriterState dorisWriterState) throws IOException {
         try (final ByteArrayOutputStream baos = new ByteArrayOutputStream();
-             final DataOutputStream out = new DataOutputStream(baos)) {
+                final DataOutputStream out = new DataOutputStream(baos)) {
             out.writeUTF(dorisWriterState.getLabelPrefix());
             out.writeUTF(dorisWriterState.getDatabase());
             out.writeUTF(dorisWriterState.getTable());
@@ -52,16 +51,16 @@ public class DorisWriterStateSerializer implements SimpleVersionedSerializer<Dor
     @Override
     public DorisWriterState deserialize(int version, byte[] serialized) throws IOException {
         try (final ByteArrayInputStream bais = new ByteArrayInputStream(serialized);
-             final DataInputStream in = new DataInputStream(bais)) {
-             String labelPrefix = in.readUTF();
-             if(version == 1){
-                 return new DorisWriterState(labelPrefix);
-             }else {
-                 final String database = in.readUTF();
-                 final String table = in.readUTF();
-                 final int subtaskId = in.readInt();
-                 return new DorisWriterState(labelPrefix, database, table, subtaskId);
-             }
+                final DataInputStream in = new DataInputStream(bais)) {
+            String labelPrefix = in.readUTF();
+            if (version == 1) {
+                return new DorisWriterState(labelPrefix);
+            } else {
+                final String database = in.readUTF();
+                final String table = in.readUTF();
+                final int subtaskId = in.readInt();
+                return new DorisWriterState(labelPrefix, database, table, subtaskId);
+            }
         }
     }
 }
