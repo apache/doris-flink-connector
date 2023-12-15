@@ -17,8 +17,7 @@
 
 package org.apache.doris.flink.sink.schema;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.Maps;
-
+import com.google.common.collect.Maps;
 import org.apache.doris.flink.catalog.doris.FieldSchema;
 import org.junit.Assert;
 import org.junit.Before;
