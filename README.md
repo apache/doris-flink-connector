@@ -45,6 +45,52 @@ cd doris-flink-connector/flink-doris-connector
 
 ![how-to-build](https://user-images.githubusercontent.com/13284744/223990851-9d82b599-ef36-4fd1-82c8-17bdd2de22e6.gif)
 
+### Code Style
+
+#### Code Formatting
+
+You need to install the google-java-format plugin. Spotless together with google-java-format is used to format the codes.
+
+It is recommended to automatically format your code by applying the following settings:
+
+1. Go to "Settings" → "Other Settings" → "google-java-format Settings".
+2. Tick the checkbox to enable the plugin.
+3. Change the code style to "Android Open Source Project (AOSP) style".
+4. Go to "Settings" → "Tools" → "Actions on Save".
+5. Under "Formatting Actions", select "Optimize imports" and "Reformat file".
+6. From the "All file types list" next to "Reformat code", select "Java".
+
+For earlier IntelliJ IDEA versions, the step 4 to 7 will be changed as follows.
+
+- 4.Go to "Settings" → "Other Settings" → "Save Actions".
+- 5.Under "General", enable your preferred settings for when to format the code, e.g. "Activate save actions on save".
+- 6.Under "Formatting Actions", select "Optimize imports" and "Reformat file".
+- 7.Under "File Path Inclusions", add an entry for `.*\.java` to avoid formatting other file types.
+  Then the whole project could be formatted by command `mvn spotless:apply`.
+
+#### Checkstyle
+
+Checkstyle is used to enforce static coding guidelines.
+
+1. Go to "Settings" → "Tools" → "Checkstyle".
+2. Set "Scan Scope" to "Only Java sources (including tests)".
+3. For "Checkstyle Version" select "8.14".
+4. Under "Configuration File" click the "+" icon to add a new configuration.
+5. Set "Description" to "doris-flink-connector".
+6. Select "Use a local Checkstyle file" and link it to the file `tools/maven/checkstyle.xml` which is located within your cloned repository.
+7. Select "Store relative to project location" and click "Next".
+8. Configure the property `checkstyle.suppressions.file` with the value `suppressions.xml` and click "Next".
+9. Click "Finish".
+10. Select "doris-flink-connector" as the only active configuration file and click "Apply".
+
+You can now import the Checkstyle configuration for the Java code formatter.
+
+1. Go to "Settings" → "Editor" → "Code Style" → "Java".
+2. Click the gear icon next to "Scheme" and select "Import Scheme" → "Checkstyle Configuration".
+3. Navigate to and select `tools/maven/checkstyle.xml` located within your cloned repository.
+
+Then you could click "View" → "Tool Windows" → "Checkstyle" and find the "Check Module" button in the opened tool window to validate checkstyle. Or you can use the command `mvn clean compile checkstyle:checkstyle` to validate.
+
 
 ## Report issues or submit pull request
 

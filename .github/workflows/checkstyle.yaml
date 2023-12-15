@@ -34,4 +34,4 @@ jobs:
 
       - name: Run java checkstyle
         run:
-          cd flink-doris-connector && mvn clean checkstyle:check
+          cd flink-doris-connector && mvn clean compile checkstyle:checkstyle
