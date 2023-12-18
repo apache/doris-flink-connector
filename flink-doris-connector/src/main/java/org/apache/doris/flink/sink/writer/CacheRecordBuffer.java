@@ -19,6 +19,7 @@ package org.apache.doris.flink.sink.writer;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.Preconditions;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,10 +29,8 @@ import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.LinkedBlockingQueue;
 
-/**
- * Channel of record stream and HTTP data stream.
- */
-public class CacheRecordBuffer extends RecordBuffer{
+/** Channel of record stream and HTTP data stream. */
+public class CacheRecordBuffer extends RecordBuffer {
     private static final Logger LOG = LoggerFactory.getLogger(CacheRecordBuffer.class);
     BlockingDeque<ByteBuffer> bufferCache;
     LinkedBlockingQueue<ByteBuffer> bufferPool;
@@ -43,9 +42,13 @@ public class CacheRecordBuffer extends RecordBuffer{
     }
 
     @Override
-    public void startBufferData() throws IOException{
-        LOG.info("start buffer data, read queue size {}, write queue size {}, buffer cache size {}, buffer pool size {}",
-                readQueue.size(), writeQueue.size(), bufferCache.size(), bufferPool.size());
+    public void startBufferData() throws IOException {
+        LOG.info(
+                "start buffer data, read queue size {}, write queue size {}, buffer cache size {}, buffer pool size {}",
+                readQueue.size(),
+                writeQueue.size(),
+                bufferCache.size(),
+                bufferPool.size());
         try {
             // if the cache have data, that should be restarted from previous error
             if (currentReadBuffer != null && currentReadBuffer.limit() != 0) {
@@ -64,7 +67,7 @@ public class CacheRecordBuffer extends RecordBuffer{
             throw new IOException(e);
         }
     }
-    
+
     @Override
     public int read(byte[] buf) throws InterruptedException {
         if (currentReadBuffer == null) {
@@ -101,7 +104,7 @@ public class CacheRecordBuffer extends RecordBuffer{
         }
     }
 
-    private ByteBuffer allocate(){
+    private ByteBuffer allocate() {
         ByteBuffer buff = bufferPool.poll();
         return buff != null ? buff : ByteBuffer.allocate(bufferCapacity);
     }

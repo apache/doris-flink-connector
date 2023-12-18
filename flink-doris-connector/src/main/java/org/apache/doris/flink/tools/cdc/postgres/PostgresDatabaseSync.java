@@ -14,8 +14,13 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.tools.cdc.postgres;
 
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.streaming.api.datastream.DataStreamSource;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.util.Preconditions;
 
 import com.ververica.cdc.connectors.base.options.SourceOptions;
 import com.ververica.cdc.connectors.base.options.StartupOptions;
@@ -29,10 +34,6 @@ import com.ververica.cdc.debezium.table.DebeziumOptions;
 import org.apache.doris.flink.catalog.doris.DataModel;
 import org.apache.doris.flink.tools.cdc.DatabaseSync;
 import org.apache.doris.flink.tools.cdc.SourceSchema;
-import org.apache.flink.api.common.eventtime.WatermarkStrategy;
-import org.apache.flink.streaming.api.datastream.DataStreamSource;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -73,13 +74,19 @@ public class PostgresDatabaseSync extends DatabaseSync {
         try {
             Class.forName("org.postgresql.Driver");
         } catch (ClassNotFoundException ex) {
-            throw new SQLException("No suitable driver found, can not found class org.postgresql.Driver");
+            throw new SQLException(
+                    "No suitable driver found, can not found class org.postgresql.Driver");
         }
     }
 
     @Override
     public Connection getConnection() throws SQLException {
-        String jdbcUrl = String.format(JDBC_URL, config.get(PostgresSourceOptions.HOSTNAME), config.get(PostgresSourceOptions.PG_PORT),config.get(PostgresSourceOptions.DATABASE_NAME));
+        String jdbcUrl =
+                String.format(
+                        JDBC_URL,
+                        config.get(PostgresSourceOptions.HOSTNAME),
+                        config.get(PostgresSourceOptions.PG_PORT),
+                        config.get(PostgresSourceOptions.DATABASE_NAME));
         Properties pro = new Properties();
         pro.setProperty("user", config.get(PostgresSourceOptions.USERNAME));
         pro.setProperty("password", config.get(PostgresSourceOptions.PASSWORD));
@@ -95,7 +102,7 @@ public class PostgresDatabaseSync extends DatabaseSync {
         try (Connection conn = getConnection()) {
             DatabaseMetaData metaData = conn.getMetaData();
             try (ResultSet tables =
-                         metaData.getTables(databaseName, schemaName, "%", new String[]{"TABLE"})) {
+                    metaData.getTables(databaseName, schemaName, "%", new String[] {"TABLE"})) {
                 while (tables.next()) {
                     String tableName = tables.getString("TABLE_NAME");
                     String tableComment = tables.getString("REMARKS");
@@ -103,8 +110,12 @@ public class PostgresDatabaseSync extends DatabaseSync {
                         continue;
                     }
                     SourceSchema sourceSchema =
-                            new PostgresSchema(metaData, databaseName, schemaName, tableName, tableComment);
-                    sourceSchema.setModel(sourceSchema.primaryKeys.size() > 0 ? DataModel.UNIQUE : DataModel.DUPLICATE);
+                            new PostgresSchema(
+                                    metaData, databaseName, schemaName, tableName, tableComment);
+                    sourceSchema.setModel(
+                            sourceSchema.primaryKeys.size() > 0
+                                    ? DataModel.UNIQUE
+                                    : DataModel.DUPLICATE);
                     schemaList.add(sourceSchema);
                 }
             }
@@ -135,7 +146,7 @@ public class PostgresDatabaseSync extends DatabaseSync {
             startupOptions = StartupOptions.latest();
         }
 
-        //debezium properties set
+        // debezium properties set
         Properties debeziumProperties = new Properties();
         debeziumProperties.putAll(PostgresDateConverter.DEFAULT_PROPS);
         debeziumProperties.put("decimal.handling.mode", "string");
@@ -153,46 +164,51 @@ public class PostgresDatabaseSync extends DatabaseSync {
         JsonDebeziumDeserializationSchema schema =
                 new JsonDebeziumDeserializationSchema(false, customConverterConfigs);
 
-        if(config.getBoolean(SourceOptions.SCAN_INCREMENTAL_SNAPSHOT_ENABLED, false)){
-            JdbcIncrementalSource<String> incrSource = PostgresSourceBuilder.PostgresIncrementalSource.<String>builder()
-                    .hostname(hostname)
-                    .port(port)
-                    .database(databaseName)
-                    .schemaList(schemaName)
-                    .tableList(tableName)
-                    .username(username)
-                    .password(password)
-                    .deserializer(schema)
-                    .slotName(slotName)
-                    .decodingPluginName(config.get(DECODING_PLUGIN_NAME))
-                    .includeSchemaChanges(true)
-                    .debeziumProperties(debeziumProperties)
-                    .startupOptions(startupOptions)
-                    .splitSize(config.get(SCAN_INCREMENTAL_SNAPSHOT_CHUNK_SIZE))
-                    .splitMetaGroupSize(config.get(CHUNK_META_GROUP_SIZE))
-                    .fetchSize(config.get(SCAN_SNAPSHOT_FETCH_SIZE))
-                    .connectTimeout(config.get(CONNECT_TIMEOUT))
-                    .connectionPoolSize(config.get(CONNECTION_POOL_SIZE))
-                    .connectMaxRetries(config.get(CONNECT_MAX_RETRIES))
-                    .distributionFactorUpper(config.get(SPLIT_KEY_EVEN_DISTRIBUTION_FACTOR_UPPER_BOUND))
-                    .distributionFactorLower(config.get(SPLIT_KEY_EVEN_DISTRIBUTION_FACTOR_LOWER_BOUND))
-                    .heartbeatInterval(config.get(HEARTBEAT_INTERVAL))
-                    .build();
-            return env.fromSource(incrSource,  WatermarkStrategy.noWatermarks(), "Postgres IncrSource");
-        }else{
-            DebeziumSourceFunction<String> postgresSource = PostgreSQLSource.<String>builder()
-                    .hostname(hostname)
-                    .port(port)
-                    .database(databaseName)
-                    .schemaList(schemaName)
-                    .tableList(tableName)
-                    .username(username)
-                    .password(password)
-                    .debeziumProperties(debeziumProperties)
-                    .deserializer(schema)
-                    .slotName(slotName)
-                    .decodingPluginName(config.get(DECODING_PLUGIN_NAME))
-                    .build();
+        if (config.getBoolean(SourceOptions.SCAN_INCREMENTAL_SNAPSHOT_ENABLED, false)) {
+            JdbcIncrementalSource<String> incrSource =
+                    PostgresSourceBuilder.PostgresIncrementalSource.<String>builder()
+                            .hostname(hostname)
+                            .port(port)
+                            .database(databaseName)
+                            .schemaList(schemaName)
+                            .tableList(tableName)
+                            .username(username)
+                            .password(password)
+                            .deserializer(schema)
+                            .slotName(slotName)
+                            .decodingPluginName(config.get(DECODING_PLUGIN_NAME))
+                            .includeSchemaChanges(true)
+                            .debeziumProperties(debeziumProperties)
+                            .startupOptions(startupOptions)
+                            .splitSize(config.get(SCAN_INCREMENTAL_SNAPSHOT_CHUNK_SIZE))
+                            .splitMetaGroupSize(config.get(CHUNK_META_GROUP_SIZE))
+                            .fetchSize(config.get(SCAN_SNAPSHOT_FETCH_SIZE))
+                            .connectTimeout(config.get(CONNECT_TIMEOUT))
+                            .connectionPoolSize(config.get(CONNECTION_POOL_SIZE))
+                            .connectMaxRetries(config.get(CONNECT_MAX_RETRIES))
+                            .distributionFactorUpper(
+                                    config.get(SPLIT_KEY_EVEN_DISTRIBUTION_FACTOR_UPPER_BOUND))
+                            .distributionFactorLower(
+                                    config.get(SPLIT_KEY_EVEN_DISTRIBUTION_FACTOR_LOWER_BOUND))
+                            .heartbeatInterval(config.get(HEARTBEAT_INTERVAL))
+                            .build();
+            return env.fromSource(
+                    incrSource, WatermarkStrategy.noWatermarks(), "Postgres IncrSource");
+        } else {
+            DebeziumSourceFunction<String> postgresSource =
+                    PostgreSQLSource.<String>builder()
+                            .hostname(hostname)
+                            .port(port)
+                            .database(databaseName)
+                            .schemaList(schemaName)
+                            .tableList(tableName)
+                            .username(username)
+                            .password(password)
+                            .debeziumProperties(debeziumProperties)
+                            .deserializer(schema)
+                            .slotName(slotName)
+                            .decodingPluginName(config.get(DECODING_PLUGIN_NAME))
+                            .build();
             return env.addSource(postgresSource, "Postgres Source");
         }
     }

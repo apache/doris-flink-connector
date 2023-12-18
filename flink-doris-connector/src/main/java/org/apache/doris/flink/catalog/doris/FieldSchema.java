@@ -14,6 +14,7 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.catalog.doris;
 
 public class FieldSchema {
@@ -22,8 +23,7 @@ public class FieldSchema {
     private String defaultValue;
     private String comment;
 
-    public FieldSchema() {
-    }
+    public FieldSchema() {}
 
     public FieldSchema(String name, String typeString, String comment) {
         this.name = name;

@@ -17,5 +17,4 @@
 
 package org.apache.doris.flink.exception;
 
-public class ShouldNeverHappenException extends DorisRuntimeException {
-}
+public class ShouldNeverHappenException extends DorisRuntimeException {}

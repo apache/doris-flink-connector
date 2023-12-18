@@ -20,15 +20,14 @@ package org.apache.doris.flink.sink.writer;
 import org.junit.Assert;
 import org.junit.Test;
 
-/**
- * test for DorisWriterStateSerializer.
- */
+/** test for DorisWriterStateSerializer. */
 public class TestDorisWriterStateSerializer {
     @Test
     public void testSerialize() throws Exception {
-        DorisWriterState expectDorisWriterState = new DorisWriterState("doris",  "db", "table", 0);
+        DorisWriterState expectDorisWriterState = new DorisWriterState("doris", "db", "table", 0);
         DorisWriterStateSerializer serializer = new DorisWriterStateSerializer();
-        DorisWriterState dorisWriterState =  serializer.deserialize(2, serializer.serialize(expectDorisWriterState));
+        DorisWriterState dorisWriterState =
+                serializer.deserialize(2, serializer.serialize(expectDorisWriterState));
         Assert.assertEquals(expectDorisWriterState, dorisWriterState);
     }
 }

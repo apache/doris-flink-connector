@@ -30,13 +30,19 @@ public class RecordWithMetaSerializer implements DorisRecordSerializer<RecordWit
 
     @Override
     public DorisRecord serialize(RecordWithMeta record) throws IOException {
-        if(StringUtils.isBlank(record.getTable())
+        if (StringUtils.isBlank(record.getTable())
                 || StringUtils.isBlank(record.getDatabase())
-                || record.getRecord() == null){
-            LOG.warn("Record or meta format is incorrect, ignore record db:{}, table:{}, row:{}",
-                    record.getDatabase(), record.getTable(), record.getRecord());
+                || record.getRecord() == null) {
+            LOG.warn(
+                    "Record or meta format is incorrect, ignore record db:{}, table:{}, row:{}",
+                    record.getDatabase(),
+                    record.getTable(),
+                    record.getRecord());
             return null;
         }
-        return DorisRecord.of(record.getDatabase(), record.getTable(), record.getRecord().getBytes(StandardCharsets.UTF_8));
+        return DorisRecord.of(
+                record.getDatabase(),
+                record.getTable(),
+                record.getRecord().getBytes(StandardCharsets.UTF_8));
     }
 }

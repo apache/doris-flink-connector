@@ -17,8 +17,6 @@
 
 package org.apache.doris.flink.catalog;
 
-import org.apache.doris.flink.cfg.DorisConnectionOptions;
-import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Schema;
@@ -38,6 +36,9 @@ import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.CollectionUtil;
+
+import com.google.common.collect.Lists;
+import org.apache.doris.flink.cfg.DorisConnectionOptions;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -89,7 +90,7 @@ public class CatalogTest {
 
     protected static final TableSchema TABLE_SCHEMA_1 =
             TableSchema.builder()
-                    .field("id", new AtomicDataType(new VarCharType(false,128)))
+                    .field("id", new AtomicDataType(new VarCharType(false, 128)))
                     .field("c_boolean", DataTypes.BOOLEAN())
                     .field("c_char", DataTypes.CHAR(1))
                     .field("c_date", DataTypes.DATE())
@@ -154,8 +155,8 @@ public class CatalogTest {
                         .withPassword(TEST_PWD)
                         .build();
 
-        Map<String,String> props = new HashMap<>();
-        props.put("sink.enable-2pc","false");
+        Map<String, String> props = new HashMap<>();
+        props.put("sink.enable-2pc", "false");
         catalog = new DorisCatalog(TEST_CATALOG_NAME, connectionOptions, TEST_DB, props);
         this.tEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
         tEnv.getConfig().set(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1);
@@ -165,7 +166,7 @@ public class CatalogTest {
     }
 
     @Test
-    public void testQueryFenodes(){
+    public void testQueryFenodes() {
         String actual = catalog.queryFenodes();
         assertEquals("127.0.0.1:8030", actual);
     }
@@ -185,25 +186,20 @@ public class CatalogTest {
 
     @Test
     public void testCreateDb() throws Exception {
-        catalog.createDatabase("db1",createDb(), true);
+        catalog.createDatabase("db1", createDb(), true);
         assertTrue(catalog.databaseExists("db1"));
     }
 
     @Test
     public void testDropDb() throws Exception {
-        catalog.dropDatabase("db1",false);
+        catalog.dropDatabase("db1", false);
         assertFalse(catalog.databaseExists("db1"));
     }
 
     @Test
     public void testListTables() throws DatabaseNotExistException {
         List<String> actual = catalog.listTables(TEST_DB);
-        assertEquals(
-                Arrays.asList(
-                        TEST_TABLE,
-                        TEST_TABLE_SINK,
-                        TEST_TABLE_SINK_GROUPBY),
-                actual);
+        assertEquals(Arrays.asList(TEST_TABLE, TEST_TABLE_SINK, TEST_TABLE_SINK_GROUPBY), actual);
     }
 
     @Test
@@ -215,7 +211,7 @@ public class CatalogTest {
     @Test
     @Ignore
     public void testGetTable() throws TableNotExistException {
-        //todo: string varchar mapping
+        // todo: string varchar mapping
         CatalogBaseTable table = catalog.getTable(new ObjectPath(TEST_DB, TEST_TABLE));
         System.out.println(table);
         assertEquals(TABLE_SCHEMA, table.getUnresolvedSchema());
@@ -223,8 +219,9 @@ public class CatalogTest {
 
     @Test
     @Ignore
-    public void testCreateTable() throws TableNotExistException, TableAlreadyExistException, DatabaseNotExistException {
-        //todo: Record primary key not null information
+    public void testCreateTable()
+            throws TableNotExistException, TableAlreadyExistException, DatabaseNotExistException {
+        // todo: Record primary key not null information
         ObjectPath tablePath = new ObjectPath(TEST_DB, TEST_TABLE);
         catalog.dropTable(tablePath, true);
         catalog.createTable(tablePath, createTable(), true);
@@ -240,7 +237,6 @@ public class CatalogTest {
         assertFalse(catalog.tableExists(new ObjectPath("db1", "tbl1")));
     }
 
-
     // ------ test select query. ------
 
     @Test
@@ -251,7 +247,8 @@ public class CatalogTest {
                                 .execute()
                                 .collect());
         assertEquals(
-                Lists.newArrayList(Row.ofKind(RowKind.INSERT, "100001"), Row.ofKind(RowKind.INSERT, "100002")),
+                Lists.newArrayList(
+                        Row.ofKind(RowKind.INSERT, "100001"), Row.ofKind(RowKind.INSERT, "100002")),
                 results);
     }
 
@@ -269,10 +266,7 @@ public class CatalogTest {
     public void testWithoutCatalog() {
         List<Row> results =
                 CollectionUtil.iteratorToList(
-                        tEnv.sqlQuery(
-                                        String.format(
-                                                "select * from `%s`.`%s`",
-                                                TEST_DB, TEST_TABLE))
+                        tEnv.sqlQuery(String.format("select * from `%s`.`%s`", TEST_DB, TEST_TABLE))
                                 .execute()
                                 .collect());
         assertEquals(ALL_TYPES_ROWS, results);
@@ -297,9 +291,7 @@ public class CatalogTest {
     public void testSelectToInsert() throws Exception {
 
         String sql =
-                String.format(
-                        "insert into `%s` select * from `%s`",
-                        TEST_TABLE_SINK, TEST_TABLE);
+                String.format("insert into `%s` select * from `%s`", TEST_TABLE_SINK, TEST_TABLE);
         tEnv.executeSql(sql).await();
 
         List<Row> results =
@@ -322,13 +314,10 @@ public class CatalogTest {
 
         List<Row> results =
                 CollectionUtil.iteratorToList(
-                        tEnv.sqlQuery(
-                                        String.format(
-                                                "select * from `%s`",
-                                                TEST_TABLE_SINK_GROUPBY))
+                        tEnv.sqlQuery(String.format("select * from `%s`", TEST_TABLE_SINK_GROUPBY))
                                 .execute()
                                 .collect());
-        assertEquals(Lists.newArrayList(Row.ofKind(RowKind.INSERT, "catalog","100002")), results);
+        assertEquals(Lists.newArrayList(Row.ofKind(RowKind.INSERT, "catalog", "100002")), results);
     }
 
     private static CatalogDatabase createDb() {

@@ -17,13 +17,14 @@
 
 package org.apache.doris.flink.sink.writer.serializer;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.doris.flink.deserialization.converter.DorisRowConverter;
-import org.apache.doris.flink.sink.EscapeHandler;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Preconditions;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.doris.flink.deserialization.converter.DorisRowConverter;
+import org.apache.doris.flink.sink.EscapeHandler;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -36,9 +37,7 @@ import static org.apache.doris.flink.sink.writer.LoadConstants.DORIS_DELETE_SIGN
 import static org.apache.doris.flink.sink.writer.LoadConstants.JSON;
 import static org.apache.doris.flink.sink.writer.LoadConstants.NULL_VALUE;
 
-/**
- * Serializer for RowData.
- */
+/** Serializer for RowData. */
 public class RowDataSerializer implements DorisRecordSerializer<RowData> {
     String[] fieldNames;
     String type;
@@ -47,7 +46,12 @@ public class RowDataSerializer implements DorisRecordSerializer<RowData> {
     private final boolean enableDelete;
     private final DorisRowConverter rowConverter;
 
-    private RowDataSerializer(String[] fieldNames, DataType[] dataTypes, String type, String fieldDelimiter, boolean enableDelete) {
+    private RowDataSerializer(
+            String[] fieldNames,
+            DataType[] dataTypes,
+            String type,
+            String fieldDelimiter,
+            boolean enableDelete) {
         this.fieldNames = fieldNames;
         this.type = type;
         this.fieldDelimiter = fieldDelimiter;
@@ -59,7 +63,7 @@ public class RowDataSerializer implements DorisRecordSerializer<RowData> {
     }
 
     @Override
-    public DorisRecord serialize(RowData record) throws IOException{
+    public DorisRecord serialize(RowData record) throws IOException {
         int maxIndex = Math.min(record.getArity(), fieldNames.length);
         String valString;
         if (JSON.equals(type)) {
@@ -116,9 +120,7 @@ public class RowDataSerializer implements DorisRecordSerializer<RowData> {
         return new Builder();
     }
 
-    /**
-     * Builder for RowDataSerializer.
-     */
+    /** Builder for RowDataSerializer. */
     public static class Builder {
         private String[] fieldNames;
         private DataType[] dataTypes;
@@ -152,7 +154,8 @@ public class RowDataSerializer implements DorisRecordSerializer<RowData> {
         }
 
         public RowDataSerializer build() {
-            Preconditions.checkState(CSV.equals(type) && fieldDelimiter != null || JSON.equals(type));
+            Preconditions.checkState(
+                    CSV.equals(type) && fieldDelimiter != null || JSON.equals(type));
             Preconditions.checkNotNull(dataTypes);
             Preconditions.checkNotNull(fieldNames);
             return new RowDataSerializer(fieldNames, dataTypes, type, fieldDelimiter, deletable);

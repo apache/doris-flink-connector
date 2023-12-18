@@ -17,12 +17,13 @@
 
 package org.apache.doris.flink.lookup;
 
-import org.apache.doris.flink.cfg.DorisLookupOptions;
-import org.apache.doris.flink.cfg.DorisOptions;
-import org.apache.doris.flink.deserialization.converter.DorisRowConverter;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
+
+import org.apache.doris.flink.cfg.DorisLookupOptions;
+import org.apache.doris.flink.cfg.DorisOptions;
+import org.apache.doris.flink.deserialization.converter.DorisRowConverter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,7 +46,8 @@ public class DorisJdbcLookupReader extends DorisLookupReader {
 
     private LookupSchema schema;
 
-    public DorisJdbcLookupReader(DorisOptions options, DorisLookupOptions lookupOptions, LookupSchema lookupSchema) {
+    public DorisJdbcLookupReader(
+            DorisOptions options, DorisLookupOptions lookupOptions, LookupSchema lookupSchema) {
         this.converter = new DorisRowConverter(lookupSchema.getFieldTypes());
         this.pool = new ExecutionPool(options, lookupOptions);
         this.schema = lookupSchema;
@@ -68,24 +70,25 @@ public class DorisJdbcLookupReader extends DorisLookupReader {
         Record record = convertRecord(recordIn);
         try {
             pool.get(new Get(record))
-                    .handleAsync((resultRow, throwable) -> {
-                        try {
-                            if (throwable != null) {
-                                result.completeExceptionally(throwable);
-                            } else {
-                                if (resultRow == null) {
-                                    result.complete(new ArrayList<>());
-                                } else {
-                                    //convert Record to RowData
-                                    List<RowData> rowDatas = convertRowDataList(resultRow);
-                                    result.complete(rowDatas);
+                    .handleAsync(
+                            (resultRow, throwable) -> {
+                                try {
+                                    if (throwable != null) {
+                                        result.completeExceptionally(throwable);
+                                    } else {
+                                        if (resultRow == null) {
+                                            result.complete(new ArrayList<>());
+                                        } else {
+                                            // convert Record to RowData
+                                            List<RowData> rowDatas = convertRowDataList(resultRow);
+                                            result.complete(rowDatas);
+                                        }
+                                    }
+                                } catch (Throwable e) {
+                                    result.completeExceptionally(e);
                                 }
-                            }
-                        } catch (Throwable e) {
-                            result.completeExceptionally(e);
-                        }
-                        return null;
-                    });
+                                return null;
+                            });
         } catch (Exception e) {
             result.completeExceptionally(e);
         }
@@ -132,7 +135,7 @@ public class DorisJdbcLookupReader extends DorisLookupReader {
 
     @Override
     public void close() throws IOException {
-        if(this.pool != null){
+        if (this.pool != null) {
             this.pool.close();
         }
     }

@@ -17,6 +17,10 @@
 
 package org.apache.doris.flink.sink.writer;
 
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
+
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
@@ -28,9 +32,6 @@ import org.apache.doris.flink.rest.models.RespContent;
 import org.apache.doris.flink.sink.EscapeHandler;
 import org.apache.doris.flink.sink.HttpPutBuilder;
 import org.apache.doris.flink.sink.ResponseUtil;
-import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.entity.InputStreamEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -56,9 +57,7 @@ import static org.apache.doris.flink.sink.ResponseUtil.LABEL_EXIST_PATTERN;
 import static org.apache.doris.flink.sink.writer.LoadConstants.LINE_DELIMITER_DEFAULT;
 import static org.apache.doris.flink.sink.writer.LoadConstants.LINE_DELIMITER_KEY;
 
-/**
- * load data to doris.
- **/
+/** load data to doris. */
 public class DorisStreamLoad implements Serializable {
     private static final Logger LOG = LoggerFactory.getLogger(DorisStreamLoad.class);
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
@@ -84,11 +83,12 @@ public class DorisStreamLoad implements Serializable {
     private final ExecutorService executorService;
     private boolean loadBatchFirstRecord;
 
-    public DorisStreamLoad(String hostPort,
-                           DorisOptions dorisOptions,
-                           DorisExecutionOptions executionOptions,
-                           LabelGenerator labelGenerator,
-                           CloseableHttpClient httpClient) {
+    public DorisStreamLoad(
+            String hostPort,
+            DorisOptions dorisOptions,
+            DorisExecutionOptions executionOptions,
+            LabelGenerator labelGenerator,
+            CloseableHttpClient httpClient) {
         this.hostPort = hostPort;
         String[] tableInfo = dorisOptions.getTableIdentifier().split("\\.");
         this.db = tableInfo[0];
@@ -102,11 +102,24 @@ public class DorisStreamLoad implements Serializable {
         this.streamLoadProp = executionOptions.getStreamLoadProp();
         this.enableDelete = executionOptions.getDeletable();
         this.httpClient = httpClient;
-        this.executorService = new ThreadPoolExecutor(1, 1,
-                0L, TimeUnit.MILLISECONDS,
-                new LinkedBlockingQueue<>(), new ExecutorThreadFactory("stream-load-upload"));
-        this.recordStream = new RecordStream(executionOptions.getBufferSize(), executionOptions.getBufferCount(), executionOptions.isUseCache());
-        lineDelimiter = EscapeHandler.escapeString(streamLoadProp.getProperty(LINE_DELIMITER_KEY, LINE_DELIMITER_DEFAULT)).getBytes();
+        this.executorService =
+                new ThreadPoolExecutor(
+                        1,
+                        1,
+                        0L,
+                        TimeUnit.MILLISECONDS,
+                        new LinkedBlockingQueue<>(),
+                        new ExecutorThreadFactory("stream-load-upload"));
+        this.recordStream =
+                new RecordStream(
+                        executionOptions.getBufferSize(),
+                        executionOptions.getBufferCount(),
+                        executionOptions.isUseCache());
+        lineDelimiter =
+                EscapeHandler.escapeString(
+                                streamLoadProp.getProperty(
+                                        LINE_DELIMITER_KEY, LINE_DELIMITER_DEFAULT))
+                        .getBytes();
         loadBatchFirstRecord = true;
     }
 
@@ -134,6 +147,7 @@ public class DorisStreamLoad implements Serializable {
 
     /**
      * try to discard pending transactions with labels beginning with labelSuffix.
+     *
      * @param labelSuffix
      * @param chkID
      * @throws Exception
@@ -143,7 +157,8 @@ public class DorisStreamLoad implements Serializable {
         LOG.info("abort for labelSuffix {}. start chkId {}.", labelSuffix, chkID);
         while (true) {
             try {
-                // TODO: According to label abort txn. Currently, it can only be aborted based on txnid,
+                // TODO: According to label abort txn. Currently,
+                //  it can only be aborted based on txnid,
                 //  so we must first request a streamload based on the label to get the txnid.
                 String label = labelGenerator.generateTableLabel(startChkID);
                 HttpPutBuilder builder = new HttpPutBuilder();
@@ -154,17 +169,20 @@ public class DorisStreamLoad implements Serializable {
                         .setLabel(label)
                         .setEmptyEntity()
                         .addProperties(streamLoadProp);
-                RespContent respContent = handlePreCommitResponse(httpClient.execute(builder.build()));
+                RespContent respContent =
+                        handlePreCommitResponse(httpClient.execute(builder.build()));
                 Preconditions.checkState("true".equals(respContent.getTwoPhaseCommit()));
                 if (LABEL_ALREADY_EXIST.equals(respContent.getStatus())) {
                     // label already exist and job finished
                     if (JOB_EXIST_FINISHED.equals(respContent.getExistingJobStatus())) {
-                        throw new DorisException("Load status is " + LABEL_ALREADY_EXIST + " and load job finished, " +
-                                "change you label prefix or restore from latest savepoint!");
-
+                        throw new DorisException(
+                                "Load status is "
+                                        + LABEL_ALREADY_EXIST
+                                        + " and load job finished, "
+                                        + "change you label prefix or restore from latest savepoint!");
                     }
                     // job not finished, abort.
-                    Matcher matcher  = LABEL_EXIST_PATTERN.matcher(respContent.getMessage());
+                    Matcher matcher = LABEL_EXIST_PATTERN.matcher(respContent.getMessage());
                     if (matcher.find()) {
                         Preconditions.checkState(label.equals(matcher.group(1)));
                         long txnId = Long.parseLong(matcher.group(2));
@@ -172,7 +190,10 @@ public class DorisStreamLoad implements Serializable {
                         abortTransaction(txnId);
                     } else {
                         LOG.error("response: {}", respContent.toString());
-                        throw new DorisException("Load Status is " + LABEL_ALREADY_EXIST + ", but no txnID associated with it!");
+                        throw new DorisException(
+                                "Load Status is "
+                                        + LABEL_ALREADY_EXIST
+                                        + ", but no txnID associated with it!");
                     }
                 } else {
                     LOG.info("abort {} for check label {}.", respContent.getTxnId(), label);
@@ -190,10 +211,11 @@ public class DorisStreamLoad implements Serializable {
 
     /**
      * write record into stream.
+     *
      * @param record
      * @throws IOException
      */
-    public void writeRecord(byte[] record) throws IOException{
+    public void writeRecord(byte[] record) throws IOException {
         if (loadBatchFirstRecord) {
             loadBatchFirstRecord = false;
         } else {
@@ -207,7 +229,7 @@ public class DorisStreamLoad implements Serializable {
         return recordStream;
     }
 
-    public RespContent handlePreCommitResponse(CloseableHttpResponse response) throws Exception{
+    public RespContent handlePreCommitResponse(CloseableHttpResponse response) throws Exception {
         final int statusCode = response.getStatusLine().getStatusCode();
         if (statusCode == 200 && response.getEntity() != null) {
             String loadResult = EntityUtils.toString(response.getEntity());
@@ -217,12 +239,12 @@ public class DorisStreamLoad implements Serializable {
         throw new StreamLoadException("stream load error: " + response.getStatusLine().toString());
     }
 
-    public RespContent stopLoad(String label) throws IOException{
+    public RespContent stopLoad(String label) throws IOException {
         recordStream.endInput();
         LOG.info("table {} stream load stopped for {} on host {}", table, label, hostPort);
         Preconditions.checkState(pendingLoadFuture != null);
         try {
-           return handlePreCommitResponse(pendingLoadFuture.get());
+            return handlePreCommitResponse(pendingLoadFuture.get());
         } catch (Exception e) {
             throw new DorisRuntimeException(e);
         }
@@ -230,6 +252,7 @@ public class DorisStreamLoad implements Serializable {
 
     /**
      * start write data for new checkpoint.
+     *
      * @param label
      * @throws IOException
      */
@@ -240,7 +263,8 @@ public class DorisStreamLoad implements Serializable {
         LOG.info("table {} stream load started for {} on host {}", table, label, hostPort);
         try {
             InputStreamEntity entity = new InputStreamEntity(recordStream);
-            putBuilder.setUrl(loadUrlStr)
+            putBuilder
+                    .setUrl(loadUrlStr)
                     .baseAuth(user, passwd)
                     .addCommonHeader()
                     .addHiddenColumns(enableDelete)
@@ -248,12 +272,14 @@ public class DorisStreamLoad implements Serializable {
                     .setEntity(entity)
                     .addProperties(streamLoadProp);
             if (enable2PC) {
-               putBuilder.enable2PC();
+                putBuilder.enable2PC();
             }
-            pendingLoadFuture = executorService.submit(() -> {
-                LOG.info("table {} start execute load", table);
-                return httpClient.execute(putBuilder.build());
-            });
+            pendingLoadFuture =
+                    executorService.submit(
+                            () -> {
+                                LOG.info("table {} start execute load", table);
+                                return httpClient.execute(putBuilder.build());
+                            });
         } catch (Exception e) {
             String err = "failed to stream load data with label: " + label;
             LOG.warn(err, e);
@@ -274,16 +300,18 @@ public class DorisStreamLoad implements Serializable {
         int statusCode = response.getStatusLine().getStatusCode();
         if (statusCode != 200 || response.getEntity() == null) {
             LOG.warn("abort transaction response: " + response.getStatusLine().toString());
-            throw new DorisRuntimeException("Fail to abort transaction " + txnID + " with url " + abortUrlStr);
+            throw new DorisRuntimeException(
+                    "Fail to abort transaction " + txnID + " with url " + abortUrlStr);
         }
 
         ObjectMapper mapper = new ObjectMapper();
         String loadResult = EntityUtils.toString(response.getEntity());
-        Map<String, String> res = mapper.readValue(loadResult, new TypeReference<HashMap<String, String>>(){});
+        Map<String, String> res =
+                mapper.readValue(loadResult, new TypeReference<HashMap<String, String>>() {});
         if (!SUCCESS.equals(res.get("status"))) {
             if (ResponseUtil.isCommitted(res.get("msg"))) {
-                throw new DorisException("try abort committed transaction, " +
-                        "do you recover from old savepoint?");
+                throw new DorisException(
+                        "try abort committed transaction, " + "do you recover from old savepoint?");
             }
             LOG.warn("Fail to abort transaction. txnId: {}, error: {}", txnID, res.get("msg"));
         }

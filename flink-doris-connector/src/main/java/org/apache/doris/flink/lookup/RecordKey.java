@@ -118,7 +118,6 @@ public class RecordKey {
         return hash;
     }
 
-
     public static int hashCode(Object obj) {
         if (obj == null) {
             return 0;

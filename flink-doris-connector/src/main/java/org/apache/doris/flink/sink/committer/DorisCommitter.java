@@ -17,6 +17,8 @@
 
 package org.apache.doris.flink.sink.committer;
 
+import org.apache.flink.api.connector.sink2.Committer;
+
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.lang3.StringUtils;
@@ -29,7 +31,6 @@ import org.apache.doris.flink.sink.DorisCommittable;
 import org.apache.doris.flink.sink.HttpPutBuilder;
 import org.apache.doris.flink.sink.HttpUtil;
 import org.apache.doris.flink.sink.ResponseUtil;
-import org.apache.flink.api.connector.sink2.Committer;
 import org.apache.http.StatusLine;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPut;
@@ -46,9 +47,7 @@ import java.util.Map;
 
 import static org.apache.doris.flink.sink.LoadStatus.SUCCESS;
 
-/**
- * The committer to commit transaction.
- */
+/** The committer to commit transaction. */
 public class DorisCommitter implements Committer<DorisCommittable>, Closeable {
     private static final Logger LOG = LoggerFactory.getLogger(DorisCommitter.class);
     private static final String commitPattern = "http://%s/api/%s/_stream_load_2pc";
@@ -60,42 +59,51 @@ public class DorisCommitter implements Committer<DorisCommittable>, Closeable {
 
     int maxRetry;
 
-    public DorisCommitter(DorisOptions dorisOptions, DorisReadOptions dorisReadOptions, int maxRetry) {
+    public DorisCommitter(
+            DorisOptions dorisOptions, DorisReadOptions dorisReadOptions, int maxRetry) {
         this(dorisOptions, dorisReadOptions, maxRetry, new HttpUtil().getHttpClient());
     }
 
-    public DorisCommitter(DorisOptions dorisOptions, DorisReadOptions dorisReadOptions, int maxRetry, CloseableHttpClient client) {
+    public DorisCommitter(
+            DorisOptions dorisOptions,
+            DorisReadOptions dorisReadOptions,
+            int maxRetry,
+            CloseableHttpClient client) {
         this.dorisOptions = dorisOptions;
         this.dorisReadOptions = dorisReadOptions;
         this.maxRetry = maxRetry;
         this.httpClient = client;
-        this.backendUtil = StringUtils.isNotEmpty(dorisOptions.getBenodes()) ? new BackendUtil(
-                dorisOptions.getBenodes())
-                : new BackendUtil(RestService.getBackendsV2(dorisOptions, dorisReadOptions, LOG));
+        this.backendUtil =
+                StringUtils.isNotEmpty(dorisOptions.getBenodes())
+                        ? new BackendUtil(dorisOptions.getBenodes())
+                        : new BackendUtil(
+                                RestService.getBackendsV2(dorisOptions, dorisReadOptions, LOG));
     }
 
     @Override
-    public void commit(Collection<CommitRequest<DorisCommittable>> requests) throws IOException, InterruptedException {
-        for (CommitRequest<DorisCommittable> request: requests) {
+    public void commit(Collection<CommitRequest<DorisCommittable>> requests)
+            throws IOException, InterruptedException {
+        for (CommitRequest<DorisCommittable> request : requests) {
             commitTransaction(request.getCommittable());
         }
     }
 
     private void commitTransaction(DorisCommittable committable) throws IOException {
-        //basic params
-        HttpPutBuilder builder = new HttpPutBuilder()
-                .addCommonHeader()
-                .baseAuth(dorisOptions.getUsername(), dorisOptions.getPassword())
-                .addTxnId(committable.getTxnID())
-                .commit();
+        // basic params
+        HttpPutBuilder builder =
+                new HttpPutBuilder()
+                        .addCommonHeader()
+                        .baseAuth(dorisOptions.getUsername(), dorisOptions.getPassword())
+                        .addTxnId(committable.getTxnID())
+                        .commit();
 
-        //hostPort
+        // hostPort
         String hostPort = committable.getHostPort();
 
         LOG.info("commit txn {} to host {}", committable.getTxnID(), hostPort);
         int retry = 0;
         while (retry <= maxRetry) {
-            //get latest-url
+            // get latest-url
             String url = String.format(commitPattern, hostPort, committable.getDb());
             HttpPut httpPut = builder.setUrl(url).setEmptyEntity().build();
 
@@ -105,10 +113,14 @@ public class DorisCommitter implements Committer<DorisCommittable>, Closeable {
                 if (200 == statusLine.getStatusCode()) {
                     if (response.getEntity() != null) {
                         String loadResult = EntityUtils.toString(response.getEntity());
-                        Map<String, String> res = jsonMapper.readValue(loadResult, new TypeReference<HashMap<String, String>>() {
-                        });
-                        if (!res.get("status").equals(SUCCESS) && !ResponseUtil.isCommitted(res.get("msg"))) {
-                            throw new DorisRuntimeException("commit transaction failed " + loadResult);
+                        Map<String, String> res =
+                                jsonMapper.readValue(
+                                        loadResult,
+                                        new TypeReference<HashMap<String, String>>() {});
+                        if (!res.get("status").equals(SUCCESS)
+                                && !ResponseUtil.isCommitted(res.get("msg"))) {
+                            throw new DorisRuntimeException(
+                                    "commit transaction failed " + loadResult);
                         } else {
                             LOG.info("load result {}", loadResult);
                         }

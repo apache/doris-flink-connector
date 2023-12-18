@@ -18,6 +18,7 @@
 package org.apache.doris.flink.sink.writer;
 
 import org.apache.flink.util.Preconditions;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,9 +28,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingDeque;
 
-/**
- * Channel of record stream and HTTP data stream.
- */
+/** Channel of record stream and HTTP data stream. */
 public class RecordBuffer {
     private static final Logger LOG = LoggerFactory.getLogger(RecordBuffer.class);
     BlockingQueue<ByteBuffer> writeQueue;
@@ -52,17 +51,20 @@ public class RecordBuffer {
         this.queueSize = queueSize;
     }
 
-    public void startBufferData() throws IOException{
-        LOG.info("start buffer data, read queue size {}, write queue size {}", readQueue.size(), writeQueue.size());
+    public void startBufferData() throws IOException {
+        LOG.info(
+                "start buffer data, read queue size {}, write queue size {}",
+                readQueue.size(),
+                writeQueue.size());
         Preconditions.checkState(readQueue.size() == 0);
         Preconditions.checkState(writeQueue.size() == queueSize);
-        for (ByteBuffer byteBuffer: writeQueue) {
+        for (ByteBuffer byteBuffer : writeQueue) {
             Preconditions.checkState(byteBuffer.position() == 0);
             Preconditions.checkState(byteBuffer.remaining() == bufferCapacity);
         }
     }
 
-    public void stopBufferData() throws IOException{
+    public void stopBufferData() throws IOException {
         try {
             // add Empty buffer as finish flag.
             boolean isEmpty = false;
@@ -84,7 +86,7 @@ public class RecordBuffer {
         }
     }
 
-    public void write(byte[] buf) throws InterruptedException{
+    public void write(byte[] buf) throws InterruptedException {
         int wPos = 0;
         do {
             if (currentWriteBuffer == null) {

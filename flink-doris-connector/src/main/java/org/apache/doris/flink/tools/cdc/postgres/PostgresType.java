@@ -14,10 +14,12 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.tools.cdc.postgres;
 
-import org.apache.doris.flink.catalog.doris.DorisType;
 import org.apache.flink.util.Preconditions;
+
+import org.apache.doris.flink.catalog.doris.DorisType;
 
 public class PostgresType {
     private static final String INT2 = "int2";
@@ -67,10 +69,10 @@ public class PostgresType {
 
     public static String toDorisType(String postgresType, Integer precision, Integer scale) {
         postgresType = postgresType.toLowerCase();
-        if(postgresType.startsWith("_")){
-          return DorisType.STRING;
+        if (postgresType.startsWith("_")) {
+            return DorisType.STRING;
         }
-        switch (postgresType){
+        switch (postgresType) {
             case INT2:
             case SMALLSERIAL:
                 return DorisType.TINYINT;
@@ -82,7 +84,11 @@ public class PostgresType {
                 return DorisType.BIGINT;
             case NUMERIC:
                 return precision != null && precision > 0 && precision <= 38
-                        ? String.format("%s(%s,%s)", DorisType.DECIMAL_V3, precision, scale != null && scale >= 0 ? scale : 0)
+                        ? String.format(
+                                "%s(%s,%s)",
+                                DorisType.DECIMAL_V3,
+                                precision,
+                                scale != null && scale >= 0 ? scale : 0)
                         : DorisType.STRING;
             case FLOAT4:
                 return DorisType.FLOAT;
@@ -90,7 +96,9 @@ public class PostgresType {
                 return DorisType.DOUBLE;
             case TIMESTAMP:
             case TIMESTAMPTZ:
-                return String.format("%s(%s)", DorisType.DATETIME_V2, Math.min(precision == null ? 0 : precision, 6));
+                return String.format(
+                        "%s(%s)",
+                        DorisType.DATETIME_V2, Math.min(precision == null ? 0 : precision, 6));
             case DATE:
                 return DorisType.DATE_V2;
             case BOOL:
@@ -100,7 +108,9 @@ public class PostgresType {
             case BPCHAR:
             case VARCHAR:
                 Preconditions.checkNotNull(precision);
-                return precision * 3 > 65533 ? DorisType.STRING : String.format("%s(%s)", DorisType.VARCHAR, precision * 3);
+                return precision * 3 > 65533
+                        ? DorisType.STRING
+                        : String.format("%s(%s)", DorisType.VARCHAR, precision * 3);
             case POINT:
             case LINE:
             case LSEG:
@@ -122,29 +132,30 @@ public class PostgresType {
             case JSON:
             case JSONB:
                 return DorisType.JSONB;
-            /* Compatible with doris1.2 array type can only be used in dup table,
-               and then converted to array in the next version
-            case _BOOL:
-                return String.format("%s<%s>", DorisType.ARRAY, DorisType.BOOLEAN);
-            case _INT2:
-                return String.format("%s<%s>", DorisType.ARRAY, DorisType.TINYINT);
-            case _INT4:
-                return String.format("%s<%s>", DorisType.ARRAY, DorisType.INT);
-            case _INT8:
-                return String.format("%s<%s>", DorisType.ARRAY, DorisType.BIGINT);
-            case _FLOAT4:
-                return String.format("%s<%s>", DorisType.ARRAY, DorisType.FLOAT);
-            case _FLOAT8:
-                return String.format("%s<%s>", DorisType.ARRAY, DorisType.DOUBLE);
-            case _TEXT:
-                return String.format("%s<%s>", DorisType.ARRAY, DorisType.STRING);
-            case _DATE:
-                return String.format("%s<%s>", DorisType.ARRAY, DorisType.DATE_V2);
-            case _TIMESTAMP:
-                return String.format("%s<%s>", DorisType.ARRAY, DorisType.DATETIME_V2);
-            **/
+                /* Compatible with doris1.2 array type can only be used in dup table,
+                   and then converted to array in the next version
+                case _BOOL:
+                    return String.format("%s<%s>", DorisType.ARRAY, DorisType.BOOLEAN);
+                case _INT2:
+                    return String.format("%s<%s>", DorisType.ARRAY, DorisType.TINYINT);
+                case _INT4:
+                    return String.format("%s<%s>", DorisType.ARRAY, DorisType.INT);
+                case _INT8:
+                    return String.format("%s<%s>", DorisType.ARRAY, DorisType.BIGINT);
+                case _FLOAT4:
+                    return String.format("%s<%s>", DorisType.ARRAY, DorisType.FLOAT);
+                case _FLOAT8:
+                    return String.format("%s<%s>", DorisType.ARRAY, DorisType.DOUBLE);
+                case _TEXT:
+                    return String.format("%s<%s>", DorisType.ARRAY, DorisType.STRING);
+                case _DATE:
+                    return String.format("%s<%s>", DorisType.ARRAY, DorisType.DATE_V2);
+                case _TIMESTAMP:
+                    return String.format("%s<%s>", DorisType.ARRAY, DorisType.DATETIME_V2);
+                **/
             default:
-                throw new UnsupportedOperationException("Unsupported Postgres Type: " + postgresType);
+                throw new UnsupportedOperationException(
+                        "Unsupported Postgres Type: " + postgresType);
         }
     }
 }

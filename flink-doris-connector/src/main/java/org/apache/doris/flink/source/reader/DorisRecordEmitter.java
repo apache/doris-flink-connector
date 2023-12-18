@@ -14,34 +14,32 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.source.reader;
 
-import org.apache.doris.flink.deserialization.DorisDeserializationSchema;
-import org.apache.doris.flink.source.split.DorisSourceSplitState;
 import org.apache.flink.api.connector.source.SourceOutput;
 import org.apache.flink.connector.base.source.reader.RecordEmitter;
 import org.apache.flink.util.Collector;
 
+import org.apache.doris.flink.deserialization.DorisDeserializationSchema;
+import org.apache.doris.flink.source.split.DorisSourceSplitState;
+
 import java.util.List;
 
-/**
- * The {@link RecordEmitter} implementation for {@link DorisSourceReader}.
- **/
-public class DorisRecordEmitter<T>
-        implements RecordEmitter<List, T, DorisSourceSplitState> {
+/** The {@link RecordEmitter} implementation for {@link DorisSourceReader}. */
+public class DorisRecordEmitter<T> implements RecordEmitter<List, T, DorisSourceSplitState> {
 
     private final DorisDeserializationSchema<T> dorisDeserializationSchema;
     private final OutputCollector<T> outputCollector;
-
 
     public DorisRecordEmitter(DorisDeserializationSchema<T> dorisDeserializationSchema) {
         this.dorisDeserializationSchema = dorisDeserializationSchema;
         this.outputCollector = new OutputCollector<>();
     }
 
-
     @Override
-    public void emitRecord(List value, SourceOutput<T> output, DorisSourceSplitState splitState) throws Exception {
+    public void emitRecord(List value, SourceOutput<T> output, DorisSourceSplitState splitState)
+            throws Exception {
         outputCollector.output = output;
         dorisDeserializationSchema.deserialize(value, outputCollector);
     }

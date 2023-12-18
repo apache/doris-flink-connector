@@ -17,6 +17,9 @@
 
 package org.apache.doris.flink.sink.schema;
 
+import org.apache.flink.util.CollectionUtil;
+import org.apache.flink.util.StringUtils;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.codec.binary.Base64;
@@ -28,8 +31,6 @@ import org.apache.doris.flink.exception.DorisSchemaChangeException;
 import org.apache.doris.flink.exception.IllegalArgumentException;
 import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.sink.HttpGetWithEntity;
-import org.apache.flink.util.CollectionUtil;
-import org.apache.flink.util.StringUtils;
 import org.apache.http.HttpHeaders;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPost;
@@ -50,7 +51,8 @@ import java.util.Map;
 public class SchemaChangeManager implements Serializable {
     private static final long serialVersionUID = 1L;
     private static final Logger LOG = LoggerFactory.getLogger(SchemaChangeManager.class);
-    private static final String CHECK_SCHEMA_CHANGE_API = "http://%s/api/enable_light_schema_change/%s/%s";
+    private static final String CHECK_SCHEMA_CHANGE_API =
+            "http://%s/api/enable_light_schema_change/%s/%s";
     private static final String SCHEMA_CHANGE_API = "http://%s/api/query/default_cluster/%s";
     private ObjectMapper objectMapper = new ObjectMapper();
     private DorisOptions dorisOptions;
@@ -64,18 +66,24 @@ public class SchemaChangeManager implements Serializable {
         return execute(createTableDDL, table.getDatabase());
     }
 
-    public boolean addColumn(String database, String table, FieldSchema field) throws IOException, IllegalArgumentException {
-        if(checkColumnExists(database, table, field.getName())){
-            LOG.warn("The column {} already exists in table {}, no need to add it again", field.getName(), table);
+    public boolean addColumn(String database, String table, FieldSchema field)
+            throws IOException, IllegalArgumentException {
+        if (checkColumnExists(database, table, field.getName())) {
+            LOG.warn(
+                    "The column {} already exists in table {}, no need to add it again",
+                    field.getName(),
+                    table);
             return true;
         }
         String tableIdentifier = getTableIdentifier(database, table);
         String addColumnDDL = SchemaChangeHelper.buildAddColumnDDL(tableIdentifier, field);
-        return schemaChange(database, table, buildRequestParam(false, field.getName()), addColumnDDL);
+        return schemaChange(
+                database, table, buildRequestParam(false, field.getName()), addColumnDDL);
     }
 
-    public boolean dropColumn(String database, String table, String columnName) throws IOException, IllegalArgumentException {
-        if(!checkColumnExists(database, table, columnName)){
+    public boolean dropColumn(String database, String table, String columnName)
+            throws IOException, IllegalArgumentException {
+        if (!checkColumnExists(database, table, columnName)) {
             LOG.warn("The column {} not exists in table {}, no need to drop", columnName, table);
             return true;
         }
@@ -84,14 +92,21 @@ public class SchemaChangeManager implements Serializable {
         return schemaChange(database, table, buildRequestParam(true, columnName), dropColumnDDL);
     }
 
-    public boolean renameColumn(String database, String table, String oldColumnName, String newColumnName) throws IOException, IllegalArgumentException {
+    public boolean renameColumn(
+            String database, String table, String oldColumnName, String newColumnName)
+            throws IOException, IllegalArgumentException {
         String tableIdentifier = getTableIdentifier(database, table);
-        String renameColumnDDL = SchemaChangeHelper.buildRenameColumnDDL(tableIdentifier, oldColumnName, newColumnName);
-        return schemaChange(database, table, buildRequestParam(true, oldColumnName), renameColumnDDL);
+        String renameColumnDDL =
+                SchemaChangeHelper.buildRenameColumnDDL(
+                        tableIdentifier, oldColumnName, newColumnName);
+        return schemaChange(
+                database, table, buildRequestParam(true, oldColumnName), renameColumnDDL);
     }
 
-    public boolean schemaChange(String database, String table, Map<String, Object> params, String sql) throws IOException, IllegalArgumentException {
-        if(checkSchemaChange(database, table, params)){
+    public boolean schemaChange(
+            String database, String table, Map<String, Object> params, String sql)
+            throws IOException, IllegalArgumentException {
+        if (checkSchemaChange(database, table, params)) {
             return execute(sql, database);
         }
         return false;
@@ -104,26 +119,28 @@ public class SchemaChangeManager implements Serializable {
         return params;
     }
 
-    /**
-     * check ddl can do light schema change
-     */
-    public boolean checkSchemaChange(String database, String table, Map<String, Object> params) throws IOException, IllegalArgumentException {
-        if(CollectionUtil.isNullOrEmpty(params)){
+    /** check ddl can do light schema change. */
+    public boolean checkSchemaChange(String database, String table, Map<String, Object> params)
+            throws IOException, IllegalArgumentException {
+        if (CollectionUtil.isNullOrEmpty(params)) {
             return false;
         }
-        String requestUrl = String.format(CHECK_SCHEMA_CHANGE_API,
-                RestService.randomEndpoint(dorisOptions.getFenodes(), LOG), database, table);
+        String requestUrl =
+                String.format(
+                        CHECK_SCHEMA_CHANGE_API,
+                        RestService.randomEndpoint(dorisOptions.getFenodes(), LOG),
+                        database,
+                        table);
         HttpGetWithEntity httpGet = new HttpGetWithEntity(requestUrl);
         httpGet.setHeader(HttpHeaders.AUTHORIZATION, authHeader());
         httpGet.setEntity(new StringEntity(objectMapper.writeValueAsString(params)));
         return handleResponse(httpGet);
     }
 
-    /**
-     * execute sql in doris
-     */
-    public boolean execute(String ddl, String database) throws IOException, IllegalArgumentException {
-        if(StringUtils.isNullOrWhitespaceOnly(ddl)){
+    /** execute sql in doris. */
+    public boolean execute(String ddl, String database)
+            throws IOException, IllegalArgumentException {
+        if (StringUtils.isNullOrWhitespaceOnly(ddl)) {
             return false;
         }
         LOG.info("Execute SQL: {}", ddl);
@@ -131,11 +148,15 @@ public class SchemaChangeManager implements Serializable {
         return handleResponse(httpPost);
     }
 
-    public HttpPost buildHttpPost(String ddl, String database) throws IllegalArgumentException, IOException {
+    public HttpPost buildHttpPost(String ddl, String database)
+            throws IllegalArgumentException, IOException {
         Map<String, String> param = new HashMap<>();
         param.put("stmt", ddl);
-        String requestUrl = String.format(SCHEMA_CHANGE_API,
-                RestService.randomEndpoint(dorisOptions.getFenodes(), LOG), database);
+        String requestUrl =
+                String.format(
+                        SCHEMA_CHANGE_API,
+                        RestService.randomEndpoint(dorisOptions.getFenodes(), LOG),
+                        database);
         HttpPost httpPost = new HttpPost(requestUrl);
         httpPost.setHeader(HttpHeaders.AUTHORIZATION, authHeader());
         httpPost.setHeader(HttpHeaders.CONTENT_TYPE, "application/json");
@@ -155,21 +176,26 @@ public class SchemaChangeManager implements Serializable {
                 if (code.equals("0")) {
                     return true;
                 } else {
-                    throw new DorisSchemaChangeException("Failed to schemaChange, response: " + loadResult);
+                    throw new DorisSchemaChangeException(
+                            "Failed to schemaChange, response: " + loadResult);
                 }
-            } else{
-                throw new DorisSchemaChangeException("Failed to schemaChange, status: " + statusCode + ", reason: " + reasonPhrase);
+            } else {
+                throw new DorisSchemaChangeException(
+                        "Failed to schemaChange, status: "
+                                + statusCode
+                                + ", reason: "
+                                + reasonPhrase);
             }
         } catch (Exception e) {
             LOG.error("SchemaChange request error,", e);
-            throw new DorisSchemaChangeException("SchemaChange request error with " + e.getMessage());
+            throw new DorisSchemaChangeException(
+                    "SchemaChange request error with " + e.getMessage());
         }
     }
 
-    /**
-     * When processing a column, determine whether it exists and be idempotent.
-     */
-    public boolean checkColumnExists(String database, String table, String columnName) throws IllegalArgumentException, IOException {
+    /** When processing a column, determine whether it exists and be idempotent. */
+    public boolean checkColumnExists(String database, String table, String columnName)
+            throws IllegalArgumentException, IOException {
         String existsQuery = SchemaChangeHelper.buildColumnExistsQuery(database, table, columnName);
         HttpPost httpPost = buildHttpPost(existsQuery, database);
         try (CloseableHttpClient httpclient = HttpClients.createDefault()) {
@@ -181,7 +207,7 @@ public class SchemaChangeManager implements Serializable {
                 String code = responseNode.get("code").asText("-1");
                 if (code.equals("0")) {
                     JsonNode data = responseNode.get("data").get("data");
-                    if(!data.isEmpty()){
+                    if (!data.isEmpty()) {
                         return true;
                     }
                 }
@@ -193,11 +219,14 @@ public class SchemaChangeManager implements Serializable {
     }
 
     private String authHeader() {
-        return "Basic " + new String(Base64.encodeBase64(
-                (dorisOptions.getUsername() + ":" + dorisOptions.getPassword()).getBytes(StandardCharsets.UTF_8)));
+        return "Basic "
+                + new String(
+                        Base64.encodeBase64(
+                                (dorisOptions.getUsername() + ":" + dorisOptions.getPassword())
+                                        .getBytes(StandardCharsets.UTF_8)));
     }
 
-    private String getTableIdentifier(String database, String table){
+    private String getTableIdentifier(String database, String table) {
         return String.format("%s.%s", database, table);
     }
 }

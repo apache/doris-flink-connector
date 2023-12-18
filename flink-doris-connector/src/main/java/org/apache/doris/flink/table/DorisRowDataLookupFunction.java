@@ -17,6 +17,15 @@
 
 package org.apache.doris.flink.table;
 
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.functions.FunctionContext;
+import org.apache.flink.table.functions.TableFunction;
+import org.apache.flink.table.types.DataType;
+
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import org.apache.doris.flink.cfg.DorisLookupOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
@@ -25,14 +34,6 @@ import org.apache.doris.flink.exception.DorisException;
 import org.apache.doris.flink.rest.PartitionDefinition;
 import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.source.reader.DorisValueReader;
-import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.shaded.guava30.com.google.common.cache.Cache;
-import org.apache.flink.shaded.guava30.com.google.common.cache.CacheBuilder;
-import org.apache.flink.table.data.GenericRowData;
-import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.functions.FunctionContext;
-import org.apache.flink.table.functions.TableFunction;
-import org.apache.flink.table.types.DataType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,12 +57,13 @@ public class DorisRowDataLookupFunction extends TableFunction<RowData> {
     private final DorisRowConverter rowConverter;
     private transient Cache<RowData, List<RowData>> cache;
 
-    public DorisRowDataLookupFunction(DorisOptions options,
-                                      DorisReadOptions readOptions,
-                                      DorisLookupOptions lookupOptions,
-                                      String[] selectFields,
-                                      DataType[] fieldTypes,
-                                      String[] conditionFields) {
+    public DorisRowDataLookupFunction(
+            DorisOptions options,
+            DorisReadOptions readOptions,
+            DorisLookupOptions lookupOptions,
+            String[] selectFields,
+            DataType[] fieldTypes,
+            String[] conditionFields) {
         this.options = options;
         this.readOptions = readOptions;
         this.selectFields = selectFields;
@@ -75,12 +77,13 @@ public class DorisRowDataLookupFunction extends TableFunction<RowData> {
     @Override
     public void open(FunctionContext context) throws Exception {
         super.open(context);
-        this.cache = cacheMaxSize == -1 || cacheExpireMs == -1
-                ? null
-                : CacheBuilder.newBuilder()
-                .expireAfterWrite(cacheExpireMs, TimeUnit.MILLISECONDS)
-                .maximumSize(cacheMaxSize)
-                .build();
+        this.cache =
+                cacheMaxSize == -1 || cacheExpireMs == -1
+                        ? null
+                        : CacheBuilder.newBuilder()
+                                .expireAfterWrite(cacheExpireMs, TimeUnit.MILLISECONDS)
+                                .maximumSize(cacheMaxSize)
+                                .build();
     }
 
     /**
@@ -105,7 +108,8 @@ public class DorisRowDataLookupFunction extends TableFunction<RowData> {
             try {
                 ArrayList<RowData> rows = new ArrayList<>();
                 for (PartitionDefinition part : partitions) {
-                    try (DorisValueReader valueReader = new DorisValueReader(part, options, readOptions)) {
+                    try (DorisValueReader valueReader =
+                            new DorisValueReader(part, options, readOptions)) {
                         while (valueReader.hasNext()) {
                             List<?> record = valueReader.next();
                             GenericRowData rowData = rowConverter.convertInternal(record);
@@ -114,7 +118,7 @@ public class DorisRowDataLookupFunction extends TableFunction<RowData> {
                         }
                     }
                 }
-                if(cache != null){
+                if (cache != null) {
                     rows.trimToSize();
                     cache.put(keyRow, rows);
                 }

@@ -14,6 +14,7 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package org.apache.doris.flink.tools.cdc.sqlserver;
 
 import org.apache.doris.flink.catalog.doris.DorisType;
@@ -52,7 +53,7 @@ public class SqlServerType {
         // For sqlserver IDENTITY type, such as 'INT IDENTITY'
         // originSqlServerType is "int identity", so we only get "int".
         String sqlServerType = originSqlServerType.split(" ")[0];
-        switch (sqlServerType){
+        switch (sqlServerType) {
             case BIT:
                 return DorisType.BOOLEAN;
             case TINYINT:
@@ -74,19 +75,26 @@ public class SqlServerType {
             case DECIMAL:
             case NUMERIC:
                 return precision != null && precision > 0 && precision <= 38
-                        ? String.format("%s(%s,%s)", DorisType.DECIMAL_V3, precision, scale != null && scale >= 0 ? scale : 0)
+                        ? String.format(
+                                "%s(%s,%s)",
+                                DorisType.DECIMAL_V3,
+                                precision,
+                                scale != null && scale >= 0 ? scale : 0)
                         : DorisType.STRING;
             case DATE:
                 return DorisType.DATE_V2;
             case DATETIME:
             case DATETIME2:
             case SMALLDATETIME:
-                return String.format("%s(%s)", DorisType.DATETIME_V2, Math.min(scale == null ? 0 : scale, 6));
+                return String.format(
+                        "%s(%s)", DorisType.DATETIME_V2, Math.min(scale == null ? 0 : scale, 6));
             case CHAR:
             case VARCHAR:
             case NCHAR:
             case NVARCHAR:
-                return precision * 3 > 65533 ? DorisType.STRING : String.format("%s(%s)", DorisType.VARCHAR, precision * 3);
+                return precision * 3 > 65533
+                        ? DorisType.STRING
+                        : String.format("%s(%s)", DorisType.VARCHAR, precision * 3);
             case TEXT:
             case NTEXT:
             case TIME:
@@ -94,7 +102,8 @@ public class SqlServerType {
             case TIMESTAMP:
                 return DorisType.STRING;
             default:
-                throw new UnsupportedOperationException("Unsupported SqlServer Type: " + sqlServerType);
+                throw new UnsupportedOperationException(
+                        "Unsupported SqlServer Type: " + sqlServerType);
         }
     }
 }
