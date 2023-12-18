@@ -41,8 +41,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class DorisRowConverterTest implements Serializable {
@@ -99,9 +99,9 @@ public class DorisRowConverterTest implements Serializable {
                         .setType("csv")
                         .setFieldDelimiter("|")
                         .setFieldNames(
-                                new String[]{
-                                        "f1", "f2", "f3", "f4", "f5", "f6", "f7", "f8", "f9", "f10",
-                                        "f11", "f12", "f13", "f14", "f15", "f16"
+                                new String[] {
+                                    "f1", "f2", "f3", "f4", "f5", "f6", "f7", "f8", "f9", "f10",
+                                    "f11", "f12", "f13", "f14", "f15", "f16"
                                 })
                         .build();
         String s = new String(serializer.serialize(rowData).getRow());
@@ -166,7 +166,8 @@ public class DorisRowConverterTest implements Serializable {
     public void testMapInternalConvert() throws IOException {
 
         ResolvedSchema schema = getRowMapSchema();
-        DorisRowConverter converter = new DorisRowConverter((RowType) schema.toPhysicalRowDataType().getLogicalType());
+        DorisRowConverter converter =
+                new DorisRowConverter((RowType) schema.toPhysicalRowDataType().getLogicalType());
 
         LocalDateTime time1 = LocalDateTime.of(2021, 1, 1, 8, 0, 0);
         LocalDateTime time2 = LocalDateTime.of(2021, 1, 1, 8, 0, 0);
@@ -180,32 +181,59 @@ public class DorisRowConverterTest implements Serializable {
         Map<Short, Short> shortIntMap = createMapAndPut(new HashMap<>(), (short) 32, (short) 32);
         Map<Integer, Integer> intMap = createMapAndPut(new HashMap<>(), 64, 64);
         Map<Long, Long> longMap = createMapAndPut(new HashMap<>(), 128L, 128L);
-        Map<BigDecimal, BigDecimal> decimalMap = createMapAndPut(new HashMap<>(), BigDecimal.valueOf(10.123), BigDecimal.valueOf(10.123));
-        Map<LocalDateTime, LocalDateTime> timestampWithZoneMap = createMapAndPut(new HashMap<>(), time1, time1);
-        Map<LocalDateTime, LocalDateTime> timestampWithLocalZoneMap = createMapAndPut(new HashMap<>(), time2, time2);
+        Map<BigDecimal, BigDecimal> decimalMap =
+                createMapAndPut(
+                        new HashMap<>(), BigDecimal.valueOf(10.123), BigDecimal.valueOf(10.123));
+        Map<LocalDateTime, LocalDateTime> timestampWithZoneMap =
+                createMapAndPut(new HashMap<>(), time1, time1);
+        Map<LocalDateTime, LocalDateTime> timestampWithLocalZoneMap =
+                createMapAndPut(new HashMap<>(), time2, time2);
         Map<LocalDate, LocalDate> dateMap = createMapAndPut(new HashMap<>(), date1, date1);
         Map<Character, Character> charMap = createMapAndPut(new HashMap<>(), 'a', 'a');
         Map<String, String> stringMap = createMapAndPut(new HashMap<>(), "doris", "doris");
 
-        List<Object> record = Arrays.asList(booleanMap, floatMap, doubleMap, intervalYearMap, intervalDayMap, tinyIntMap,
-                shortIntMap, intMap, longMap, decimalMap, timestampWithZoneMap, timestampWithLocalZoneMap, dateMap, charMap, stringMap);
+        List<Object> record =
+                Arrays.asList(
+                        booleanMap,
+                        floatMap,
+                        doubleMap,
+                        intervalYearMap,
+                        intervalDayMap,
+                        tinyIntMap,
+                        shortIntMap,
+                        intMap,
+                        longMap,
+                        decimalMap,
+                        timestampWithZoneMap,
+                        timestampWithLocalZoneMap,
+                        dateMap,
+                        charMap,
+                        stringMap);
         GenericRowData rowData = converter.convertInternal(record);
 
-        RowDataSerializer serializer = new Builder()
-                .setFieldType(schema.getColumnDataTypes().toArray(new DataType[0]))
-                .setType("csv")
-                .setFieldDelimiter("|")
-                .setFieldNames(new String[]{"f1", "f2", "f3", "f4", "f5", "f6", "f7", "f8", "f9", "f10", "f11", "f12", "f13", "f14", "f15"})
-                .build();
+        RowDataSerializer serializer =
+                new Builder()
+                        .setFieldType(schema.getColumnDataTypes().toArray(new DataType[0]))
+                        .setType("csv")
+                        .setFieldDelimiter("|")
+                        .setFieldNames(
+                                new String[] {
+                                    "f1", "f2", "f3", "f4", "f5", "f6", "f7", "f8", "f9", "f10",
+                                    "f11", "f12", "f13", "f14", "f15"
+                                })
+                        .build();
         String s = new String(serializer.serialize(rowData).getRow());
-        Assert.assertEquals("{\"true\":\"false\"}|{\"1.2\":\"1.3\"}|{\"1.2345\":\"1.2345\"}|{\"24\":\"24\"}|{\"10\":\"10\"}|{\"1\":\"1\"}|{\"32\":\"32\"}|{\"64\":\"64\"}|{\"128\":\"128\"}|{\"10.12\":\"10.12\"}|{\"2021-01-01T08:00\":\"2021-01-01T08:00\"}|{\"2021-01-01T08:00\":\"2021-01-01T08:00\"}|{\"2021-01-01\":\"2021-01-01\"}|{\"a\":\"a\"}|{\"doris\":\"doris\"}", s);
+        Assert.assertEquals(
+                "{\"true\":\"false\"}|{\"1.2\":\"1.3\"}|{\"1.2345\":\"1.2345\"}|{\"24\":\"24\"}|{\"10\":\"10\"}|{\"1\":\"1\"}|{\"32\":\"32\"}|{\"64\":\"64\"}|{\"128\":\"128\"}|{\"10.12\":\"10.12\"}|{\"2021-01-01T08:00\":\"2021-01-01T08:00\"}|{\"2021-01-01T08:00\":\"2021-01-01T08:00\"}|{\"2021-01-01\":\"2021-01-01\"}|{\"a\":\"a\"}|{\"doris\":\"doris\"}",
+                s);
     }
 
     @Test
     public void testMapExternalConvert() {
 
         ResolvedSchema schema = getRowMapSchema();
-        DorisRowConverter converter = new DorisRowConverter((RowType) schema.toPhysicalRowDataType().getLogicalType());
+        DorisRowConverter converter =
+                new DorisRowConverter((RowType) schema.toPhysicalRowDataType().getLogicalType());
 
         LocalDateTime time1 = LocalDateTime.of(2021, 1, 1, 8, 0, 0);
         LocalDateTime time2 = LocalDateTime.of(2021, 1, 1, 8, 0, 0);
@@ -220,65 +248,91 @@ public class DorisRowConverterTest implements Serializable {
         Map<Short, Short> shortIntMap = createMapAndPut(new HashMap<>(), (short) 32, (short) 32);
         Map<Integer, Integer> intMap = createMapAndPut(new HashMap<>(), 64, 64);
         Map<Long, Long> longMap = createMapAndPut(new HashMap<>(), 128L, 128L);
-        Map<BigDecimal, BigDecimal> decimalMap = createMapAndPut(new HashMap<>(), BigDecimal.valueOf(10.123), BigDecimal.valueOf(10.123));
-        Map<TimestampData, TimestampData> timestampWithZoneMap = createMapAndPut(new HashMap<>(), TimestampData.fromLocalDateTime(time1), TimestampData.fromLocalDateTime(time1));
-        Map<TimestampData, TimestampData> timestampWithLocalZoneMap = createMapAndPut(new HashMap<>(), TimestampData.fromLocalDateTime(time2), TimestampData.fromLocalDateTime(time2));
-        Map<Integer, Integer> dateMap = createMapAndPut(new HashMap<>(), (int) date1.toEpochDay(), (int) date1.toEpochDay());
+        Map<BigDecimal, BigDecimal> decimalMap =
+                createMapAndPut(
+                        new HashMap<>(), BigDecimal.valueOf(10.123), BigDecimal.valueOf(10.123));
+        Map<TimestampData, TimestampData> timestampWithZoneMap =
+                createMapAndPut(
+                        new HashMap<>(),
+                        TimestampData.fromLocalDateTime(time1),
+                        TimestampData.fromLocalDateTime(time1));
+        Map<TimestampData, TimestampData> timestampWithLocalZoneMap =
+                createMapAndPut(
+                        new HashMap<>(),
+                        TimestampData.fromLocalDateTime(time2),
+                        TimestampData.fromLocalDateTime(time2));
+        Map<Integer, Integer> dateMap =
+                createMapAndPut(
+                        new HashMap<>(), (int) date1.toEpochDay(), (int) date1.toEpochDay());
         Map<Character, Character> charMap = createMapAndPut(new HashMap<>(), 'a', 'a');
         Map<String, String> stringMap = createMapAndPut(new HashMap<>(), "doris", "doris");
-        GenericRowData rowData = GenericRowData.of(
-                new GenericMapData(booleanMap),
-                new GenericMapData(floatMap),
-                new GenericMapData(doubleMap),
-                new GenericMapData(intervalYearMap),
-                new GenericMapData(intervalDayMap),
-                new GenericMapData(tinyIntMap),
-                new GenericMapData(shortIntMap),
-                new GenericMapData(intMap),
-                new GenericMapData(longMap),
-                new GenericMapData(decimalMap),
-                new GenericMapData(timestampWithZoneMap),
-                new GenericMapData(timestampWithLocalZoneMap),
-                new GenericMapData(dateMap),
-                new GenericMapData(charMap),
-                new GenericMapData(stringMap)
-        );
+        GenericRowData rowData =
+                GenericRowData.of(
+                        new GenericMapData(booleanMap),
+                        new GenericMapData(floatMap),
+                        new GenericMapData(doubleMap),
+                        new GenericMapData(intervalYearMap),
+                        new GenericMapData(intervalDayMap),
+                        new GenericMapData(tinyIntMap),
+                        new GenericMapData(shortIntMap),
+                        new GenericMapData(intMap),
+                        new GenericMapData(longMap),
+                        new GenericMapData(decimalMap),
+                        new GenericMapData(timestampWithZoneMap),
+                        new GenericMapData(timestampWithLocalZoneMap),
+                        new GenericMapData(dateMap),
+                        new GenericMapData(charMap),
+                        new GenericMapData(stringMap));
 
         List<Object> row = new ArrayList<>();
         for (int i = 0; i < rowData.getArity(); i++) {
             row.add(converter.convertExternal(rowData, i));
         }
-        Assert.assertEquals("[{\"true\":\"false\"}, {\"1.2\":\"1.3\"}, {\"1.2345\":\"1.2345\"}, {\"24\":\"24\"}, {\"10\":\"10\"}, {\"1\":\"1\"}, {\"32\":\"32\"}, {\"64\":\"64\"}, {\"128\":\"128\"}, {\"10.123\":\"10.123\"}, {\"2021-01-01T08:00\":\"2021-01-01T08:00\"}, {\"2021-01-01T08:00\":\"2021-01-01T08:00\"}, {\"2021-01-01\":\"2021-01-01\"}, {\"a\":\"a\"}, {\"doris\":\"doris\"}]", row.toString());
+        Assert.assertEquals(
+                "[{\"true\":\"false\"}, {\"1.2\":\"1.3\"}, {\"1.2345\":\"1.2345\"}, {\"24\":\"24\"}, {\"10\":\"10\"}, {\"1\":\"1\"}, {\"32\":\"32\"}, {\"64\":\"64\"}, {\"128\":\"128\"}, {\"10.123\":\"10.123\"}, {\"2021-01-01T08:00\":\"2021-01-01T08:00\"}, {\"2021-01-01T08:00\":\"2021-01-01T08:00\"}, {\"2021-01-01\":\"2021-01-01\"}, {\"a\":\"a\"}, {\"doris\":\"doris\"}]",
+                row.toString());
     }
 
-    /**
-     * generate map data.
-     */
+    /** generate map data. */
     public static <K, V> Map<K, V> createMapAndPut(Map<K, V> map, K key, V value) {
         map.put(key, value);
         return map;
     }
 
     public static ResolvedSchema getRowMapSchema() {
-        return
-                ResolvedSchema.of(
-                        Column.physical("f1", DataTypes.MAP(DataTypes.BOOLEAN(), DataTypes.BOOLEAN())),
-                        Column.physical("f2", DataTypes.MAP(DataTypes.FLOAT(), DataTypes.FLOAT())),
-                        Column.physical("f3", DataTypes.MAP(DataTypes.DOUBLE(), DataTypes.DOUBLE())),
-                        Column.physical("f4", DataTypes.MAP(DataTypes.INTERVAL(DataTypes.YEAR()), DataTypes.INTERVAL(DataTypes.YEAR()))),
-                        Column.physical("f5", DataTypes.MAP(DataTypes.INTERVAL(DataTypes.DAY()), DataTypes.INTERVAL(DataTypes.DAY()))),
-                        Column.physical("f6", DataTypes.MAP(DataTypes.TINYINT(), DataTypes.TINYINT())),
-                        Column.physical("f7", DataTypes.MAP(DataTypes.SMALLINT(), DataTypes.SMALLINT())),
-                        Column.physical("f8", DataTypes.MAP(DataTypes.INT(), DataTypes.INT())),
-                        Column.physical("f9", DataTypes.MAP(DataTypes.BIGINT(), DataTypes.BIGINT())),
-                        Column.physical("f10", DataTypes.MAP(DataTypes.DECIMAL(10, 2), DataTypes.DECIMAL(10, 2))),
-                        Column.physical("f11", DataTypes.MAP(DataTypes.TIMESTAMP_WITH_TIME_ZONE(), DataTypes.TIMESTAMP_WITH_TIME_ZONE())),
-                        Column.physical("f12", DataTypes.MAP(DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(), DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE())),
-                        Column.physical("f13", DataTypes.MAP(DataTypes.DATE(), DataTypes.DATE())),
-                        Column.physical("f14", DataTypes.MAP(DataTypes.CHAR(1), DataTypes.CHAR(1))),
-                        Column.physical("f15", DataTypes.MAP(DataTypes.VARCHAR(256), DataTypes.VARCHAR(256))
-                        )
-                );
-
+        return ResolvedSchema.of(
+                Column.physical("f1", DataTypes.MAP(DataTypes.BOOLEAN(), DataTypes.BOOLEAN())),
+                Column.physical("f2", DataTypes.MAP(DataTypes.FLOAT(), DataTypes.FLOAT())),
+                Column.physical("f3", DataTypes.MAP(DataTypes.DOUBLE(), DataTypes.DOUBLE())),
+                Column.physical(
+                        "f4",
+                        DataTypes.MAP(
+                                DataTypes.INTERVAL(DataTypes.YEAR()),
+                                DataTypes.INTERVAL(DataTypes.YEAR()))),
+                Column.physical(
+                        "f5",
+                        DataTypes.MAP(
+                                DataTypes.INTERVAL(DataTypes.DAY()),
+                                DataTypes.INTERVAL(DataTypes.DAY()))),
+                Column.physical("f6", DataTypes.MAP(DataTypes.TINYINT(), DataTypes.TINYINT())),
+                Column.physical("f7", DataTypes.MAP(DataTypes.SMALLINT(), DataTypes.SMALLINT())),
+                Column.physical("f8", DataTypes.MAP(DataTypes.INT(), DataTypes.INT())),
+                Column.physical("f9", DataTypes.MAP(DataTypes.BIGINT(), DataTypes.BIGINT())),
+                Column.physical(
+                        "f10", DataTypes.MAP(DataTypes.DECIMAL(10, 2), DataTypes.DECIMAL(10, 2))),
+                Column.physical(
+                        "f11",
+                        DataTypes.MAP(
+                                DataTypes.TIMESTAMP_WITH_TIME_ZONE(),
+                                DataTypes.TIMESTAMP_WITH_TIME_ZONE())),
+                Column.physical(
+                        "f12",
+                        DataTypes.MAP(
+                                DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(),
+                                DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE())),
+                Column.physical("f13", DataTypes.MAP(DataTypes.DATE(), DataTypes.DATE())),
+                Column.physical("f14", DataTypes.MAP(DataTypes.CHAR(1), DataTypes.CHAR(1))),
+                Column.physical(
+                        "f15", DataTypes.MAP(DataTypes.VARCHAR(256), DataTypes.VARCHAR(256))));
     }
 }

@@ -385,10 +385,10 @@ public class DorisRowConverter implements Serializable {
     }
 
     /**
-     * Converts the key-value pair of MAP to the actual type
+     * Converts the key-value pair of MAP to the actual type.
      *
      * @param originValue the original value of key-value pair
-     * @param logicalType key or value  logical type
+     * @param logicalType key or value logical type
      */
     private static Object convertMapEntry(Object originValue, LogicalType logicalType) {
         if (LogicalTypeRoot.MAP.equals(logicalType.getTypeRoot())) {
