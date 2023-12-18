@@ -17,9 +17,6 @@
 
 package org.apache.doris.flink.sink.writer.serializer;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.doris.flink.deserialization.converter.DorisRowConverter;
-import org.apache.doris.flink.sink.EscapeHandler;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.arrow.serializers.ArrowSerializer;
 import org.apache.flink.table.types.DataType;
@@ -28,6 +25,10 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Preconditions;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.doris.flink.deserialization.converter.DorisRowConverter;
+import org.apache.doris.flink.sink.EscapeHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,9 +46,7 @@ import static org.apache.doris.flink.sink.writer.LoadConstants.DORIS_DELETE_SIGN
 import static org.apache.doris.flink.sink.writer.LoadConstants.JSON;
 import static org.apache.doris.flink.sink.writer.LoadConstants.NULL_VALUE;
 
-/**
- * Serializer for RowData.
- */
+/** Serializer for RowData. */
 public class RowDataSerializer implements DorisRecordSerializer<RowData> {
     private static final Logger LOG = LoggerFactory.getLogger(RowDataSerializer.class);
     String[] fieldNames;
@@ -62,7 +61,12 @@ public class RowDataSerializer implements DorisRecordSerializer<RowData> {
     private int arrowWriteCnt = 0;
     private final DataType[] dataTypes;
 
-    private RowDataSerializer(String[] fieldNames, DataType[] dataTypes, String type, String fieldDelimiter, boolean enableDelete) {
+    private RowDataSerializer(
+            String[] fieldNames,
+            DataType[] dataTypes,
+            String type,
+            String fieldDelimiter,
+            boolean enableDelete) {
         this.fieldNames = fieldNames;
         this.type = type;
         this.fieldDelimiter = fieldDelimiter;
@@ -90,7 +94,7 @@ public class RowDataSerializer implements DorisRecordSerializer<RowData> {
     }
 
     @Override
-    public DorisRecord serialize(RowData record) throws IOException{
+    public DorisRecord serialize(RowData record) throws IOException {
         int maxIndex = Math.min(record.getArity(), fieldNames.length);
         String valString;
         if (JSON.equals(type)) {
@@ -189,9 +193,7 @@ public class RowDataSerializer implements DorisRecordSerializer<RowData> {
         return new Builder();
     }
 
-    /**
-     * Builder for RowDataSerializer.
-     */
+    /** Builder for RowDataSerializer. */
     public static class Builder {
         private String[] fieldNames;
         private DataType[] dataTypes;
@@ -225,7 +227,10 @@ public class RowDataSerializer implements DorisRecordSerializer<RowData> {
         }
 
         public RowDataSerializer build() {
-            Preconditions.checkState(CSV.equals(type) && fieldDelimiter != null || JSON.equals(type) || ARROW.equals(type));
+            Preconditions.checkState(
+                    CSV.equals(type) && fieldDelimiter != null
+                            || JSON.equals(type)
+                            || ARROW.equals(type));
             Preconditions.checkNotNull(dataTypes);
             Preconditions.checkNotNull(fieldNames);
             Preconditions.checkArgument(ARROW.equals(type) && !deletable);

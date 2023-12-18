@@ -18,15 +18,13 @@
 package org.apache.doris.flink.sink.batch;
 
 import org.apache.flink.annotation.VisibleForTesting;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 
-
-/**
- * buffer to queue
- */
+/** buffer to queue */
 public class BatchRecordBuffer {
     private static final Logger LOG = LoggerFactory.getLogger(BatchRecordBuffer.class);
     public static final String LINE_SEPARATOR = "\n";
@@ -39,7 +37,7 @@ public class BatchRecordBuffer {
     private String database;
     private String table;
 
-    public BatchRecordBuffer(){}
+    public BatchRecordBuffer() {}
 
     public BatchRecordBuffer(byte[] lineDelimiter, int bufferSize) {
         super();
@@ -57,7 +55,7 @@ public class BatchRecordBuffer {
 
     public void insert(byte[] record) {
         ensureCapacity(record.length);
-        if(loadBatchFirstRecord) {
+        if (loadBatchFirstRecord) {
             loadBatchFirstRecord = false;
         } else if (lineDelimiter != null) {
             this.buffer.put(this.lineDelimiter);
@@ -70,7 +68,7 @@ public class BatchRecordBuffer {
     @VisibleForTesting
     public void ensureCapacity(int length) {
         int lineDelimiterSize = this.lineDelimiter == null ? 0 : this.lineDelimiter.length;
-        if(buffer.remaining() - lineDelimiterSize >= length){
+        if (buffer.remaining() - lineDelimiterSize >= length) {
             return;
         }
         int currentRemain = buffer.remaining();
@@ -87,7 +85,12 @@ public class BatchRecordBuffer {
         tmp.put(buffer);
         buffer.clear();
         buffer = tmp;
-        LOG.info("record length {},buffer remain {} ,grow capacity {} to {}", length, currentRemain, currentCapacity, newCapacity);
+        LOG.info(
+                "record length {},buffer remain {} ,grow capacity {} to {}",
+                length,
+                currentRemain,
+                currentCapacity,
+                newCapacity);
     }
 
     public String getLabelName() {
@@ -98,21 +101,19 @@ public class BatchRecordBuffer {
         this.labelName = labelName;
     }
 
-    /**
-     * @return true if buffer is empty
-     */
+    /** @return true if buffer is empty */
     public boolean isEmpty() {
         return numOfRecords == 0;
     }
 
     public ByteBuffer getData() {
-        //change mode
+        // change mode
         buffer.flip();
-        LOG.debug("flush buffer: {} records, {} bytes",getNumOfRecords(),getBufferSizeBytes());
+        LOG.debug("flush buffer: {} records, {} bytes", getNumOfRecords(), getBufferSizeBytes());
         return buffer;
     }
 
-    public void clear(){
+    public void clear() {
         this.buffer.clear();
         this.numOfRecords = 0;
         this.bufferSizeBytes = 0;
@@ -120,33 +121,25 @@ public class BatchRecordBuffer {
         this.loadBatchFirstRecord = true;
     }
 
-    public ByteBuffer getBuffer(){
+    public ByteBuffer getBuffer() {
         return buffer;
     }
-    /**
-     * @return Number of records in this buffer
-     */
+    /** @return Number of records in this buffer */
     public int getNumOfRecords() {
         return numOfRecords;
     }
 
-    /**
-     * @return Buffer size in bytes
-     */
+    /** @return Buffer size in bytes */
     public int getBufferSizeBytes() {
         return bufferSizeBytes;
     }
 
-    /**
-     * @param numOfRecords Updates number of records (Usually by 1)
-     */
+    /** @param numOfRecords Updates number of records (Usually by 1) */
     public void setNumOfRecords(int numOfRecords) {
         this.numOfRecords = numOfRecords;
     }
 
-    /**
-     * @param bufferSizeBytes Updates sum of size of records present in this buffer (Bytes)
-     */
+    /** @param bufferSizeBytes Updates sum of size of records present in this buffer (Bytes) */
     public void setBufferSizeBytes(int bufferSizeBytes) {
         this.bufferSizeBytes = bufferSizeBytes;
     }

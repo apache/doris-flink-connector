@@ -18,17 +18,16 @@
 
 package org.apache.flink.table.runtime.arrow.serializers;
 
+import org.apache.flink.api.python.shaded.org.apache.arrow.memory.BufferAllocator;
 import org.apache.flink.api.python.shaded.org.apache.arrow.memory.RootAllocator;
+import org.apache.flink.api.python.shaded.org.apache.arrow.vector.VectorSchemaRoot;
+import org.apache.flink.api.python.shaded.org.apache.arrow.vector.ipc.ArrowStreamReader;
+import org.apache.flink.api.python.shaded.org.apache.arrow.vector.ipc.ArrowStreamWriter;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.arrow.ArrowReader;
 import org.apache.flink.table.runtime.arrow.ArrowUtils;
 import org.apache.flink.table.runtime.arrow.ArrowWriter;
 import org.apache.flink.table.types.logical.RowType;
-
-import org.apache.flink.api.python.shaded.org.apache.arrow.memory.BufferAllocator;
-import org.apache.flink.api.python.shaded.org.apache.arrow.vector.VectorSchemaRoot;
-import org.apache.flink.api.python.shaded.org.apache.arrow.vector.ipc.ArrowStreamReader;
-import org.apache.flink.api.python.shaded.org.apache.arrow.vector.ipc.ArrowStreamWriter;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -36,8 +35,9 @@ import java.io.OutputStream;
 
 /**
  * this code is copied from flink-python, and modified finishCurrentBatch to add end operation.
- * <p>
- * The base class ArrowSerializer which will serialize/deserialize RowType data to/from arrow bytes.
+ *
+ * <p>The base class ArrowSerializer which will serialize/deserialize RowType data to/from arrow
+ * bytes.
  */
 public final class ArrowSerializer {
 
