@@ -45,9 +45,7 @@ import java.util.List;
 import java.util.HashMap;
 import java.util.Map;
 
-
 public class DorisRowConverterTest implements Serializable {
-
     @Test
     public void testConvert() throws IOException {
         ResolvedSchema schema =
@@ -101,9 +99,9 @@ public class DorisRowConverterTest implements Serializable {
                         .setType("csv")
                         .setFieldDelimiter("|")
                         .setFieldNames(
-                                new String[] {
-                                    "f1", "f2", "f3", "f4", "f5", "f6", "f7", "f8", "f9", "f10",
-                                    "f11", "f12", "f13", "f14", "f15", "f16"
+                                new String[]{
+                                        "f1", "f2", "f3", "f4", "f5", "f6", "f7", "f8", "f9", "f10",
+                                        "f11", "f12", "f13", "f14", "f15", "f16"
                                 })
                         .build();
         String s = new String(serializer.serialize(rowData).getRow());
@@ -163,11 +161,12 @@ public class DorisRowConverterTest implements Serializable {
                 "[null, true, 1.2, 1.2345, 24, 10, 1, 32, 64, 128, 10.123, 2021-01-01 08:00:00.0, 2021-01-01 08:00:00.0, 2021-01-01, a, doris]",
                 row.toString());
     }
+
     @Test
     public void testMapInternalConvert() throws IOException {
-        
-        ResolvedSchema SCHEMA = getRowMapSchema();
-        DorisRowConverter converter = new DorisRowConverter((RowType) SCHEMA.toPhysicalRowDataType().getLogicalType());
+
+        ResolvedSchema schema = getRowMapSchema();
+        DorisRowConverter converter = new DorisRowConverter((RowType) schema.toPhysicalRowDataType().getLogicalType());
 
         LocalDateTime time1 = LocalDateTime.of(2021, 1, 1, 8, 0, 0);
         LocalDateTime time2 = LocalDateTime.of(2021, 1, 1, 8, 0, 0);
@@ -182,34 +181,31 @@ public class DorisRowConverterTest implements Serializable {
         Map<Integer, Integer> intMap = createMapAndPut(new HashMap<>(), 64, 64);
         Map<Long, Long> longMap = createMapAndPut(new HashMap<>(), 128L, 128L);
         Map<BigDecimal, BigDecimal> decimalMap = createMapAndPut(new HashMap<>(), BigDecimal.valueOf(10.123), BigDecimal.valueOf(10.123));
-        Map<LocalDateTime, LocalDateTime> timestampWithZoneMap= createMapAndPut(new HashMap<>(), time1, time1);
-        Map<LocalDateTime,LocalDateTime> timestampWithLocalZoneMap = createMapAndPut(new HashMap<>(), time2, time2);
-        Map<LocalDate, LocalDate> dateMap = createMapAndPut(new HashMap<>(), date1,  date1);
+        Map<LocalDateTime, LocalDateTime> timestampWithZoneMap = createMapAndPut(new HashMap<>(), time1, time1);
+        Map<LocalDateTime, LocalDateTime> timestampWithLocalZoneMap = createMapAndPut(new HashMap<>(), time2, time2);
+        Map<LocalDate, LocalDate> dateMap = createMapAndPut(new HashMap<>(), date1, date1);
         Map<Character, Character> charMap = createMapAndPut(new HashMap<>(), 'a', 'a');
         Map<String, String> stringMap = createMapAndPut(new HashMap<>(), "doris", "doris");
 
         List<Object> record = Arrays.asList(booleanMap, floatMap, doubleMap, intervalYearMap, intervalDayMap, tinyIntMap,
-                shortIntMap, intMap, longMap, decimalMap,timestampWithZoneMap, timestampWithLocalZoneMap, dateMap,charMap, stringMap);
+                shortIntMap, intMap, longMap, decimalMap, timestampWithZoneMap, timestampWithLocalZoneMap, dateMap, charMap, stringMap);
         GenericRowData rowData = converter.convertInternal(record);
 
         RowDataSerializer serializer = new Builder()
-                .setFieldType(SCHEMA.getColumnDataTypes().toArray(new DataType[0]))
+                .setFieldType(schema.getColumnDataTypes().toArray(new DataType[0]))
                 .setType("csv")
                 .setFieldDelimiter("|")
-                .setFieldNames(new String[]{"f1","f2","f3","f4","f5","f6","f7","f8","f9","f10","f11","f12","f13","f14","f15"})
+                .setFieldNames(new String[]{"f1", "f2", "f3", "f4", "f5", "f6", "f7", "f8", "f9", "f10", "f11", "f12", "f13", "f14", "f15"})
                 .build();
         String s = new String(serializer.serialize(rowData).getRow());
         Assert.assertEquals("{\"true\":\"false\"}|{\"1.2\":\"1.3\"}|{\"1.2345\":\"1.2345\"}|{\"24\":\"24\"}|{\"10\":\"10\"}|{\"1\":\"1\"}|{\"32\":\"32\"}|{\"64\":\"64\"}|{\"128\":\"128\"}|{\"10.12\":\"10.12\"}|{\"2021-01-01T08:00\":\"2021-01-01T08:00\"}|{\"2021-01-01T08:00\":\"2021-01-01T08:00\"}|{\"2021-01-01\":\"2021-01-01\"}|{\"a\":\"a\"}|{\"doris\":\"doris\"}", s);
-
-
-
     }
 
     @Test
-    public void testMapExternalConvert(){
+    public void testMapExternalConvert() {
 
-        ResolvedSchema SCHEMA = getRowMapSchema();
-        DorisRowConverter converter = new DorisRowConverter((RowType) SCHEMA.toPhysicalRowDataType().getLogicalType());
+        ResolvedSchema schema = getRowMapSchema();
+        DorisRowConverter converter = new DorisRowConverter((RowType) schema.toPhysicalRowDataType().getLogicalType());
 
         LocalDateTime time1 = LocalDateTime.of(2021, 1, 1, 8, 0, 0);
         LocalDateTime time2 = LocalDateTime.of(2021, 1, 1, 8, 0, 0);
@@ -227,9 +223,9 @@ public class DorisRowConverterTest implements Serializable {
         Map<BigDecimal, BigDecimal> decimalMap = createMapAndPut(new HashMap<>(), BigDecimal.valueOf(10.123), BigDecimal.valueOf(10.123));
         Map<TimestampData, TimestampData> timestampWithZoneMap = createMapAndPut(new HashMap<>(), TimestampData.fromLocalDateTime(time1), TimestampData.fromLocalDateTime(time1));
         Map<TimestampData, TimestampData> timestampWithLocalZoneMap = createMapAndPut(new HashMap<>(), TimestampData.fromLocalDateTime(time2), TimestampData.fromLocalDateTime(time2));
-        Map<Integer,Integer> dateMap = createMapAndPut(new HashMap<>(), (int) date1.toEpochDay(),(int) date1.toEpochDay());
-        Map<Character,Character> charMap = createMapAndPut(new HashMap<>(), 'a','a');
-        Map<String,String> stringMap = createMapAndPut(new HashMap<>(), "doris","doris");
+        Map<Integer, Integer> dateMap = createMapAndPut(new HashMap<>(), (int) date1.toEpochDay(), (int) date1.toEpochDay());
+        Map<Character, Character> charMap = createMapAndPut(new HashMap<>(), 'a', 'a');
+        Map<String, String> stringMap = createMapAndPut(new HashMap<>(), "doris", "doris");
         GenericRowData rowData = GenericRowData.of(
                 new GenericMapData(booleanMap),
                 new GenericMapData(floatMap),
@@ -256,14 +252,14 @@ public class DorisRowConverterTest implements Serializable {
     }
 
     /**
-     * generate map data
+     * generate map data.
      */
     public static <K, V> Map<K, V> createMapAndPut(Map<K, V> map, K key, V value) {
         map.put(key, value);
         return map;
     }
 
-    public static ResolvedSchema getRowMapSchema(){
+    public static ResolvedSchema getRowMapSchema() {
         return
                 ResolvedSchema.of(
                         Column.physical("f1", DataTypes.MAP(DataTypes.BOOLEAN(), DataTypes.BOOLEAN())),
