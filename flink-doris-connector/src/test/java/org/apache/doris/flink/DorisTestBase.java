@@ -49,8 +49,8 @@ public abstract class DorisTestBase {
     protected static final String DORIS_12_DOCKER_IMAGE = "adamlee489/doris:1.2.7.1_x86";
     private static final String DRIVER_JAR =
             "https://repo1.maven.org/maven2/mysql/mysql-connector-java/8.0.16/mysql-connector-java-8.0.16.jar";
-    private static final String DRIVER_CLASS = "com.mysql.cj.jdbc.Driver";
-    private static final String URL = "jdbc:mysql://%s:9030";
+    protected static final String DRIVER_CLASS = "com.mysql.cj.jdbc.Driver";
+    protected static final String URL = "jdbc:mysql://%s:9030";
     protected static final String USERNAME = "root";
     protected static final String PASSWORD = "";
     protected static final GenericContainer DORIS_CONTAINER = createDorisContainer();
