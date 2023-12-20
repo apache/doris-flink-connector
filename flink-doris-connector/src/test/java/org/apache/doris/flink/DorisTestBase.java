@@ -42,11 +42,11 @@ import java.util.concurrent.locks.LockSupport;
 import java.util.stream.Stream;
 
 import static org.awaitility.Awaitility.given;
+import static org.awaitility.Durations.ONE_SECOND;
 
 public abstract class DorisTestBase {
     protected static final Logger LOG = LoggerFactory.getLogger(DorisTestBase.class);
-    // protected static final String DORIS_12_DOCKER_IMAGE = "adamlee489/doris:1.2.7.1_arm";
-    protected static final String DORIS_12_DOCKER_IMAGE = "adamlee489/doris:1.2.7.1_x86";
+    protected static final String DORIS_12_DOCKER_IMAGE = "adamlee489/doris:2.0.3";
     private static final String DRIVER_JAR =
             "https://repo1.maven.org/maven2/mysql/mysql-connector-java/8.0.16/mysql-connector-java-8.0.16.jar";
     protected static final String DRIVER_CLASS = "com.mysql.cj.jdbc.Driver";
@@ -68,6 +68,7 @@ public abstract class DorisTestBase {
         given().ignoreExceptions()
                 .await()
                 .atMost(120, TimeUnit.SECONDS)
+                .pollInterval(ONE_SECOND)
                 .untilAsserted(DorisTestBase::initializeJdbcConnection);
         LOG.info("Containers are started.");
     }
@@ -126,10 +127,10 @@ public abstract class DorisTestBase {
     }
 
     private static boolean isBeReady(ResultSet rs, Duration duration) throws SQLException {
+        LockSupport.parkNanos(duration.toNanos());
         if (rs.next()) {
-            String isAlive = rs.getString(10).trim();
-            String totalCap = rs.getString(16).trim();
-            LockSupport.parkNanos(duration.toNanos());
+            String isAlive = rs.getString("Alive").trim();
+            String totalCap = rs.getString("TotalCapacity").trim();
             return "true".equalsIgnoreCase(isAlive) && !"0.000".equalsIgnoreCase(totalCap);
         }
         return false;
