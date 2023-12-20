@@ -69,11 +69,11 @@ public class DorisRowConverterTest implements Serializable {
 
         DorisRowConverter converter =
                 new DorisRowConverter((RowType) schema.toPhysicalRowDataType().getLogicalType());
-
-        LocalDateTime time1 = LocalDateTime.of(2021, 1, 1, 8, 0, 0);
-        LocalDateTime time2 = LocalDateTime.of(2021, 1, 1, 8, 0, 0);
+        // Doris DatetimeV2 supports up to 6 decimal places (microseconds).
+        LocalDateTime time1 = LocalDateTime.of(2021, 1, 1, 8, 1, 1, 1000);
+        LocalDateTime time2 = LocalDateTime.of(2021, 1, 1, 8, 1, 1, 1000);
         LocalDate date1 = LocalDate.of(2021, 1, 1);
-        List record =
+        List<Object> record =
                 Arrays.asList(
                         null,
                         true,
@@ -106,7 +106,7 @@ public class DorisRowConverterTest implements Serializable {
                         .build();
         String s = new String(serializer.serialize(rowData).getRow());
         Assert.assertEquals(
-                "\\N|true|1.2|1.2345|24|10|1|32|64|128|10.12|2021-01-01 08:00:00.0|2021-01-01 08:00:00.0|2021-01-01|a|doris",
+                "\\N|true|1.2|1.2345|24|10|1|32|64|128|10.12|2021-01-01 08:01:01.000001|2021-01-01 08:01:01.000001|2021-01-01|a|doris",
                 s);
     }
 
@@ -132,8 +132,9 @@ public class DorisRowConverterTest implements Serializable {
                         Column.physical("f16", DataTypes.VARCHAR(256)));
         DorisRowConverter converter =
                 new DorisRowConverter((RowType) schema.toPhysicalRowDataType().getLogicalType());
-        LocalDateTime time1 = LocalDateTime.of(2021, 1, 1, 8, 0, 0);
-        LocalDateTime time2 = LocalDateTime.of(2021, 1, 1, 8, 0, 0);
+        // Doris DatetimeV2 supports up to 6 decimal places (microseconds).
+        LocalDateTime time1 = LocalDateTime.of(2021, 1, 1, 8, 1, 1, 1000);
+        LocalDateTime time2 = LocalDateTime.of(2021, 1, 1, 8, 1, 1, 1000);
         LocalDate date1 = LocalDate.of(2021, 1, 1);
         GenericRowData rowData =
                 GenericRowData.of(
@@ -153,12 +154,12 @@ public class DorisRowConverterTest implements Serializable {
                         (int) date1.toEpochDay(),
                         StringData.fromString("a"),
                         StringData.fromString("doris"));
-        List row = new ArrayList();
+        List<Object> row = new ArrayList<>();
         for (int i = 0; i < rowData.getArity(); i++) {
             row.add(converter.convertExternal(rowData, i));
         }
         Assert.assertEquals(
-                "[null, true, 1.2, 1.2345, 24, 10, 1, 32, 64, 128, 10.123, 2021-01-01 08:00:00.0, 2021-01-01 08:00:00.0, 2021-01-01, a, doris]",
+                "[null, true, 1.2, 1.2345, 24, 10, 1, 32, 64, 128, 10.123, 2021-01-01 08:01:01.000001, 2021-01-01 08:01:01.000001, 2021-01-01, a, doris]",
                 row.toString());
     }
 
@@ -228,7 +229,7 @@ public class DorisRowConverterTest implements Serializable {
                         .build();
         String s = new String(serializer.serialize(rowData).getRow());
         Assert.assertEquals(
-                "{\"true\":\"false\"}|{\"1.2\":\"1.3\"}|{\"1.2345\":\"1.2345\"}|{\"24\":\"24\"}|{\"10\":\"10\"}|{\"1\":\"1\"}|{\"32\":\"32\"}|{\"64\":\"64\"}|{\"128\":\"128\"}|{\"10.12\":\"10.12\"}|{\"2021-01-01T08:01:01.000001\":\"2021-01-01T08:01:01.000001\"}|{\"2021-01-01T08:01:01.000001\":\"2021-01-01T08:01:01.000001\"}|{\"2021-01-01 08:01:01.000001\":\"2021-01-01 08:01:01.000001\"}|{\"2021-01-01\":\"2021-01-01\"}|{\"a\":\"a\"}|{\"doris\":\"doris\"}",
+                "{\"true\":\"false\"}|{\"1.2\":\"1.3\"}|{\"1.2345\":\"1.2345\"}|{\"24\":\"24\"}|{\"10\":\"10\"}|{\"1\":\"1\"}|{\"32\":\"32\"}|{\"64\":\"64\"}|{\"128\":\"128\"}|{\"10.12\":\"10.12\"}|{\"2021-01-01 08:01:01.000001\":\"2021-01-01 08:01:01.000001\"}|{\"2021-01-01 08:01:01.000001\":\"2021-01-01 08:01:01.000001\"}|{\"2021-01-01 08:01:01.000001\":\"2021-01-01 08:01:01.000001\"}|{\"2021-01-01\":\"2021-01-01\"}|{\"a\":\"a\"}|{\"doris\":\"doris\"}",
                 s);
     }
 
@@ -300,7 +301,7 @@ public class DorisRowConverterTest implements Serializable {
             row.add(converter.convertExternal(rowData, i));
         }
         Assert.assertEquals(
-                "[{\"true\":\"false\"}, {\"1.2\":\"1.3\"}, {\"1.2345\":\"1.2345\"}, {\"24\":\"24\"}, {\"10\":\"10\"}, {\"1\":\"1\"}, {\"32\":\"32\"}, {\"64\":\"64\"}, {\"128\":\"128\"}, {\"10.123\":\"10.123\"}, {\"2021-01-01T08:01:01.000001\":\"2021-01-01T08:01:01.000001\"}, {\"2021-01-01T08:01:01.000001\":\"2021-01-01T08:01:01.000001\"}, {\"2021-01-01 08:01:01.000001\":\"2021-01-01 08:01:01.000001\"}, {\"2021-01-01\":\"2021-01-01\"}, {\"a\":\"a\"}, {\"doris\":\"doris\"}]",
+                "[{\"true\":\"false\"}, {\"1.2\":\"1.3\"}, {\"1.2345\":\"1.2345\"}, {\"24\":\"24\"}, {\"10\":\"10\"}, {\"1\":\"1\"}, {\"32\":\"32\"}, {\"64\":\"64\"}, {\"128\":\"128\"}, {\"10.123\":\"10.123\"}, {\"2021-01-01 08:01:01.000001\":\"2021-01-01 08:01:01.000001\"}, {\"2021-01-01 08:01:01.000001\":\"2021-01-01 08:01:01.000001\"}, {\"2021-01-01 08:01:01.000001\":\"2021-01-01 08:01:01.000001\"}, {\"2021-01-01\":\"2021-01-01\"}, {\"a\":\"a\"}, {\"doris\":\"doris\"}]",
                 row.toString());
     }
 
