@@ -398,7 +398,7 @@ public class DorisRowConverter implements Serializable {
         } else if (LogicalTypeRoot.ARRAY.equals(logicalType.getTypeRoot())) {
             return convertArrayData((ArrayData) originValue, logicalType);
         } else if (LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE.equals(logicalType.getTypeRoot())) {
-            return (((TimestampData) originValue).toTimestamp()).toString();
+            return ((TimestampData) originValue).toTimestamp().toString();
         } else if (originValue instanceof TimestampData) {
             return ((TimestampData) originValue).toString();
         } else {

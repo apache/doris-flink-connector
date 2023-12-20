@@ -168,9 +168,10 @@ public class DorisRowConverterTest implements Serializable {
         ResolvedSchema schema = getRowMapSchema();
         DorisRowConverter converter =
                 new DorisRowConverter((RowType) schema.toPhysicalRowDataType().getLogicalType());
-
-        LocalDateTime time1 = LocalDateTime.of(2021, 1, 1, 8, 0, 0);
-        LocalDateTime time2 = LocalDateTime.of(2021, 1, 1, 8, 0, 0);
+        // Doris DatetimeV2 supports up to 6 decimal places (microseconds).
+        LocalDateTime time1 = LocalDateTime.of(2021, 1, 1, 8, 1, 1, 1000);
+        LocalDateTime time2 = LocalDateTime.of(2021, 1, 1, 8, 1, 1, 1000);
+        LocalDateTime time3 = LocalDateTime.of(2021, 1, 1, 8, 1, 1, 1000);
         LocalDate date1 = LocalDate.of(2021, 1, 1);
         Map<Boolean, Boolean> booleanMap = createMapAndPut(new HashMap<>(), true, false);
         Map<Float, Float> floatMap = createMapAndPut(new HashMap<>(), 1.2f, 1.3f);
@@ -188,6 +189,8 @@ public class DorisRowConverterTest implements Serializable {
                 createMapAndPut(new HashMap<>(), time1, time1);
         Map<LocalDateTime, LocalDateTime> timestampWithLocalZoneMap =
                 createMapAndPut(new HashMap<>(), time2, time2);
+        Map<LocalDateTime, LocalDateTime> timestampNoLTZ =
+                createMapAndPut(new HashMap<>(), time3, time3);
         Map<LocalDate, LocalDate> dateMap = createMapAndPut(new HashMap<>(), date1, date1);
         Map<Character, Character> charMap = createMapAndPut(new HashMap<>(), 'a', 'a');
         Map<String, String> stringMap = createMapAndPut(new HashMap<>(), "doris", "doris");
@@ -206,6 +209,7 @@ public class DorisRowConverterTest implements Serializable {
                         decimalMap,
                         timestampWithZoneMap,
                         timestampWithLocalZoneMap,
+                        timestampNoLTZ,
                         dateMap,
                         charMap,
                         stringMap);
@@ -219,12 +223,12 @@ public class DorisRowConverterTest implements Serializable {
                         .setFieldNames(
                                 new String[] {
                                     "f1", "f2", "f3", "f4", "f5", "f6", "f7", "f8", "f9", "f10",
-                                    "f11", "f12", "f13", "f14", "f15"
+                                    "f11", "f12", "f13", "f14", "f15", "f16"
                                 })
                         .build();
         String s = new String(serializer.serialize(rowData).getRow());
         Assert.assertEquals(
-                "{\"true\":\"false\"}|{\"1.2\":\"1.3\"}|{\"1.2345\":\"1.2345\"}|{\"24\":\"24\"}|{\"10\":\"10\"}|{\"1\":\"1\"}|{\"32\":\"32\"}|{\"64\":\"64\"}|{\"128\":\"128\"}|{\"10.12\":\"10.12\"}|{\"2021-01-01T08:00\":\"2021-01-01T08:00\"}|{\"2021-01-01T08:00\":\"2021-01-01T08:00\"}|{\"2021-01-01\":\"2021-01-01\"}|{\"a\":\"a\"}|{\"doris\":\"doris\"}",
+                "{\"true\":\"false\"}|{\"1.2\":\"1.3\"}|{\"1.2345\":\"1.2345\"}|{\"24\":\"24\"}|{\"10\":\"10\"}|{\"1\":\"1\"}|{\"32\":\"32\"}|{\"64\":\"64\"}|{\"128\":\"128\"}|{\"10.12\":\"10.12\"}|{\"2021-01-01T08:01:01.000001\":\"2021-01-01T08:01:01.000001\"}|{\"2021-01-01T08:01:01.000001\":\"2021-01-01T08:01:01.000001\"}|{\"2021-01-01 08:01:01.000001\":\"2021-01-01 08:01:01.000001\"}|{\"2021-01-01\":\"2021-01-01\"}|{\"a\":\"a\"}|{\"doris\":\"doris\"}",
                 s);
     }
 
@@ -234,9 +238,10 @@ public class DorisRowConverterTest implements Serializable {
         ResolvedSchema schema = getRowMapSchema();
         DorisRowConverter converter =
                 new DorisRowConverter((RowType) schema.toPhysicalRowDataType().getLogicalType());
-
-        LocalDateTime time1 = LocalDateTime.of(2021, 1, 1, 8, 0, 0);
-        LocalDateTime time2 = LocalDateTime.of(2021, 1, 1, 8, 0, 0);
+        // Doris DatetimeV2 supports up to 6 decimal places (microseconds).
+        LocalDateTime time1 = LocalDateTime.of(2021, 1, 1, 8, 1, 1, 1000);
+        LocalDateTime time2 = LocalDateTime.of(2021, 1, 1, 8, 1, 1, 1000);
+        LocalDateTime time3 = LocalDateTime.of(2021, 1, 1, 8, 1, 1, 1000);
         LocalDate date1 = LocalDate.of(2021, 1, 1);
 
         Map<Boolean, Boolean> booleanMap = createMapAndPut(new HashMap<>(), true, false);
@@ -261,6 +266,11 @@ public class DorisRowConverterTest implements Serializable {
                         new HashMap<>(),
                         TimestampData.fromLocalDateTime(time2),
                         TimestampData.fromLocalDateTime(time2));
+        Map<TimestampData, TimestampData> timestampNoLTZ =
+                createMapAndPut(
+                        new HashMap<>(),
+                        TimestampData.fromLocalDateTime(time3),
+                        TimestampData.fromLocalDateTime(time3));
         Map<Integer, Integer> dateMap =
                 createMapAndPut(
                         new HashMap<>(), (int) date1.toEpochDay(), (int) date1.toEpochDay());
@@ -280,6 +290,7 @@ public class DorisRowConverterTest implements Serializable {
                         new GenericMapData(decimalMap),
                         new GenericMapData(timestampWithZoneMap),
                         new GenericMapData(timestampWithLocalZoneMap),
+                        new GenericMapData(timestampNoLTZ),
                         new GenericMapData(dateMap),
                         new GenericMapData(charMap),
                         new GenericMapData(stringMap));
@@ -289,7 +300,7 @@ public class DorisRowConverterTest implements Serializable {
             row.add(converter.convertExternal(rowData, i));
         }
         Assert.assertEquals(
-                "[{\"true\":\"false\"}, {\"1.2\":\"1.3\"}, {\"1.2345\":\"1.2345\"}, {\"24\":\"24\"}, {\"10\":\"10\"}, {\"1\":\"1\"}, {\"32\":\"32\"}, {\"64\":\"64\"}, {\"128\":\"128\"}, {\"10.123\":\"10.123\"}, {\"2021-01-01T08:00\":\"2021-01-01T08:00\"}, {\"2021-01-01T08:00\":\"2021-01-01T08:00\"}, {\"2021-01-01\":\"2021-01-01\"}, {\"a\":\"a\"}, {\"doris\":\"doris\"}]",
+                "[{\"true\":\"false\"}, {\"1.2\":\"1.3\"}, {\"1.2345\":\"1.2345\"}, {\"24\":\"24\"}, {\"10\":\"10\"}, {\"1\":\"1\"}, {\"32\":\"32\"}, {\"64\":\"64\"}, {\"128\":\"128\"}, {\"10.123\":\"10.123\"}, {\"2021-01-01T08:01:01.000001\":\"2021-01-01T08:01:01.000001\"}, {\"2021-01-01T08:01:01.000001\":\"2021-01-01T08:01:01.000001\"}, {\"2021-01-01 08:01:01.000001\":\"2021-01-01 08:01:01.000001\"}, {\"2021-01-01\":\"2021-01-01\"}, {\"a\":\"a\"}, {\"doris\":\"doris\"}]",
                 row.toString());
     }
 
@@ -330,9 +341,10 @@ public class DorisRowConverterTest implements Serializable {
                         DataTypes.MAP(
                                 DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(),
                                 DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE())),
-                Column.physical("f13", DataTypes.MAP(DataTypes.DATE(), DataTypes.DATE())),
-                Column.physical("f14", DataTypes.MAP(DataTypes.CHAR(1), DataTypes.CHAR(1))),
+                Column.physical("f13", DataTypes.MAP(DataTypes.TIMESTAMP(), DataTypes.TIMESTAMP())),
+                Column.physical("f14", DataTypes.MAP(DataTypes.DATE(), DataTypes.DATE())),
+                Column.physical("f15", DataTypes.MAP(DataTypes.CHAR(1), DataTypes.CHAR(1))),
                 Column.physical(
-                        "f15", DataTypes.MAP(DataTypes.VARCHAR(256), DataTypes.VARCHAR(256))));
+                        "f16", DataTypes.MAP(DataTypes.VARCHAR(256), DataTypes.VARCHAR(256))));
     }
 }
