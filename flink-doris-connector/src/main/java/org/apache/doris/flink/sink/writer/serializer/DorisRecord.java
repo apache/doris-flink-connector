@@ -21,7 +21,7 @@ import java.io.Serializable;
 
 public class DorisRecord implements Serializable {
 
-    public static DorisRecord EMPTY = new DorisRecord();
+    public static DorisRecord empty = new DorisRecord();
 
     private String database;
     private String table;

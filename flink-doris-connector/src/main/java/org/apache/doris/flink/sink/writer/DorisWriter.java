@@ -68,7 +68,7 @@ public class DorisWriter<IN>
     private final long lastCheckpointId;
     private long curCheckpointId;
     private Map<String, DorisStreamLoad> dorisStreamLoadMap = new ConcurrentHashMap<>();
-    private Map<String, LabelGenerator> labelGeneratorMap = new ConcurrentHashMap<>();;
+    private Map<String, LabelGenerator> labelGeneratorMap = new ConcurrentHashMap<>();
     volatile boolean globalLoading;
     private Map<String, Boolean> loadingMap = new ConcurrentHashMap<>();
     private final DorisOptions dorisOptions;
@@ -283,7 +283,7 @@ public class DorisWriter<IN>
                                 new HttpUtil().getHttpClient()));
     }
 
-    /** Check the streamload http request regularly */
+    /** Check the streamload http request regularly. */
     private void checkDone() {
         for (Map.Entry<String, DorisStreamLoad> streamLoadMap : dorisStreamLoadMap.entrySet()) {
             checkAllDone(streamLoadMap.getKey(), streamLoadMap.getValue());

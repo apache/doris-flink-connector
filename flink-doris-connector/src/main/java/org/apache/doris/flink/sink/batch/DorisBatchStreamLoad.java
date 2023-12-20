@@ -67,7 +67,7 @@ import static org.apache.doris.flink.sink.writer.LoadConstants.FORMAT_KEY;
 import static org.apache.doris.flink.sink.writer.LoadConstants.LINE_DELIMITER_DEFAULT;
 import static org.apache.doris.flink.sink.writer.LoadConstants.LINE_DELIMITER_KEY;
 
-/** async stream load */
+/** async stream load. */
 public class DorisBatchStreamLoad implements Serializable {
     private static final long serialVersionUID = 1L;
     private static final Logger LOG = LoggerFactory.getLogger(DorisBatchStreamLoad.class);
@@ -255,7 +255,7 @@ public class DorisBatchStreamLoad implements Serializable {
             loadThreadAlive = false;
         }
 
-        /** execute stream load */
+        /** execute stream load. */
         public void load(String label, BatchRecordBuffer buffer) throws IOException {
             refreshLoadUrl(buffer.getDatabase(), buffer.getTable());
             ByteBuffer data = buffer.getData();

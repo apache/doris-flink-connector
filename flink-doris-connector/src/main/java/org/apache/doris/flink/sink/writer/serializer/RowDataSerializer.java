@@ -105,7 +105,7 @@ public class RowDataSerializer implements DorisRecordSerializer<RowData> {
             arrowWriteCnt += 1;
             arrowSerializer.write(record);
             if (arrowWriteCnt < arrowBatchCnt) {
-                return DorisRecord.EMPTY;
+                return DorisRecord.empty;
             }
             return arrowToDorisRecord();
         } else {
@@ -117,7 +117,7 @@ public class RowDataSerializer implements DorisRecordSerializer<RowData> {
     @Override
     public DorisRecord flush() {
         if (JSON.equals(type) || CSV.equals(type)) {
-            return DorisRecord.EMPTY;
+            return DorisRecord.empty;
         } else if (ARROW.equals(type)) {
             return arrowToDorisRecord();
         } else {
@@ -134,7 +134,7 @@ public class RowDataSerializer implements DorisRecordSerializer<RowData> {
 
     public DorisRecord arrowToDorisRecord() {
         if (arrowWriteCnt == 0) {
-            return DorisRecord.EMPTY;
+            return DorisRecord.empty;
         }
         arrowWriteCnt = 0;
         try {
@@ -146,7 +146,7 @@ public class RowDataSerializer implements DorisRecordSerializer<RowData> {
         } catch (Exception e) {
             LOG.error("Failed to convert arrow batch:", e);
         }
-        return DorisRecord.EMPTY;
+        return DorisRecord.empty;
     }
 
     public String buildJsonString(RowData record, int maxIndex) throws IOException {

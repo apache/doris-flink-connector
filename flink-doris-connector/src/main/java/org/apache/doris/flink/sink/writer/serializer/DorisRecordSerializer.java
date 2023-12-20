@@ -39,7 +39,7 @@ public interface DorisRecordSerializer<T> extends Serializable {
     default void initial() {}
 
     default DorisRecord flush() {
-        return DorisRecord.EMPTY;
+        return DorisRecord.empty;
     }
 
     default void close() throws Exception {}

@@ -24,7 +24,7 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 
-/** buffer to queue */
+/** buffer to queue. */
 public class BatchRecordBuffer {
     private static final Logger LOG = LoggerFactory.getLogger(BatchRecordBuffer.class);
     public static final String LINE_SEPARATOR = "\n";
@@ -124,6 +124,7 @@ public class BatchRecordBuffer {
     public ByteBuffer getBuffer() {
         return buffer;
     }
+
     /** @return Number of records in this buffer */
     public int getNumOfRecords() {
         return numOfRecords;
