@@ -103,7 +103,7 @@ public class MySQLDorisE2ECase extends DorisTestBase {
                                 Arrays.asList("doris_3", 3))
                         .collect(Collectors.toSet());
         String sql =
-                "select * from ( select * from %s.%s union all select * from %s.%s union all select * from %s.%s ) res order by 1,2";
+                "select * from ( select * from %s.%s union all select * from %s.%s union all select * from %s.%s ) res order by 1";
         checkResult(expected, sql, 2);
 
         // add incremental data
