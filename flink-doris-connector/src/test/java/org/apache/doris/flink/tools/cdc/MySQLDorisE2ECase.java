@@ -103,7 +103,7 @@ public class MySQLDorisE2ECase extends DorisTestBase {
                                 Arrays.asList("doris_3", 3))
                         .collect(Collectors.toSet());
         String sql =
-                "select * from %s.%s union all select * from %s.%s union all select * from %s.%s order by 1";
+                "select * from ( select * from %s.%s union all select * from %s.%s union all select * from %s.%s ) res order by 1,2";
         checkResult(expected, sql, 2);
 
         // add incremental data
@@ -135,7 +135,7 @@ public class MySQLDorisE2ECase extends DorisTestBase {
                                 Arrays.asList("doris_3_1", 12))
                         .collect(Collectors.toSet());
         sql =
-                "select * from %s.%s union all select * from %s.%s union all select * from %s.%s order by 1";
+                "select * from ( select * from %s.%s union all select * from %s.%s union all select * from %s.%s ) res order by 1";
         checkResult(expected2, sql, 2);
 
         // mock schema change
