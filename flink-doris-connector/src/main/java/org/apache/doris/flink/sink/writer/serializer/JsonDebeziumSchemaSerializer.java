@@ -24,6 +24,10 @@ import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.NullNode;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
+import org.apache.doris.flink.sink.writer.serializer.jsondebezium.JsonDebeziumDataChange;
+import org.apache.doris.flink.sink.writer.serializer.jsondebezium.JsonDebeziumSchemaChange;
+import org.apache.doris.flink.sink.writer.serializer.jsondebezium.JsonDebeziumSchemaChangeImpl;
+import org.apache.doris.flink.sink.writer.serializer.jsondebezium.JsonDebeziumSchemaChangeImplV2;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,7 +55,7 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
     // create table properties
     private Map<String, String> tableProperties;
     private String targetDatabase;
-    private JsonDebeziumRecord jsonDebeziumRecord;
+    private JsonDebeziumDataChange dataChange;
     private JsonDebeziumSchemaChange schemaChange;
 
     public JsonDebeziumSchemaSerializer(
@@ -114,8 +118,8 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
                                 objectMapper)
                         : new JsonDebeziumSchemaChangeImpl(
                                 dorisOptions, sourceTableName, tableMapping, objectMapper, pattern);
-        this.jsonDebeziumRecord =
-                new JsonDebeziumRecord(
+        this.dataChange =
+                new JsonDebeziumDataChange(
                         dorisOptions,
                         tableMapping,
                         ignoreUpdateBefore,
@@ -138,7 +142,7 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
             schemaChange.init(recordRoot);
             firstLoad = false;
         }
-        return jsonDebeziumRecord.serialize2DorisRecord(record, recordRoot, op);
+        return dataChange.serialize(record, recordRoot, op);
     }
 
     private String extractJsonNode(JsonNode record, String key) {

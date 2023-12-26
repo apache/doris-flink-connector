@@ -35,7 +35,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
-public class TestJsonDebeziumSchemaSerializerBase {
+public class TestJsonDebeziumSchemaSerializer {
 
     protected static DorisOptions dorisOptions;
     protected Map<String, String> tableMapping = new HashMap<>();
@@ -64,7 +64,7 @@ public class TestJsonDebeziumSchemaSerializerBase {
     }
 
     @Test
-    public void testJsonDebeziumRecord() throws IOException {
+    public void testJsonDebeziumDataChange() throws IOException {
         // insert into t1
         // VALUES(1,"doris",'2022-01-01','2022-01-01 10:01:02','2022-01-0110:01:03');
         String record =

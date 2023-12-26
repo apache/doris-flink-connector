@@ -23,7 +23,7 @@ import org.apache.doris.flink.exception.DorisException;
 import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.rest.models.Field;
 import org.apache.doris.flink.rest.models.Schema;
-import org.apache.doris.flink.sink.writer.serializer.JsonDebeziumSchemaChangeImpl;
+import org.apache.doris.flink.sink.writer.serializer.jsondebezium.JsonDebeziumSchemaChangeImpl;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Ignore;
@@ -34,7 +34,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.List;
 
-public class TestJsonDebeziumSchemaChangeImpl extends TestJsonDebeziumSchemaSerializerBase {
+public class TestJsonDebeziumSchemaChangeImpl extends TestJsonDebeziumSchemaSerializer {
 
     private static final Logger LOG =
             LoggerFactory.getLogger(TestJsonDebeziumSchemaChangeImpl.class);

@@ -22,7 +22,7 @@ import com.google.common.collect.Maps;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.doris.flink.catalog.doris.FieldSchema;
 import org.apache.doris.flink.catalog.doris.TableSchema;
-import org.apache.doris.flink.sink.writer.serializer.JsonDebeziumSchemaChangeImplV2;
+import org.apache.doris.flink.sink.writer.serializer.jsondebezium.JsonDebeziumSchemaChangeImplV2;
 import org.apache.doris.flink.tools.cdc.SourceConnector;
 import org.junit.Assert;
 import org.junit.Before;
@@ -37,7 +37,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-public class TestJsonDebeziumSchemaChangeImplV2 extends TestJsonDebeziumSchemaSerializerBase {
+public class TestJsonDebeziumSchemaChangeImplV2 extends TestJsonDebeziumSchemaSerializer {
 
     private JsonDebeziumSchemaChangeImplV2 schemaChange;
 

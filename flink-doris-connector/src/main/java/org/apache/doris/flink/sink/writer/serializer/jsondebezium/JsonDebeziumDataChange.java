@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.flink.sink.writer.serializer;
+package org.apache.doris.flink.sink.writer.serializer.jsondebezium;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.CollectionUtil;
@@ -27,6 +27,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.NullNode;
 import org.apache.doris.flink.cfg.DorisOptions;
+import org.apache.doris.flink.sink.writer.serializer.DorisRecord;
 import org.apache.doris.flink.tools.cdc.SourceSchema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,8 +40,8 @@ import java.util.Map;
 
 import static org.apache.doris.flink.sink.util.DeleteOperation.addDeleteSign;
 
-public class JsonDebeziumRecord implements Serializable {
-    private static final Logger LOG = LoggerFactory.getLogger(JsonDebeziumRecord.class);
+public class JsonDebeziumDataChange implements Serializable {
+    private static final Logger LOG = LoggerFactory.getLogger(JsonDebeziumDataChange.class);
 
     private static final String OP_READ = "r"; // snapshot read
     private static final String OP_CREATE = "c"; // insert
@@ -52,7 +53,7 @@ public class JsonDebeziumRecord implements Serializable {
     private final boolean ignoreUpdateBefore;
     private final String lineDelimiter;
 
-    public JsonDebeziumRecord(
+    public JsonDebeziumDataChange(
             DorisOptions dorisOptions,
             Map<String, String> tableMapping,
             boolean ignoreUpdateBefore,
@@ -65,8 +66,7 @@ public class JsonDebeziumRecord implements Serializable {
         this.lineDelimiter = lineDelimiter;
     }
 
-    public DorisRecord serialize2DorisRecord(String record, JsonNode recordRoot, String op)
-            throws IOException {
+    public DorisRecord serialize(String record, JsonNode recordRoot, String op) throws IOException {
         // Filter out table records that are not in tableMapping
         String cdcTableIdentifier = getCdcTableIdentifier(recordRoot);
         String dorisTableIdentifier = getDorisTableIdentifier(cdcTableIdentifier);
@@ -162,10 +162,5 @@ public class JsonDebeziumRecord implements Serializable {
         Map<String, Object> recordMap =
                 objectMapper.convertValue(recordRow, new TypeReference<Map<String, Object>>() {});
         return recordMap != null ? recordMap : new HashMap<>();
-    }
-
-    @VisibleForTesting
-    public void setTableMapping(Map<String, String> tableMapping) {
-        this.tableMapping = tableMapping;
     }
 }
