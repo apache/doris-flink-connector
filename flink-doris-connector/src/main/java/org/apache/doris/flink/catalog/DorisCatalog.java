@@ -246,7 +246,7 @@ public class DorisCatalog extends AbstractCatalog {
             ResultSetMetaData metaData = resultSet.getMetaData();
             for (int i = 1; i <= metaData.getColumnCount(); i++) {
                 String columnName = metaData.getColumnName(i);
-                if(columnName.equalsIgnoreCase("IP") || columnName.equalsIgnoreCase("Host")){
+                if (columnName.equalsIgnoreCase("IP") || columnName.equalsIgnoreCase("Host")) {
                     field = columnName;
                     break;
                 }
