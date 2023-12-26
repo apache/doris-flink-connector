@@ -16,7 +16,7 @@
 # under the License.
 #
 ---
-name: Run E2ECases 1.2
+name: Run E2ECases 2.0
 on:
   pull_request:
   push:
@@ -27,7 +27,7 @@ concurrency:
 
 jobs:
   build-extension:
-    name: "Run E2ECases On Doris 1.2"
+    name: "Run E2ECases On Doris 2.0"
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -44,5 +44,5 @@ jobs:
 
     - name: Run E2ECases
       run: |
-        cd flink-doris-connector && mvn test -Dtest="*E2ECase" -Dimage="adamlee489/doris:1.2.7.1_x86"
+        cd flink-doris-connector && mvn test -Dtest="*E2ECase" -Dimage="adamlee489/doris:2.0.3"
 

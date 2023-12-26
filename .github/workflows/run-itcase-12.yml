@@ -16,14 +16,18 @@
 # under the License.
 #
 ---
-name: Run ITCases
+name: Run ITCases 1.2
 on:
   pull_request:
   push:
 
+concurrency:
+  group: example
+  cancel-in-progress: true
+
 jobs:
-  run-itcases-12:
-    name: "Run ITCases 1.2"
+  build-extension:
+    name: "Run ITCases On Doris 1.2"
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -42,23 +46,3 @@ jobs:
       run: |
         cd flink-doris-connector && mvn test -Dtest="*ITCase" -Dimage="adamlee489/doris:1.2.7.1_x86"
 
-  run-itcases-20:
-    needs: run-itcases-12
-    name: "Run ITCases 2.0"
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        shell: bash
-    steps:
-      - name: Checkout
-        uses: actions/checkout@master
-
-      - name: Setup java
-        uses: actions/setup-java@v2
-        with:
-          distribution: adopt
-          java-version: '8'
-
-      - name: Run ITCases
-        run: |
-          cd flink-doris-connector && mvn test -Dtest="*ITCase" -Dimage="adamlee489/doris:2.0.3"
