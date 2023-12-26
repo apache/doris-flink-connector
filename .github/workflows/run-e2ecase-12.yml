@@ -16,7 +16,7 @@
 # under the License.
 #
 ---
-name: Run E2ECases 1.2
+name: Run E2ECases
 on:
   pull_request:
   push:

@@ -16,7 +16,7 @@
 # under the License.
 #
 ---
-name: Run ITCases 1.2
+name: Run ITCases
 on:
   pull_request:
   push:
