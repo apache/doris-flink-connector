@@ -37,6 +37,7 @@ import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/** Use expression to match ddl sql. */
 public class JsonDebeziumSchemaChangeImpl extends JsonDebeziumSchemaChange {
     private static final Logger LOG = LoggerFactory.getLogger(JsonDebeziumSchemaChangeImpl.class);
     // alter table tbl add cloumn aca int

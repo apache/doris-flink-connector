@@ -34,6 +34,16 @@ import java.io.Serializable;
 import java.util.Map;
 import java.util.regex.Pattern;
 
+/**
+ * Synchronize the schema change in the upstream data source to the doris database table.
+ *
+ * <p>There are two schema change modes:<br>
+ * 1. {@link JsonDebeziumSchemaChangeImpl} only supports table column name and column type changes,
+ * and this mode is used by default. <br>
+ * 2. {@link JsonDebeziumSchemaChangeImplV2} supports table column name, column type, default,
+ * comment synchronization, supports multi-column changes, and supports column name rename. Need to
+ * be enabled by configuring use-new-schema-change.
+ */
 public abstract class JsonDebeziumSchemaChange implements Serializable {
     protected static String addDropDDLRegex =
             "ALTER\\s+TABLE\\s+[^\\s]+\\s+(ADD|DROP)\\s+(COLUMN\\s+)?([^\\s]+)(\\s+([^\\s]+))?.*";

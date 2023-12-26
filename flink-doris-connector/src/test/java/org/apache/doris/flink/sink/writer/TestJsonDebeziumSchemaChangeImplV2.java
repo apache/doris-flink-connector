@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+/** Test for JsonDebeziumSchemaChangeImplV2. */
 public class TestJsonDebeziumSchemaChangeImplV2 extends TestJsonDebeziumSchemaSerializer {
 
     private JsonDebeziumSchemaChangeImplV2 schemaChange;

@@ -40,6 +40,11 @@ import java.util.Map;
 
 import static org.apache.doris.flink.sink.util.DeleteOperation.addDeleteSign;
 
+/**
+ * Convert the data change record of the upstream data source into a byte array that can be imported
+ * into doris through stream load.<br>
+ * Supported data changes include: read, insert, update, delete.
+ */
 public class JsonDebeziumDataChange implements Serializable {
     private static final Logger LOG = LoggerFactory.getLogger(JsonDebeziumDataChange.class);
 

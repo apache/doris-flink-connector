@@ -39,6 +39,14 @@ import java.util.regex.Pattern;
 import static org.apache.doris.flink.sink.writer.LoadConstants.LINE_DELIMITER_DEFAULT;
 import static org.apache.doris.flink.sink.writer.LoadConstants.LINE_DELIMITER_KEY;
 
+/**
+ * Serialize the records of the upstream data source into a data form that can be recognized by
+ * downstream doris.
+ *
+ * <p>There are two serialization methods here: <br>
+ * 1. data change{@link JsonDebeziumDataChange} record. <br>
+ * 2. schema change{@link JsonDebeziumSchemaChange} records.
+ */
 public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<String> {
     private static final Logger LOG = LoggerFactory.getLogger(JsonDebeziumSchemaSerializer.class);
     private final Pattern pattern;

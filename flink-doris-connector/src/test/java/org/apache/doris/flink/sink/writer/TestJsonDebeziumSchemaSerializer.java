@@ -35,6 +35,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
+/** Test for JsonDebeziumSchemaSerializer. */
 public class TestJsonDebeziumSchemaSerializer {
 
     protected static DorisOptions dorisOptions;

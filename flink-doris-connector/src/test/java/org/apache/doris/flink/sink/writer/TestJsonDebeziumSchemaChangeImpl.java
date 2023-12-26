@@ -34,6 +34,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.List;
 
+/** Test for JsonDebeziumSchemaChangeImpl. */
 public class TestJsonDebeziumSchemaChangeImpl extends TestJsonDebeziumSchemaSerializer {
 
     private static final Logger LOG =

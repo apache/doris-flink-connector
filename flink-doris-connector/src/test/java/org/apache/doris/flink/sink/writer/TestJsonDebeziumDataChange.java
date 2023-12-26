@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
+/** Test for JsonDebeziumDataChange. */
 public class TestJsonDebeziumDataChange extends TestJsonDebeziumSchemaSerializer {
 
     private JsonDebeziumDataChange dataChange;
