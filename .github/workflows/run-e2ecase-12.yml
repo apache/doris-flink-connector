@@ -22,7 +22,7 @@ on:
   push:
 
 jobs:
-  build-extension:
+  run-e2ecase-12:
     name: "Run E2ECases 1.2"
     runs-on: ubuntu-latest
     defaults:
@@ -42,3 +42,23 @@ jobs:
       run: |
         cd flink-doris-connector && mvn test -Dtest="*E2ECase" -Dimage="adamlee489/doris:1.2.7.1_x86"
 
+  run-e2ecase-20:
+    need: run-e2ecase-12
+    name: "Run E2ECases 2.0"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@master
+
+      - name: Setup java
+        uses: actions/setup-java@v2
+        with:
+          distribution: adopt
+          java-version: '8'
+
+      - name: Run E2ECases
+        run: |
+          cd flink-doris-connector && mvn test -Dtest="*E2ECase" -Dimage="adamlee489/doris:2.0.3"
