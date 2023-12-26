@@ -233,7 +233,9 @@ public class RowDataSerializer implements DorisRecordSerializer<RowData> {
                             || ARROW.equals(type));
             Preconditions.checkNotNull(dataTypes);
             Preconditions.checkNotNull(fieldNames);
-            Preconditions.checkArgument(ARROW.equals(type) && !deletable);
+            if (ARROW.equals(type)) {
+                Preconditions.checkArgument(!deletable);
+            }
             return new RowDataSerializer(fieldNames, dataTypes, type, fieldDelimiter, deletable);
         }
     }
