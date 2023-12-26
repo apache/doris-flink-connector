@@ -46,7 +46,7 @@ import static org.awaitility.Durations.ONE_SECOND;
 
 public abstract class DorisTestBase {
     protected static final Logger LOG = LoggerFactory.getLogger(DorisTestBase.class);
-    protected static final String DORIS_12_DOCKER_IMAGE = "adamlee489/doris:2.0.3";
+    protected static final String DORIS_DOCKER_IMAGE = System.getProperty("image");
     private static final String DRIVER_JAR =
             "https://repo1.maven.org/maven2/mysql/mysql-connector-java/8.0.16/mysql-connector-java-8.0.16.jar";
     protected static final String DRIVER_CLASS = "com.mysql.cj.jdbc.Driver";
@@ -67,7 +67,7 @@ public abstract class DorisTestBase {
         Startables.deepStart(Stream.of(DORIS_CONTAINER)).join();
         given().ignoreExceptions()
                 .await()
-                .atMost(120, TimeUnit.SECONDS)
+                .atMost(300, TimeUnit.SECONDS)
                 .pollInterval(ONE_SECOND)
                 .untilAsserted(DorisTestBase::initializeJdbcConnection);
         LOG.info("Containers are started.");
@@ -82,7 +82,7 @@ public abstract class DorisTestBase {
 
     public static GenericContainer createDorisContainer() {
         GenericContainer container =
-                new GenericContainer<>(DORIS_12_DOCKER_IMAGE)
+                new GenericContainer<>(DORIS_DOCKER_IMAGE)
                         .withNetwork(Network.newNetwork())
                         .withNetworkAliases("DorisContainer")
                         .withEnv("FE_SERVERS", "fe1:127.0.0.1:9010")
@@ -95,7 +95,7 @@ public abstract class DorisTestBase {
                         .withPrivilegedMode(true)
                         .withLogConsumer(
                                 new Slf4jLogConsumer(
-                                        DockerLoggerFactory.getLogger(DORIS_12_DOCKER_IMAGE)));
+                                        DockerLoggerFactory.getLogger(DORIS_DOCKER_IMAGE)));
 
         container.setPortBindings(
                 Lists.newArrayList(
