@@ -63,6 +63,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -239,8 +240,20 @@ public class DorisCatalog extends AbstractCatalog {
             StringJoiner fenodes = new StringJoiner(",");
             PreparedStatement ps = conn.prepareStatement("SHOW FRONTENDS");
             ResultSet resultSet = ps.executeQuery();
+
+            // find target ip column name, Version 1.2 is IP, version 2.x is Host
+            String field = "";
+            ResultSetMetaData metaData = resultSet.getMetaData();
+            for (int i = 1; i <= metaData.getColumnCount(); i++) {
+                String columnName = metaData.getColumnName(i);
+                if(columnName.equalsIgnoreCase("IP") || columnName.equalsIgnoreCase("Host")){
+                    field = columnName;
+                    break;
+                }
+            }
+
             while (resultSet.next()) {
-                String ip = resultSet.getString("IP");
+                String ip = resultSet.getString(field);
                 String port = resultSet.getString("HttpPort");
                 fenodes.add(ip + ":" + port);
             }
