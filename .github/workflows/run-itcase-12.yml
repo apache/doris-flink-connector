@@ -16,14 +16,14 @@
 # under the License.
 #
 ---
-name: Run E2ECases
+name: Run ITCases 1.2
 on:
   pull_request:
   push:
 
 jobs:
   build-extension:
-    name: "Run E2ECases"
+    name: "Run ITCases 1.2"
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -38,7 +38,7 @@ jobs:
         distribution: adopt
         java-version: '8'
 
-    - name: Run E2ECases
+    - name: Run ITCases
       run: |
-        cd flink-doris-connector && mvn test -Dtest="*E2ECase"
+        cd flink-doris-connector && mvn test -Dtest="*ITCase" -Dimage="adamlee489/doris:1.2.7.1_x86"
 
