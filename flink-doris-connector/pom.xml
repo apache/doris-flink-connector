@@ -85,7 +85,6 @@ under the License.
         <spotless.version>2.4.2</spotless.version>
         <httpcomponents.version>4.5.13</httpcomponents.version>
         <commons-codec.version>1.15</commons-codec.version>
-        <netty.version>4.1.77.Final</netty.version>
         <fasterxml.version>2.13.3</fasterxml.version>
         <guava.version>31.1-jre</guava.version>
         <slf4j.version>1.7.25</slf4j.version>
@@ -203,17 +202,7 @@ under the License.
                     <groupId>com.fasterxml.jackson.core</groupId>
                     <artifactId>jackson-databind</artifactId>
                 </exclusion>
-                <exclusion>
-                    <groupId>io.netty</groupId>
-                    <artifactId>netty-common</artifactId>
-                </exclusion>
             </exclusions>
-        </dependency>
-
-        <dependency>
-            <groupId>io.netty</groupId>
-            <artifactId>netty-common</artifactId>
-            <version>${netty.version}</version>
         </dependency>
 
         <!--  jackson  -->
