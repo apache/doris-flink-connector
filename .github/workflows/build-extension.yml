@@ -47,21 +47,21 @@ jobs:
 
     - name: Build flink connector 1.16
       run: |
-        mvn clean package \
+        cd flink-doris-connector && mvn clean package \
           -Dflink.version=1.16.0 \
           -Dflink.minor.version=1.16 \
           -Dflink.python.id=flink-python
 
     - name: Build flink connector 1.17
       run: |
-        mvn clean package \
+        cd flink-doris-connector && mvn clean package \
           -Dflink.version=1.17.0 \
           -Dflink.minor.version=1.17 \
           -Dflink.python.id=flink-python
 
     - name: Build flink connector 1.18
       run: |
-        mvn clean package \
+        cd flink-doris-connector && mvn clean package \
           -Dflink.version=1.18.0 \
           -Dflink.minor.version=1.18 \
           -Dflink.python.id=flink-python
