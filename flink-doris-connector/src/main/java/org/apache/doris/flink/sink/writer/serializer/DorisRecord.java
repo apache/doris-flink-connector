@@ -20,6 +20,9 @@ package org.apache.doris.flink.sink.writer.serializer;
 import java.io.Serializable;
 
 public class DorisRecord implements Serializable {
+
+    public static DorisRecord empty = new DorisRecord();
+
     private String database;
     private String table;
     private byte[] row;

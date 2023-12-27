@@ -109,6 +109,7 @@ public class DorisWriter<IN>
         this.globalLoading = false;
 
         initializeLoad(state);
+        serializer.initial();
     }
 
     public void initializeLoad(Collection<DorisWriterState> state) {
@@ -123,8 +124,8 @@ public class DorisWriter<IN>
         }
         // get main work thread.
         executorThread = Thread.currentThread();
-        // when uploading data in streaming mode,
-        // we need to regularly detect whether there are exceptions.
+        // when uploading data in streaming mode, we need to regularly detect whether there are
+        // exceptions.
         scheduledExecutorService.scheduleWithFixedDelay(
                 this::checkDone, 200, intervalTime, TimeUnit.MILLISECONDS);
     }
@@ -167,14 +168,23 @@ public class DorisWriter<IN>
     @Override
     public void write(IN in, Context context) throws IOException {
         checkLoadException();
-        String tableKey = dorisOptions.getTableIdentifier();
+        writeOneDorisRecord(serializer.serialize(in));
+    }
 
-        DorisRecord record = serializer.serialize(in);
+    @Override
+    public void flush(boolean endOfInput) throws IOException, InterruptedException {
+        writeOneDorisRecord(serializer.flush());
+    }
+
+    public void writeOneDorisRecord(DorisRecord record) throws IOException {
+
         if (record == null || record.getRow() == null) {
             // ddl or value is null
             return;
         }
+
         // multi table load
+        String tableKey = dorisOptions.getTableIdentifier();
         if (record.getTableIdentifier() != null) {
             tableKey = record.getTableIdentifier();
         }
@@ -189,11 +199,6 @@ public class DorisWriter<IN>
             globalLoading = true;
         }
         streamLoader.writeRecord(record.getRow());
-    }
-
-    @Override
-    public void flush(boolean flush) throws IOException, InterruptedException {
-        // No action is triggered, everything is in the precommit method
     }
 
     @Override
@@ -369,5 +374,6 @@ public class DorisWriter<IN>
                 dorisStreamLoad.close();
             }
         }
+        serializer.close();
     }
 }

@@ -35,4 +35,12 @@ public interface DorisRecordSerializer<T> extends Serializable {
      * @throws IOException
      */
     DorisRecord serialize(T record) throws IOException;
+
+    default void initial() {}
+
+    default DorisRecord flush() {
+        return DorisRecord.empty;
+    }
+
+    default void close() throws Exception {}
 }

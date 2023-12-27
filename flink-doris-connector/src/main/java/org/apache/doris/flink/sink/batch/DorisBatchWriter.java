@@ -77,14 +77,15 @@ public class DorisBatchWriter<IN> implements SinkWriter<IN> {
         this.dorisReadOptions = dorisReadOptions;
         this.executionOptions = executionOptions;
         this.flushIntervalMs = executionOptions.getBufferFlushIntervalMs();
+        serializer.initial();
     }
 
     public void initializeLoad() throws IOException {
         this.batchStreamLoad =
                 new DorisBatchStreamLoad(
                         dorisOptions, dorisReadOptions, executionOptions, labelGenerator);
-        // when uploading data in streaming mode,
-        // we need to regularly detect whether there areexceptions.
+        // when uploading data in streaming mode, we need to regularly detect whether there are
+        // exceptions.
         scheduledExecutorService.scheduleWithFixedDelay(
                 this::intervalFlush, flushIntervalMs, flushIntervalMs, TimeUnit.MILLISECONDS);
     }
@@ -101,26 +102,30 @@ public class DorisBatchWriter<IN> implements SinkWriter<IN> {
     @Override
     public void write(IN in, Context context) throws IOException, InterruptedException {
         checkFlushException();
-        String db = this.database;
-        String tbl = this.table;
-        DorisRecord record = serializer.serialize(in);
+        writeOneDorisRecord(serializer.serialize(in));
+    }
+
+    @Override
+    public void flush(boolean flush) throws IOException, InterruptedException {
+        checkFlushException();
+        writeOneDorisRecord(serializer.flush());
+        LOG.info("checkpoint flush triggered.");
+        batchStreamLoad.flush(null, true);
+    }
+
+    public void writeOneDorisRecord(DorisRecord record) throws InterruptedException {
         if (record == null || record.getRow() == null) {
             // ddl or value is null
             return;
         }
+        String db = this.database;
+        String tbl = this.table;
         // multi table load
         if (record.getTableIdentifier() != null) {
             db = record.getDatabase();
             tbl = record.getTable();
         }
         batchStreamLoad.writeRecord(db, tbl, record.getRow());
-    }
-
-    @Override
-    public void flush(boolean flush) throws IOException, InterruptedException {
-        checkFlushException();
-        LOG.info("checkpoint flush triggered.");
-        batchStreamLoad.flush(null, true);
     }
 
     @Override

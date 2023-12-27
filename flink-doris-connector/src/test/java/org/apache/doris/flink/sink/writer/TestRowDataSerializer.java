@@ -19,8 +19,13 @@ package org.apache.doris.flink.sink.writer;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.runtime.arrow.serializers.ArrowSerializer;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.RowKind;
 
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -30,6 +35,8 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
@@ -131,5 +138,35 @@ public class TestRowDataSerializer {
         Assert.assertEquals("0", serializer.parseDeleteSign(RowKind.UPDATE_AFTER));
         Assert.assertEquals("1", serializer.parseDeleteSign(RowKind.DELETE));
         Assert.assertEquals("1", serializer.parseDeleteSign(RowKind.UPDATE_BEFORE));
+    }
+
+    @Test
+    public void testArrowType() throws Exception {
+        RowDataSerializer serializer =
+                RowDataSerializer.builder()
+                        .setFieldNames(fieldNames)
+                        .setFieldType(dataTypes)
+                        .setType("arrow")
+                        .enableDelete(false)
+                        .build();
+
+        // write data to binary
+        serializer.initial();
+        serializer.serialize(rowData);
+        byte[] serializedValue = serializer.flush().getRow();
+
+        // read data from binary
+        LogicalType[] logicalTypes = TypeConversions.fromDataToLogicalType(dataTypes);
+        RowType rowType = RowType.of(logicalTypes, fieldNames);
+        ArrowSerializer arrowSerializer = new ArrowSerializer(rowType, rowType);
+        ByteArrayInputStream input = new ByteArrayInputStream(serializedValue);
+        arrowSerializer.open(input, new ByteArrayOutputStream(0));
+        int cnt = arrowSerializer.load();
+        RowData data = arrowSerializer.read(0);
+
+        Assert.assertEquals(1, cnt);
+        Assert.assertEquals(3, data.getInt(0));
+        Assert.assertEquals("test", data.getString(1).toString());
+        Assert.assertEquals(60.2, data.getDouble(2), 0.001);
     }
 }

@@ -61,6 +61,9 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.doris.flink.sink.LoadStatus.PUBLISH_TIMEOUT;
 import static org.apache.doris.flink.sink.LoadStatus.SUCCESS;
+import static org.apache.doris.flink.sink.writer.LoadConstants.ARROW;
+import static org.apache.doris.flink.sink.writer.LoadConstants.CSV;
+import static org.apache.doris.flink.sink.writer.LoadConstants.FORMAT_KEY;
 import static org.apache.doris.flink.sink.writer.LoadConstants.LINE_DELIMITER_DEFAULT;
 import static org.apache.doris.flink.sink.writer.LoadConstants.LINE_DELIMITER_KEY;
 
@@ -105,10 +108,15 @@ public class DorisBatchStreamLoad implements Serializable {
         this.password = dorisOptions.getPassword();
         this.loadProps = executionOptions.getStreamLoadProp();
         this.labelGenerator = labelGenerator;
-        this.lineDelimiter =
-                EscapeHandler.escapeString(
-                                loadProps.getProperty(LINE_DELIMITER_KEY, LINE_DELIMITER_DEFAULT))
-                        .getBytes();
+        if (loadProps.getProperty(FORMAT_KEY, CSV).equals(ARROW)) {
+            this.lineDelimiter = null;
+        } else {
+            this.lineDelimiter =
+                    EscapeHandler.escapeString(
+                                    loadProps.getProperty(
+                                            LINE_DELIMITER_KEY, LINE_DELIMITER_DEFAULT))
+                            .getBytes();
+        }
         this.executionOptions = executionOptions;
         this.flushQueue = new LinkedBlockingDeque<>(executionOptions.getFlushQueueSize());
         if (StringUtils.isNotBlank(dorisOptions.getTableIdentifier())) {

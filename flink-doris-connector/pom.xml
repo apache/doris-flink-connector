@@ -71,8 +71,9 @@ under the License.
         <flink.version>1.18.0</flink.version>
         <flink.major.version>1.18</flink.major.version>
         <flink.sql.cdc.version>2.4.2</flink.sql.cdc.version>
+        <flink.python.id>flink-python</flink.python.id>
         <libthrift.version>0.16.0</libthrift.version>
-        <arrow.version>5.0.0</arrow.version>
+        <arrow.version>13.0.0</arrow.version>
         <maven-compiler-plugin.version>3.10.1</maven-compiler-plugin.version>
         <maven-javadoc-plugin.version>3.3.0</maven-javadoc-plugin.version>
         <maven-source-plugin.version>3.2.1</maven-source-plugin.version>
@@ -84,7 +85,6 @@ under the License.
         <spotless.version>2.4.2</spotless.version>
         <httpcomponents.version>4.5.13</httpcomponents.version>
         <commons-codec.version>1.15</commons-codec.version>
-        <netty.version>4.1.77.Final</netty.version>
         <fasterxml.version>2.13.3</fasterxml.version>
         <guava.version>31.1-jre</guava.version>
         <slf4j.version>1.7.25</slf4j.version>
@@ -133,6 +133,13 @@ under the License.
         <dependency>
             <groupId>org.apache.flink</groupId>
             <artifactId>flink-table-runtime</artifactId>
+            <version>${flink.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>${flink.python.id}</artifactId>
             <version>${flink.version}</version>
             <scope>provided</scope>
         </dependency>
@@ -195,17 +202,7 @@ under the License.
                     <groupId>com.fasterxml.jackson.core</groupId>
                     <artifactId>jackson-databind</artifactId>
                 </exclusion>
-                <exclusion>
-                    <groupId>io.netty</groupId>
-                    <artifactId>netty-common</artifactId>
-                </exclusion>
             </exclusions>
-        </dependency>
-
-        <dependency>
-            <groupId>io.netty</groupId>
-            <artifactId>netty-common</artifactId>
-            <version>${netty.version}</version>
         </dependency>
 
         <!--  jackson  -->

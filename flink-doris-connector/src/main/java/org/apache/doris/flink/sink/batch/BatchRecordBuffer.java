@@ -57,7 +57,7 @@ public class BatchRecordBuffer {
         ensureCapacity(record.length);
         if (loadBatchFirstRecord) {
             loadBatchFirstRecord = false;
-        } else {
+        } else if (lineDelimiter != null) {
             this.buffer.put(this.lineDelimiter);
         }
         this.buffer.put(record);
@@ -67,7 +67,7 @@ public class BatchRecordBuffer {
 
     @VisibleForTesting
     public void ensureCapacity(int length) {
-        int lineDelimiterSize = this.lineDelimiter.length;
+        int lineDelimiterSize = this.lineDelimiter == null ? 0 : this.lineDelimiter.length;
         if (buffer.remaining() - lineDelimiterSize >= length) {
             return;
         }
