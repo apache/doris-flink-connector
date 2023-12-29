@@ -15,14 +15,13 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.flink.sink.writer;
+package org.apache.doris.flink.sink.writer.serializer.jsondebezium;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.Maps;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.doris.flink.catalog.doris.FieldSchema;
 import org.apache.doris.flink.catalog.doris.TableSchema;
-import org.apache.doris.flink.sink.writer.serializer.jsondebezium.JsonDebeziumSchemaChangeImplV2;
 import org.apache.doris.flink.tools.cdc.SourceConnector;
 import org.junit.Assert;
 import org.junit.Before;
@@ -38,9 +37,10 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 /** Test for JsonDebeziumSchemaChangeImplV2. */
-public class TestJsonDebeziumSchemaChangeImplV2 extends TestJsonDebeziumSchemaSerializer {
+public class TestJsonDebeziumSchemaChangeImplV2 extends TestJsonDebeziumChangeBase {
 
     private JsonDebeziumSchemaChangeImplV2 schemaChange;
+    private JsonDebeziumChangeContext changeContext;
 
     @Before
     public void setUp() {
@@ -48,14 +48,18 @@ public class TestJsonDebeziumSchemaChangeImplV2 extends TestJsonDebeziumSchemaSe
         String sourceTableName = null;
         String targetDatabase = "TESTDB";
         Map<String, String> tableProperties = new HashMap<>();
-        schemaChange =
-                new JsonDebeziumSchemaChangeImplV2(
+        changeContext =
+                new JsonDebeziumChangeContext(
                         dorisOptions,
+                        tableMapping,
                         sourceTableName,
                         targetDatabase,
                         tableProperties,
-                        tableMapping,
-                        objectMapper);
+                        objectMapper,
+                        null,
+                        lineDelimiter,
+                        ignoreUpdateBefore);
+        schemaChange = new JsonDebeziumSchemaChangeImplV2(changeContext);
     }
 
     @Test

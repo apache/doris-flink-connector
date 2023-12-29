@@ -28,9 +28,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.NullNode;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.sink.schema.SchemaChangeManager;
+import org.apache.doris.flink.sink.writer.ChangeEvent;
 import org.apache.doris.flink.tools.cdc.SourceSchema;
 
-import java.io.Serializable;
 import java.util.Map;
 import java.util.regex.Pattern;
 
@@ -44,7 +44,7 @@ import java.util.regex.Pattern;
  * comment synchronization, supports multi-column changes, and supports column name rename. Need to
  * be enabled by configuring use-new-schema-change.
  */
-public abstract class JsonDebeziumSchemaChange implements Serializable {
+public abstract class JsonDebeziumSchemaChange implements ChangeEvent {
     protected static String addDropDDLRegex =
             "ALTER\\s+TABLE\\s+[^\\s]+\\s+(ADD|DROP)\\s+(COLUMN\\s+)?([^\\s]+)(\\s+([^\\s]+))?.*";
     protected Pattern addDropDDLPattern;
@@ -56,6 +56,7 @@ public abstract class JsonDebeziumSchemaChange implements Serializable {
     // <cdc db.schema.table, doris db.table>
     protected Map<String, String> tableMapping;
     protected SchemaChangeManager schemaChangeManager;
+    protected JsonDebeziumChangeContext changeContext;
 
     public abstract boolean schemaChange(JsonNode recordRoot);
 
@@ -133,5 +134,10 @@ public abstract class JsonDebeziumSchemaChange implements Serializable {
         // The ddl passed by some scenes will not be included in the historyRecord,
         // such as DebeziumSourceFunction
         return record;
+    }
+
+    @VisibleForTesting
+    public void setSchemaChangeManager(SchemaChangeManager schemaChangeManager) {
+        this.schemaChangeManager = schemaChangeManager;
     }
 }

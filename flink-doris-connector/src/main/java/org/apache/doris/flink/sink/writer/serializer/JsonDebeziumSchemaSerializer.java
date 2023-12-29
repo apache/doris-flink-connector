@@ -17,6 +17,8 @@
 
 package org.apache.doris.flink.sink.writer.serializer;
 
+import org.apache.flink.annotation.VisibleForTesting;
+
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -24,6 +26,7 @@ import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.NullNode;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
+import org.apache.doris.flink.sink.writer.serializer.jsondebezium.JsonDebeziumChangeContext;
 import org.apache.doris.flink.sink.writer.serializer.jsondebezium.JsonDebeziumDataChange;
 import org.apache.doris.flink.sink.writer.serializer.jsondebezium.JsonDebeziumSchemaChange;
 import org.apache.doris.flink.sink.writer.serializer.jsondebezium.JsonDebeziumSchemaChangeImpl;
@@ -80,7 +83,6 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
         this.objectMapper.setNodeFactory(jsonNodeFactory);
         this.newSchemaChange = newSchemaChange;
         this.firstLoad = true;
-        init();
     }
 
     public JsonDebeziumSchemaSerializer(
@@ -112,27 +114,27 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
         this.tableMapping = tableMapping;
         this.tableProperties = tableProperties;
         this.targetDatabase = targetDatabase;
+        init();
     }
 
     private void init() {
-        this.schemaChange =
-                newSchemaChange
-                        ? new JsonDebeziumSchemaChangeImplV2(
-                                dorisOptions,
-                                sourceTableName,
-                                targetDatabase,
-                                tableProperties,
-                                tableMapping,
-                                objectMapper)
-                        : new JsonDebeziumSchemaChangeImpl(
-                                dorisOptions, sourceTableName, tableMapping, objectMapper, pattern);
-        this.dataChange =
-                new JsonDebeziumDataChange(
+        JsonDebeziumChangeContext changeContext =
+                new JsonDebeziumChangeContext(
                         dorisOptions,
                         tableMapping,
-                        ignoreUpdateBefore,
+                        sourceTableName,
+                        targetDatabase,
+                        tableProperties,
+                        objectMapper,
+                        pattern,
                         lineDelimiter,
-                        objectMapper);
+                        ignoreUpdateBefore);
+
+        this.schemaChange =
+                newSchemaChange
+                        ? new JsonDebeziumSchemaChangeImplV2(changeContext)
+                        : new JsonDebeziumSchemaChangeImpl(changeContext);
+        this.dataChange = new JsonDebeziumDataChange(changeContext);
     }
 
     @Override
@@ -157,6 +159,11 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
         return record != null && record.get(key) != null && !(record.get(key) instanceof NullNode)
                 ? record.get(key).asText()
                 : null;
+    }
+
+    @VisibleForTesting
+    public JsonDebeziumSchemaChange getJsonDebeziumSchemaChange() {
+        return this.schemaChange;
     }
 
     public static JsonDebeziumSchemaSerializer.Builder builder() {

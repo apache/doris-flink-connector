@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.flink.sink.writer;
+package org.apache.doris.flink.sink.writer.serializer.jsondebezium;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import org.apache.doris.flink.cfg.DorisReadOptions;
@@ -23,7 +23,6 @@ import org.apache.doris.flink.exception.DorisException;
 import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.rest.models.Field;
 import org.apache.doris.flink.rest.models.Schema;
-import org.apache.doris.flink.sink.writer.serializer.jsondebezium.JsonDebeziumSchemaChangeImpl;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Ignore;
@@ -35,19 +34,29 @@ import java.io.IOException;
 import java.util.List;
 
 /** Test for JsonDebeziumSchemaChangeImpl. */
-public class TestJsonDebeziumSchemaChangeImpl extends TestJsonDebeziumSchemaSerializer {
+public class TestJsonDebeziumSchemaChangeImpl extends TestJsonDebeziumChangeBase {
 
     private static final Logger LOG =
             LoggerFactory.getLogger(TestJsonDebeziumSchemaChangeImpl.class);
 
     private JsonDebeziumSchemaChangeImpl schemaChange;
+    private JsonDebeziumChangeContext changeContext;
 
     @Before
     public void setUp() {
         super.setUp();
-        schemaChange =
-                new JsonDebeziumSchemaChangeImpl(
-                        dorisOptions, null, tableMapping, objectMapper, null);
+        changeContext =
+                new JsonDebeziumChangeContext(
+                        dorisOptions,
+                        tableMapping,
+                        null,
+                        null,
+                        null,
+                        objectMapper,
+                        null,
+                        lineDelimiter,
+                        ignoreUpdateBefore);
+        schemaChange = new JsonDebeziumSchemaChangeImpl(changeContext);
     }
 
     @Test

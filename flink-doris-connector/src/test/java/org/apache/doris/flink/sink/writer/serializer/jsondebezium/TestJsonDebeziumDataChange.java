@@ -15,12 +15,12 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.flink.sink.writer;
+package org.apache.doris.flink.sink.writer.serializer.jsondebezium;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.NullNode;
 import org.apache.doris.flink.sink.writer.serializer.DorisRecord;
-import org.apache.doris.flink.sink.writer.serializer.jsondebezium.JsonDebeziumDataChange;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -30,20 +30,26 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 /** Test for JsonDebeziumDataChange. */
-public class TestJsonDebeziumDataChange extends TestJsonDebeziumSchemaSerializer {
+public class TestJsonDebeziumDataChange extends TestJsonDebeziumChangeBase {
 
     private JsonDebeziumDataChange dataChange;
+    private JsonDebeziumChangeContext changeContext;
 
     @Before
     public void setUp() {
         super.setUp();
-        dataChange =
-                new JsonDebeziumDataChange(
+        changeContext =
+                new JsonDebeziumChangeContext(
                         dorisOptions,
                         tableMapping,
-                        ignoreUpdateBefore,
+                        null,
+                        null,
+                        null,
+                        objectMapper,
+                        null,
                         lineDelimiter,
-                        objectMapper);
+                        ignoreUpdateBefore);
+        dataChange = new JsonDebeziumDataChange(changeContext);
     }
 
     @Test
@@ -93,9 +99,18 @@ public class TestJsonDebeziumDataChange extends TestJsonDebeziumSchemaSerializer
 
     @Test
     public void testSerializeUpdateBefore() throws IOException {
-        dataChange =
-                new JsonDebeziumDataChange(
-                        dorisOptions, tableMapping, false, lineDelimiter, objectMapper);
+        changeContext =
+                new JsonDebeziumChangeContext(
+                        dorisOptions,
+                        tableMapping,
+                        null,
+                        null,
+                        null,
+                        objectMapper,
+                        null,
+                        lineDelimiter,
+                        false);
+        dataChange = new JsonDebeziumDataChange(changeContext);
 
         // update t1 set name='doris-update' WHERE id =1;
         String record =
@@ -165,5 +180,11 @@ public class TestJsonDebeziumDataChange extends TestJsonDebeziumSchemaSerializer
         identifier = dataChange.getDorisTableIdentifier("test.t1");
         Assert.assertNull(identifier);
         dorisOptions.setTableIdentifier(tmp);
+    }
+
+    private String extractJsonNode(JsonNode record, String key) {
+        return record != null && record.get(key) != null && !(record.get(key) instanceof NullNode)
+                ? record.get(key).asText()
+                : null;
     }
 }

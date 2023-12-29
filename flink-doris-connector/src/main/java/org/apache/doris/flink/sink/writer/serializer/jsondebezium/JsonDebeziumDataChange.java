@@ -27,13 +27,13 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.NullNode;
 import org.apache.doris.flink.cfg.DorisOptions;
+import org.apache.doris.flink.sink.writer.ChangeEvent;
 import org.apache.doris.flink.sink.writer.serializer.DorisRecord;
 import org.apache.doris.flink.tools.cdc.SourceSchema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
@@ -45,7 +45,7 @@ import static org.apache.doris.flink.sink.util.DeleteOperation.addDeleteSign;
  * into doris through stream load.<br>
  * Supported data changes include: read, insert, update, delete.
  */
-public class JsonDebeziumDataChange implements Serializable {
+public class JsonDebeziumDataChange implements ChangeEvent {
     private static final Logger LOG = LoggerFactory.getLogger(JsonDebeziumDataChange.class);
 
     private static final String OP_READ = "r"; // snapshot read
@@ -54,21 +54,16 @@ public class JsonDebeziumDataChange implements Serializable {
     private static final String OP_DELETE = "d"; // delete
     private final ObjectMapper objectMapper;
     private final DorisOptions dorisOptions;
-    private Map<String, String> tableMapping;
     private final boolean ignoreUpdateBefore;
     private final String lineDelimiter;
+    private JsonDebeziumChangeContext changeContext;
 
-    public JsonDebeziumDataChange(
-            DorisOptions dorisOptions,
-            Map<String, String> tableMapping,
-            boolean ignoreUpdateBefore,
-            String lineDelimiter,
-            ObjectMapper objectMapper) {
-        this.dorisOptions = dorisOptions;
-        this.objectMapper = objectMapper;
-        this.tableMapping = tableMapping;
-        this.ignoreUpdateBefore = ignoreUpdateBefore;
-        this.lineDelimiter = lineDelimiter;
+    public JsonDebeziumDataChange(JsonDebeziumChangeContext changeContext) {
+        this.changeContext = changeContext;
+        this.dorisOptions = changeContext.getDorisOptions();
+        this.objectMapper = changeContext.getObjectMapper();
+        this.ignoreUpdateBefore = changeContext.isIgnoreUpdateBefore();
+        this.lineDelimiter = changeContext.getLineDelimiter();
     }
 
     public DorisRecord serialize(String record, JsonNode recordRoot, String op) throws IOException {
@@ -141,6 +136,7 @@ public class JsonDebeziumDataChange implements Serializable {
         if (!StringUtils.isNullOrWhitespaceOnly(dorisOptions.getTableIdentifier())) {
             return dorisOptions.getTableIdentifier();
         }
+        Map<String, String> tableMapping = changeContext.getTableMapping();
         if (!CollectionUtil.isNullOrEmpty(tableMapping)
                 && !StringUtils.isNullOrWhitespaceOnly(cdcTableIdentifier)
                 && tableMapping.get(cdcTableIdentifier) != null) {

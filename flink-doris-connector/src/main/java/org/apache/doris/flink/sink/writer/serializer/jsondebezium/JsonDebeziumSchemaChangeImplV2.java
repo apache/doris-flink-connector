@@ -26,11 +26,9 @@ import org.apache.flink.util.StringUtils;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.doris.flink.catalog.doris.FieldSchema;
 import org.apache.doris.flink.catalog.doris.TableSchema;
-import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.exception.IllegalArgumentException;
 import org.apache.doris.flink.sink.schema.SchemaChangeHelper;
 import org.apache.doris.flink.sink.schema.SchemaChangeHelper.DDLSchema;
@@ -72,21 +70,16 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
     private final Map<String, String> tableProperties;
     private String targetDatabase;
 
-    public JsonDebeziumSchemaChangeImplV2(
-            DorisOptions dorisOptions,
-            String sourceTableName,
-            String targetDatabase,
-            Map<String, String> tableProperties,
-            Map<String, String> tableMapping,
-            ObjectMapper objectMapper) {
+    public JsonDebeziumSchemaChangeImplV2(JsonDebeziumChangeContext changeContext) {
         this.addDropDDLPattern = Pattern.compile(addDropDDLRegex, Pattern.CASE_INSENSITIVE);
-        this.sourceTableName = sourceTableName;
+        this.changeContext = changeContext;
+        this.sourceTableName = changeContext.getSourceTableName();
+        this.dorisOptions = changeContext.getDorisOptions();
         this.schemaChangeManager = new SchemaChangeManager(dorisOptions);
-        this.dorisOptions = dorisOptions;
-        this.targetDatabase = targetDatabase;
-        this.tableProperties = tableProperties;
-        this.tableMapping = tableMapping;
-        this.objectMapper = objectMapper;
+        this.targetDatabase = changeContext.getTargetDatabase();
+        this.tableProperties = changeContext.getTableProperties();
+        this.tableMapping = changeContext.getTableMapping();
+        this.objectMapper = changeContext.getObjectMapper();
     }
 
     @Override
@@ -118,7 +111,8 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
                 if (status) {
                     String cdcTbl = getCdcTableIdentifier(recordRoot);
                     String dorisTbl = getCreateTableIdentifier(recordRoot);
-                    tableMapping.put(cdcTbl, dorisTbl);
+                    changeContext.getTableMapping().put(cdcTbl, dorisTbl);
+                    this.tableMapping = changeContext.getTableMapping();
                     LOG.info("create table ddl status: {}", status);
                 }
             } else if (eventType.equals(EventType.ALTER)) {

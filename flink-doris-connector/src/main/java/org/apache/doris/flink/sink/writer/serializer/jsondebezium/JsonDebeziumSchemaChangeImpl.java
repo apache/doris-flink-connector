@@ -23,8 +23,6 @@ import org.apache.flink.util.StringUtils;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.exception.IllegalArgumentException;
 import org.apache.doris.flink.sink.schema.SchemaChangeManager;
 import org.slf4j.Logger;
@@ -43,21 +41,17 @@ public class JsonDebeziumSchemaChangeImpl extends JsonDebeziumSchemaChange {
     // alter table tbl add cloumn aca int
     public static final String EXECUTE_DDL = "ALTER TABLE %s %s COLUMN %s %s";
 
-    public JsonDebeziumSchemaChangeImpl(
-            DorisOptions dorisOptions,
-            String sourceTableName,
-            Map<String, String> tableMapping,
-            ObjectMapper objectMapper,
-            Pattern pattern) {
-        this.dorisOptions = dorisOptions;
+    public JsonDebeziumSchemaChangeImpl(JsonDebeziumChangeContext changeContext) {
+        this.changeContext = changeContext;
+        this.dorisOptions = changeContext.getDorisOptions();
         this.schemaChangeManager = new SchemaChangeManager(dorisOptions);
-        this.sourceTableName = sourceTableName;
-        this.tableMapping = tableMapping;
-        this.objectMapper = objectMapper;
+        this.sourceTableName = changeContext.getSourceTableName();
+        this.tableMapping = changeContext.getTableMapping();
+        this.objectMapper = changeContext.getObjectMapper();
         this.addDropDDLPattern =
-                pattern == null
+                Objects.isNull(changeContext.getPattern())
                         ? Pattern.compile(addDropDDLRegex, Pattern.CASE_INSENSITIVE)
-                        : pattern;
+                        : changeContext.getPattern();
     }
 
     @Override
