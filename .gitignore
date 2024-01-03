@@ -7,3 +7,4 @@ flink-doris-connector/release.properties
 .idea
 *.iml
 *.DS_Store
+dist
