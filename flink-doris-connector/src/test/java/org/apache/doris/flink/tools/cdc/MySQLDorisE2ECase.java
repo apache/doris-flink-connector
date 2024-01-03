@@ -39,6 +39,7 @@ import org.testcontainers.lifecycle.Startables;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -68,6 +69,7 @@ public class MySQLDorisE2ECase extends DorisTestBase {
     private static final String TABLE_1 = "tbl1";
     private static final String TABLE_2 = "tbl2";
     private static final String TABLE_3 = "tbl3";
+    private static final String TABLE_4 = "tbl4";
 
     private static final MySQLContainer MYSQL_CONTAINER =
             new MySQLContainer("mysql")
@@ -104,7 +106,8 @@ public class MySQLDorisE2ECase extends DorisTestBase {
                         .collect(Collectors.toSet());
         String sql =
                 "select * from ( select * from %s.%s union all select * from %s.%s union all select * from %s.%s ) res order by 1";
-        checkResult(expected, sql, 2);
+        String query1 = String.format(sql, DATABASE, TABLE_1, DATABASE, TABLE_2, DATABASE, TABLE_3);
+        checkResult(expected, query1, 2);
 
         // add incremental data
         try (Connection connection =
@@ -136,7 +139,8 @@ public class MySQLDorisE2ECase extends DorisTestBase {
                         .collect(Collectors.toSet());
         sql =
                 "select * from ( select * from %s.%s union all select * from %s.%s union all select * from %s.%s ) res order by 1";
-        checkResult(expected2, sql, 2);
+        String query2 = String.format(sql, DATABASE, TABLE_1, DATABASE, TABLE_2, DATABASE, TABLE_3);
+        checkResult(expected2, query2, 2);
 
         // mock schema change
         try (Connection connection =
@@ -162,19 +166,127 @@ public class MySQLDorisE2ECase extends DorisTestBase {
                                 Arrays.asList("doris_1_1_1", "c1_val"))
                         .collect(Collectors.toSet());
         sql = "select * from %s.%s order by 1";
-        checkResult(expected3, sql, 2);
+        String query3 = String.format(sql, DATABASE, TABLE_1);
+        checkResult(expected3, query3, 2);
         jobClient.cancel().get();
+    }
+
+    @Test
+    public void testAutoAddTable() throws Exception {
+        initializeMySQLTable();
+        initializeDorisTable();
+        JobClient jobClient = submitJob();
+        // wait 2 times checkpoint
+        Thread.sleep(20000);
+        Set<List<Object>> expected =
+                Stream.<List<Object>>of(
+                                Arrays.asList("doris_1", 1),
+                                Arrays.asList("doris_2", 2),
+                                Arrays.asList("doris_3", 3))
+                        .collect(Collectors.toSet());
+        String sql =
+                "select * from ( select * from %s.%s union all select * from %s.%s union all select * from %s.%s ) res order by 1";
+        String query1 = String.format(sql, DATABASE, TABLE_1, DATABASE, TABLE_2, DATABASE, TABLE_3);
+        checkResult(expected, query1, 2);
+
+        // auto create table4
+        addTableTable_4();
+        Thread.sleep(20000);
+        Set<List<Object>> expected2 =
+                Stream.<List<Object>>of(
+                                Arrays.asList("doris_4_1", 4), Arrays.asList("doris_4_2", 4))
+                        .collect(Collectors.toSet());
+        sql = "select * from %s.%s order by 1";
+        String query2 = String.format(sql, DATABASE, TABLE_4);
+        checkResult(expected2, query2, 2);
+
+        // add incremental data
+        try (Connection connection =
+                        DriverManager.getConnection(
+                                MYSQL_CONTAINER.getJdbcUrl(), MYSQL_USER, MYSQL_PASSWD);
+                Statement statement = connection.createStatement()) {
+            statement.execute(
+                    String.format("insert into %s.%s  values ('doris_1_1',10)", DATABASE, TABLE_1));
+            statement.execute(
+                    String.format("insert into %s.%s  values ('doris_2_1',11)", DATABASE, TABLE_2));
+            statement.execute(
+                    String.format("insert into %s.%s  values ('doris_3_1',12)", DATABASE, TABLE_3));
+            statement.execute(
+                    String.format("insert into %s.%s  values ('doris_4_3',43)", DATABASE, TABLE_4));
+
+            statement.execute(
+                    String.format(
+                            "update %s.%s set age=18 where name='doris_1'", DATABASE, TABLE_1));
+            statement.execute(
+                    String.format("delete from %s.%s where name='doris_2'", DATABASE, TABLE_2));
+            statement.execute(
+                    String.format("delete from %s.%s where name='doris_4_2'", DATABASE, TABLE_4));
+            statement.execute(
+                    String.format(
+                            "update %s.%s set age=41 where name='doris_4_1'", DATABASE, TABLE_4));
+        }
+
+        Thread.sleep(20000);
+        Set<List<Object>> expected3 =
+                Stream.<List<Object>>of(
+                                Arrays.asList("doris_1", 18),
+                                Arrays.asList("doris_1_1", 10),
+                                Arrays.asList("doris_2_1", 11),
+                                Arrays.asList("doris_3", 3),
+                                Arrays.asList("doris_3_1", 12),
+                                Arrays.asList("doris_4_1", 41),
+                                Arrays.asList("doris_4_3", 43))
+                        .collect(Collectors.toSet());
+        sql =
+                "select * from ( select * from %s.%s union all select * from %s.%s union all select * from %s.%s union all select * from %s.%s ) res order by 1";
+        String query3 =
+                String.format(
+                        sql, DATABASE, TABLE_1, DATABASE, TABLE_2, DATABASE, TABLE_3, DATABASE,
+                        TABLE_4);
+        checkResult(expected3, query3, 2);
+
+        // mock schema change
+        try (Connection connection =
+                        DriverManager.getConnection(
+                                MYSQL_CONTAINER.getJdbcUrl(), MYSQL_USER, MYSQL_PASSWD);
+                Statement statement = connection.createStatement()) {
+            statement.execute(
+                    String.format(
+                            "alter table %s.%s add column c1 varchar(128)", DATABASE, TABLE_4));
+            statement.execute(
+                    String.format("alter table %s.%s drop column age", DATABASE, TABLE_4));
+            Thread.sleep(20000);
+            statement.execute(
+                    String.format(
+                            "insert into %s.%s  values ('doris_4_4','c1_val')", DATABASE, TABLE_4));
+        }
+        Thread.sleep(20000);
+        Set<List<Object>> expected4 =
+                Stream.<List<Object>>of(
+                                Arrays.asList("doris_4_1", null),
+                                Arrays.asList("doris_4_3", null),
+                                Arrays.asList("doris_4_4", "c1_val"))
+                        .collect(Collectors.toSet());
+        sql = "select * from %s.%s order by 1";
+        String query4 = String.format(sql, DATABASE, TABLE_4);
+        checkResult(expected4, query4, 2);
+        jobClient.cancel().get();
+    }
+
+    private void initializeDorisTable() throws Exception {
+        try (Statement statement = connection.createStatement()) {
+            statement.execute(String.format("DROP TABLE IF EXISTS %s.%s", DATABASE, TABLE_1));
+            statement.execute(String.format("DROP TABLE IF EXISTS %s.%s", DATABASE, TABLE_2));
+            statement.execute(String.format("DROP TABLE IF EXISTS %s.%s", DATABASE, TABLE_3));
+            statement.execute(String.format("DROP TABLE IF EXISTS %s.%s", DATABASE, TABLE_4));
+        }
     }
 
     public void checkResult(Set<List<Object>> expected, String query, int columnSize)
             throws Exception {
         Set<List<Object>> actual = new HashSet<>();
         try (Statement sinkStatement = connection.createStatement()) {
-            ResultSet sinkResultSet =
-                    sinkStatement.executeQuery(
-                            String.format(
-                                    query, DATABASE, TABLE_1, DATABASE, TABLE_2, DATABASE,
-                                    TABLE_3));
+            ResultSet sinkResultSet = sinkStatement.executeQuery(query);
             while (sinkResultSet.next()) {
                 List<Object> row = new ArrayList<>();
                 for (int i = 1; i <= columnSize; i++) {
@@ -218,7 +330,7 @@ public class MySQLDorisE2ECase extends DorisTestBase {
         Map<String, String> tableConfig = new HashMap<>();
         tableConfig.put("replication_num", "1");
 
-        String includingTables = "tbl1|tbl2|tbl3";
+        String includingTables = "tbl.*";
         String excludingTables = "";
         DatabaseSync databaseSync = new MysqlDatabaseSync();
         databaseSync
@@ -232,6 +344,7 @@ public class MySQLDorisE2ECase extends DorisTestBase {
                 .setTableConfig(tableConfig)
                 .setCreateTableOnly(false)
                 .setNewSchemaChange(true)
+                .setSingleSink(true)
                 .create();
         databaseSync.build();
         JobClient jobClient = env.executeAsync();
@@ -240,6 +353,28 @@ public class MySQLDorisE2ECase extends DorisTestBase {
                 Collections.singletonList(RUNNING),
                 Deadline.fromNow(Duration.ofSeconds(10)));
         return jobClient;
+    }
+
+    private void addTableTable_4() throws SQLException {
+        try (Connection connection =
+                        DriverManager.getConnection(
+                                MYSQL_CONTAINER.getJdbcUrl(), MYSQL_USER, MYSQL_PASSWD);
+                Statement statement = connection.createStatement()) {
+            statement.execute(String.format("DROP TABLE IF EXISTS %s.%s", DATABASE, TABLE_4));
+            statement.execute(
+                    String.format(
+                            "CREATE TABLE %s.%s ( \n"
+                                    + "`name` varchar(256) primary key,\n"
+                                    + "`age` int\n"
+                                    + ")",
+                            DATABASE, TABLE_4));
+
+            // mock stock data
+            statement.execute(
+                    String.format("insert into %s.%s  values ('doris_4_1',4)", DATABASE, TABLE_4));
+            statement.execute(
+                    String.format("insert into %s.%s  values ('doris_4_2',4)", DATABASE, TABLE_4));
+        }
     }
 
     public void initializeMySQLTable() throws Exception {
