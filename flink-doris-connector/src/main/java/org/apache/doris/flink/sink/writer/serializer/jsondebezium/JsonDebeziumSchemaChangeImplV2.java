@@ -27,6 +27,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.apache.commons.collections.CollectionUtils;
+import org.apache.doris.flink.catalog.doris.DataModel;
 import org.apache.doris.flink.catalog.doris.FieldSchema;
 import org.apache.doris.flink.catalog.doris.TableSchema;
 import org.apache.doris.flink.exception.IllegalArgumentException;
@@ -229,6 +230,7 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
         tableSchema.setDistributeKeys(buildDistributeKeys(pkList, field));
         tableSchema.setTableComment(tblComment);
         tableSchema.setProperties(tableProperties);
+        tableSchema.setModel(pkList.isEmpty() ? DataModel.DUPLICATE : DataModel.UNIQUE);
 
         String[] split = dorisTable.split("\\.");
         Preconditions.checkArgument(split.length == 2);
