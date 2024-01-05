@@ -21,6 +21,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.StatefulSink;
 import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
+import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
@@ -82,6 +83,8 @@ public class DorisWriter<IN>
     private transient Thread executorThread;
     private transient volatile Exception loadException = null;
     private BackendUtil backendUtil;
+    private SinkWriterMetricGroup sinkMetricGroup;
+    private Map<String, DorisWriteMetrics> sinkMetricsMap = new ConcurrentHashMap<>();
 
     public DorisWriter(
             Sink.InitContext initContext,
@@ -96,7 +99,7 @@ public class DorisWriter<IN>
                         .orElse(CheckpointIDCounter.INITIAL_CHECKPOINT_ID - 1);
         this.curCheckpointId = lastCheckpointId + 1;
         LOG.info("restore checkpointId {}", lastCheckpointId);
-        LOG.info("labelPrefix " + executionOptions.getLabelPrefix());
+        LOG.info("labelPrefix {}", executionOptions.getLabelPrefix());
         this.labelPrefix = executionOptions.getLabelPrefix();
         this.subtaskId = initContext.getSubtaskId();
         this.scheduledExecutorService =
@@ -107,7 +110,7 @@ public class DorisWriter<IN>
         this.executionOptions = executionOptions;
         this.intervalTime = executionOptions.checkInterval();
         this.globalLoading = false;
-
+        sinkMetricGroup = initContext.metricGroup();
         initializeLoad(state);
         serializer.initial();
     }
@@ -197,8 +200,22 @@ public class DorisWriter<IN>
             streamLoader.startLoad(currentLabel, false);
             loadingMap.put(tableKey, true);
             globalLoading = true;
+            registerMetrics(tableKey);
         }
         streamLoader.writeRecord(record.getRow());
+    }
+
+    @VisibleForTesting
+    public void setSinkMetricGroup(SinkWriterMetricGroup sinkMetricGroup) {
+        this.sinkMetricGroup = sinkMetricGroup;
+    }
+
+    public void registerMetrics(String tableKey) {
+        if (sinkMetricsMap.containsKey(tableKey)) {
+            return;
+        }
+        DorisWriteMetrics metrics = DorisWriteMetrics.of(sinkMetricGroup, tableKey);
+        sinkMetricsMap.put(tableKey, metrics);
     }
 
     @Override
@@ -222,10 +239,15 @@ public class DorisWriter<IN>
             LabelGenerator labelGenerator = getLabelGenerator(tableIdentifier);
             String currentLabel = labelGenerator.generateTableLabel(curCheckpointId);
             RespContent respContent = dorisStreamLoad.stopLoad(currentLabel);
+            // refresh metrics
+            if (sinkMetricsMap.containsKey(tableIdentifier)) {
+                DorisWriteMetrics dorisWriteMetrics = sinkMetricsMap.get(tableIdentifier);
+                dorisWriteMetrics.flush(respContent);
+            }
             if (!DORIS_SUCCESS_STATUS.contains(respContent.getStatus())) {
                 String errMsg =
                         String.format(
-                                "tabel {} stream load error: %s, see more in %s",
+                                "table %s stream load error: %s, see more in %s",
                                 tableIdentifier,
                                 respContent.getMessage(),
                                 respContent.getErrorURL());
@@ -361,6 +383,11 @@ public class DorisWriter<IN>
     @VisibleForTesting
     public void setDorisStreamLoadMap(Map<String, DorisStreamLoad> streamLoadMap) {
         this.dorisStreamLoadMap = streamLoadMap;
+    }
+
+    @VisibleForTesting
+    public void setDorisMetricsMap(Map<String, DorisWriteMetrics> metricsMap) {
+        this.sinkMetricsMap = metricsMap;
     }
 
     @Override

@@ -26,7 +26,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 public class RespContent {
 
     @JsonProperty(value = "TxnId")
-    private long txnId;
+    private Long txnId;
 
     @JsonProperty(value = "Label")
     private String label;
@@ -44,42 +44,42 @@ public class RespContent {
     private String message;
 
     @JsonProperty(value = "NumberTotalRows")
-    private long numberTotalRows;
+    private Long numberTotalRows;
 
     @JsonProperty(value = "NumberLoadedRows")
-    private long numberLoadedRows;
+    private Long numberLoadedRows;
 
     @JsonProperty(value = "NumberFilteredRows")
-    private int numberFilteredRows;
+    private Integer numberFilteredRows;
 
     @JsonProperty(value = "NumberUnselectedRows")
-    private int numberUnselectedRows;
+    private Integer numberUnselectedRows;
 
     @JsonProperty(value = "LoadBytes")
-    private long loadBytes;
+    private Long loadBytes;
 
     @JsonProperty(value = "LoadTimeMs")
-    private int loadTimeMs;
+    private Integer loadTimeMs;
 
     @JsonProperty(value = "BeginTxnTimeMs")
-    private int beginTxnTimeMs;
+    private Integer beginTxnTimeMs;
 
     @JsonProperty(value = "StreamLoadPutTimeMs")
-    private int streamLoadPutTimeMs;
+    private Integer streamLoadPutTimeMs;
 
     @JsonProperty(value = "ReadDataTimeMs")
-    private int readDataTimeMs;
+    private Integer readDataTimeMs;
 
     @JsonProperty(value = "WriteDataTimeMs")
-    private int writeDataTimeMs;
+    private Integer writeDataTimeMs;
 
     @JsonProperty(value = "CommitAndPublishTimeMs")
-    private int commitAndPublishTimeMs;
+    private Integer commitAndPublishTimeMs;
 
     @JsonProperty(value = "ErrorURL")
     private String errorURL;
 
-    public long getTxnId() {
+    public Long getTxnId() {
         return txnId;
     }
 
@@ -97,6 +97,50 @@ public class RespContent {
 
     public String getExistingJobStatus() {
         return existingJobStatus;
+    }
+
+    public Long getNumberTotalRows() {
+        return numberTotalRows;
+    }
+
+    public Long getNumberLoadedRows() {
+        return numberLoadedRows;
+    }
+
+    public Integer getNumberFilteredRows() {
+        return numberFilteredRows;
+    }
+
+    public Integer getNumberUnselectedRows() {
+        return numberUnselectedRows;
+    }
+
+    public Long getLoadBytes() {
+        return loadBytes;
+    }
+
+    public Integer getLoadTimeMs() {
+        return loadTimeMs;
+    }
+
+    public Integer getBeginTxnTimeMs() {
+        return beginTxnTimeMs;
+    }
+
+    public Integer getStreamLoadPutTimeMs() {
+        return streamLoadPutTimeMs;
+    }
+
+    public Integer getReadDataTimeMs() {
+        return readDataTimeMs;
+    }
+
+    public Integer getWriteDataTimeMs() {
+        return writeDataTimeMs;
+    }
+
+    public Integer getCommitAndPublishTimeMs() {
+        return commitAndPublishTimeMs;
     }
 
     @Override
