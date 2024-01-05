@@ -148,8 +148,8 @@ public class DorisStreamLoad implements Serializable {
     /**
      * try to discard pending transactions with labels beginning with labelSuffix.
      *
-     * @param labelSuffix
-     * @param chkID
+     * @param labelSuffix the suffix of the stream load.
+     * @param chkID checkpoint id of task.
      * @throws Exception
      */
     public void abortPreCommit(String labelSuffix, long chkID) throws Exception {
@@ -253,7 +253,7 @@ public class DorisStreamLoad implements Serializable {
     /**
      * start write data for new checkpoint.
      *
-     * @param label
+     * @param label the label of Stream Load.
      * @throws IOException
      */
     public void startLoad(String label, boolean isResume) throws IOException {
