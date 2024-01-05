@@ -26,7 +26,7 @@ import static org.apache.doris.flink.sink.LoadStatus.SUCCESS;
 public class DorisWriteMetrics implements Serializable {
     private static final long serialVersionUID = 1L;
     // Window size of histogram metrics.
-    private static final int HISTOGRAM_WINDOW_SIZE = 2;
+    private static final int HISTOGRAM_WINDOW_SIZE = 100;
     private static final List<String> DORIS_SUCCESS_STATUS =
             new ArrayList<>(Arrays.asList(SUCCESS, PUBLISH_TIMEOUT));
     private final String tableIdentifier;
