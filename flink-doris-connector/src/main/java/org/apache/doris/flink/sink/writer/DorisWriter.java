@@ -204,7 +204,7 @@ public class DorisWriter<IN>
         if (sinkMetricsMap.containsKey(tableKey)) {
             return;
         }
-        DorisWriteMetrics metrics = DorisWriteMetrics.of(sinkMetricGroup, tableKey, subtaskId);
+        DorisWriteMetrics metrics = DorisWriteMetrics.of(sinkMetricGroup, tableKey);
         sinkMetricsMap.put(tableKey, metrics);
     }
 

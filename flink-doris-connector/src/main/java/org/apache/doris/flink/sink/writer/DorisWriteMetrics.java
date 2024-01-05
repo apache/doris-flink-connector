@@ -84,18 +84,18 @@ public class DorisWriteMetrics implements Serializable {
     private static final String HISTOGRAM_COMMIT_AND_PUBLISH_TIME_MS = "commitAndPublishTimeMs";
     private static final String HISTOGRAM_LOAD_TIME_MS = "loadTimeMs";
 
-    private static final String METRIC_NAME_FORMAT = "%s_%s_%s";
+    private static final String METRIC_NAME_FORMAT = "%s_%s";
 
     @VisibleForTesting
     DorisWriteMetrics(
-            SinkWriterMetricGroup sinkMetricGroup, String tableIdentifier, int subTaskId) {
+            SinkWriterMetricGroup sinkMetricGroup, String tableIdentifier) {
         this.tableIdentifier = tableIdentifier;
-        register(sinkMetricGroup, subTaskId);
+        register(sinkMetricGroup);
     }
 
     public static DorisWriteMetrics of(
-            SinkWriterMetricGroup sinkWriterMetricGroup, String tableIdentifier, int subTaskId) {
-        return new DorisWriteMetrics(sinkWriterMetricGroup, tableIdentifier, subTaskId);
+            SinkWriterMetricGroup sinkWriterMetricGroup, String tableIdentifier) {
+        return new DorisWriteMetrics(sinkWriterMetricGroup, tableIdentifier);
     }
 
     public void flush(RespContent respContent) {
@@ -108,62 +108,54 @@ public class DorisWriteMetrics implements Serializable {
 
     @VisibleForTesting
     public void register(
-            SinkWriterMetricGroup sinkMetricGroup, int subTaskId, int histogramWindowSize) {
+            SinkWriterMetricGroup sinkMetricGroup) {
         totalFlushNumberTotalRows =
                 sinkMetricGroup.counter(
                         String.format(
                                 METRIC_NAME_FORMAT,
                                 tableIdentifier,
-                                subTaskId,
                                 COUNTER_TOTAL_FLUSH_ROWS));
         totalFlushLoadedRows =
                 sinkMetricGroup.counter(
                         String.format(
                                 METRIC_NAME_FORMAT,
                                 tableIdentifier,
-                                subTaskId,
                                 COUNTER_TOTAL_FLUSH_LOADED_ROWS));
         totalFlushLoadBytes =
                 sinkMetricGroup.counter(
                         String.format(
                                 METRIC_NAME_FORMAT,
                                 tableIdentifier,
-                                subTaskId,
                                 COUNTER_TOTAL_FLUSH_BYTES));
         totalFlushFilteredRows =
                 sinkMetricGroup.counter(
                         String.format(
                                 METRIC_NAME_FORMAT,
                                 tableIdentifier,
-                                subTaskId,
                                 COUNTER_TOTAL_FILTERED_ROWS));
         totalFlushUnselectedRows =
                 sinkMetricGroup.counter(
                         String.format(
                                 METRIC_NAME_FORMAT,
                                 tableIdentifier,
-                                subTaskId,
                                 COUNTER_TOTAL_UNSELECTED_ROWS));
         totalFlushSucceededTimes =
                 sinkMetricGroup.counter(
                         String.format(
                                 METRIC_NAME_FORMAT,
                                 tableIdentifier,
-                                subTaskId,
                                 COUNTER_TOTAL_FLUSH_SUCCEEDED_TIMES_COUNT));
         totalFlushFailedTimes =
                 sinkMetricGroup.counter(
                         String.format(
                                 METRIC_NAME_FORMAT,
                                 tableIdentifier,
-                                subTaskId,
                                 COUNTER_TOTAL_FLUSH_FAILED_TIMES_COUNT));
         totalFlushTimeMs =
                 sinkMetricGroup.counter(
                         String.format(
                                 METRIC_NAME_FORMAT,
                                 tableIdentifier,
-                                subTaskId,
                                 COUNTER_TOTAL_FLUSH_COST_TIME));
 
         loadTimeHistogramMs =
@@ -171,7 +163,6 @@ public class DorisWriteMetrics implements Serializable {
                         String.format(
                                 METRIC_NAME_FORMAT,
                                 tableIdentifier,
-                                subTaskId,
                                 HISTOGRAM_LOAD_TIME_MS),
                         new DescriptiveStatisticsHistogram(HISTOGRAM_WINDOW_SIZE));
         streamLoadPutTimeHistogramMs =
@@ -179,7 +170,6 @@ public class DorisWriteMetrics implements Serializable {
                         String.format(
                                 METRIC_NAME_FORMAT,
                                 tableIdentifier,
-                                subTaskId,
                                 HISTOGRAM_STREAM_LOAD_PUT_DATA_TIME_MS),
                         new DescriptiveStatisticsHistogram(HISTOGRAM_WINDOW_SIZE));
         commitAndPublishTimeHistogramMs =
@@ -187,7 +177,6 @@ public class DorisWriteMetrics implements Serializable {
                         String.format(
                                 METRIC_NAME_FORMAT,
                                 tableIdentifier,
-                                subTaskId,
                                 HISTOGRAM_COMMIT_AND_PUBLISH_TIME_MS),
                         new DescriptiveStatisticsHistogram(HISTOGRAM_WINDOW_SIZE));
         this.beginTxnTimeHistogramMs =
@@ -195,7 +184,6 @@ public class DorisWriteMetrics implements Serializable {
                         String.format(
                                 METRIC_NAME_FORMAT,
                                 tableIdentifier,
-                                subTaskId,
                                 HISTOGRAM_BEGIN_TXN_TIME_MS),
                         new DescriptiveStatisticsHistogram(HISTOGRAM_WINDOW_SIZE));
         readDataTimeHistogramMs =
@@ -203,7 +191,6 @@ public class DorisWriteMetrics implements Serializable {
                         String.format(
                                 METRIC_NAME_FORMAT,
                                 tableIdentifier,
-                                subTaskId,
                                 HISTOGRAM_READ_DATA_TIME_MS),
                         new DescriptiveStatisticsHistogram(HISTOGRAM_WINDOW_SIZE));
         writeDataTimeHistogramMs =
@@ -211,14 +198,10 @@ public class DorisWriteMetrics implements Serializable {
                         String.format(
                                 METRIC_NAME_FORMAT,
                                 tableIdentifier,
-                                subTaskId,
                                 HISTOGRAM_WRITE_DATA_TIME_MS),
                         new DescriptiveStatisticsHistogram(HISTOGRAM_WINDOW_SIZE));
     }
 
-    private void register(SinkWriterMetricGroup sinkMetricGroup, int subTaskId) {
-        register(sinkMetricGroup, subTaskId, HISTOGRAM_WINDOW_SIZE);
-    }
 
     private void flushSuccessLoad(RespContent responseContent) {
         Optional.ofNullable(responseContent.getLoadBytes()).ifPresent(totalFlushLoadBytes::inc);

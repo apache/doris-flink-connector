@@ -142,7 +142,7 @@ public class TestDorisWriter {
 
     public DorisWriteMetrics getMockWriteMetrics(SinkWriterMetricGroup sinkWriterMetricGroup) {
         DorisWriteMetrics dorisWriteMetrics =
-                new DorisWriteMetrics(sinkWriterMetricGroup, dorisOptions.getTableIdentifier(), 1);
+                new DorisWriteMetrics(sinkWriterMetricGroup, dorisOptions.getTableIdentifier());
         Counter mockCounter = mock(Counter.class);
         Histogram mockHistogram = mock(Histogram.class);
         when(mockCounter.getCount()).thenReturn(0L);
