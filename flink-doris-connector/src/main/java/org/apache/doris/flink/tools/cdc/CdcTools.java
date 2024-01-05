@@ -148,7 +148,7 @@ public class CdcTools {
 
     private static Map<String, String> getConfigMap(MultipleParameterTool params, String key) {
         if (!params.has(key)) {
-            return null;
+            return new HashMap<>();
         }
 
         Map<String, String> map = new HashMap<>();
@@ -163,7 +163,6 @@ public class CdcTools {
             }
 
             System.err.println("Invalid " + key + " " + param + ".\n");
-            return null;
         }
         return map;
     }
