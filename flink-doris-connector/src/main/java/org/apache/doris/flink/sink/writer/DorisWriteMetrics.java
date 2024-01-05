@@ -87,8 +87,7 @@ public class DorisWriteMetrics implements Serializable {
     private static final String METRIC_NAME_FORMAT = "%s_%s";
 
     @VisibleForTesting
-    DorisWriteMetrics(
-            SinkWriterMetricGroup sinkMetricGroup, String tableIdentifier) {
+    DorisWriteMetrics(SinkWriterMetricGroup sinkMetricGroup, String tableIdentifier) {
         this.tableIdentifier = tableIdentifier;
         register(sinkMetricGroup);
     }
@@ -107,14 +106,11 @@ public class DorisWriteMetrics implements Serializable {
     }
 
     @VisibleForTesting
-    public void register(
-            SinkWriterMetricGroup sinkMetricGroup) {
+    public void register(SinkWriterMetricGroup sinkMetricGroup) {
         totalFlushNumberTotalRows =
                 sinkMetricGroup.counter(
                         String.format(
-                                METRIC_NAME_FORMAT,
-                                tableIdentifier,
-                                COUNTER_TOTAL_FLUSH_ROWS));
+                                METRIC_NAME_FORMAT, tableIdentifier, COUNTER_TOTAL_FLUSH_ROWS));
         totalFlushLoadedRows =
                 sinkMetricGroup.counter(
                         String.format(
@@ -124,15 +120,11 @@ public class DorisWriteMetrics implements Serializable {
         totalFlushLoadBytes =
                 sinkMetricGroup.counter(
                         String.format(
-                                METRIC_NAME_FORMAT,
-                                tableIdentifier,
-                                COUNTER_TOTAL_FLUSH_BYTES));
+                                METRIC_NAME_FORMAT, tableIdentifier, COUNTER_TOTAL_FLUSH_BYTES));
         totalFlushFilteredRows =
                 sinkMetricGroup.counter(
                         String.format(
-                                METRIC_NAME_FORMAT,
-                                tableIdentifier,
-                                COUNTER_TOTAL_FILTERED_ROWS));
+                                METRIC_NAME_FORMAT, tableIdentifier, COUNTER_TOTAL_FILTERED_ROWS));
         totalFlushUnselectedRows =
                 sinkMetricGroup.counter(
                         String.format(
@@ -160,10 +152,7 @@ public class DorisWriteMetrics implements Serializable {
 
         loadTimeHistogramMs =
                 sinkMetricGroup.histogram(
-                        String.format(
-                                METRIC_NAME_FORMAT,
-                                tableIdentifier,
-                                HISTOGRAM_LOAD_TIME_MS),
+                        String.format(METRIC_NAME_FORMAT, tableIdentifier, HISTOGRAM_LOAD_TIME_MS),
                         new DescriptiveStatisticsHistogram(HISTOGRAM_WINDOW_SIZE));
         streamLoadPutTimeHistogramMs =
                 sinkMetricGroup.histogram(
@@ -182,26 +171,19 @@ public class DorisWriteMetrics implements Serializable {
         this.beginTxnTimeHistogramMs =
                 sinkMetricGroup.histogram(
                         String.format(
-                                METRIC_NAME_FORMAT,
-                                tableIdentifier,
-                                HISTOGRAM_BEGIN_TXN_TIME_MS),
+                                METRIC_NAME_FORMAT, tableIdentifier, HISTOGRAM_BEGIN_TXN_TIME_MS),
                         new DescriptiveStatisticsHistogram(HISTOGRAM_WINDOW_SIZE));
         readDataTimeHistogramMs =
                 sinkMetricGroup.histogram(
                         String.format(
-                                METRIC_NAME_FORMAT,
-                                tableIdentifier,
-                                HISTOGRAM_READ_DATA_TIME_MS),
+                                METRIC_NAME_FORMAT, tableIdentifier, HISTOGRAM_READ_DATA_TIME_MS),
                         new DescriptiveStatisticsHistogram(HISTOGRAM_WINDOW_SIZE));
         writeDataTimeHistogramMs =
                 sinkMetricGroup.histogram(
                         String.format(
-                                METRIC_NAME_FORMAT,
-                                tableIdentifier,
-                                HISTOGRAM_WRITE_DATA_TIME_MS),
+                                METRIC_NAME_FORMAT, tableIdentifier, HISTOGRAM_WRITE_DATA_TIME_MS),
                         new DescriptiveStatisticsHistogram(HISTOGRAM_WINDOW_SIZE));
     }
-
 
     private void flushSuccessLoad(RespContent responseContent) {
         Optional.ofNullable(responseContent.getLoadBytes()).ifPresent(totalFlushLoadBytes::inc);
