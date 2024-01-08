@@ -76,7 +76,6 @@ public abstract class DatabaseSync {
     protected String tablePrefix;
     protected String tableSuffix;
     protected boolean singleSink;
-    protected String tableBuckets;
     private Map<String, String> tableMapping = new HashMap<>();
 
     public abstract void registerDriver() throws SQLException;
