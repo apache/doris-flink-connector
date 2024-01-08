@@ -46,7 +46,6 @@ public class CdcOraclelSyncDatabaseCase {
         String database = "db1";
         String tablePrefix = "";
         String tableSuffix = "";
-        String tableBuckets = "10";
         Map<String, String> sourceConfig = new HashMap<>();
         sourceConfig.put("database-name", "XE");
         sourceConfig.put("schema-name", "ADMIN");
@@ -70,7 +69,7 @@ public class CdcOraclelSyncDatabaseCase {
 
         Map<String, String> tableConfig = new HashMap<>();
         tableConfig.put("replication_num", "1");
-
+        //        tableConfig.put("table-buckets","50");
         String includingTables = "a_.*|b_.*|c";
         String excludingTables = "";
         String multiToOneOrigin = "a_.*|b_.*";
@@ -93,7 +92,6 @@ public class CdcOraclelSyncDatabaseCase {
                 .setTableConfig(tableConfig)
                 .setCreateTableOnly(false)
                 .setNewSchemaChange(useNewSchemaChange)
-                .setTableBuckets(tableBuckets)
                 .create();
         databaseSync.build();
         env.execute(String.format("Oracle-Doris Database Sync: %s", database));

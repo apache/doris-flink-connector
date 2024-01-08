@@ -130,7 +130,6 @@ public abstract class DatabaseSync {
                 // set doris target database
                 dorisSchema.setDatabase(database);
                 dorisSchema.setTable(dorisTable);
-                dorisSchema.setTableBuckets(tableBuckets);
                 dorisSystem.createTable(dorisSchema);
             }
             if (!dorisTables.contains(dorisTable)) {
@@ -412,11 +411,6 @@ public abstract class DatabaseSync {
 
     public DatabaseSync setTableSuffix(String tableSuffix) {
         this.tableSuffix = tableSuffix;
-        return this;
-    }
-
-    public DatabaseSync setTableBuckets(String tableBuckets) {
-        this.tableBuckets = tableBuckets;
         return this;
     }
 

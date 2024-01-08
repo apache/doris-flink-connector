@@ -71,7 +71,7 @@ public class CdcSqlServerSyncDatabaseCase {
 
         Map<String, String> tableConfig = new HashMap<>();
         tableConfig.put("replication_num", "1");
-
+        //        tableConfig.put("table-buckets","50");
         String includingTables = "a_.*|b_.*|c";
         String excludingTables = "";
         String multiToOneOrigin = "a_.*|b_.*";
@@ -94,7 +94,6 @@ public class CdcSqlServerSyncDatabaseCase {
                 .setTableConfig(tableConfig)
                 .setCreateTableOnly(false)
                 .setNewSchemaChange(useNewSchemaChange)
-                .setTableBuckets(tableBuckets)
                 .create();
         databaseSync.build();
         env.execute(String.format("SqlServer-Doris Database Sync: %s", database));

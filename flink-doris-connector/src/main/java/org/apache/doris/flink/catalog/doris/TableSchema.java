@@ -30,7 +30,6 @@ public class TableSchema {
     private List<String> keys = new ArrayList<>();
     private DataModel model = DataModel.DUPLICATE;
     private List<String> distributeKeys = new ArrayList<>();
-    private String tableBuckets;
     private Map<String, String> properties = new HashMap<>();
 
     public String getDatabase() {
@@ -91,14 +90,6 @@ public class TableSchema {
 
     public void setDistributeKeys(List<String> distributeKeys) {
         this.distributeKeys = distributeKeys;
-    }
-
-    public String getTableBuckets() {
-        return tableBuckets;
-    }
-
-    public void setTableBuckets(String tableBuckets) {
-        this.tableBuckets = tableBuckets;
     }
 
     public void setProperties(Map<String, String> properties) {

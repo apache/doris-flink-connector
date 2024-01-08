@@ -46,7 +46,6 @@ public class CdcPostgresSyncDatabaseCase {
         String database = "db2";
         String tablePrefix = "";
         String tableSuffix = "";
-        String tableBuckets = "10";
         Map<String, String> sourceConfig = new HashMap<>();
         sourceConfig.put("database-name", "postgres");
         sourceConfig.put("schema-name", "public");
@@ -96,7 +95,6 @@ public class CdcPostgresSyncDatabaseCase {
                 .setTableConfig(tableConfig)
                 .setCreateTableOnly(false)
                 .setNewSchemaChange(useNewSchemaChange)
-                .setTableBuckets(tableBuckets)
                 .create();
         databaseSync.build();
         env.execute(String.format("Postgres-Doris Database Sync: %s", database));

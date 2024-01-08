@@ -48,6 +48,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 public class DorisSystem implements Serializable {
     private static final long serialVersionUID = 1L;
     private static final Logger LOG = LoggerFactory.getLogger(DorisSystem.class);
+    private static final String TABLE_BUCKETS = "table-buckets";
     private final JdbcConnectionProvider jdbcConnectionProvider;
     private static final List<String> builtinDatabases =
             Collections.singletonList("information_schema");
@@ -200,24 +201,30 @@ public class DorisSystem implements Serializable {
         sb.append(" DISTRIBUTED BY HASH(")
                 .append(String.join(",", identifier(schema.getDistributeKeys())))
                 .append(")");
-        if (schema.getTableBuckets().isEmpty()) {
-            sb.append(" BUCKETS AUTO ");
-        } else {
-            int bucketsNum;
+
+        Map<String, String> properties = schema.getProperties();
+        if (properties.containsKey(TABLE_BUCKETS)) {
             try {
-                bucketsNum = Integer.parseInt(schema.getTableBuckets());
+                int bucketsNum = Integer.parseInt(properties.get(TABLE_BUCKETS));
                 if (bucketsNum <= 0) {
-                    throw new CreateTableException("buckets num must be positive ");
+                    throw new CreateTableException("The number of buckets must be positive.");
                 }
                 sb.append(" BUCKETS ").append(bucketsNum);
             } catch (NumberFormatException e) {
-                throw new CreateTableException("buckets num must be integer ");
+                throw new CreateTableException("The number of buckets must be an integer.");
             }
+        } else {
+            sb.append(" BUCKETS AUTO ");
         }
-
         // append properties
         int index = 0;
-        for (Map.Entry<String, String> entry : schema.getProperties().entrySet()) {
+        int skipProNum = 0;
+        for (Map.Entry<String, String> entry : properties.entrySet()) {
+            // skip table-buckets
+            if (entry.getKey().contains(TABLE_BUCKETS)) {
+                skipProNum++;
+                continue;
+            }
             if (index == 0) {
                 sb.append(" PROPERTIES (");
             }
@@ -229,7 +236,7 @@ public class DorisSystem implements Serializable {
                     .append(quoteProperties(entry.getValue()));
             index++;
 
-            if (index == schema.getProperties().size()) {
+            if (index == (schema.getProperties().size() - skipProNum)) {
                 sb.append(")");
             }
         }
