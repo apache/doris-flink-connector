@@ -28,6 +28,7 @@ import org.apache.doris.flink.tools.cdc.postgres.PostgresDatabaseSync;
 import org.apache.doris.flink.tools.cdc.sqlserver.SqlServerDatabaseSync;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -38,7 +39,7 @@ public class CdcTools {
     private static final String ORACLE_SYNC_DATABASE = "oracle-sync-database";
     private static final String POSTGRES_SYNC_DATABASE = "postgres-sync-database";
     private static final String SQLSERVER_SYNC_DATABASE = "sqlserver-sync-database";
-    private static final List<String> EMPTY_KEYS = Arrays.asList("password");
+    private static final List<String> EMPTY_KEYS = Collections.singletonList("password");
 
     public static void main(String[] args) throws Exception {
         String operation = args[0].toLowerCase();
@@ -109,6 +110,7 @@ public class CdcTools {
         String excludingTables = params.get("excluding-tables");
         String multiToOneOrigin = params.get("multi-to-one-origin");
         String multiToOneTarget = params.get("multi-to-one-target");
+        String tableBuckets = params.get("table-buckets");
         boolean createTableOnly = params.has("create-table-only");
         boolean ignoreDefaultValue = params.has("ignore-default-value");
         boolean useNewSchemaChange = params.has("use-new-schema-change");
@@ -135,6 +137,7 @@ public class CdcTools {
                 .setCreateTableOnly(createTableOnly)
                 .setNewSchemaChange(useNewSchemaChange)
                 .setSingleSink(singleSink)
+                .setTableBuckets(tableBuckets)
                 .create();
         databaseSync.build();
         if (StringUtils.isNullOrWhitespaceOnly(jobName)) {

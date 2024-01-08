@@ -199,7 +199,21 @@ public class DorisSystem implements Serializable {
         // append distribute key
         sb.append(" DISTRIBUTED BY HASH(")
                 .append(String.join(",", identifier(schema.getDistributeKeys())))
-                .append(") BUCKETS AUTO ");
+                .append(")");
+        if (schema.getTableBuckets().isEmpty()) {
+            sb.append(" BUCKETS AUTO ");
+        } else {
+            int bucketsNum;
+            try {
+                bucketsNum = Integer.parseInt(schema.getTableBuckets());
+                if (bucketsNum <= 0) {
+                    throw new CreateTableException("buckets num must be positive ");
+                }
+                sb.append(" BUCKETS ").append(bucketsNum);
+            } catch (NumberFormatException e) {
+                throw new CreateTableException("buckets num must be integer ");
+            }
+        }
 
         // append properties
         int index = 0;

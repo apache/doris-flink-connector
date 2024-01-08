@@ -138,7 +138,7 @@ public abstract class SourceSchema {
         return tableName;
     }
 
-    public LinkedHashMap<String, FieldSchema> getFields() {
+    public Map<String, FieldSchema> getFields() {
         return fields;
     }
 

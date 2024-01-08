@@ -46,6 +46,7 @@ public class CdcSqlServerSyncDatabaseCase {
         String database = "db2";
         String tablePrefix = "";
         String tableSuffix = "";
+        String tableBuckets = "10";
         Map<String, String> sourceConfig = new HashMap<>();
         sourceConfig.put("database-name", "CDC_DB");
         sourceConfig.put("schema-name", "dbo");
@@ -93,6 +94,7 @@ public class CdcSqlServerSyncDatabaseCase {
                 .setTableConfig(tableConfig)
                 .setCreateTableOnly(false)
                 .setNewSchemaChange(useNewSchemaChange)
+                .setTableBuckets(tableBuckets)
                 .create();
         databaseSync.build();
         env.execute(String.format("SqlServer-Doris Database Sync: %s", database));
