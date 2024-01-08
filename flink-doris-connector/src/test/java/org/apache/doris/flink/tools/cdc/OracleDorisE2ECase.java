@@ -17,8 +17,6 @@
 
 package org.apache.doris.flink.tools.cdc;
 
-import org.apache.doris.flink.DorisTestBase;
-import org.apache.doris.flink.tools.cdc.oracle.OracleDatabaseSync;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Deadline;
@@ -26,6 +24,9 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.util.function.SupplierWithException;
+
+import org.apache.doris.flink.DorisTestBase;
+import org.apache.doris.flink.tools.cdc.oracle.OracleDatabaseSync;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -41,7 +42,15 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.time.Duration;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -49,11 +58,8 @@ import java.util.stream.Stream;
 import static org.apache.flink.api.common.JobStatus.RUNNING;
 
 /**
- * OracleDorisE2ECase
- * 1. Automatically create tables
- * 2. Schema change event synchronization
- * 3. Synchronization of addition, deletion and modification events
- * 4. CDC multi-table writing.
+ * OracleDorisE2ECase 1. Automatically create tables 2. Schema change event synchronization 3.
+ * Synchronization of addition, deletion and modification events 4. CDC multi-table writing.
  */
 public class OracleDorisE2ECase extends DorisTestBase {
     protected static final Logger LOG = LoggerFactory.getLogger(OracleDorisE2ECase.class);
@@ -65,11 +71,10 @@ public class OracleDorisE2ECase extends DorisTestBase {
     private static final String ORACLE_TABLE_3 = "orc_tbl3";
 
     private static final OracleContainer ORACLE_CONTAINER =
-            new OracleContainer("gvenzl/oracle-xe:21-slim-faststart" )
+            new OracleContainer("gvenzl/oracle-xe:21-slim-faststart")
                     .withDatabaseName(DATABASE)
                     .withPassword(ORACLE_PASSWD)
                     .withLogConsumer(new Slf4jLogConsumer(LOG));
-
 
     @BeforeClass
     public static void startOracleContainers() {
@@ -115,8 +120,7 @@ public class OracleDorisE2ECase extends DorisTestBase {
                     String.format("insert into %s  values ('doris_3_1',12);", ORACLE_TABLE_3));
 
             statement.execute(
-                    String.format(
-                            "update %s set age=18 where name='doris_1';", ORACLE_TABLE_1));
+                    String.format("update %s set age=18 where name='doris_1';", ORACLE_TABLE_1));
             statement.execute(
                     String.format("delete from %s where name='doris_2';", ORACLE_TABLE_2));
         }
@@ -130,8 +134,7 @@ public class OracleDorisE2ECase extends DorisTestBase {
                                 Arrays.asList("doris_3", 3),
                                 Arrays.asList("doris_3_1", 12))
                         .collect(Collectors.toSet());
-        sql =
-                "select * from %s union all select * from %s union all select * from %s order by 1;";
+        sql = "select * from %s union all select * from %s union all select * from %s order by 1;";
         String query2 = String.format(sql, ORACLE_TABLE_1, ORACLE_TABLE_2, ORACLE_TABLE_3);
         checkResult(expected2, query2, 2);
 
@@ -141,15 +144,12 @@ public class OracleDorisE2ECase extends DorisTestBase {
                                 ORACLE_CONTAINER.getJdbcUrl(), ORACLE_USER, ORACLE_PASSWD);
                 Statement statement = connection.createStatement()) {
             statement.execute(
-                    String.format(
-                            "alter table %s add column c1 varchar(128)", ORACLE_TABLE_1));
-            statement.execute(
-                    String.format("alter table %s drop column age",  ORACLE_TABLE_1));
+                    String.format("alter table %s add column c1 varchar(128)", ORACLE_TABLE_1));
+            statement.execute(String.format("alter table %s drop column age", ORACLE_TABLE_1));
             Thread.sleep(20000);
             statement.execute(
                     String.format(
-                            "insert into %s  values ('doris_1_1_1','c1_val')",
-                            ORACLE_TABLE_1));
+                            "insert into %s  values ('doris_1_1_1','c1_val')", ORACLE_TABLE_1));
         }
         Thread.sleep(20000);
         Set<List<Object>> expected3 =
@@ -168,8 +168,7 @@ public class OracleDorisE2ECase extends DorisTestBase {
             throws Exception {
         Set<List<Object>> actual = new HashSet<>();
         try (Statement sinkStatement = connection.createStatement()) {
-            ResultSet sinkResultSet =
-                    sinkStatement.executeQuery(query);
+            ResultSet sinkResultSet = sinkStatement.executeQuery(query);
             while (sinkResultSet.next()) {
                 List<Object> row = new ArrayList<>();
                 for (int i = 1; i <= columnSize; i++) {
@@ -195,7 +194,7 @@ public class OracleDorisE2ECase extends DorisTestBase {
         String database = DATABASE;
         Map<String, String> oracleConfig = new HashMap<>();
         oracleConfig.put("hostname", ORACLE_CONTAINER.getHost());
-        oracleConfig.put("port", ORACLE_CONTAINER.getMappedPort(1521)+"");
+        oracleConfig.put("port", ORACLE_CONTAINER.getMappedPort(1521) + "");
         oracleConfig.put("username", ORACLE_USER);
         oracleConfig.put("password", ORACLE_PASSWD);
         oracleConfig.put("database-name", ORACLE_CONTAINER.getDatabaseName());
@@ -247,19 +246,22 @@ public class OracleDorisE2ECase extends DorisTestBase {
                             "CREATE TABLE %s ( \n"
                                     + "`name` varchar(256) primary key,\n"
                                     + "`age` int\n"
-                                    + ")",ORACLE_TABLE_1));
+                                    + ")",
+                            ORACLE_TABLE_1));
             statement.execute(
                     String.format(
                             "CREATE TABLE %s ( \n"
                                     + "`name` varchar(256) primary key,\n"
                                     + "`age` int\n"
-                                    + ")",ORACLE_TABLE_2));
+                                    + ")",
+                            ORACLE_TABLE_2));
             statement.execute(
                     String.format(
                             "CREATE TABLE %s ( \n"
                                     + "`name` varchar(256) primary key,\n"
                                     + "`age` int\n"
-                                    + ")", ORACLE_TABLE_3));
+                                    + ")",
+                            ORACLE_TABLE_3));
             // mock stock data
             statement.execute(
                     String.format("insert into %s  values ('doris_1',1)", ORACLE_TABLE_1));
