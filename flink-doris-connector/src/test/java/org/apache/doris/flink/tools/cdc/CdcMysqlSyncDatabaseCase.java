@@ -44,7 +44,6 @@ public class CdcMysqlSyncDatabaseCase {
         String database = "db1";
         String tablePrefix = "";
         String tableSuffix = "";
-        String tableBuckets = "10";
         Map<String, String> mysqlConfig = new HashMap<>();
         mysqlConfig.put("database-name", "db1");
         mysqlConfig.put("hostname", "127.0.0.1");
