@@ -244,22 +244,22 @@ public class OracleDorisE2ECase extends DorisTestBase {
             statement.execute(
                     String.format(
                             "CREATE TABLE %s ( \n"
-                                    + "`name` varchar(256) primary key,\n"
-                                    + "`age` int\n"
+                                    + "name varchar(256) primary key,\n"
+                                    + "age int\n"
                                     + ")",
                             ORACLE_TABLE_1));
             statement.execute(
                     String.format(
                             "CREATE TABLE %s ( \n"
-                                    + "`name` varchar(256) primary key,\n"
-                                    + "`age` int\n"
+                                    + "name varchar(256) primary key,\n"
+                                    + "age int\n"
                                     + ")",
                             ORACLE_TABLE_2));
             statement.execute(
                     String.format(
                             "CREATE TABLE %s ( \n"
-                                    + "`name` varchar(256) primary key,\n"
-                                    + "`age` int\n"
+                                    + "name varchar(256) primary key,\n"
+                                    + "age int\n"
                                     + ")",
                             ORACLE_TABLE_3));
             // mock stock data
