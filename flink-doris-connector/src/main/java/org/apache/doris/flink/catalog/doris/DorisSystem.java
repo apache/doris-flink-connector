@@ -218,7 +218,7 @@ public class DorisSystem implements Serializable {
         int skipProNum = 0;
         for (Map.Entry<String, String> entry : properties.entrySet()) {
             // skip table-buckets
-            if (entry.getKey().contains(TABLE_BUCKETS)) {
+            if (entry.getKey().equals(TABLE_BUCKETS)) {
                 skipProNum++;
                 continue;
             }

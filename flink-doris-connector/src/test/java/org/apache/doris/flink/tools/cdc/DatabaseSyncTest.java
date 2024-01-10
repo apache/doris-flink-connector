@@ -19,11 +19,19 @@ package org.apache.doris.flink.tools.cdc;
 
 import org.apache.flink.configuration.Configuration;
 
+import org.apache.doris.flink.catalog.doris.TableSchema;
 import org.apache.doris.flink.tools.cdc.mysql.MysqlDatabaseSync;
+import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.sql.SQLException;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /** Unit tests for the {@link DatabaseSync}. */
 public class DatabaseSyncTest {
@@ -54,5 +62,53 @@ public class DatabaseSyncTest {
         databaseSync.setConfig(config);
         String syncTableList = databaseSync.getSyncTableList(Arrays.asList("tbl_1", "tbl_2"));
         Assert.assertEquals("db\\.tbl_1|db\\.tbl_2", syncTableList);
+    }
+
+    @Test
+    public void getTableBucketsTest() throws SQLException {
+        String tableBuckets = "tbl1:10,tbl2 : 20,a.* :30,b.*:40,.*:50";
+        DatabaseSync databaseSync = new MysqlDatabaseSync();
+        Map<String, Integer> tableBucketsMap = databaseSync.getTableBuckets(tableBuckets);
+        Assert.assertEquals(10, tableBucketsMap.get("tbl1").intValue());
+        Assert.assertEquals(20, tableBucketsMap.get("tbl2").intValue());
+        Assert.assertEquals(30, tableBucketsMap.get("a.*").intValue());
+        Assert.assertEquals(40, tableBucketsMap.get("b.*").intValue());
+        Assert.assertEquals(50, tableBucketsMap.get(".*").intValue());
+    }
+
+    @Test
+    public void setTableSchemaBucketsTest() throws SQLException {
+        DatabaseSync databaseSync = new MysqlDatabaseSync();
+        String tableSchemaBuckets = "tbl1:10,tbl2:20,a.*:30,b.*:40,.*:50";
+        Map<String, Integer> tableBucketsMap = databaseSync.getTableBuckets(tableSchemaBuckets);
+        List<String> tableList =
+                Arrays.asList(
+                        "tbl1", "tbl2", "tbl3", "tbl4", "a1", "a2", "b1", "b2", "c1", "c2", "d1");
+        HashMap<String, Integer> matchedTableBucketsMap = mockTableBuckets();
+        Set<String> tableSet = new HashSet<>();
+        for (String tableName : tableList) {
+            TableSchema tableSchema = new TableSchema();
+            tableSchema.setTable(tableName);
+            databaseSync.setTableSchemaBuckets(tableBucketsMap, tableSchema, tableName, tableSet);
+            Assert.assertEquals(
+                    matchedTableBucketsMap.get(tableName), tableSchema.getTableBuckets());
+        }
+    }
+
+    @NotNull
+    private static HashMap<String, Integer> mockTableBuckets() {
+        HashMap<String, Integer> matchedTableBucketsMap = new HashMap<>();
+        matchedTableBucketsMap.put("tbl1", 10);
+        matchedTableBucketsMap.put("tbl2", 20);
+        matchedTableBucketsMap.put("a1", 30);
+        matchedTableBucketsMap.put("a2", 30);
+        matchedTableBucketsMap.put("b1", 40);
+        matchedTableBucketsMap.put("b2", 40);
+        matchedTableBucketsMap.put("c1", 50);
+        matchedTableBucketsMap.put("c2", 50);
+        matchedTableBucketsMap.put("d1", 50);
+        matchedTableBucketsMap.put("tbl3", 50);
+        matchedTableBucketsMap.put("tbl4", 50);
+        return matchedTableBucketsMap;
     }
 }
