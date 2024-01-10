@@ -63,12 +63,12 @@ import static org.apache.flink.api.common.JobStatus.RUNNING;
  */
 public class OracleDorisE2ECase extends DorisTestBase {
     protected static final Logger LOG = LoggerFactory.getLogger(OracleDorisE2ECase.class);
-    private static final String DATABASE = "test";
-    private static final String ORACLE_USER = "system";
+    private static final String DATABASE = "TEST";
+    private static final String ORACLE_USER = "SYSTEM";
     private static final String ORACLE_PASSWD = "123456";
-    private static final String ORACLE_TABLE_1 = "orc_tbl1";
-    private static final String ORACLE_TABLE_2 = "orc_tbl2";
-    private static final String ORACLE_TABLE_3 = "orc_tbl3";
+    private static final String ORACLE_TABLE_1 = "ORC_TBL1";
+    private static final String ORACLE_TABLE_2 = "ORC_TBL2";
+    private static final String ORACLE_TABLE_3 = "ORC_TBL3";
 
     private static final OracleContainer ORACLE_CONTAINER =
             new OracleContainer("gvenzl/oracle-xe:21-slim-faststart")
@@ -98,9 +98,9 @@ public class OracleDorisE2ECase extends DorisTestBase {
         Thread.sleep(20000);
         Set<List<Object>> expected =
                 Stream.<List<Object>>of(
-                                Arrays.asList("orc_tbl1", 1),
-                                Arrays.asList("orc_tbl2", 2),
-                                Arrays.asList("orc_tbl3", 3))
+                                Arrays.asList("ORC_TBL1", 1),
+                                Arrays.asList("ORC_TBL2", 2),
+                                Arrays.asList("ORC_TBL3", 3))
                         .collect(Collectors.toSet());
         String sql =
                 "select * from %s union all select * from %s union all select * from %s order by 1;";
@@ -199,7 +199,7 @@ public class OracleDorisE2ECase extends DorisTestBase {
         oracleConfig.put("password", ORACLE_PASSWD);
         oracleConfig.put("url", ORACLE_CONTAINER.getJdbcUrl());
         oracleConfig.put("database-name", ORACLE_CONTAINER.getDatabaseName());
-        oracleConfig.put("schema-name", ORACLE_USER.toLowerCase());
+        oracleConfig.put("schema-name", ORACLE_USER.toUpperCase());
         Configuration config = Configuration.fromMap(oracleConfig);
 
         Map<String, String> sinkConfig = new HashMap<>();
@@ -213,7 +213,7 @@ public class OracleDorisE2ECase extends DorisTestBase {
         Map<String, String> tableConfig = new HashMap<>();
         tableConfig.put("replication_num", "1");
 
-        String includingTables = "orc_tbl1|orc_tbl1|orc_tbl1";
+        String includingTables = "ORC_TBL1|ORC_TBL1|ORC_TBL1";
         String excludingTables = "";
         DatabaseSync databaseSync = new OracleDatabaseSync();
         databaseSync

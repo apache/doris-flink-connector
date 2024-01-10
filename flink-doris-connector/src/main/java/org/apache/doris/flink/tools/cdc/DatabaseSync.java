@@ -289,7 +289,7 @@ public abstract class DatabaseSync {
         if (excludingPattern != null) {
             sync = sync && !excludingPattern.matcher(tableName).matches();
         }
-        LOG.debug("table {} is synchronized? {}", tableName, sync);
+        LOG.info("table {} is synchronized? {}", tableName, sync);
         return sync;
     }
 
