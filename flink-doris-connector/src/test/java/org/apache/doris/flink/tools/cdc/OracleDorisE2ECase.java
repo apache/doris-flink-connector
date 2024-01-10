@@ -103,8 +103,16 @@ public class OracleDorisE2ECase extends DorisTestBase {
                                 Arrays.asList("ORC_TBL3", 3))
                         .collect(Collectors.toSet());
         String sql =
-                "select * from %s.%s union all select * from %s.%s union all select * from %s.%s order by 1;";
-        String query1 = String.format(sql, DATABASE, ORACLE_TABLE_1, DATABASE, ORACLE_TABLE_2, DATABASE, ORACLE_TABLE_3);
+                "select * from (select * from %s.%s union all select * from %s.%s union all select * from %s.%s ) res order by 1;";
+        String query1 =
+                String.format(
+                        sql,
+                        DATABASE,
+                        ORACLE_TABLE_1,
+                        DATABASE,
+                        ORACLE_TABLE_2,
+                        DATABASE,
+                        ORACLE_TABLE_3);
         checkResult(expected, query1, 2);
 
         // add incremental data
@@ -134,8 +142,17 @@ public class OracleDorisE2ECase extends DorisTestBase {
                                 Arrays.asList("doris_3", 3),
                                 Arrays.asList("doris_3_1", 12))
                         .collect(Collectors.toSet());
-        sql = "select * from %s.%s union all select * from %s.%s union all select * from %s.%s order by 1;";
-        String query2 = String.format(sql, DATABASE, ORACLE_TABLE_1, DATABASE, ORACLE_TABLE_2, DATABASE, ORACLE_TABLE_3);
+        sql =
+                "select * from (select * from %s.%s union all select * from %s.%s union all select * from %s.%s) res order by 1;";
+        String query2 =
+                String.format(
+                        sql,
+                        DATABASE,
+                        ORACLE_TABLE_1,
+                        DATABASE,
+                        ORACLE_TABLE_2,
+                        DATABASE,
+                        ORACLE_TABLE_3);
         checkResult(expected2, query2, 2);
 
         // mock schema change
