@@ -203,16 +203,13 @@ public class DorisSystem implements Serializable {
                 .append(")");
 
         Map<String, String> properties = schema.getProperties();
-        if (properties.containsKey(TABLE_BUCKETS)) {
-            try {
-                int bucketsNum = Integer.parseInt(properties.get(TABLE_BUCKETS));
-                if (bucketsNum <= 0) {
-                    throw new CreateTableException("The number of buckets must be positive.");
-                }
-                sb.append(" BUCKETS ").append(bucketsNum);
-            } catch (NumberFormatException e) {
-                throw new CreateTableException("The number of buckets must be an integer.");
+        if (schema.getTableBuckets() != null) {
+
+            int bucketsNum = schema.getTableBuckets();
+            if (bucketsNum <= 0) {
+                throw new CreateTableException("The number of buckets must be positive.");
             }
+            sb.append(" BUCKETS ").append(bucketsNum);
         } else {
             sb.append(" BUCKETS AUTO ");
         }

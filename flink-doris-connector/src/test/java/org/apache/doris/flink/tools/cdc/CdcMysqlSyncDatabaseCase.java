@@ -64,7 +64,7 @@ public class CdcMysqlSyncDatabaseCase {
 
         Map<String, String> tableConfig = new HashMap<>();
         tableConfig.put("replication_num", "1");
-        //        tableConfig.put("table-buckets","50");
+        tableConfig.put("table-buckets", "tbl1:10,tbl2:20,a.*:30,b.*:40,.*:50");
         // String includingTables = "tbl1|tbl2|tbl3";
         String includingTables = "a_.*|b_.*|c";
         String excludingTables = "";
