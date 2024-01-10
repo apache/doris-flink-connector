@@ -71,7 +71,7 @@ public class OracleDorisE2ECase extends DorisTestBase {
     private static final String ORACLE_TABLE_3 = "ORC_TBL3";
 
     private static final OracleContainer ORACLE_CONTAINER =
-            new OracleContainer("gvenzl/oracle-xe:21-slim-faststart")
+            new OracleContainer("gvenzl/oracle-xe:11.2.0.2-slim-faststart")
                     .withDatabaseName(DATABASE)
                     .withPassword(ORACLE_PASSWD)
                     .withLogConsumer(new Slf4jLogConsumer(LOG));
@@ -103,8 +103,8 @@ public class OracleDorisE2ECase extends DorisTestBase {
                                 Arrays.asList("ORC_TBL3", 3))
                         .collect(Collectors.toSet());
         String sql =
-                "select * from %s union all select * from %s union all select * from %s order by 1;";
-        String query1 = String.format(sql, ORACLE_TABLE_1, ORACLE_TABLE_2, ORACLE_TABLE_3);
+                "select * from %s.%s union all select * from %s.%s union all select * from %s.%s order by 1;";
+        String query1 = String.format(sql, DATABASE, ORACLE_TABLE_1, DATABASE, ORACLE_TABLE_2, DATABASE, ORACLE_TABLE_3);
         checkResult(expected, query1, 2);
 
         // add incremental data
@@ -134,8 +134,8 @@ public class OracleDorisE2ECase extends DorisTestBase {
                                 Arrays.asList("doris_3", 3),
                                 Arrays.asList("doris_3_1", 12))
                         .collect(Collectors.toSet());
-        sql = "select * from %s union all select * from %s union all select * from %s order by 1;";
-        String query2 = String.format(sql, ORACLE_TABLE_1, ORACLE_TABLE_2, ORACLE_TABLE_3);
+        sql = "select * from %s.%s union all select * from %s.%s union all select * from %s.%s order by 1;";
+        String query2 = String.format(sql, DATABASE, ORACLE_TABLE_1, DATABASE, ORACLE_TABLE_2, DATABASE, ORACLE_TABLE_3);
         checkResult(expected2, query2, 2);
 
         // mock schema change
@@ -158,8 +158,8 @@ public class OracleDorisE2ECase extends DorisTestBase {
                                 Arrays.asList("doris_1_1", null),
                                 Arrays.asList("doris_1_1_1", "c1_val"))
                         .collect(Collectors.toSet());
-        sql = "select * from %s order by 1";
-        String query3 = String.format(sql, ORACLE_TABLE_1);
+        sql = "select * from %s.%s order by 1";
+        String query3 = String.format(sql, DATABASE, ORACLE_TABLE_1);
         checkResult(expected3, sql, 2);
         jobClient.cancel().get();
     }
