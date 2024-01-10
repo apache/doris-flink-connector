@@ -197,7 +197,7 @@ public class OracleDorisE2ECase extends DorisTestBase {
         oracleConfig.put("port", ORACLE_CONTAINER.getMappedPort(1521) + "");
         oracleConfig.put("username", ORACLE_USER);
         oracleConfig.put("password", ORACLE_PASSWD);
-        oracleConfig.put("url",ORACLE_CONTAINER.getJdbcUrl());
+        oracleConfig.put("url", ORACLE_CONTAINER.getJdbcUrl());
         oracleConfig.put("database-name", ORACLE_CONTAINER.getDatabaseName());
         oracleConfig.put("schema-name", ORACLE_USER.toLowerCase());
         Configuration config = Configuration.fromMap(oracleConfig);
