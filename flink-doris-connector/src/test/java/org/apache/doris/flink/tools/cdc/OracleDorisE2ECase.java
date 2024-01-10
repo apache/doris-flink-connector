@@ -213,7 +213,7 @@ public class OracleDorisE2ECase extends DorisTestBase {
         Map<String, String> tableConfig = new HashMap<>();
         tableConfig.put("replication_num", "1");
 
-        String includingTables = "tbl1|tbl2|tbl3";
+        String includingTables = "orc_tbl1|orc_tbl1|orc_tbl1";
         String excludingTables = "";
         DatabaseSync databaseSync = new OracleDatabaseSync();
         databaseSync
