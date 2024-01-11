@@ -71,7 +71,7 @@ public class OracleDorisE2ECase extends DorisTestBase {
     private static final String ORACLE_TABLE_3 = "ORC_TBL3";
 
     private static final OracleContainer ORACLE_CONTAINER =
-            new OracleContainer("gvenzl/oracle-xe:11.2.0.2-slim-faststart")
+            new OracleContainer("gvenzl/oracle-xe:11.2.0.2")
                     .withDatabaseName(DATABASE)
                     .withPassword(ORACLE_PASSWD)
                     .withLogConsumer(new Slf4jLogConsumer(LOG));
