@@ -44,6 +44,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -356,7 +357,7 @@ public abstract class DatabaseSync {
      * @return The table name and buckets map. The key is table name, the value is buckets.
      */
     public Map<String, Integer> getTableBuckets(String tableBuckets) {
-        Map<String, Integer> tableBucketsMap = new HashMap<>();
+        Map<String, Integer> tableBucketsMap = new LinkedHashMap<>();
         String[] tableBucketsArray = tableBuckets.split(",");
         for (String tableBucket : tableBucketsArray) {
             String[] tableBucketArray = tableBucket.split(":");
@@ -389,23 +390,16 @@ public abstract class DatabaseSync {
                 return;
             }
             // Secondly, iterate over the map to find a corresponding regular expression match,
-            // excluding .* matches
             for (Map.Entry<String, Integer> entry : tableBucketsMap.entrySet()) {
                 if (tableHasSet.contains(entry.getKey())) {
                     continue;
                 }
 
                 Pattern pattern = Pattern.compile(entry.getKey());
-                if (!entry.getKey().equals(".*") && pattern.matcher(dorisTable).matches()) {
+                if (pattern.matcher(dorisTable).matches()) {
                     dorisSchema.setTableBuckets(entry.getValue());
                     return;
                 }
-            }
-            // Thirdly, set the number of buckets matched by .* regular expression.
-            if (tableBucketsMap.containsKey(".*")) {
-                Integer num = tableBucketsMap.get(".*");
-                dorisSchema.setTableBuckets(num);
-                tableHasSet.add(dorisTable);
             }
         }
     }
