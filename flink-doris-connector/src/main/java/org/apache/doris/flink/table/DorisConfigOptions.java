@@ -17,6 +17,7 @@
 
 package org.apache.doris.flink.table;
 
+import java.util.LinkedHashMap;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.table.factories.FactoryUtil;
@@ -291,4 +292,26 @@ public class DorisConfigOptions {
         }
         return streamLoadProp;
     }
+
+    public static LinkedHashMap<String,String> getJdbcUrlDefaultParameter() {
+        final LinkedHashMap defaultParameter = new LinkedHashMap<String,String>();
+        defaultParameter.put("rewriteBatchedStatements", "true");
+        return defaultParameter;
+    }
+
+    public static String getDefaultParameterJdbcUrl(LinkedHashMap<String, String> defaultParamMap, String jdbcUrl) {
+        StringBuilder resultJdbcUrl = new StringBuilder(jdbcUrl.endsWith("/") ? jdbcUrl.substring(0, jdbcUrl.length() - 1) : jdbcUrl);
+        defaultParamMap.forEach((key, value) -> {
+            if(!jdbcUrl.contains(key)){
+                if (resultJdbcUrl.indexOf("?") != -1) {
+                    resultJdbcUrl.append("&");
+                } else {
+                    resultJdbcUrl.append("?");
+                }
+                resultJdbcUrl.append(key.trim()+"="+value.trim());
+            }
+        });
+        return resultJdbcUrl.toString().trim();
+    }
+
 }

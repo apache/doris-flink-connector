@@ -17,6 +17,7 @@
 
 package org.apache.doris.flink.tools.cdc;
 
+import java.util.LinkedHashMap;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
@@ -48,6 +49,9 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+
+import static org.apache.doris.flink.table.DorisConfigOptions.getDefaultParameterJdbcUrl;
+import static org.apache.doris.flink.table.DorisConfigOptions.getJdbcUrlDefaultParameter;
 
 public abstract class DatabaseSync {
     private static final Logger LOG = LoggerFactory.getLogger(DatabaseSync.class);
@@ -86,7 +90,9 @@ public abstract class DatabaseSync {
 
     public abstract DataStreamSource<String> buildCdcSource(StreamExecutionEnvironment env);
 
-    /** Get the prefix of a specific tableList, for example, mysql is database, oracle is schema. */
+    /**
+     * Get the prefix of a specific tableList, for example, mysql is database, oracle is schema.
+     */
     public abstract String getTableListPrefix();
 
     public DatabaseSync() throws SQLException {
@@ -163,30 +169,39 @@ public abstract class DatabaseSync {
     }
 
     private DorisConnectionOptions getDorisConnectionOptions() {
-        String fenodes = sinkConfig.getString(DorisConfigOptions.FENODES);
-        String benodes = sinkConfig.getString(DorisConfigOptions.BENODES);
-        String user = sinkConfig.getString(DorisConfigOptions.USERNAME);
-        String passwd = sinkConfig.getString(DorisConfigOptions.PASSWORD, "");
-        String jdbcUrl = sinkConfig.getString(DorisConfigOptions.JDBC_URL);
-        Preconditions.checkNotNull(fenodes, "fenodes is empty in sink-conf");
-        Preconditions.checkNotNull(user, "username is empty in sink-conf");
-        Preconditions.checkNotNull(jdbcUrl, "jdbcurl is empty in sink-conf");
+        String feNodes = sinkConfig.getString(DorisConfigOptions.FENODES).trim();
+        String beNodes = sinkConfig.getString(DorisConfigOptions.BENODES).trim();
+        String userName = sinkConfig.getString(DorisConfigOptions.USERNAME).trim();
+        String passWord = sinkConfig.getString(DorisConfigOptions.PASSWORD, "").trim();
+        String jdbcUrl = sinkConfig.getString(DorisConfigOptions.JDBC_URL).trim();
+        Preconditions.checkNotNull(feNodes, "feNodes is empty in sink-conf");
+        Preconditions.checkNotNull(userName, "username is empty in sink-conf");
+        Preconditions.checkNotNull(jdbcUrl, "jdbcUrl is empty in sink-conf");
+        // Support for concatenation The default parameter rewriteBatchedStatements=true is more write friendly
+        String defaultParameterJdbcUrl = getDefaultParameterJdbcUrl(getJdbcUrlDefaultParameter(), jdbcUrl);
         DorisConnectionOptions.DorisConnectionOptionsBuilder builder =
                 new DorisConnectionOptions.DorisConnectionOptionsBuilder()
-                        .withFenodes(fenodes)
-                        .withBenodes(benodes)
-                        .withUsername(user)
-                        .withPassword(passwd)
-                        .withJdbcUrl(jdbcUrl);
+                        .withFenodes(feNodes)
+                        .withBenodes(beNodes)
+                        .withUsername(userName)
+                        .withPassword(passWord)
+                        .withJdbcUrl(defaultParameterJdbcUrl);
         return builder.build();
     }
 
-    /** create doris sink for multi table. */
+
+
+
+    /**
+     * create doris sink for multi table.
+     */
     public DorisSink<String> buildDorisSink() {
         return buildDorisSink(null);
     }
 
-    /** create doris sink. */
+    /**
+     * create doris sink.
+     */
     public DorisSink<String> buildDorisSink(String table) {
         String fenodes = sinkConfig.getString(DorisConfigOptions.FENODES);
         String benodes = sinkConfig.getString(DorisConfigOptions.BENODES);
@@ -280,7 +295,9 @@ public abstract class DatabaseSync {
         return builder.build();
     }
 
-    /** Filter table that need to be synchronized. */
+    /**
+     * Filter table that need to be synchronized.
+     */
     protected boolean isSyncNeeded(String tableName) {
         boolean sync = true;
         if (includingPattern != null) {
@@ -312,7 +329,9 @@ public abstract class DatabaseSync {
         }
     }
 
-    /** Filter table that many tables merge to one. */
+    /**
+     * Filter table that many tables merge to one.
+     */
     protected HashMap<Pattern, String> multiToOneRulesParser(
             String multiToOneOrigin, String multiToOneTarget) {
         if (StringUtils.isNullOrWhitespaceOnly(multiToOneOrigin)
