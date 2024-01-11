@@ -144,8 +144,8 @@ public class MysqlType {
                 return DorisType.DATE_V2;
             case DATETIME:
             case TIMESTAMP:
-                return String.format(
-                        "%s(%s)", DorisType.DATETIME_V2, Math.min(length == null ? 0 : length, 6));
+                int dtScale = length > 19 ? length - 20 : 0;
+                return String.format("%s(%s)", DorisType.DATETIME_V2, Math.min(dtScale, 6));
             case CHAR:
             case VARCHAR:
                 Preconditions.checkNotNull(length);
