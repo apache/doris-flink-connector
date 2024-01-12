@@ -39,4 +39,7 @@ public class DorisType {
     public static final String BITMAP = "BITMAP";
     public static final String ARRAY = "ARRAY";
     public static final String JSONB = "JSONB";
+    public static final String JSON = "JSON";
+    public static final String MAP = "MAP";
+    public static final String STRUCT = "STRUCT";
 }
