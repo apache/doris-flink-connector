@@ -97,8 +97,7 @@ public class PostgresType {
             case TIMESTAMP:
             case TIMESTAMPTZ:
                 return String.format(
-                        "%s(%s)",
-                        DorisType.DATETIME_V2, Math.min(scale == null ? 0 : scale, 6));
+                        "%s(%s)", DorisType.DATETIME_V2, Math.min(scale == null ? 0 : scale, 6));
             case DATE:
                 return DorisType.DATE_V2;
             case BOOL:
