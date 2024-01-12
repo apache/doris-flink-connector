@@ -48,7 +48,7 @@ public class OracleType {
         if (oracleType.startsWith(INTERVAL)) {
             oracleType = oracleType.substring(0, 8);
         } else if (oracleType.startsWith(TIMESTAMP)) {
-            return String.format("%s(%s)", DorisType.DATETIME_V2, 6);
+            return String.format("%s(%s)", DorisType.DATETIME_V2, Math.min(scale, 6));
         }
         switch (oracleType) {
             case NUMBER:
