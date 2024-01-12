@@ -398,6 +398,7 @@ public abstract class DatabaseSync {
                 Pattern pattern = Pattern.compile(entry.getKey());
                 if (pattern.matcher(dorisTable).matches()) {
                     dorisSchema.setTableBuckets(entry.getValue());
+                    tableHasSet.add(dorisTable);
                     return;
                 }
             }
