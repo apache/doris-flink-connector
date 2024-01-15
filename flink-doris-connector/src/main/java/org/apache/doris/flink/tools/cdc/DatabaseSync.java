@@ -442,7 +442,7 @@ public abstract class DatabaseSync {
     }
 
     public DatabaseSync setTableConfig(Map<String, String> tableConfig) {
-        if(!CollectionUtil.isNullOrEmpty(tableConfig)){
+        if (!CollectionUtil.isNullOrEmpty(tableConfig)) {
             this.tableConfig = tableConfig;
         }
         return this;

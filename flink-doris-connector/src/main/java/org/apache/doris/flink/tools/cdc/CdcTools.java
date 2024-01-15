@@ -155,7 +155,12 @@ public class CdcTools {
 
     private static Map<String, String> getConfigMap(MultipleParameterTool params, String key) {
         if (!params.has(key)) {
-            System.out.println("Can not find key [" + key + "] from args: " + params.toMap().toString() + ".\n");
+            System.out.println(
+                    "Can not find key ["
+                            + key
+                            + "] from args: "
+                            + params.toMap().toString()
+                            + ".\n");
             return null;
         }
 
