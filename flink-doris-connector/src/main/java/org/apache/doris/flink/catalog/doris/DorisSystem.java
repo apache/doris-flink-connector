@@ -48,6 +48,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 public class DorisSystem implements Serializable {
     private static final long serialVersionUID = 1L;
     private static final Logger LOG = LoggerFactory.getLogger(DorisSystem.class);
+    private static final String TABLE_BUCKETS = "table-buckets";
     private final JdbcConnectionProvider jdbcConnectionProvider;
     private static final List<String> builtinDatabases =
             Collections.singletonList("information_schema");
@@ -199,11 +200,28 @@ public class DorisSystem implements Serializable {
         // append distribute key
         sb.append(" DISTRIBUTED BY HASH(")
                 .append(String.join(",", identifier(schema.getDistributeKeys())))
-                .append(") BUCKETS AUTO ");
+                .append(")");
 
+        Map<String, String> properties = schema.getProperties();
+        if (schema.getTableBuckets() != null) {
+
+            int bucketsNum = schema.getTableBuckets();
+            if (bucketsNum <= 0) {
+                throw new CreateTableException("The number of buckets must be positive.");
+            }
+            sb.append(" BUCKETS ").append(bucketsNum);
+        } else {
+            sb.append(" BUCKETS AUTO ");
+        }
         // append properties
         int index = 0;
-        for (Map.Entry<String, String> entry : schema.getProperties().entrySet()) {
+        int skipProNum = 0;
+        for (Map.Entry<String, String> entry : properties.entrySet()) {
+            // skip table-buckets
+            if (entry.getKey().equals(TABLE_BUCKETS)) {
+                skipProNum++;
+                continue;
+            }
             if (index == 0) {
                 sb.append(" PROPERTIES (");
             }
@@ -215,7 +233,7 @@ public class DorisSystem implements Serializable {
                     .append(quoteProperties(entry.getValue()));
             index++;
 
-            if (index == schema.getProperties().size()) {
+            if (index == (schema.getProperties().size() - skipProNum)) {
                 sb.append(")");
             }
         }

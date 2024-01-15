@@ -43,9 +43,12 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -117,6 +120,12 @@ public abstract class DatabaseSync {
 
         List<String> syncTables = new ArrayList<>();
         List<String> dorisTables = new ArrayList<>();
+
+        Map<String, Integer> tableBucketsMap = null;
+        if (tableConfig.containsKey("table-buckets")) {
+            tableBucketsMap = getTableBuckets(tableConfig.get("table-buckets"));
+        }
+        Set<String> bucketsTable = new HashSet<>();
         for (SourceSchema schema : schemaList) {
             syncTables.add(schema.getTableName());
             String dorisTable = converter.convert(schema.getTableName());
@@ -129,6 +138,9 @@ public abstract class DatabaseSync {
                 // set doris target database
                 dorisSchema.setDatabase(database);
                 dorisSchema.setTable(dorisTable);
+                if (tableBucketsMap != null) {
+                    setTableSchemaBuckets(tableBucketsMap, dorisSchema, dorisTable, bucketsTable);
+                }
                 dorisSystem.createTable(dorisSchema);
             }
             if (!dorisTables.contains(dorisTable)) {
@@ -336,6 +348,61 @@ public abstract class DatabaseSync {
             System.exit(1);
         }
         return multiToOneRulesPattern;
+    }
+
+    /**
+     * Get table buckets Map.
+     *
+     * @param tableBuckets the string of tableBuckets, eg:student:10,student_info:20,student.*:30
+     * @return The table name and buckets map. The key is table name, the value is buckets.
+     */
+    public Map<String, Integer> getTableBuckets(String tableBuckets) {
+        Map<String, Integer> tableBucketsMap = new LinkedHashMap<>();
+        String[] tableBucketsArray = tableBuckets.split(",");
+        for (String tableBucket : tableBucketsArray) {
+            String[] tableBucketArray = tableBucket.split(":");
+            tableBucketsMap.put(
+                    tableBucketArray[0].trim(), Integer.parseInt(tableBucketArray[1].trim()));
+        }
+        return tableBucketsMap;
+    }
+
+    /**
+     * Set table schema buckets.
+     *
+     * @param tableBucketsMap The table name and buckets map. The key is table name, the value is
+     *     buckets.
+     * @param dorisSchema @{TableSchema}
+     * @param dorisTable the table name need to set buckets
+     * @param tableHasSet The buckets table is set
+     */
+    public void setTableSchemaBuckets(
+            Map<String, Integer> tableBucketsMap,
+            TableSchema dorisSchema,
+            String dorisTable,
+            Set<String> tableHasSet) {
+
+        if (tableBucketsMap != null) {
+            // Firstly, if the table name is in the table-buckets map, set the buckets of the table.
+            if (tableBucketsMap.containsKey(dorisTable)) {
+                dorisSchema.setTableBuckets(tableBucketsMap.get(dorisTable));
+                tableHasSet.add(dorisTable);
+                return;
+            }
+            // Secondly, iterate over the map to find a corresponding regular expression match,
+            for (Map.Entry<String, Integer> entry : tableBucketsMap.entrySet()) {
+                if (tableHasSet.contains(entry.getKey())) {
+                    continue;
+                }
+
+                Pattern pattern = Pattern.compile(entry.getKey());
+                if (pattern.matcher(dorisTable).matches()) {
+                    dorisSchema.setTableBuckets(entry.getValue());
+                    tableHasSet.add(dorisTable);
+                    return;
+                }
+            }
+        }
     }
 
     public DatabaseSync setEnv(StreamExecutionEnvironment env) {

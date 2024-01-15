@@ -32,6 +32,8 @@ public class TableSchema {
     private List<String> distributeKeys = new ArrayList<>();
     private Map<String, String> properties = new HashMap<>();
 
+    private Integer tableBuckets;
+
     public String getDatabase() {
         return database;
     }
@@ -94,5 +96,13 @@ public class TableSchema {
 
     public void setProperties(Map<String, String> properties) {
         this.properties = properties;
+    }
+
+    public void setTableBuckets(Integer tableBuckets) {
+        this.tableBuckets = tableBuckets;
+    }
+
+    public Integer getTableBuckets() {
+        return tableBuckets;
     }
 }
