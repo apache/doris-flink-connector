@@ -22,6 +22,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
@@ -441,7 +442,9 @@ public abstract class DatabaseSync {
     }
 
     public DatabaseSync setTableConfig(Map<String, String> tableConfig) {
-        this.tableConfig = tableConfig;
+        if(!CollectionUtil.isNullOrEmpty(tableConfig)){
+            this.tableConfig = tableConfig;
+        }
         return this;
     }
 
