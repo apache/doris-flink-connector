@@ -28,6 +28,7 @@ import org.testcontainers.containers.output.Slf4jLogConsumer;
 import org.testcontainers.lifecycle.Startables;
 import org.testcontainers.utility.DockerLoggerFactory;
 
+import java.net.InetAddress;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -112,7 +113,7 @@ public abstract class DorisTestBase {
         return container;
     }
 
-    protected static void initializeJdbcConnection() throws SQLException, MalformedURLException {
+    protected static void initializeJdbcConnection() throws Exception {
         URLClassLoader urlClassLoader =
                 new URLClassLoader(
                         new URL[] {new URL(DRIVER_JAR)}, DorisTestBase.class.getClassLoader());
@@ -142,7 +143,8 @@ public abstract class DorisTestBase {
         return false;
     }
 
-    protected static void printClusterStatus() throws SQLException {
+    protected static void printClusterStatus() throws Exception {
+        LOG.info("Current machine IP: {}", InetAddress.getLocalHost());
         try (Statement statement = connection.createStatement()) {
             ResultSet showFrontends = statement.executeQuery("show frontends");
             LOG.info("Frontends status: {}", convertList(showFrontends));
