@@ -471,19 +471,19 @@ public class MySQLDorisE2ECase extends DorisTestBase {
         try (Statement statement = connection.createStatement();
                 ResultSet showFrontends = statement.executeQuery("show frontends");
                 ResultSet showBackends = statement.executeQuery("show backends")) {
-            LOG.info("Frontends status: ", convertList(showFrontends));
-            LOG.info("Backends status: ", convertList(showBackends));
+            LOG.info("Frontends status: ", convertList(showFrontends, showFrontends.getMetaData()));
+            LOG.info("Backends status: ", convertList(showBackends, showBackends.getMetaData()));
         }
     }
 
-    private static List<Map> convertList(ResultSet rs) throws SQLException {
+    private static List<Map> convertList(ResultSet rs, ResultSetMetaData metaData)
+            throws SQLException {
         List<Map> list = new ArrayList<>();
-        ResultSetMetaData md = rs.getMetaData();
-        int columnCount = md.getColumnCount();
+        int columnCount = metaData.getColumnCount();
         while (rs.next()) {
             Map<String, Object> rowData = new HashMap<>();
             for (int i = 1; i <= columnCount; i++) {
-                rowData.put(md.getColumnName(i), rs.getObject(i));
+                rowData.put(metaData.getColumnName(i), rs.getObject(i));
             }
             list.add(rowData);
         }
