@@ -34,9 +34,14 @@ import java.net.URLClassLoader;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 import java.util.stream.Stream;
@@ -124,6 +129,7 @@ public abstract class DorisTestBase {
             } while (!isBeReady(resultSet, Duration.ofSeconds(1L)));
         }
         LOG.info("Connected to Doris successfully...");
+        printClusterStatus();
     }
 
     private static boolean isBeReady(ResultSet rs, Duration duration) throws SQLException {
@@ -134,5 +140,28 @@ public abstract class DorisTestBase {
             return "true".equalsIgnoreCase(isAlive) && !"0.000".equalsIgnoreCase(totalCap);
         }
         return false;
+    }
+
+    protected static void printClusterStatus() throws SQLException {
+        try (Statement statement = connection.createStatement()) {
+            ResultSet showFrontends = statement.executeQuery("show frontends");
+            LOG.info("Frontends status: {}", convertList(showFrontends));
+            ResultSet showBackends = statement.executeQuery("show backends");
+            LOG.info("Backends status: {}", convertList(showBackends));
+        }
+    }
+
+    private static List<Map> convertList(ResultSet rs) throws SQLException {
+        List<Map> list = new ArrayList<>();
+        ResultSetMetaData metaData = rs.getMetaData();
+        int columnCount = metaData.getColumnCount();
+        while (rs.next()) {
+            Map<String, Object> rowData = new HashMap<>();
+            for (int i = 1; i <= columnCount; i++) {
+                rowData.put(metaData.getColumnName(i), rs.getObject(i));
+            }
+            list.add(rowData);
+        }
+        return list;
     }
 }

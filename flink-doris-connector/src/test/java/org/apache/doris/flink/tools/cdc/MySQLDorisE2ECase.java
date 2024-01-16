@@ -39,7 +39,6 @@ import org.testcontainers.lifecycle.Startables;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
-import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.Duration;
@@ -465,28 +464,5 @@ public class MySQLDorisE2ECase extends DorisTestBase {
         if (!timeout.hasTimeLeft()) {
             throw new TimeoutException(errorMsg);
         }
-    }
-
-    private void printClusterStatus() throws SQLException {
-        try (Statement statement = connection.createStatement();
-                ResultSet showFrontends = statement.executeQuery("show frontends");
-                ResultSet showBackends = statement.executeQuery("show backends")) {
-            LOG.info("Frontends status: ", convertList(showFrontends, showFrontends.getMetaData()));
-            LOG.info("Backends status: ", convertList(showBackends, showBackends.getMetaData()));
-        }
-    }
-
-    private static List<Map> convertList(ResultSet rs, ResultSetMetaData metaData)
-            throws SQLException {
-        List<Map> list = new ArrayList<>();
-        int columnCount = metaData.getColumnCount();
-        while (rs.next()) {
-            Map<String, Object> rowData = new HashMap<>();
-            for (int i = 1; i <= columnCount; i++) {
-                rowData.put(metaData.getColumnName(i), rs.getObject(i));
-            }
-            list.add(rowData);
-        }
-        return list;
     }
 }
