@@ -337,6 +337,9 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
         String dorisTypeName;
         switch (sourceConnector) {
             case MYSQL:
+                if (sourceTypeName.equals("DATETIME") || sourceTypeName.equals("TIMESTAMP")) {
+                    length = 20 + length;
+                }
                 dorisTypeName = MysqlType.toDorisType(sourceTypeName, length, scale);
                 break;
             case ORACLE:
