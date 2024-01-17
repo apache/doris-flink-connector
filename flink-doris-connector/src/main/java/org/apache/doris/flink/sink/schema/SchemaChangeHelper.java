@@ -21,6 +21,7 @@ import org.apache.flink.util.StringUtils;
 
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.compress.utils.Lists;
+import org.apache.doris.flink.catalog.doris.DorisSystem;
 import org.apache.doris.flink.catalog.doris.FieldSchema;
 
 import java.util.List;
@@ -103,23 +104,35 @@ public class SchemaChangeHelper {
         String type = fieldSchema.getTypeString();
         String defaultValue = fieldSchema.getDefaultValue();
         String comment = fieldSchema.getComment();
-        String addDDL = String.format(ADD_DDL, tableIdentifier, name, type);
+        String addDDL =
+                String.format(
+                        ADD_DDL,
+                        DorisSystem.quoteTableIdentifier(tableIdentifier),
+                        DorisSystem.identifier(name),
+                        type);
         if (!StringUtils.isNullOrWhitespaceOnly(defaultValue)) {
             addDDL = addDDL + " DEFAULT " + defaultValue;
         }
         if (!StringUtils.isNullOrWhitespaceOnly(comment)) {
-            addDDL = addDDL + " COMMENT " + comment;
+            addDDL = addDDL + " COMMENT '" + DorisSystem.quoteComment(comment) + "'";
         }
         return addDDL;
     }
 
     public static String buildDropColumnDDL(String tableIdentifier, String columName) {
-        return String.format(DROP_DDL, tableIdentifier, columName);
+        return String.format(
+                DROP_DDL,
+                DorisSystem.quoteTableIdentifier(tableIdentifier),
+                DorisSystem.identifier(columName));
     }
 
     public static String buildRenameColumnDDL(
             String tableIdentifier, String oldColumnName, String newColumnName) {
-        return String.format(RENAME_DDL, tableIdentifier, oldColumnName, newColumnName);
+        return String.format(
+                RENAME_DDL,
+                DorisSystem.quoteTableIdentifier(tableIdentifier),
+                DorisSystem.identifier(oldColumnName),
+                DorisSystem.identifier(newColumnName));
     }
 
     public static String buildColumnExistsQuery(String database, String table, String column) {
