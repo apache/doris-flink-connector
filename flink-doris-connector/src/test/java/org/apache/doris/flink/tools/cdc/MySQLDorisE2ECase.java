@@ -94,6 +94,7 @@ public class MySQLDorisE2ECase extends DorisTestBase {
 
     @Test
     public void testMySQL2Doris() throws Exception {
+        printClusterStatus();
         initializeMySQLTable();
         JobClient jobClient = submitJob();
         // wait 2 times checkpoint
@@ -173,6 +174,7 @@ public class MySQLDorisE2ECase extends DorisTestBase {
 
     @Test
     public void testAutoAddTable() throws Exception {
+        printClusterStatus();
         initializeMySQLTable();
         initializeDorisTable();
         JobClient jobClient = submitJob();
