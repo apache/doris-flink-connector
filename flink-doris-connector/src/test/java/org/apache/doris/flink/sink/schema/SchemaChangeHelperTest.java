@@ -52,15 +52,17 @@ public class SchemaChangeHelperTest {
         List<String> ddlSqls =
                 SchemaChangeHelper.generateRenameDDLSql(
                         table, oldColumnName, newColumnName, originFieldSchemaMap);
-        Assert.assertEquals(ddlSqls.get(0), "ALTER TABLE test.test_sink RENAME COLUMN c3 c33");
+        Assert.assertEquals(
+                ddlSqls.get(0), "ALTER TABLE `test`.`test_sink` RENAME COLUMN `c3` `c33`");
     }
 
     @Test
     public void testGenerateDDLSql() {
         SchemaChangeHelper.compareSchema(updateFieldSchemaMap, originFieldSchemaMap);
         List<String> ddlSqls = SchemaChangeHelper.generateDDLSql("test.test_sink");
-        Assert.assertEquals(ddlSqls.get(0), "ALTER TABLE test.test_sink ADD COLUMN c4 BIGINT");
         Assert.assertEquals(
-                ddlSqls.get(1), "ALTER TABLE test.test_sink ADD COLUMN c5 DATETIMEV2(0)");
+                ddlSqls.get(0), "ALTER TABLE `test`.`test_sink` ADD COLUMN `c4` BIGINT");
+        Assert.assertEquals(
+                ddlSqls.get(1), "ALTER TABLE `test`.`test_sink` ADD COLUMN `c5` DATETIMEV2(0)");
     }
 }

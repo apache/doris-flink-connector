@@ -64,10 +64,10 @@ public class TestJsonDebeziumSchemaChangeImplV2 extends TestJsonDebeziumChangeBa
 
     @Test
     public void testExtractDDLListMultipleColumns() throws IOException {
-        String sql0 = "ALTER TABLE test.t1 ADD COLUMN id INT DEFAULT '10000'";
-        String sql1 = "ALTER TABLE test.t1 ADD COLUMN c199 INT";
-        String sql2 = "ALTER TABLE test.t1 ADD COLUMN c12 INT DEFAULT '100'";
-        String sql3 = "ALTER TABLE test.t1 DROP COLUMN c13";
+        String sql0 = "ALTER TABLE `test`.`t1` ADD COLUMN `id` INT DEFAULT '10000'";
+        String sql1 = "ALTER TABLE `test`.`t1` ADD COLUMN `c199` INT";
+        String sql2 = "ALTER TABLE `test`.`t1` ADD COLUMN `c12` INT DEFAULT '100'";
+        String sql3 = "ALTER TABLE `test`.`t1` DROP COLUMN `c13`";
         List<String> srcSqlList = Arrays.asList(sql0, sql1, sql2, sql3);
 
         Map<String, FieldSchema> originFiledSchemaMap = new LinkedHashMap<>();
@@ -211,7 +211,7 @@ public class TestJsonDebeziumSchemaChangeImplV2 extends TestJsonDebeziumChangeBa
         schemaChange.setOriginFieldSchemaMap(originFieldSchemaMap);
 
         List<String> ddlList = schemaChange.extractDDLList(record);
-        Assert.assertEquals("ALTER TABLE test.t1 RENAME COLUMN c3 c333", ddlList.get(0));
+        Assert.assertEquals("ALTER TABLE `test`.`t1` RENAME COLUMN `c3` `c333`", ddlList.get(0));
     }
 
     @Test
