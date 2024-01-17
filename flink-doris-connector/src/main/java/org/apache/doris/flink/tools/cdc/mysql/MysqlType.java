@@ -82,6 +82,7 @@ public class MysqlType {
     private static final String LONGBLOB = "LONGBLOB";
     private static final String JSON = "JSON";
     private static final String ENUM = "ENUM";
+    private static final String SET = "SET";
 
     public static String toDorisType(String type, Integer length, Integer scale) {
         switch (type.toUpperCase()) {
@@ -164,6 +165,7 @@ public class MysqlType {
             case LONGBLOB:
             case BINARY:
             case VARBINARY:
+            case SET:
                 return DorisType.STRING;
             case JSON:
                 return DorisType.JSONB;
