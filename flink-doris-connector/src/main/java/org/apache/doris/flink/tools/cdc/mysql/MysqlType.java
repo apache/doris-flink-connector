@@ -144,8 +144,17 @@ public class MysqlType {
                 return DorisType.DATE_V2;
             case DATETIME:
             case TIMESTAMP:
-                int dtScale = length > 19 ? length - 20 : 0;
-                return String.format("%s(%s)", DorisType.DATETIME_V2, Math.min(dtScale, 6));
+                // default precision is 0
+                if (length == null || length <= 0) {
+                    return DorisType.DATETIME_V2;
+                    // In JsonDebeziumSchemaSerializer record,the length of timestamp/datetime is 0
+                    // to 6.
+                } else if (length <= 6) {
+                    return String.format("%s(%s)", DorisType.DATETIME_V2, length);
+                } else {
+                    int dtScale = length > 19 ? length - 20 : 0;
+                    return String.format("%s(%s)", DorisType.DATETIME_V2, Math.min(dtScale, 6));
+                }
             case CHAR:
             case VARCHAR:
                 Preconditions.checkNotNull(length);
