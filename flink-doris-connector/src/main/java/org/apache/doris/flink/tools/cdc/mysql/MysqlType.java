@@ -156,7 +156,7 @@ public class MysqlType {
                     return String.format("%s(%s)", DorisType.DATETIME_V2, Math.min(length, 6));
                 } else {
                     throw new CreateTableException(
-                            "Unsupported length: " + length + "for MySQL TIMESTAMP/DATETIME");
+                            "Unsupported length: " + length + " for MySQL TIMESTAMP/DATETIME types");
                 }
             case CHAR:
             case VARCHAR:
