@@ -20,7 +20,6 @@ package org.apache.doris.flink.tools.cdc.mysql;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.doris.flink.catalog.doris.DorisType;
-import org.apache.doris.flink.exception.CreateTableException;
 
 public class MysqlType {
     private static final String BIT = "BIT";
@@ -155,8 +154,10 @@ public class MysqlType {
                 } else if (length <= 9) {
                     return String.format("%s(%s)", DorisType.DATETIME_V2, Math.min(length, 6));
                 } else {
-                    throw new CreateTableException(
-                            "Unsupported length: " + length + " for MySQL TIMESTAMP/DATETIME types");
+                    throw new UnsupportedOperationException(
+                            "Unsupported length: "
+                                    + length
+                                    + " for MySQL TIMESTAMP/DATETIME types");
                 }
             case CHAR:
             case VARCHAR:
