@@ -20,6 +20,7 @@ package org.apache.doris.flink.tools.cdc.mysql;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.doris.flink.catalog.doris.DorisType;
+import org.apache.doris.flink.exception.CreateTableException;
 
 public class MysqlType {
     private static final String BIT = "BIT";
@@ -145,15 +146,17 @@ public class MysqlType {
             case DATETIME:
             case TIMESTAMP:
                 // default precision is 0
-                if (length == null || length <= 0) {
+                if (length == null || length <= 0 || length == 19) {
                     return DorisType.DATETIME_V2;
                     // In JsonDebeziumSchemaSerializer record,the length of timestamp/datetime is 0
                     // to 6.
-                } else if (length <= 6) {
-                    return String.format("%s(%s)", DorisType.DATETIME_V2, length);
+                } else if (length > 20) {
+                    return String.format("%s(%s)", DorisType.DATETIME_V2, Math.min(length - 20, 6));
+                } else if (length <= 9) {
+                    return String.format("%s(%s)", DorisType.DATETIME_V2, Math.min(length, 6));
                 } else {
-                    int dtScale = length > 19 ? length - 20 : 0;
-                    return String.format("%s(%s)", DorisType.DATETIME_V2, Math.min(dtScale, 6));
+                    throw new CreateTableException(
+                            "Unsupported length: " + length + "for MySQL TIMESTAMP/DATETIME");
                 }
             case CHAR:
             case VARCHAR:
