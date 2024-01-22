@@ -17,11 +17,11 @@
 
 package org.apache.doris.flink.tools.cdc.sqlserver;
 
-import org.apache.doris.flink.tools.cdc.SourceSchema;
+import org.apache.doris.flink.tools.cdc.JdbcSourceSchema;
 
 import java.sql.DatabaseMetaData;
 
-public class SqlServerSchema extends SourceSchema {
+public class SqlServerSchema extends JdbcSourceSchema {
 
     public SqlServerSchema(
             DatabaseMetaData metaData,
