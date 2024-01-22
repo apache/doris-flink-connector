@@ -99,7 +99,7 @@ public class SqlServerDatabaseSync extends DatabaseSync {
         try (Connection conn = getConnection()) {
             DatabaseMetaData metaData = conn.getMetaData();
             try (ResultSet tables =
-                    metaData.getTables(databaseName, null, "%", new String[] {"TABLE"})) {
+                    metaData.getTables(databaseName, schemaName, "%", new String[] {"TABLE"})) {
                 while (tables.next()) {
                     String tableName = tables.getString("TABLE_NAME");
                     String tableComment = tables.getString("REMARKS");
@@ -108,7 +108,7 @@ public class SqlServerDatabaseSync extends DatabaseSync {
                     }
                     SourceSchema sourceSchema =
                             new SqlServerSchema(
-                                    metaData, databaseName, null, tableName, tableComment);
+                                    metaData, databaseName, schemaName, tableName, tableComment);
                     sourceSchema.setModel(
                             !sourceSchema.primaryKeys.isEmpty()
                                     ? DataModel.UNIQUE
@@ -129,7 +129,7 @@ public class SqlServerDatabaseSync extends DatabaseSync {
 
         String tableName = config.get(JdbcSourceOptions.TABLE_NAME);
         String hostname = config.get(JdbcSourceOptions.HOSTNAME);
-        Integer port = config.getInteger(PORT, 1433);
+        int port = config.getInteger(PORT, 1433);
         String username = config.get(JdbcSourceOptions.USERNAME);
         String password = config.get(JdbcSourceOptions.PASSWORD);
 
@@ -204,7 +204,6 @@ public class SqlServerDatabaseSync extends DatabaseSync {
 
     @Override
     public String getTableListPrefix() {
-        String schemaName = config.get(JdbcSourceOptions.SCHEMA_NAME);
-        return schemaName;
+        return config.get(JdbcSourceOptions.SCHEMA_NAME);
     }
 }
