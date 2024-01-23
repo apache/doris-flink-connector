@@ -81,7 +81,7 @@ public class DorisOptions extends DorisConnectionOptions {
         private String jdbcUrl;
         private String username;
         private String password;
-        private boolean autoRedirect;
+        private boolean autoRedirect = true;
         private String tableIdentifier;
 
         /** required, tableIdentifier. */
