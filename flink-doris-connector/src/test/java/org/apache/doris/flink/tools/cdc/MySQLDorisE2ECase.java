@@ -72,7 +72,7 @@ public class MySQLDorisE2ECase extends DorisTestBase {
     private static final String TABLE_4 = "tbl4";
 
     private static final MySQLContainer MYSQL_CONTAINER =
-            new MySQLContainer("mysql")
+            new MySQLContainer("mysql:8.0")
                     .withDatabaseName(DATABASE)
                     .withUsername(MYSQL_USER)
                     .withPassword(MYSQL_PASSWD);

@@ -48,7 +48,9 @@ public class TestJsonDebeziumDataChange extends TestJsonDebeziumChangeBase {
                         objectMapper,
                         null,
                         lineDelimiter,
-                        ignoreUpdateBefore);
+                        ignoreUpdateBefore,
+                        "",
+                        "");
         dataChange = new JsonDebeziumDataChange(changeContext);
     }
 
@@ -109,7 +111,9 @@ public class TestJsonDebeziumDataChange extends TestJsonDebeziumChangeBase {
                         objectMapper,
                         null,
                         lineDelimiter,
-                        false);
+                        false,
+                        "",
+                        "");
         dataChange = new JsonDebeziumDataChange(changeContext);
 
         // update t1 set name='doris-update' WHERE id =1;
