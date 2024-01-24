@@ -102,6 +102,8 @@ public class SqlServerType {
             case DATETIMEOFFSET:
             case TIMESTAMP:
             case UNIQUEIDENTIFIER:
+            case BINARY:
+            case VARBINARY:
                 return DorisType.STRING;
             default:
                 throw new UnsupportedOperationException(

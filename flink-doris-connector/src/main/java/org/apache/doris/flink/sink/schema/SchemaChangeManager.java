@@ -226,7 +226,7 @@ public class SchemaChangeManager implements Serializable {
                                         .getBytes(StandardCharsets.UTF_8)));
     }
 
-    private String getTableIdentifier(String database, String table) {
+    private static String getTableIdentifier(String database, String table) {
         return String.format("%s.%s", database, table);
     }
 }

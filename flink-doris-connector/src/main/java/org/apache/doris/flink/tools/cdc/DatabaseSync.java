@@ -22,6 +22,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
@@ -79,7 +80,7 @@ public abstract class DatabaseSync {
     protected String tablePrefix;
     protected String tableSuffix;
     protected boolean singleSink;
-    private Map<String, String> tableMapping = new HashMap<>();
+    private final Map<String, String> tableMapping = new HashMap<>();
 
     public abstract void registerDriver() throws SQLException;
 
@@ -92,7 +93,7 @@ public abstract class DatabaseSync {
     /** Get the prefix of a specific tableList, for example, mysql is database, oracle is schema. */
     public abstract String getTableListPrefix();
 
-    public DatabaseSync() throws SQLException {
+    protected DatabaseSync() throws SQLException {
         registerDriver();
     }
 
@@ -287,6 +288,8 @@ public abstract class DatabaseSync {
                                 .setTableMapping(tableMapping)
                                 .setTableProperties(tableConfig)
                                 .setTargetDatabase(database)
+                                .setTargetTablePrefix(tablePrefix)
+                                .setTargetTableSuffix(tableSuffix)
                                 .build())
                 .setDorisOptions(dorisBuilder.build());
         return builder.build();
@@ -312,6 +315,9 @@ public abstract class DatabaseSync {
                     .collect(Collectors.joining("|"));
         } else {
             // includingTablePattern and ^excludingPattern
+            if (includingTables == null) {
+                includingTables = ".*";
+            }
             String includingPattern =
                     String.format("(%s)\\.(%s)", getTableListPrefix(), includingTables);
             if (StringUtils.isNullOrWhitespaceOnly(excludingTables)) {
@@ -441,7 +447,9 @@ public abstract class DatabaseSync {
     }
 
     public DatabaseSync setTableConfig(Map<String, String> tableConfig) {
-        this.tableConfig = tableConfig;
+        if (!CollectionUtil.isNullOrEmpty(tableConfig)) {
+            this.tableConfig = tableConfig;
+        }
         return this;
     }
 

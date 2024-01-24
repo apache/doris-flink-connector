@@ -40,6 +40,7 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeDefaultVisitor;
 
 import org.apache.doris.flink.catalog.doris.DorisType;
 
+import static org.apache.doris.flink.catalog.doris.DorisType.ARRAY;
 import static org.apache.doris.flink.catalog.doris.DorisType.BIGINT;
 import static org.apache.doris.flink.catalog.doris.DorisType.BOOLEAN;
 import static org.apache.doris.flink.catalog.doris.DorisType.CHAR;
@@ -52,10 +53,13 @@ import static org.apache.doris.flink.catalog.doris.DorisType.DECIMAL_V3;
 import static org.apache.doris.flink.catalog.doris.DorisType.DOUBLE;
 import static org.apache.doris.flink.catalog.doris.DorisType.FLOAT;
 import static org.apache.doris.flink.catalog.doris.DorisType.INT;
+import static org.apache.doris.flink.catalog.doris.DorisType.JSON;
 import static org.apache.doris.flink.catalog.doris.DorisType.JSONB;
 import static org.apache.doris.flink.catalog.doris.DorisType.LARGEINT;
+import static org.apache.doris.flink.catalog.doris.DorisType.MAP;
 import static org.apache.doris.flink.catalog.doris.DorisType.SMALLINT;
 import static org.apache.doris.flink.catalog.doris.DorisType.STRING;
+import static org.apache.doris.flink.catalog.doris.DorisType.STRUCT;
 import static org.apache.doris.flink.catalog.doris.DorisType.TINYINT;
 import static org.apache.doris.flink.catalog.doris.DorisType.VARCHAR;
 
@@ -66,6 +70,8 @@ public class DorisTypeMapper {
 
     /** Max size of varchar type of Doris. */
     public static final int MAX_VARCHAR_SIZE = 65533;
+    /* Max precision of datetime type of Doris. */
+    public static final int MAX_SUPPORTED_DATE_TIME_PRECISION = 6;
 
     public static DataType toFlinkType(
             String columnName, String columnType, int precision, int scale) {
@@ -101,6 +107,12 @@ public class DorisTypeMapper {
             case LARGEINT:
             case STRING:
             case JSONB:
+            case JSON:
+                // Currently, the subtype of the generic cannot be obtained,
+                // so it is mapped to string
+            case ARRAY:
+            case MAP:
+            case STRUCT:
                 return DataTypes.STRING();
             case DATE:
             case DATE_V2:

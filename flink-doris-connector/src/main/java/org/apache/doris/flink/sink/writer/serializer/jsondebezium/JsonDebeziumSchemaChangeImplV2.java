@@ -70,6 +70,8 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
     // create table properties
     private final Map<String, String> tableProperties;
     private String targetDatabase;
+    private String targetTablePrefix;
+    private String targetTableSuffix;
 
     public JsonDebeziumSchemaChangeImplV2(JsonDebeziumChangeContext changeContext) {
         this.addDropDDLPattern = Pattern.compile(addDropDDLRegex, Pattern.CASE_INSENSITIVE);
@@ -81,6 +83,14 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
         this.tableProperties = changeContext.getTableProperties();
         this.tableMapping = changeContext.getTableMapping();
         this.objectMapper = changeContext.getObjectMapper();
+        this.targetTablePrefix =
+                changeContext.getTargetTablePrefix() == null
+                        ? ""
+                        : changeContext.getTargetTablePrefix();
+        this.targetTableSuffix =
+                changeContext.getTargetTableSuffix() == null
+                        ? ""
+                        : changeContext.getTargetTableSuffix();
     }
 
     @Override
@@ -253,7 +263,7 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
 
     private String getCreateTableIdentifier(JsonNode record) {
         String table = extractJsonNode(record.get("source"), "table");
-        return targetDatabase + "." + table;
+        return targetDatabase + "." + targetTablePrefix + table + targetTableSuffix;
     }
 
     private boolean checkSchemaChange(String database, String table, DDLSchema ddlSchema)
@@ -359,17 +369,11 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
         if (StringUtils.isNullOrWhitespaceOnly(defaultValue)) {
             return null;
         }
-        // Due to historical reasons, doris needs to add quotes to
-        // the default value of the new column
-        // For example in mysql: alter table add column c1 int default 100
-        // In Doris: alter table add column c1 int default '100'
-        if (Pattern.matches("['\"].*?['\"]", defaultValue)) {
-            return defaultValue;
-        } else if (defaultValue.equals("1970-01-01 00:00:00")) {
+        if (defaultValue.equals("1970-01-01 00:00:00")) {
             // TODO: The default value of setting the current time in CDC is 1970-01-01 00:00:00
             return "current_timestamp";
         }
-        return "'" + defaultValue + "'";
+        return defaultValue;
     }
 
     @VisibleForTesting

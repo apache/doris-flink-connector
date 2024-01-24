@@ -283,7 +283,6 @@ public class DorisCatalog extends AbstractCatalog {
                 String columnType = resultSet.getString("DATA_TYPE");
                 long columnSize = resultSet.getLong("COLUMN_SIZE");
                 long columnDigit = resultSet.getLong("DECIMAL_DIGITS");
-
                 DataType flinkType =
                         DorisTypeMapper.toFlinkType(
                                 columnName, columnType, (int) columnSize, (int) columnDigit);

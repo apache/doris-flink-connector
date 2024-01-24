@@ -72,7 +72,7 @@ public class DorisConfigOptions {
     public static final ConfigOption<Boolean> AUTO_REDIRECT =
             ConfigOptions.key("auto-redirect")
                     .booleanType()
-                    .defaultValue(false)
+                    .defaultValue(true)
                     .withDescription(
                             "Use automatic redirection of fe without explicitly obtaining the be list");
 
