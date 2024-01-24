@@ -17,11 +17,20 @@
 
 package org.apache.doris.flink.tools.cdc.mysql;
 
+import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.doris.flink.catalog.doris.DorisType;
 
+import static org.apache.doris.flink.catalog.DorisTypeMapper.MAX_SUPPORTED_DATE_TIME_PRECISION;
+
 public class MysqlType {
+
+    // MySQL driver returns width of timestamp types instead of precision.
+    // 19 characters are used for zero-precision timestamps while others
+    // require 19 + precision + 1 characters with the additional character
+    // required for the decimal separator.
+    private static final int ZERO_PRECISION_TIMESTAMP_COLUMN_SIZE = 19;
     private static final String BIT = "BIT";
     private static final String BOOLEAN = "BOOLEAN";
     private static final String BOOL = "BOOL";
@@ -146,14 +155,28 @@ public class MysqlType {
             case DATETIME:
             case TIMESTAMP:
                 // default precision is 0
-                if (length == null || length <= 0 || length == 19) {
-                    return DorisType.DATETIME_V2;
-                    // In JsonDebeziumSchemaSerializer record,the length of timestamp/datetime is 0
-                    // to 6.
-                } else if (length > 20) {
-                    return String.format("%s(%s)", DorisType.DATETIME_V2, Math.min(length - 20, 6));
-                } else if (length <= 9) {
-                    return String.format("%s(%s)", DorisType.DATETIME_V2, Math.min(length, 6));
+                // see https://dev.mysql.com/doc/refman/8.0/en/date-and-time-type-syntax.html
+                if (length == null
+                        || length <= 0
+                        || length == ZERO_PRECISION_TIMESTAMP_COLUMN_SIZE) {
+                    return String.format("%s(%s)", DorisType.DATETIME_V2, 0);
+                } else if (length > ZERO_PRECISION_TIMESTAMP_COLUMN_SIZE + 1) {
+                    // Timestamp with a fraction of seconds.
+                    // For example, 2024-01-01 01:01:01.1
+                    // The decimal point will occupy 1 character.
+                    // Thus,the length of the timestamp is 21.
+                    return String.format(
+                            "%s(%s)",
+                            DorisType.DATETIME_V2,
+                            Math.min(
+                                    length - ZERO_PRECISION_TIMESTAMP_COLUMN_SIZE - 1,
+                                    MAX_SUPPORTED_DATE_TIME_PRECISION));
+                } else if (length <= TimestampType.MAX_PRECISION) {
+                    // For Debezium JSON data, the timestamp/datetime length ranges from 0 to 9.
+                    return String.format(
+                            "%s(%s)",
+                            DorisType.DATETIME_V2,
+                            Math.min(length, MAX_SUPPORTED_DATE_TIME_PRECISION));
                 } else {
                     throw new UnsupportedOperationException(
                             "Unsupported length: "

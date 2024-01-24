@@ -17,6 +17,7 @@
 
 package org.apache.doris.flink.sink.writer.serializer.jsondebezium;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.Maps;
 import org.apache.commons.collections.CollectionUtils;
@@ -266,5 +267,52 @@ public class TestJsonDebeziumSchemaChangeImplV2 extends TestJsonDebeziumChangeBa
         Assert.assertEquals("NAME4", tableSchema.getFields().get("NAME4").getName());
         Assert.assertEquals("age4", tableSchema.getFields().get("age4").getName());
         schemaChange.setSourceConnector(SourceConnector.MYSQL.connectorName);
+    }
+
+    @Test
+    public void testDateTimeFullOrigin() throws JsonProcessingException {
+        Map<String, FieldSchema> srcFiledSchemaMap = new LinkedHashMap<>();
+        srcFiledSchemaMap.put("id", new FieldSchema("id", "INT", null, null));
+        srcFiledSchemaMap.put(
+                "test_dt_0", new FieldSchema("test_dt_0", "DATETIMEV2(0)", null, null));
+        srcFiledSchemaMap.put(
+                "test_dt_1", new FieldSchema("test_dt_1", "DATETIMEV2(1)", null, null));
+        srcFiledSchemaMap.put(
+                "test_dt_3", new FieldSchema("test_dt_3", "DATETIMEV2(3)", null, null));
+        srcFiledSchemaMap.put(
+                "test_dt_6", new FieldSchema("test_dt_6", "DATETIMEV2(6)", null, null));
+        srcFiledSchemaMap.put(
+                "test_ts_0", new FieldSchema("test_ts_0", "DATETIMEV2(0)", null, null));
+        srcFiledSchemaMap.put(
+                "test_ts_1",
+                new FieldSchema("test_ts_1", "DATETIMEV2(1)", "current_timestamp", null));
+        srcFiledSchemaMap.put(
+                "test_ts_3",
+                new FieldSchema("test_ts_3", "DATETIMEV2(3)", "current_timestamp", null));
+        srcFiledSchemaMap.put(
+                "test_ts_6",
+                new FieldSchema("test_ts_6", "DATETIMEV2(6)", "current_timestamp", null));
+
+        schemaChange.setSourceConnector("mysql");
+        String columnsString =
+                "[{\"name\":\"id\",\"jdbcType\":4,\"typeName\":\"INT\",\"typeExpression\":\"INT\",\"charsetName\":null,\"position\":1,\"optional\":false,\"autoIncremented\":false,\"generated\":false,\"comment\":null,\"hasDefaultValue\":false,\"enumValues\":[]},{\"name\":\"test_dt_0\",\"jdbcType\":93,\"typeName\":\"DATETIME\",\"typeExpression\":\"DATETIME\",\"charsetName\":null,\"position\":2,\"optional\":true,\"autoIncremented\":false,\"generated\":false,\"comment\":null,\"hasDefaultValue\":true,\"enumValues\":[]},{\"name\":\"test_dt_1\",\"jdbcType\":93,\"typeName\":\"DATETIME\",\"typeExpression\":\"DATETIME\",\"charsetName\":null,\"length\":1,\"position\":3,\"optional\":true,\"autoIncremented\":false,\"generated\":false,\"comment\":null,\"hasDefaultValue\":true,\"enumValues\":[]},{\"name\":\"test_dt_3\",\"jdbcType\":93,\"typeName\":\"DATETIME\",\"typeExpression\":\"DATETIME\",\"charsetName\":null,\"length\":3,\"position\":4,\"optional\":true,\"autoIncremented\":false,\"generated\":false,\"comment\":null,\"hasDefaultValue\":true,\"enumValues\":[]},{\"name\":\"test_dt_6\",\"jdbcType\":93,\"typeName\":\"DATETIME\",\"typeExpression\":\"DATETIME\",\"charsetName\":null,\"length\":6,\"position\":5,\"optional\":true,\"autoIncremented\":false,\"generated\":false,\"comment\":null,\"hasDefaultValue\":true,\"enumValues\":[]},{\"name\":\"test_ts_0\",\"jdbcType\":2014,\"typeName\":\"TIMESTAMP\",\"typeExpression\":\"TIMESTAMP\",\"charsetName\":null,\"position\":6,\"optional\":true,\"autoIncremented\":false,\"generated\":false,\"comment\":null,\"hasDefaultValue\":true,\"enumValues\":[]},{\"name\":\"test_ts_1\",\"jdbcType\":2014,\"typeName\":\"TIMESTAMP\",\"typeExpression\":\"TIMESTAMP\",\"charsetName\":null,\"length\":1,\"position\":7,\"optional\":true,\"autoIncremented\":false,\"generated\":false,\"comment\":null,\"hasDefaultValue\":true,\"defaultValueExpression\":\"1970-01-01 00:00:00\",\"enumValues\":[]},{\"name\":\"test_ts_3\",\"jdbcType\":2014,\"typeName\":\"TIMESTAMP\",\"typeExpression\":\"TIMESTAMP\",\"charsetName\":null,\"length\":3,\"position\":8,\"optional\":true,\"autoIncremented\":false,\"generated\":false,\"comment\":null,\"hasDefaultValue\":true,\"defaultValueExpression\":\"1970-01-01 00:00:00\",\"enumValues\":[]},{\"name\":\"test_ts_6\",\"jdbcType\":2014,\"typeName\":\"TIMESTAMP\",\"typeExpression\":\"TIMESTAMP\",\"charsetName\":null,\"length\":6,\"position\":9,\"optional\":true,\"autoIncremented\":false,\"generated\":false,\"comment\":null,\"hasDefaultValue\":true,\"defaultValueExpression\":\"1970-01-01 00:00:00\",\"enumValues\":[]}]},\"comment\":null}]}";
+        JsonNode columns = objectMapper.readTree(columnsString);
+        schemaChange.fillOriginSchema(columns);
+        Map<String, FieldSchema> originFieldSchemaMap = schemaChange.getOriginFieldSchemaMap();
+
+        Iterator<Entry<String, FieldSchema>> originFieldSchemaIterator =
+                originFieldSchemaMap.entrySet().iterator();
+        for (Entry<String, FieldSchema> entry : srcFiledSchemaMap.entrySet()) {
+            FieldSchema srcFiledSchema = entry.getValue();
+            Entry<String, FieldSchema> originField = originFieldSchemaIterator.next();
+
+            Assert.assertEquals(entry.getKey(), originField.getKey());
+            Assert.assertEquals(srcFiledSchema.getName(), originField.getValue().getName());
+            Assert.assertEquals(
+                    srcFiledSchema.getTypeString(), originField.getValue().getTypeString());
+            Assert.assertEquals(
+                    srcFiledSchema.getDefaultValue(), originField.getValue().getDefaultValue());
+            Assert.assertEquals(srcFiledSchema.getComment(), originField.getValue().getComment());
+        }
     }
 }
