@@ -80,7 +80,7 @@ public abstract class DatabaseSync {
     protected String tablePrefix;
     protected String tableSuffix;
     protected boolean singleSink;
-    private Map<String, String> tableMapping = new HashMap<>();
+    private final Map<String, String> tableMapping = new HashMap<>();
 
     public abstract void registerDriver() throws SQLException;
 
@@ -93,7 +93,7 @@ public abstract class DatabaseSync {
     /** Get the prefix of a specific tableList, for example, mysql is database, oracle is schema. */
     public abstract String getTableListPrefix();
 
-    public DatabaseSync() throws SQLException {
+    protected DatabaseSync() throws SQLException {
         registerDriver();
     }
 
@@ -315,6 +315,9 @@ public abstract class DatabaseSync {
                     .collect(Collectors.joining("|"));
         } else {
             // includingTablePattern and ^excludingPattern
+            if (includingTables == null) {
+                includingTables = ".*";
+            }
             String includingPattern =
                     String.format("(%s)\\.(%s)", getTableListPrefix(), includingTables);
             if (StringUtils.isNullOrWhitespaceOnly(excludingTables)) {

@@ -70,6 +70,8 @@ public class DorisTypeMapper {
 
     /** Max size of varchar type of Doris. */
     public static final int MAX_VARCHAR_SIZE = 65533;
+    /* Max precision of datetime type of Doris. */
+    public static final int MAX_SUPPORTED_DATE_TIME_PRECISION = 6;
 
     public static DataType toFlinkType(
             String columnName, String columnType, int precision, int scale) {
