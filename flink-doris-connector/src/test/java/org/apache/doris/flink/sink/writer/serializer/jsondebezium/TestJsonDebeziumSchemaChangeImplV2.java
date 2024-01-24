@@ -154,7 +154,7 @@ public class TestJsonDebeziumSchemaChangeImplV2 extends TestJsonDebeziumChangeBa
         srcFiledSchemaMap.put("name", new FieldSchema("name", "VARCHAR(150)", null, null));
         srcFiledSchemaMap.put(
                 "test_time", new FieldSchema("test_time", "DATETIMEV2(0)", null, null));
-        srcFiledSchemaMap.put("c1", new FieldSchema("c1", "INT", "'100'", null));
+        srcFiledSchemaMap.put("c1", new FieldSchema("c1", "INT", "100", null));
 
         schemaChange.setSourceConnector("mysql");
         String columnsString =
