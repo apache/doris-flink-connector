@@ -113,6 +113,12 @@ public class SchemaManagerTest {
         Assert.assertEquals(
                 "ALTER TABLE `test`.`test_flink` ADD COLUMN `col` int COMMENT 'comment \"\\'sdf\\''",
                 addColumnDDL);
+
+        field = new FieldSchema("col", "int", "10","comment \"'sdf'");
+        addColumnDDL = SchemaChangeHelper.buildAddColumnDDL("test.test_flink", field);
+        Assert.assertEquals(
+                "ALTER TABLE `test`.`test_flink` ADD COLUMN `col` int DEFAULT '10' COMMENT 'comment \"\\'sdf\\''",
+                addColumnDDL);
     }
 
     @Test
