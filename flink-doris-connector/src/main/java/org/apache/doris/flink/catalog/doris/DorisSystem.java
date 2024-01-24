@@ -246,12 +246,17 @@ public class DorisSystem implements Serializable {
         if (isKey && DorisType.STRING.equals(fieldType)) {
             fieldType = String.format("%s(%s)", DorisType.VARCHAR, 65533);
         }
-        sql.append(identifier(field.getName()))
-                .append(" ")
-                .append(fieldType)
-                .append(" COMMENT '")
-                .append(quoteComment(field.getComment()))
-                .append("',");
+        sql.append(identifier(field.getName())).append(" ").append(fieldType);
+
+        if (field.getDefaultValue() != null) {
+            String defaultValue = field.getDefaultValue();
+            // DEFAULT current_timestamp not need quote
+            if (!defaultValue.equalsIgnoreCase("current_timestamp")) {
+                defaultValue = "'" + defaultValue + "'";
+            }
+            sql.append(" DEFAULT " + defaultValue);
+        }
+        sql.append(" COMMENT '").append(quoteComment(field.getComment())).append("',");
     }
 
     public static String quoteComment(String comment) {

@@ -111,7 +111,11 @@ public class SchemaChangeHelper {
                         DorisSystem.identifier(name),
                         type);
         if (!StringUtils.isNullOrWhitespaceOnly(defaultValue)) {
-            addDDL = addDDL + " DEFAULT '" + defaultValue + "'";
+            // DEFAULT current_timestamp not need quote
+            if (!defaultValue.equalsIgnoreCase("current_timestamp")) {
+                defaultValue = "'" + defaultValue + "'";
+            }
+            addDDL = addDDL + " DEFAULT " + defaultValue;
         }
         if (!StringUtils.isNullOrWhitespaceOnly(comment)) {
             addDDL = addDDL + " COMMENT '" + DorisSystem.quoteComment(comment) + "'";
