@@ -15,19 +15,18 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.flink.tools.cdc.sqlserver;
+package org.apache.doris.flink.tools.cdc.db2;
 
-import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.util.Preconditions;
 
 import com.ververica.cdc.connectors.base.options.JdbcSourceOptions;
 import com.ververica.cdc.connectors.base.options.SourceOptions;
-import com.ververica.cdc.connectors.base.options.StartupOptions;
-import com.ververica.cdc.connectors.base.source.jdbc.JdbcIncrementalSource;
-import com.ververica.cdc.connectors.sqlserver.SqlServerSource;
-import com.ververica.cdc.connectors.sqlserver.source.SqlServerSourceBuilder;
+import com.ververica.cdc.connectors.db2.Db2Source;
+import com.ververica.cdc.connectors.db2.table.StartupOptions;
 import com.ververica.cdc.debezium.DebeziumSourceFunction;
 import com.ververica.cdc.debezium.JsonDebeziumDeserializationSchema;
 import com.ververica.cdc.debezium.table.DebeziumOptions;
@@ -48,31 +47,28 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
-import static com.ververica.cdc.connectors.base.options.JdbcSourceOptions.CONNECTION_POOL_SIZE;
-import static com.ververica.cdc.connectors.base.options.JdbcSourceOptions.CONNECT_MAX_RETRIES;
-import static com.ververica.cdc.connectors.base.options.JdbcSourceOptions.CONNECT_TIMEOUT;
-import static com.ververica.cdc.connectors.base.options.SourceOptions.CHUNK_META_GROUP_SIZE;
-import static com.ververica.cdc.connectors.base.options.SourceOptions.SCAN_INCREMENTAL_SNAPSHOT_CHUNK_SIZE;
-import static com.ververica.cdc.connectors.base.options.SourceOptions.SCAN_SNAPSHOT_FETCH_SIZE;
-import static com.ververica.cdc.connectors.base.options.SourceOptions.SPLIT_KEY_EVEN_DISTRIBUTION_FACTOR_LOWER_BOUND;
-import static com.ververica.cdc.connectors.base.options.SourceOptions.SPLIT_KEY_EVEN_DISTRIBUTION_FACTOR_UPPER_BOUND;
+public class Db2DatabaseSync extends DatabaseSync {
+    public static final ConfigOption<Integer> PORT =
+            ConfigOptions.key("port")
+                    .intType()
+                    .defaultValue(50000)
+                    .withDescription("Integer port number of the DB2 database server.");
+    private static final Logger LOG = LoggerFactory.getLogger(Db2DatabaseSync.class);
 
-public class SqlServerDatabaseSync extends DatabaseSync {
-    private static final Logger LOG = LoggerFactory.getLogger(SqlServerDatabaseSync.class);
-    private static final String JDBC_URL = "jdbc:sqlserver://%s:%d;database=%s";
-    private static final String PORT = "port";
+    private static final String JDBC_URL = "jdbc:db2://%s:%d/%s";
 
-    public SqlServerDatabaseSync() throws SQLException {
+    public Db2DatabaseSync() throws SQLException {
         super();
     }
 
     @Override
     public void registerDriver() throws SQLException {
         try {
-            Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
+            Class.forName("com.ibm.db2.jcc.DB2Driver");
+            LOG.info(" Loaded the JDBC driver");
         } catch (ClassNotFoundException ex) {
             throw new SQLException(
-                    "No suitable driver found, can not found class com.microsoft.sqlserver.jdbc.SQLServerDriver");
+                    "No suitable driver found, can not found class com.ibm.db2.jcc.DB2Driver");
         }
     }
 
@@ -82,7 +78,7 @@ public class SqlServerDatabaseSync extends DatabaseSync {
                 String.format(
                         JDBC_URL,
                         config.get(JdbcSourceOptions.HOSTNAME),
-                        config.getInteger(PORT, 1433),
+                        config.get(PORT),
                         config.get(JdbcSourceOptions.DATABASE_NAME));
         Properties pro = new Properties();
         pro.setProperty("user", config.get(JdbcSourceOptions.USERNAME));
@@ -99,7 +95,7 @@ public class SqlServerDatabaseSync extends DatabaseSync {
         try (Connection conn = getConnection()) {
             DatabaseMetaData metaData = conn.getMetaData();
             try (ResultSet tables =
-                    metaData.getTables(databaseName, null, "%", new String[] {"TABLE"})) {
+                    metaData.getTables(null, schemaName, "%", new String[] {"TABLE"})) {
                 while (tables.next()) {
                     String tableName = tables.getString("TABLE_NAME");
                     String tableComment = tables.getString("REMARKS");
@@ -107,8 +103,8 @@ public class SqlServerDatabaseSync extends DatabaseSync {
                         continue;
                     }
                     SourceSchema sourceSchema =
-                            new SqlServerSchema(
-                                    metaData, databaseName, null, tableName, tableComment);
+                            new Db2Schema(
+                                    metaData, null, schemaName, tableName, tableComment);
                     sourceSchema.setModel(
                             !sourceSchema.primaryKeys.isEmpty()
                                     ? DataModel.UNIQUE
@@ -124,12 +120,12 @@ public class SqlServerDatabaseSync extends DatabaseSync {
     public DataStreamSource<String> buildCdcSource(StreamExecutionEnvironment env) {
         String databaseName = config.get(JdbcSourceOptions.DATABASE_NAME);
         String schemaName = config.get(JdbcSourceOptions.SCHEMA_NAME);
-        Preconditions.checkNotNull(databaseName, "database-name in sqlserver is required");
-        Preconditions.checkNotNull(schemaName, "schema-name in sqlserver is required");
+        Preconditions.checkNotNull(databaseName, "database-name in DB2 is required");
+        Preconditions.checkNotNull(schemaName, "schema-name in DB2 is required");
 
         String tableName = config.get(JdbcSourceOptions.TABLE_NAME);
         String hostname = config.get(JdbcSourceOptions.HOSTNAME);
-        Integer port = config.getInteger(PORT, 1433);
+        Integer port = config.get(PORT);
         String username = config.get(JdbcSourceOptions.USERNAME);
         String password = config.get(JdbcSourceOptions.PASSWORD);
 
@@ -143,8 +139,8 @@ public class SqlServerDatabaseSync extends DatabaseSync {
 
         // debezium properties set
         Properties debeziumProperties = new Properties();
-        debeziumProperties.putAll(SqlServerDateConverter.DEFAULT_PROPS);
-        debeziumProperties.put("decimal.handling.mode", "string");
+                debeziumProperties.putAll(Db2DateConverter.DEFAULT_PROPS);
+//                debeziumProperties.put("decimal.handling.mode", "string");
 
         for (Map.Entry<String, String> entry : config.toMap().entrySet()) {
             String key = entry.getKey();
@@ -159,47 +155,19 @@ public class SqlServerDatabaseSync extends DatabaseSync {
         JsonDebeziumDeserializationSchema schema =
                 new JsonDebeziumDeserializationSchema(false, customConverterConfigs);
 
-        if (config.getBoolean(SourceOptions.SCAN_INCREMENTAL_SNAPSHOT_ENABLED, false)) {
-            JdbcIncrementalSource<String> incrSource =
-                    SqlServerSourceBuilder.SqlServerIncrementalSource.<String>builder()
-                            .hostname(hostname)
-                            .port(port)
-                            .databaseList(databaseName)
-                            .tableList(tableName)
-                            .username(username)
-                            .password(password)
-                            .startupOptions(startupOptions)
-                            .deserializer(schema)
-                            .includeSchemaChanges(true)
-                            .debeziumProperties(debeziumProperties)
-                            .splitSize(config.get(SCAN_INCREMENTAL_SNAPSHOT_CHUNK_SIZE))
-                            .splitMetaGroupSize(config.get(CHUNK_META_GROUP_SIZE))
-                            .fetchSize(config.get(SCAN_SNAPSHOT_FETCH_SIZE))
-                            .connectTimeout(config.get(CONNECT_TIMEOUT))
-                            .connectionPoolSize(config.get(CONNECTION_POOL_SIZE))
-                            .connectMaxRetries(config.get(CONNECT_MAX_RETRIES))
-                            .distributionFactorUpper(
-                                    config.get(SPLIT_KEY_EVEN_DISTRIBUTION_FACTOR_UPPER_BOUND))
-                            .distributionFactorLower(
-                                    config.get(SPLIT_KEY_EVEN_DISTRIBUTION_FACTOR_LOWER_BOUND))
-                            .build();
-            return env.fromSource(
-                    incrSource, WatermarkStrategy.noWatermarks(), "SqlServer IncrSource");
-        } else {
-            DebeziumSourceFunction<String> sqlServerSource =
-                    SqlServerSource.<String>builder()
-                            .hostname(hostname)
-                            .port(port)
-                            .database(databaseName)
-                            .tableList(tableName)
-                            .username(username)
-                            .password(password)
-                            .debeziumProperties(debeziumProperties)
-                            .startupOptions(startupOptions)
-                            .deserializer(schema)
-                            .build();
-            return env.addSource(sqlServerSource, "SqlServer Source");
-        }
+        DebeziumSourceFunction<String> db2Source =
+                Db2Source.<String>builder()
+                        .hostname(hostname)
+                        .port(port)
+                        .database(databaseName)
+                        .tableList(tableName)
+                        .username(username)
+                        .password(password)
+                        .debeziumProperties(debeziumProperties)
+                        .startupOptions(startupOptions)
+                        .deserializer(schema)
+                        .build();
+        return env.addSource(db2Source, "Db2 Source");
     }
 
     @Override
