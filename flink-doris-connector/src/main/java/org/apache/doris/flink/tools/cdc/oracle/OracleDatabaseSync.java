@@ -230,7 +230,6 @@ public class OracleDatabaseSync extends DatabaseSync {
 
     @Override
     public String getTableListPrefix() {
-        String schemaName = config.get(OracleSourceOptions.SCHEMA_NAME);
-        return schemaName;
+        return config.get(OracleSourceOptions.SCHEMA_NAME);
     }
 }
