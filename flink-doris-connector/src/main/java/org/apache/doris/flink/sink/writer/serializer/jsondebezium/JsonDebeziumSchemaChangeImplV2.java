@@ -70,6 +70,8 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
     // create table properties
     private final Map<String, String> tableProperties;
     private String targetDatabase;
+    private String targetTablePrefix;
+    private String targetTableSuffix;
 
     public JsonDebeziumSchemaChangeImplV2(JsonDebeziumChangeContext changeContext) {
         this.addDropDDLPattern = Pattern.compile(addDropDDLRegex, Pattern.CASE_INSENSITIVE);
@@ -81,6 +83,14 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
         this.tableProperties = changeContext.getTableProperties();
         this.tableMapping = changeContext.getTableMapping();
         this.objectMapper = changeContext.getObjectMapper();
+        this.targetTablePrefix =
+                changeContext.getTargetTablePrefix() == null
+                        ? ""
+                        : changeContext.getTargetTablePrefix();
+        this.targetTableSuffix =
+                changeContext.getTargetTableSuffix() == null
+                        ? ""
+                        : changeContext.getTargetTableSuffix();
     }
 
     @Override
@@ -253,7 +263,7 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
 
     private String getCreateTableIdentifier(JsonNode record) {
         String table = extractJsonNode(record.get("source"), "table");
-        return targetDatabase + "." + table;
+        return targetDatabase + "." + targetTablePrefix + table + targetTableSuffix;
     }
 
     private boolean checkSchemaChange(String database, String table, DDLSchema ddlSchema)
