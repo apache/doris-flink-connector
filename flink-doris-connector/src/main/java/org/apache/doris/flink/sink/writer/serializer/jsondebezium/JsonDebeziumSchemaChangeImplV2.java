@@ -72,6 +72,7 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
     private String targetDatabase;
     private String targetTablePrefix;
     private String targetTableSuffix;
+    private final Map<String, Integer> tableBucketsMap;
 
     public JsonDebeziumSchemaChangeImplV2(JsonDebeziumChangeContext changeContext) {
         this.addDropDDLPattern = Pattern.compile(addDropDDLRegex, Pattern.CASE_INSENSITIVE);
@@ -91,6 +92,10 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
                 changeContext.getTargetTableSuffix() == null
                         ? ""
                         : changeContext.getTargetTableSuffix();
+        this.tableBucketsMap =
+                changeContext.getTableBucketsMap() == null
+                        ? new LinkedHashMap<>()
+                        : changeContext.getTableBucketsMap();
     }
 
     @Override
@@ -246,7 +251,28 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
         Preconditions.checkArgument(split.length == 2);
         tableSchema.setDatabase(split[0]);
         tableSchema.setTable(split[1]);
+        Integer buckets = getTableSchemaBuckets(tableBucketsMap, split[1]);
+        tableSchema.setTableBuckets(buckets);
         return tableSchema;
+    }
+
+    @VisibleForTesting
+    public Integer getTableSchemaBuckets(Map<String, Integer> tableBucketsMap, String tableName) {
+        if (tableBucketsMap != null) {
+            // Firstly, if the table name is in the table-buckets map, set the buckets of the table.
+            if (tableBucketsMap.containsKey(tableName)) {
+                return tableBucketsMap.get(tableName);
+            }
+            // Secondly, iterate over the map to find a corresponding regular expression match,
+            for (Map.Entry<String, Integer> entry : tableBucketsMap.entrySet()) {
+
+                Pattern pattern = Pattern.compile(entry.getKey());
+                if (pattern.matcher(tableName).matches()) {
+                    return entry.getValue();
+                }
+            }
+        }
+        return null;
     }
 
     private List<String> buildDistributeKeys(

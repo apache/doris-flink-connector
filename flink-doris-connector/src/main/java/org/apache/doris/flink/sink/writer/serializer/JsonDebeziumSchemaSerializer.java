@@ -71,6 +71,7 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
     private String targetTableSuffix;
     private JsonDebeziumDataChange dataChange;
     private JsonDebeziumSchemaChange schemaChange;
+    private Map<String, Integer> tableBucketsMap;
 
     public JsonDebeziumSchemaSerializer(
             DorisOptions dorisOptions,
@@ -114,13 +115,15 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
             Map<String, String> tableProperties,
             String targetDatabase,
             String targetTablePrefix,
-            String targetTableSuffix) {
+            String targetTableSuffix,
+            Map<String, Integer> tableBucketsMap) {
         this(dorisOptions, pattern, sourceTableName, newSchemaChange, executionOptions);
         this.tableMapping = tableMapping;
         this.tableProperties = tableProperties;
         this.targetDatabase = targetDatabase;
         this.targetTablePrefix = targetTablePrefix;
         this.targetTableSuffix = targetTableSuffix;
+        this.tableBucketsMap = tableBucketsMap;
         init();
     }
 
@@ -137,7 +140,8 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
                         lineDelimiter,
                         ignoreUpdateBefore,
                         targetTablePrefix,
-                        targetTableSuffix);
+                        targetTableSuffix,
+                        tableBucketsMap);
         this.schemaChange =
                 newSchemaChange
                         ? new JsonDebeziumSchemaChangeImplV2(changeContext)
@@ -190,6 +194,7 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
         private String targetDatabase;
         private String targetTablePrefix = "";
         private String targetTableSuffix = "";
+        private Map<String, Integer> tableBucketsMap;
 
         public JsonDebeziumSchemaSerializer.Builder setDorisOptions(DorisOptions dorisOptions) {
             this.dorisOptions = dorisOptions;
@@ -245,6 +250,11 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
             return this;
         }
 
+        public Builder setTableBucketsMap(Map<String, Integer> tableBucketsMap) {
+            this.tableBucketsMap = tableBucketsMap;
+            return this;
+        }
+
         public JsonDebeziumSchemaSerializer build() {
             return new JsonDebeziumSchemaSerializer(
                     dorisOptions,
@@ -256,7 +266,8 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
                     tableProperties,
                     targetDatabase,
                     targetTablePrefix,
-                    targetTableSuffix);
+                    targetTableSuffix,
+                    tableBucketsMap);
         }
     }
 }

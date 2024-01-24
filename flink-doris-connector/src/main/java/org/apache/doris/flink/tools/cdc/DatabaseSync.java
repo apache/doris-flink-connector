@@ -82,6 +82,8 @@ public abstract class DatabaseSync {
     protected boolean singleSink;
     private Map<String, String> tableMapping = new HashMap<>();
 
+    private Map<String, Integer> tableBucketsMap = new LinkedHashMap<>();
+
     public abstract void registerDriver() throws SQLException;
 
     public abstract Connection getConnection() throws SQLException;
@@ -121,10 +123,11 @@ public abstract class DatabaseSync {
 
         List<String> syncTables = new ArrayList<>();
         List<String> dorisTables = new ArrayList<>();
-
-        Map<String, Integer> tableBucketsMap = null;
         if (tableConfig.containsKey("table-buckets")) {
-            tableBucketsMap = getTableBuckets(tableConfig.get("table-buckets"));
+            Map<String, Integer> tableBuckets = getTableBuckets(tableConfig.get("table-buckets"));
+            if (tableBuckets != null) {
+                tableBucketsMap.putAll(tableBuckets);
+            }
         }
         Set<String> bucketsTable = new HashSet<>();
         for (SourceSchema schema : schemaList) {
@@ -290,6 +293,7 @@ public abstract class DatabaseSync {
                                 .setTargetDatabase(database)
                                 .setTargetTablePrefix(tablePrefix)
                                 .setTargetTableSuffix(tableSuffix)
+                                .setTableBucketsMap(tableBucketsMap)
                                 .build())
                 .setDorisOptions(dorisBuilder.build());
         return builder.build();
@@ -360,14 +364,14 @@ public abstract class DatabaseSync {
      * @return The table name and buckets map. The key is table name, the value is buckets.
      */
     public Map<String, Integer> getTableBuckets(String tableBuckets) {
-        Map<String, Integer> tableBucketsMap = new LinkedHashMap<>();
+        Map<String, Integer> bucketsMap = new LinkedHashMap<>();
         String[] tableBucketsArray = tableBuckets.split(",");
         for (String tableBucket : tableBucketsArray) {
             String[] tableBucketArray = tableBucket.split(":");
-            tableBucketsMap.put(
+            bucketsMap.put(
                     tableBucketArray[0].trim(), Integer.parseInt(tableBucketArray[1].trim()));
         }
-        return tableBucketsMap;
+        return bucketsMap;
     }
 
     /**
