@@ -18,6 +18,7 @@
 package org.apache.doris.flink.catalog.doris;
 
 import org.apache.flink.annotation.Public;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
 import org.apache.commons.compress.utils.Lists;
@@ -253,7 +254,7 @@ public class DorisSystem implements Serializable {
                 .append("',");
     }
 
-    private static String quoteComment(String comment) {
+    public static String quoteComment(String comment) {
         if (comment == null) {
             return "";
         } else {
@@ -266,8 +267,14 @@ public class DorisSystem implements Serializable {
         return result;
     }
 
-    private static String identifier(String name) {
+    public static String identifier(String name) {
         return "`" + name + "`";
+    }
+
+    public static String quoteTableIdentifier(String tableIdentifier) {
+        String[] dbTable = tableIdentifier.split("\\.");
+        Preconditions.checkArgument(dbTable.length == 2);
+        return identifier(dbTable[0]) + "." + identifier(dbTable[1]);
     }
 
     private static String quoteProperties(String name) {
