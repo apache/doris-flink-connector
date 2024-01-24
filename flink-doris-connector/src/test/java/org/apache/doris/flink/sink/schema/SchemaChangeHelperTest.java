@@ -33,15 +33,15 @@ public class SchemaChangeHelperTest {
 
     @Before
     public void setUp() {
-        originFieldSchemaMap.put("id", new FieldSchema("id", "INT", "", ""));
-        originFieldSchemaMap.put("c2", new FieldSchema("c2", "INT", "", ""));
-        originFieldSchemaMap.put("c3", new FieldSchema("c3", "VARCHAR(30)", "", ""));
+        originFieldSchemaMap.put("id", new FieldSchema("id", "INT", null, ""));
+        originFieldSchemaMap.put("c2", new FieldSchema("c2", "INT", null, ""));
+        originFieldSchemaMap.put("c3", new FieldSchema("c3", "VARCHAR(30)", null, ""));
 
-        updateFieldSchemaMap.put("id", new FieldSchema("id", "INT", "", ""));
-        updateFieldSchemaMap.put("c2", new FieldSchema("c2", "INT", "", ""));
-        updateFieldSchemaMap.put("c3", new FieldSchema("c3", "VARCHAR(30)", "", ""));
-        updateFieldSchemaMap.put("c4", new FieldSchema("c4", "BIGINT", "", ""));
-        updateFieldSchemaMap.put("c5", new FieldSchema("c5", "DATETIMEV2(0)", "", ""));
+        updateFieldSchemaMap.put("id", new FieldSchema("id", "INT", null, ""));
+        updateFieldSchemaMap.put("c2", new FieldSchema("c2", "INT", null, ""));
+        updateFieldSchemaMap.put("c3", new FieldSchema("c3", "VARCHAR(30)", null, ""));
+        updateFieldSchemaMap.put("c4", new FieldSchema("c4", "BIGINT", null, ""));
+        updateFieldSchemaMap.put("c5", new FieldSchema("c5", "DATETIMEV2(0)", null, ""));
     }
 
     @Test

@@ -249,14 +249,17 @@ public class DorisSystem implements Serializable {
         sql.append(identifier(field.getName())).append(" ").append(fieldType);
 
         if (field.getDefaultValue() != null) {
-            String defaultValue = field.getDefaultValue();
-            // DEFAULT current_timestamp not need quote
-            if (!defaultValue.equalsIgnoreCase("current_timestamp")) {
-                defaultValue = "'" + defaultValue + "'";
-            }
-            sql.append(" DEFAULT " + defaultValue);
+            sql.append(" DEFAULT " + quoteDefaultValue(field.getDefaultValue()));
         }
         sql.append(" COMMENT '").append(quoteComment(field.getComment())).append("',");
+    }
+
+    public static String quoteDefaultValue(String defaultValue) {
+        // DEFAULT current_timestamp not need quote
+        if (defaultValue.equalsIgnoreCase("current_timestamp")) {
+            return defaultValue;
+        }
+        return "'" + defaultValue + "'";
     }
 
     public static String quoteComment(String comment) {
