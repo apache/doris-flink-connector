@@ -59,17 +59,19 @@ public abstract class SourceSchema {
                 String fieldName = rs.getString("COLUMN_NAME");
                 String comment = rs.getString("REMARKS");
                 String fieldType = rs.getString("TYPE_NAME");
+                String defaultValue = rs.getString("COLUMN_DEF");
                 Integer precision = rs.getInt("COLUMN_SIZE");
-
                 if (rs.wasNull()) {
                     precision = null;
                 }
+
                 Integer scale = rs.getInt("DECIMAL_DIGITS");
                 if (rs.wasNull()) {
                     scale = null;
                 }
                 String dorisTypeStr = convertToDorisType(fieldType, precision, scale);
-                fields.put(fieldName, new FieldSchema(fieldName, dorisTypeStr, comment));
+                fields.put(
+                        fieldName, new FieldSchema(fieldName, dorisTypeStr, defaultValue, comment));
             }
         }
 

@@ -110,8 +110,8 @@ public class SchemaChangeHelper {
                         DorisSystem.quoteTableIdentifier(tableIdentifier),
                         DorisSystem.identifier(name),
                         type);
-        if (!StringUtils.isNullOrWhitespaceOnly(defaultValue)) {
-            addDDL = addDDL + " DEFAULT " + defaultValue;
+        if (defaultValue != null) {
+            addDDL = addDDL + " DEFAULT " + DorisSystem.quoteDefaultValue(defaultValue);
         }
         if (!StringUtils.isNullOrWhitespaceOnly(comment)) {
             addDDL = addDDL + " COMMENT '" + DorisSystem.quoteComment(comment) + "'";
