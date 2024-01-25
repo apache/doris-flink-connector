@@ -35,6 +35,7 @@ import org.apache.doris.flink.sink.schema.SchemaChangeHelper;
 import org.apache.doris.flink.sink.schema.SchemaChangeHelper.DDLSchema;
 import org.apache.doris.flink.sink.schema.SchemaChangeManager;
 import org.apache.doris.flink.sink.writer.EventType;
+import org.apache.doris.flink.tools.cdc.DatabaseSync;
 import org.apache.doris.flink.tools.cdc.SourceConnector;
 import org.apache.doris.flink.tools.cdc.mysql.MysqlType;
 import org.apache.doris.flink.tools.cdc.oracle.OracleType;
@@ -72,7 +73,6 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
     private String targetDatabase;
     private String targetTablePrefix;
     private String targetTableSuffix;
-    private final Map<String, Integer> tableBucketsMap;
 
     public JsonDebeziumSchemaChangeImplV2(JsonDebeziumChangeContext changeContext) {
         this.addDropDDLPattern = Pattern.compile(addDropDDLRegex, Pattern.CASE_INSENSITIVE);
@@ -92,10 +92,6 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
                 changeContext.getTargetTableSuffix() == null
                         ? ""
                         : changeContext.getTargetTableSuffix();
-        this.tableBucketsMap =
-                changeContext.getTableBucketsMap() == null
-                        ? new LinkedHashMap<>()
-                        : changeContext.getTableBucketsMap();
     }
 
     @Override
@@ -251,8 +247,12 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
         Preconditions.checkArgument(split.length == 2);
         tableSchema.setDatabase(split[0]);
         tableSchema.setTable(split[1]);
-        Integer buckets = getTableSchemaBuckets(tableBucketsMap, split[1]);
-        tableSchema.setTableBuckets(buckets);
+        if (tableProperties.containsKey("table-buckets")) {
+            String s = tableProperties.get("table-buckets");
+            Map<String, Integer> tableBuckets = DatabaseSync.getTableBuckets(s);
+            Integer buckets = getTableSchemaBuckets(tableBuckets, tableSchema.getTable());
+            tableSchema.setTableBuckets(buckets);
+        }
         return tableSchema;
     }
 

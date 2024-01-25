@@ -82,8 +82,6 @@ public abstract class DatabaseSync {
     protected boolean singleSink;
     private final Map<String, String> tableMapping = new HashMap<>();
 
-    private Map<String, Integer> tableBucketsMap = new LinkedHashMap<>();
-
     public abstract void registerDriver() throws SQLException;
 
     public abstract Connection getConnection() throws SQLException;
@@ -123,11 +121,10 @@ public abstract class DatabaseSync {
 
         List<String> syncTables = new ArrayList<>();
         List<String> dorisTables = new ArrayList<>();
+
+        Map<String, Integer> tableBucketsMap = null;
         if (tableConfig.containsKey("table-buckets")) {
-            Map<String, Integer> tableBuckets = getTableBuckets(tableConfig.get("table-buckets"));
-            if (tableBuckets != null) {
-                tableBucketsMap.putAll(tableBuckets);
-            }
+            tableBucketsMap = getTableBuckets(tableConfig.get("table-buckets"));
         }
         Set<String> bucketsTable = new HashSet<>();
         for (SourceSchema schema : schemaList) {
@@ -293,7 +290,6 @@ public abstract class DatabaseSync {
                                 .setTargetDatabase(database)
                                 .setTargetTablePrefix(tablePrefix)
                                 .setTargetTableSuffix(tableSuffix)
-                                .setTableBucketsMap(tableBucketsMap)
                                 .build())
                 .setDorisOptions(dorisBuilder.build());
         return builder.build();
@@ -366,15 +362,15 @@ public abstract class DatabaseSync {
      * @param tableBuckets the string of tableBuckets, eg:student:10,student_info:20,student.*:30
      * @return The table name and buckets map. The key is table name, the value is buckets.
      */
-    public Map<String, Integer> getTableBuckets(String tableBuckets) {
-        Map<String, Integer> bucketsMap = new LinkedHashMap<>();
+    public static Map<String, Integer> getTableBuckets(String tableBuckets) {
+        Map<String, Integer> tableBucketsMap = new LinkedHashMap<>();
         String[] tableBucketsArray = tableBuckets.split(",");
         for (String tableBucket : tableBucketsArray) {
             String[] tableBucketArray = tableBucket.split(":");
-            bucketsMap.put(
+            tableBucketsMap.put(
                     tableBucketArray[0].trim(), Integer.parseInt(tableBucketArray[1].trim()));
         }
-        return bucketsMap;
+        return tableBucketsMap;
     }
 
     /**
