@@ -46,7 +46,6 @@ public class CdcOraclelSyncDatabaseCase {
         String database = "db1";
         String tablePrefix = "";
         String tableSuffix = "";
-        String tableBuckets = "10";
         Map<String, String> sourceConfig = new HashMap<>();
         sourceConfig.put("database-name", "XE");
         sourceConfig.put("schema-name", "ADMIN");
