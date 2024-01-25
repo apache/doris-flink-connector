@@ -93,7 +93,6 @@ public class CdcOraclelSyncDatabaseCase {
                 .setTableConfig(tableConfig)
                 .setCreateTableOnly(false)
                 .setNewSchemaChange(useNewSchemaChange)
-                .setTableBuckets(tableBuckets)
                 .create();
         databaseSync.build();
         env.execute(String.format("Oracle-Doris Database Sync: %s", database));
