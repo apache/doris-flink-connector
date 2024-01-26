@@ -21,6 +21,8 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.table.factories.FactoryUtil;
 
+import org.apache.doris.flink.sink.writer.WriteMode;
+
 import java.time.Duration;
 import java.util.Map;
 import java.util.Properties;
@@ -226,6 +228,12 @@ public class DorisConfigOptions {
                     .booleanType()
                     .defaultValue(true)
                     .withDescription("whether to enable the delete function");
+
+    public static final ConfigOption<String> SINK_WRITE_MODE =
+            ConfigOptions.key("sink.write-mode")
+                    .stringType()
+                    .defaultValue(WriteMode.STREAM_LOAD.name())
+                    .withDescription("Write mode, supports stream_load, stream_load_batch");
 
     public static final ConfigOption<Integer> SINK_PARALLELISM = FactoryUtil.SINK_PARALLELISM;
 
