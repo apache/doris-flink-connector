@@ -234,14 +234,17 @@ public final class DorisDynamicTableFactory
             builder.enable2PC();
         }
 
+        builder.setWriteMode(WriteMode.valueOf(readableConfig.get(SINK_WRITE_MODE).toUpperCase()));
         builder.setBatchMode(readableConfig.get(SINK_ENABLE_BATCH_MODE));
+        // Compatible with previous versions
+        if (readableConfig.get(SINK_ENABLE_BATCH_MODE)) {
+            builder.setWriteMode(WriteMode.STREAM_LOAD_BATCH);
+        }
         builder.setFlushQueueSize(readableConfig.get(SINK_FLUSH_QUEUE_SIZE));
         builder.setBufferFlushMaxRows(readableConfig.get(SINK_BUFFER_FLUSH_MAX_ROWS));
         builder.setBufferFlushMaxBytes(readableConfig.get(SINK_BUFFER_FLUSH_MAX_BYTES));
         builder.setBufferFlushIntervalMs(readableConfig.get(SINK_BUFFER_FLUSH_INTERVAL).toMillis());
-
         builder.setUseCache(readableConfig.get(SINK_USE_CACHE));
-        builder.setWriteMode(WriteMode.valueOf(readableConfig.get(SINK_WRITE_MODE).toUpperCase()));
         return builder.build();
     }
 
