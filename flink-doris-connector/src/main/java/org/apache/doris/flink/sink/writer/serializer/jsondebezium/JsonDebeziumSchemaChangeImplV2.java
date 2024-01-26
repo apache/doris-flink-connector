@@ -27,6 +27,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.apache.commons.collections.CollectionUtils;
+import org.apache.doris.flink.catalog.DorisTypeMapper;
 import org.apache.doris.flink.catalog.doris.DataModel;
 import org.apache.doris.flink.catalog.doris.FieldSchema;
 import org.apache.doris.flink.catalog.doris.TableSchema;
@@ -61,6 +62,8 @@ import java.util.regex.Pattern;
  */
 public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
     private static final Logger LOG = LoggerFactory.getLogger(JsonDebeziumSchemaChangeImplV2.class);
+    // The default value of setting the current time in CDC is 1970-01-01 00:00:00
+    private static final String DEFAULT_TIMESTAMP = "1970-01-01 00:00:00";
     private static final Pattern renameDDLPattern =
             Pattern.compile(
                     "ALTER\\s+TABLE\\s+(\\w+)\\s+RENAME\\s+COLUMN\\s+(\\w+)\\s+TO\\s+(\\w+)",
@@ -310,8 +313,10 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
                 String fieldName = column.get("name").asText();
                 if (originFieldSchemaMap.containsKey(fieldName)) {
                     String dorisTypeName = buildDorisTypeName(column);
-                    String defaultValue =
-                            handleDefaultValue(extractJsonNode(column, "defaultValueExpression"));
+                    int length = column.get("length") == null ? 0 : column.get("length").asInt();
+                    String defaultValueExpression =
+                            extractJsonNode(column, "defaultValueExpression");
+                    String defaultValue = handleDefaultValue(defaultValueExpression, length);
                     String comment = extractJsonNode(column, "comment");
                     FieldSchema fieldSchema = originFieldSchemaMap.get(fieldName);
                     fieldSchema.setName(fieldName);
@@ -333,7 +338,9 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
     private void buildFieldSchema(Map<String, FieldSchema> filedSchemaMap, JsonNode column) {
         String fieldName = column.get("name").asText();
         String dorisTypeName = buildDorisTypeName(column);
-        String defaultValue = handleDefaultValue(extractJsonNode(column, "defaultValueExpression"));
+        String defaultValueExpression = extractJsonNode(column, "defaultValueExpression");
+        int length = column.get("length") == null ? 0 : column.get("length").asInt();
+        String defaultValue = handleDefaultValue(defaultValueExpression, length);
         String comment = extractJsonNode(column, "comment");
         filedSchemaMap.put(
                 fieldName, new FieldSchema(fieldName, dorisTypeName, defaultValue, comment));
@@ -365,13 +372,15 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
         return dorisTypeName;
     }
 
-    private String handleDefaultValue(String defaultValue) {
+    private String handleDefaultValue(String defaultValue, int length) {
         if (StringUtils.isNullOrWhitespaceOnly(defaultValue)) {
             return null;
         }
-        if (defaultValue.equals("1970-01-01 00:00:00")) {
-            // TODO: The default value of setting the current time in CDC is 1970-01-01 00:00:00
-            return "current_timestamp";
+        if (defaultValue.equals(DEFAULT_TIMESTAMP)) {
+            if (length > DorisTypeMapper.MAX_SUPPORTED_DATE_TIME_PRECISION) {
+                length = DorisTypeMapper.MAX_SUPPORTED_DATE_TIME_PRECISION;
+            }
+            return String.format("%s(%d)", "CURRENT_TIMESTAMP", length);
         }
         return defaultValue;
     }

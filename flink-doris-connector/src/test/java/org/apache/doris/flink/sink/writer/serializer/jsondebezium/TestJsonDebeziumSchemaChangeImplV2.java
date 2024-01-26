@@ -285,13 +285,13 @@ public class TestJsonDebeziumSchemaChangeImplV2 extends TestJsonDebeziumChangeBa
                 "test_ts_0", new FieldSchema("test_ts_0", "DATETIMEV2(0)", null, null));
         srcFiledSchemaMap.put(
                 "test_ts_1",
-                new FieldSchema("test_ts_1", "DATETIMEV2(1)", "current_timestamp", null));
+                new FieldSchema("test_ts_1", "DATETIMEV2(1)", "CURRENT_TIMESTAMP(1)", null));
         srcFiledSchemaMap.put(
                 "test_ts_3",
-                new FieldSchema("test_ts_3", "DATETIMEV2(3)", "current_timestamp", null));
+                new FieldSchema("test_ts_3", "DATETIMEV2(3)", "CURRENT_TIMESTAMP(3)", null));
         srcFiledSchemaMap.put(
                 "test_ts_6",
-                new FieldSchema("test_ts_6", "DATETIMEV2(6)", "current_timestamp", null));
+                new FieldSchema("test_ts_6", "DATETIMEV2(6)", "CURRENT_TIMESTAMP(6)", null));
 
         schemaChange.setSourceConnector("mysql");
         String columnsString =

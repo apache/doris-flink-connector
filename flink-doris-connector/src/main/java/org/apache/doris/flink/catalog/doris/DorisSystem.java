@@ -22,6 +22,7 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
 import org.apache.commons.compress.utils.Lists;
+import org.apache.doris.flink.catalog.DorisTypeMapper;
 import org.apache.doris.flink.cfg.DorisConnectionOptions;
 import org.apache.doris.flink.connection.JdbcConnectionProvider;
 import org.apache.doris.flink.connection.SimpleJdbcConnectionProvider;
@@ -244,20 +245,36 @@ public class DorisSystem implements Serializable {
     private static void buildColumn(StringBuilder sql, FieldSchema field, boolean isKey) {
         String fieldType = field.getTypeString();
         if (isKey && DorisType.STRING.equals(fieldType)) {
-            fieldType = String.format("%s(%s)", DorisType.VARCHAR, 65533);
+            fieldType =
+                    String.format("%s(%s)", DorisType.VARCHAR, DorisTypeMapper.MAX_VARCHAR_SIZE);
         }
         sql.append(identifier(field.getName())).append(" ").append(fieldType);
-
-        if (field.getDefaultValue() != null) {
-            sql.append(" DEFAULT " + quoteDefaultValue(field.getDefaultValue()));
+        // The nextval() is a built-in function in PostgreSQL that allows the use of sequences
+        // on the database to automatically set values by incrementing the set of default
+        // values.
+        // Tus, we can't use nextval() as a default value for numeric columns in Doris.
+        // see https://www.postgresql.org/docs/current/ddl-default.html
+        String defaultValue = field.getDefaultValue();
+        if (defaultValue != null && !defaultValue.toUpperCase().contains("NEXTVAL(")) {
+            sql.append(" DEFAULT ").append(quoteDefaultValue(defaultValue));
         }
         sql.append(" COMMENT '").append(quoteComment(field.getComment())).append("',");
     }
 
     public static String quoteDefaultValue(String defaultValue) {
-        // DEFAULT current_timestamp not need quote
-        if (defaultValue.equalsIgnoreCase("current_timestamp")) {
-            return defaultValue;
+        String colDefaultValue = defaultValue.toUpperCase();
+        // In Doris, CURRENT_TIMESTAMP can be used as a default value for DATETIME  columns.
+        if (colDefaultValue.startsWith("CURRENT_TIMESTAMP")) {
+            long length = 0;
+            if (colDefaultValue.contains("(")) {
+                String substring =
+                        colDefaultValue.substring(18, colDefaultValue.length() - 1).trim();
+                length = substring.isEmpty() ? 0 : Long.parseLong(substring);
+                if (length > DorisTypeMapper.MAX_SUPPORTED_DATE_TIME_PRECISION) {
+                    length = DorisTypeMapper.MAX_SUPPORTED_DATE_TIME_PRECISION;
+                }
+            }
+            return String.format("%s(%d)", "CURRENT_TIMESTAMP", length);
         }
         return "'" + defaultValue + "'";
     }
