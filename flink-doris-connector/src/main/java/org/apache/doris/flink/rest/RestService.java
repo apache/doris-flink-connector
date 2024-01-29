@@ -286,7 +286,8 @@ public class RestService implements Serializable {
                 return feNode;
             }
         }
-        throw new DorisRuntimeException("No Doris FE is available, please check configuration or cluster status.");
+        throw new DorisRuntimeException(
+                "No Doris FE is available, please check configuration or cluster status.");
     }
 
     /**
