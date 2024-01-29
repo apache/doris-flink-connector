@@ -276,11 +276,11 @@ public class RestService implements Serializable {
             throws IllegalArgumentException {
         logger.trace("Parse fenodes '{}'.", feNodes);
         int checkCount = 0;
-        List<String> nodes = Arrays.asList(feNodes.split(","));
         if (StringUtils.isEmpty(feNodes)) {
             logger.error(ILLEGAL_ARGUMENT_MESSAGE, "fenodes", feNodes);
             throw new IllegalArgumentException("fenodes", feNodes);
         }
+        List<String> nodes = Arrays.asList(feNodes.split(","));
         Collections.shuffle(nodes);
         for (String feNode:nodes){
             if (BackendUtil.tryHttpConnection(feNode)){
