@@ -275,7 +275,6 @@ public class RestService implements Serializable {
     public static String randomEndpoint(String feNodes, Logger logger)
             throws IllegalArgumentException {
         logger.trace("Parse fenodes '{}'.", feNodes);
-        int checkCount = 0;
         if (StringUtils.isEmpty(feNodes)) {
             logger.error(ILLEGAL_ARGUMENT_MESSAGE, "fenodes", feNodes);
             throw new IllegalArgumentException("fenodes", feNodes);
@@ -285,14 +284,9 @@ public class RestService implements Serializable {
         for (String feNode : nodes) {
             if (BackendUtil.tryHttpConnection(feNode)) {
                 return feNode;
-            } else {
-                ++checkCount;
             }
         }
-        if (checkCount >= nodes.size()) {
-            throw new DorisRuntimeException("No Doris FE is available, please check configuration");
-        }
-        return null;
+        throw new DorisRuntimeException("No Doris FE is available, please check configuration or cluster status.");
     }
 
     /**
