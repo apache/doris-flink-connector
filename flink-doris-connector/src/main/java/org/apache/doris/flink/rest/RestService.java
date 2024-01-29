@@ -17,6 +17,7 @@
 
 package org.apache.doris.flink.rest;
 
+import org.apache.doris.flink.sink.BackendUtil;
 import org.apache.flink.annotation.VisibleForTesting;
 
 import com.fasterxml.jackson.core.JsonParseException;
@@ -274,13 +275,24 @@ public class RestService implements Serializable {
     public static String randomEndpoint(String feNodes, Logger logger)
             throws IllegalArgumentException {
         logger.trace("Parse fenodes '{}'.", feNodes);
+        int checkCount = 0;
+        List<String> nodes = Arrays.asList(feNodes.split(","));
         if (StringUtils.isEmpty(feNodes)) {
             logger.error(ILLEGAL_ARGUMENT_MESSAGE, "fenodes", feNodes);
             throw new IllegalArgumentException("fenodes", feNodes);
         }
-        List<String> nodes = Arrays.asList(feNodes.split(","));
         Collections.shuffle(nodes);
-        return nodes.get(0).trim();
+        for (String feNode:nodes){
+            if (BackendUtil.tryHttpConnection(feNode)){
+                return feNode;
+            }else {
+                ++checkCount;
+            }
+        }
+        if (checkCount >= nodes.size() ){
+           throw new DorisRuntimeException("No Doris FE is available, please check configuration");
+        }
+        return null;
     }
 
     /**
