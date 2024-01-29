@@ -29,7 +29,6 @@ import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.sink.DorisSink;
-import org.apache.doris.flink.sink.batch.DorisBatchSink;
 import org.apache.doris.flink.sink.writer.serializer.RowDataSerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -109,23 +108,13 @@ public class DorisDynamicTableSink implements DynamicTableSink {
                 .setFieldDelimiter(
                         loadProperties.getProperty(FIELD_DELIMITER_KEY, FIELD_DELIMITER_DEFAULT));
 
-        if (!executionOptions.enableBatchMode()) {
-            DorisSink.Builder<RowData> dorisSinkBuilder = DorisSink.builder();
-            dorisSinkBuilder
-                    .setDorisOptions(options)
-                    .setDorisReadOptions(readOptions)
-                    .setDorisExecutionOptions(executionOptions)
-                    .setSerializer(serializerBuilder.build());
-            return SinkV2Provider.of(dorisSinkBuilder.build(), sinkParallelism);
-        } else {
-            DorisBatchSink.Builder<RowData> dorisBatchSinkBuilder = DorisBatchSink.builder();
-            dorisBatchSinkBuilder
-                    .setDorisOptions(options)
-                    .setDorisReadOptions(readOptions)
-                    .setDorisExecutionOptions(executionOptions)
-                    .setSerializer(serializerBuilder.build());
-            return SinkV2Provider.of(dorisBatchSinkBuilder.build(), sinkParallelism);
-        }
+        DorisSink.Builder<RowData> dorisSinkBuilder = DorisSink.builder();
+        dorisSinkBuilder
+                .setDorisOptions(options)
+                .setDorisReadOptions(readOptions)
+                .setDorisExecutionOptions(executionOptions)
+                .setSerializer(serializerBuilder.build());
+        return SinkV2Provider.of(dorisSinkBuilder.build(), sinkParallelism);
     }
 
     @Override

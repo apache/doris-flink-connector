@@ -19,8 +19,6 @@ package org.apache.doris.flink.sink.writer;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.connector.sink2.Sink;
-import org.apache.flink.api.connector.sink2.StatefulSink;
-import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
@@ -61,8 +59,7 @@ import static org.apache.doris.flink.sink.LoadStatus.SUCCESS;
  * @param <IN>
  */
 public class DorisWriter<IN>
-        implements StatefulSink.StatefulSinkWriter<IN, DorisWriterState>,
-                TwoPhaseCommittingSink.PrecommittingSinkWriter<IN, DorisCommittable> {
+        implements DorisAbstractWriter<IN, DorisWriterState, DorisCommittable> {
     private static final Logger LOG = LoggerFactory.getLogger(DorisWriter.class);
     private static final List<String> DORIS_SUCCESS_STATUS =
             new ArrayList<>(Arrays.asList(SUCCESS, PUBLISH_TIMEOUT));
@@ -169,7 +166,7 @@ public class DorisWriter<IN>
     }
 
     @Override
-    public void write(IN in, Context context) throws IOException {
+    public void write(IN in, Context context) throws IOException, InterruptedException {
         checkLoadException();
         writeOneDorisRecord(serializer.serialize(in));
     }
@@ -179,7 +176,7 @@ public class DorisWriter<IN>
         writeOneDorisRecord(serializer.flush());
     }
 
-    public void writeOneDorisRecord(DorisRecord record) throws IOException {
+    public void writeOneDorisRecord(DorisRecord record) throws IOException, InterruptedException {
 
         if (record == null || record.getRow() == null) {
             // ddl or value is null
