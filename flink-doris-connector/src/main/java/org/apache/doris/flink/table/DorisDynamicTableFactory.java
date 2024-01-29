@@ -234,7 +234,7 @@ public final class DorisDynamicTableFactory
             builder.enable2PC();
         }
 
-        builder.setWriteMode(WriteMode.valueOf(readableConfig.get(SINK_WRITE_MODE).toUpperCase()));
+        builder.setWriteMode(WriteMode.of(readableConfig.get(SINK_WRITE_MODE)));
         builder.setBatchMode(readableConfig.get(SINK_ENABLE_BATCH_MODE));
         // Compatible with previous versions
         if (readableConfig.get(SINK_ENABLE_BATCH_MODE)) {

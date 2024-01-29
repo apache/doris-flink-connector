@@ -20,5 +20,13 @@ package org.apache.doris.flink.sink.writer;
 public enum WriteMode {
     STREAM_LOAD,
     STREAM_LOAD_BATCH,
-    COPY
+    COPY;
+
+    public static WriteMode of(String name) {
+        try {
+            return WriteMode.valueOf(name.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Unsupported write mode: " + name);
+        }
+    }
 }
