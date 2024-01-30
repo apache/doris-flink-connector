@@ -29,6 +29,9 @@ import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.sink.batch.DorisBatchWriter;
 import org.apache.doris.flink.sink.committer.DorisCommitter;
+import org.apache.doris.flink.sink.copy.CopyCommittableSerializer;
+import org.apache.doris.flink.sink.copy.DorisCopyCommitter;
+import org.apache.doris.flink.sink.copy.DorisCopyWriter;
 import org.apache.doris.flink.sink.writer.DorisAbstractWriter;
 import org.apache.doris.flink.sink.writer.DorisWriter;
 import org.apache.doris.flink.sink.writer.DorisWriterState;
@@ -49,8 +52,7 @@ import java.util.Collections;
  */
 public class DorisSink<IN>
         implements StatefulSink<IN, DorisWriterState>,
-                TwoPhaseCommittingSink<IN, DorisCommittable> {
-
+                TwoPhaseCommittingSink<IN, DorisAbstractCommittable> {
     private static final Logger LOG = LoggerFactory.getLogger(DorisSink.class);
     private final DorisOptions dorisOptions;
     private final DorisReadOptions dorisReadOptions;
@@ -84,9 +86,16 @@ public class DorisSink<IN>
     }
 
     @Override
-    public Committer<DorisCommittable> createCommitter() throws IOException {
-        return new DorisCommitter(
-                dorisOptions, dorisReadOptions, dorisExecutionOptions.getMaxRetries());
+    public Committer createCommitter() throws IOException {
+        if (WriteMode.STREAM_LOAD.equals(dorisExecutionOptions.getWriteMode())
+                || WriteMode.STREAM_LOAD_BATCH.equals(dorisExecutionOptions.getWriteMode())) {
+            return new DorisCommitter(
+                    dorisOptions, dorisReadOptions, dorisExecutionOptions.getMaxRetries());
+        } else if (WriteMode.COPY.equals(dorisExecutionOptions.getWriteMode())) {
+            return new DorisCopyCommitter(dorisOptions, dorisExecutionOptions.getMaxRetries());
+        }
+        throw new IllegalArgumentException(
+                "Unsupported write mode " + dorisExecutionOptions.getWriteMode());
     }
 
     @Override
@@ -109,6 +118,9 @@ public class DorisSink<IN>
         } else if (WriteMode.STREAM_LOAD_BATCH.equals(dorisExecutionOptions.getWriteMode())) {
             return new DorisBatchWriter<>(
                     initContext, serializer, dorisOptions, dorisReadOptions, dorisExecutionOptions);
+        } else if (WriteMode.COPY.equals(dorisExecutionOptions.getWriteMode())) {
+            return new DorisCopyWriter(
+                    initContext, serializer, dorisOptions, dorisReadOptions, dorisExecutionOptions);
         }
         throw new IllegalArgumentException(
                 "Unsupported write mode " + dorisExecutionOptions.getWriteMode());
@@ -120,8 +132,15 @@ public class DorisSink<IN>
     }
 
     @Override
-    public SimpleVersionedSerializer<DorisCommittable> getCommittableSerializer() {
-        return new DorisCommittableSerializer();
+    public SimpleVersionedSerializer getCommittableSerializer() {
+        if (WriteMode.STREAM_LOAD.equals(dorisExecutionOptions.getWriteMode())
+                || WriteMode.STREAM_LOAD_BATCH.equals(dorisExecutionOptions.getWriteMode())) {
+            return new DorisCommittableSerializer();
+        } else if (WriteMode.COPY.equals(dorisExecutionOptions.getWriteMode())) {
+            return new CopyCommittableSerializer();
+        }
+        throw new IllegalArgumentException(
+                "Unsupported write mode " + dorisExecutionOptions.getWriteMode());
     }
 
     public static <IN> Builder<IN> builder() {
