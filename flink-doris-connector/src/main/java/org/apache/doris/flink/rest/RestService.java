@@ -38,6 +38,7 @@ import org.apache.doris.flink.rest.models.BackendV2;
 import org.apache.doris.flink.rest.models.QueryPlan;
 import org.apache.doris.flink.rest.models.Schema;
 import org.apache.doris.flink.rest.models.Tablet;
+import org.apache.doris.flink.sink.BackendUtil;
 import org.apache.http.HttpStatus;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.HttpGet;
@@ -280,7 +281,13 @@ public class RestService implements Serializable {
         }
         List<String> nodes = Arrays.asList(feNodes.split(","));
         Collections.shuffle(nodes);
-        return nodes.get(0).trim();
+        for (String feNode : nodes) {
+            if (BackendUtil.tryHttpConnection(feNode)) {
+                return feNode;
+            }
+        }
+        throw new DorisRuntimeException(
+                "No Doris FE is available, please check configuration or cluster status.");
     }
 
     /**
