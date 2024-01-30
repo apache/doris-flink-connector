@@ -248,8 +248,8 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
         tableSchema.setDatabase(split[0]);
         tableSchema.setTable(split[1]);
         if (tableProperties.containsKey("table-buckets")) {
-            String s = tableProperties.get("table-buckets");
-            Map<String, Integer> tableBuckets = DatabaseSync.getTableBuckets(s);
+            String tableBucketsConfig = tableProperties.get("table-buckets");
+            Map<String, Integer> tableBuckets = DatabaseSync.getTableBuckets(tableBucketsConfig);
             Integer buckets = getTableSchemaBuckets(tableBuckets, tableSchema.getTable());
             tableSchema.setTableBuckets(buckets);
         }
