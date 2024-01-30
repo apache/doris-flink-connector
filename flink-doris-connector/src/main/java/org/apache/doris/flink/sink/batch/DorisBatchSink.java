@@ -54,7 +54,6 @@ public class DorisBatchSink<IN> implements Sink<IN> {
                         dorisOptions,
                         dorisReadOptions,
                         dorisExecutionOptions);
-        dorisBatchWriter.initializeLoad();
         return dorisBatchWriter;
     }
 

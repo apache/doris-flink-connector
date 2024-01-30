@@ -24,7 +24,9 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
+import org.apache.doris.flink.sink.DorisSink;
 import org.apache.doris.flink.sink.batch.DorisBatchSink;
+import org.apache.doris.flink.sink.writer.WriteMode;
 import org.apache.doris.flink.sink.writer.serializer.SimpleStringSerializer;
 
 import java.util.Arrays;
@@ -41,7 +43,7 @@ public class DorisSinkBatchExample {
         // env.getCheckpointConfig().enableExternalizedCheckpoints(CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
         // env.setRestartStrategy(RestartStrategies.fixedDelayRestart(5,
         // Time.milliseconds(30000)));
-        DorisBatchSink.Builder<String> builder = DorisBatchSink.builder();
+        DorisSink.Builder<String> builder = DorisSink.builder();
         final DorisReadOptions.Builder readOptionBuilder = DorisReadOptions.builder();
         readOptionBuilder
                 .setDeserializeArrowAsync(false)
@@ -70,7 +72,8 @@ public class DorisSinkBatchExample {
                 .setDeletable(false)
                 .setBufferFlushMaxBytes(8 * 1024)
                 .setBufferFlushMaxRows(900)
-                .setBufferFlushIntervalMs(1000 * 10);
+                .setBufferFlushIntervalMs(1000 * 10)
+                .setWriteMode(WriteMode.STREAM_LOAD_BATCH);
 
         builder.setDorisReadOptions(readOptionBuilder.build())
                 .setDorisExecutionOptions(executionBuilder.build())
