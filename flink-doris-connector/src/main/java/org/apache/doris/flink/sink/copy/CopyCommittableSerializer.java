@@ -37,14 +37,14 @@ public class CopyCommittableSerializer implements SimpleVersionedSerializer<Dori
     }
 
     @Override
-    public byte[] serialize(DorisCopyCommittable selectdbCommittable) throws IOException {
+    public byte[] serialize(DorisCopyCommittable copyCommittable) throws IOException {
         try (final ByteArrayOutputStream baos = new ByteArrayOutputStream();
                 final DataOutputStream out = new DataOutputStream(baos)) {
-            out.writeUTF(selectdbCommittable.getHostPort());
+            out.writeUTF(copyCommittable.getHostPort());
 
             // writeUTF has a length limit, but the copysql is sometimes very long
             final byte[] copySqlBytes =
-                    selectdbCommittable.getCopySQL().getBytes(StandardCharsets.UTF_8);
+                    copyCommittable.getCopySQL().getBytes(StandardCharsets.UTF_8);
             out.writeInt(copySqlBytes.length);
             out.write(copySqlBytes);
             out.flush();

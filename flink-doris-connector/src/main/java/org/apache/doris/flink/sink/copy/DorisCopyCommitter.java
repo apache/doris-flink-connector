@@ -144,7 +144,7 @@ public class DorisCopyCommitter implements Committer<DorisCopyCommittable>, Clos
                 Map<String, String> result = dataResp.getResult();
                 if (CollectionUtil.isNullOrEmpty(result)
                         || (!result.get("state").equals("FINISHED")
-                                && !ResponseUtil.isCommitted(result.get("msg")))) {
+                                && !ResponseUtil.isCopyCommitted(result.get("msg")))) {
                     LOG.error("copy into load failed, reason:{}", loadResult);
                     return false;
                 } else {

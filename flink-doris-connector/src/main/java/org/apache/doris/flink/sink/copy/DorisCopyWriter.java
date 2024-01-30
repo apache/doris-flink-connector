@@ -18,6 +18,7 @@
 package org.apache.doris.flink.sink.copy;
 
 import org.apache.flink.api.connector.sink2.Sink;
+import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
@@ -48,6 +49,7 @@ public class DorisCopyWriter<IN>
         implements DorisAbstractWriter<IN, DorisWriterState, DorisCopyCommittable> {
 
     private static final Logger LOG = LoggerFactory.getLogger(DorisCopyWriter.class);
+    private final long lastCheckpointId;
     private BatchStageLoad batchStageLoad;
     private final DorisOptions dorisOptions;
     private final DorisReadOptions dorisReadOptions;
@@ -75,6 +77,11 @@ public class DorisCopyWriter<IN>
             this.database = tableInfo[0];
             this.table = tableInfo[1];
         }
+        this.lastCheckpointId =
+                initContext
+                        .getRestoredCheckpointId()
+                        .orElse(CheckpointIDCounter.INITIAL_CHECKPOINT_ID - 1);
+        LOG.info("restore checkpointId {}", lastCheckpointId);
         LOG.info("labelPrefix " + executionOptions.getLabelPrefix());
         this.labelPrefix =
                 executionOptions.getLabelPrefix()
@@ -97,6 +104,7 @@ public class DorisCopyWriter<IN>
         this.batchStageLoad =
                 new BatchStageLoad(
                         dorisOptions, dorisReadOptions, executionOptions, labelGenerator);
+        this.batchStageLoad.setCurrentCheckpointID(lastCheckpointId + 1);
         // when uploading data in streaming mode, we need to regularly detect whether there are
         // exceptions.
         scheduledExecutorService.scheduleWithFixedDelay(

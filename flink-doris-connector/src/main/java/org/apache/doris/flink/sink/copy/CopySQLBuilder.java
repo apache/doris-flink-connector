@@ -81,7 +81,7 @@ public class CopySQLBuilder {
         return sb.toString();
     }
 
-    static List<String> PREFIX_LIST =
+    static final List<String> PREFIX_LIST =
             Arrays.asList(FIELD_DELIMITER_KEY, LINE_DELIMITER_KEY, STRIP_OUT_ARRAY);
 
     private String concatPropPrefix(String key) {

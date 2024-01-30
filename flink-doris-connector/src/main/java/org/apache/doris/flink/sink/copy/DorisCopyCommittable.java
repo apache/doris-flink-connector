@@ -57,7 +57,7 @@ public class DorisCopyCommittable implements DorisAbstractCommittable {
 
     @Override
     public String toString() {
-        return "SelectdbCommittable{"
+        return "DorisCommittable{"
                 + "hostPort='"
                 + hostPort
                 + '\''
