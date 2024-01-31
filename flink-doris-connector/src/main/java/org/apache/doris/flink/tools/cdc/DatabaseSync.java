@@ -362,7 +362,7 @@ public abstract class DatabaseSync {
      * @param tableBuckets the string of tableBuckets, eg:student:10,student_info:20,student.*:30
      * @return The table name and buckets map. The key is table name, the value is buckets.
      */
-    public Map<String, Integer> getTableBuckets(String tableBuckets) {
+    public static Map<String, Integer> getTableBuckets(String tableBuckets) {
         Map<String, Integer> tableBucketsMap = new LinkedHashMap<>();
         String[] tableBucketsArray = tableBuckets.split(",");
         for (String tableBucket : tableBucketsArray) {

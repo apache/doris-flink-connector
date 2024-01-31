@@ -35,6 +35,7 @@ import org.apache.doris.flink.sink.schema.SchemaChangeHelper;
 import org.apache.doris.flink.sink.schema.SchemaChangeHelper.DDLSchema;
 import org.apache.doris.flink.sink.schema.SchemaChangeManager;
 import org.apache.doris.flink.sink.writer.EventType;
+import org.apache.doris.flink.tools.cdc.DatabaseSync;
 import org.apache.doris.flink.tools.cdc.SourceConnector;
 import org.apache.doris.flink.tools.cdc.mysql.MysqlType;
 import org.apache.doris.flink.tools.cdc.oracle.OracleType;
@@ -246,7 +247,32 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
         Preconditions.checkArgument(split.length == 2);
         tableSchema.setDatabase(split[0]);
         tableSchema.setTable(split[1]);
+        if (tableProperties.containsKey("table-buckets")) {
+            String tableBucketsConfig = tableProperties.get("table-buckets");
+            Map<String, Integer> tableBuckets = DatabaseSync.getTableBuckets(tableBucketsConfig);
+            Integer buckets = getTableSchemaBuckets(tableBuckets, tableSchema.getTable());
+            tableSchema.setTableBuckets(buckets);
+        }
         return tableSchema;
+    }
+
+    @VisibleForTesting
+    public Integer getTableSchemaBuckets(Map<String, Integer> tableBucketsMap, String tableName) {
+        if (tableBucketsMap != null) {
+            // Firstly, if the table name is in the table-buckets map, set the buckets of the table.
+            if (tableBucketsMap.containsKey(tableName)) {
+                return tableBucketsMap.get(tableName);
+            }
+            // Secondly, iterate over the map to find a corresponding regular expression match,
+            for (Map.Entry<String, Integer> entry : tableBucketsMap.entrySet()) {
+
+                Pattern pattern = Pattern.compile(entry.getKey());
+                if (pattern.matcher(tableName).matches()) {
+                    return entry.getValue();
+                }
+            }
+        }
+        return null;
     }
 
     private List<String> buildDistributeKeys(
