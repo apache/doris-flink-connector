@@ -32,6 +32,7 @@ import org.apache.doris.flink.sink.writer.ChangeEvent;
 import org.apache.doris.flink.tools.cdc.SourceSchema;
 
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
@@ -60,7 +61,7 @@ public abstract class JsonDebeziumSchemaChange implements ChangeEvent {
 
     public abstract boolean schemaChange(JsonNode recordRoot);
 
-    public abstract void init(JsonNode recordRoot);
+    public abstract void init(JsonNode recordRoot, Set<String> initTableSet);
 
     /** When cdc synchronizes multiple tables, it will capture multiple table schema changes. */
     protected boolean checkTable(JsonNode recordRoot) {
@@ -134,6 +135,10 @@ public abstract class JsonDebeziumSchemaChange implements ChangeEvent {
         // The ddl passed by some scenes will not be included in the historyRecord,
         // such as DebeziumSourceFunction
         return record;
+    }
+
+    public Map<String, String> getTableMapping() {
+        return tableMapping;
     }
 
     @VisibleForTesting

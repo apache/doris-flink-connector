@@ -25,6 +25,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.NullNode;
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.sink.writer.serializer.jsondebezium.JsonDebeziumChangeContext;
@@ -36,8 +37,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 import static org.apache.doris.flink.sink.writer.LoadConstants.LINE_DELIMITER_DEFAULT;
@@ -71,6 +74,8 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
     private String targetTableSuffix;
     private JsonDebeziumDataChange dataChange;
     private JsonDebeziumSchemaChange schemaChange;
+    private final Set<String> initTableSet = new HashSet<>();
+    private final Set<String> tableMappingSet = new HashSet<>();
 
     public JsonDebeziumSchemaSerializer(
             DorisOptions dorisOptions,
@@ -156,11 +161,23 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
             return null;
         }
 
-        if (firstLoad) {
-            schemaChange.init(recordRoot);
-            firstLoad = false;
+        Map<String, String> tableMapping = schemaChange.getTableMapping();
+        if (initSchemaChange(firstLoad, tableMapping)) {
+            schemaChange.init(recordRoot, initTableSet);
+            this.firstLoad = false;
         }
+
         return dataChange.serialize(record, recordRoot, op);
+    }
+
+    private boolean initSchemaChange(boolean firstLoad, Map<String, String> tableMapping) {
+        if (firstLoad) {
+            return true;
+        }
+        tableMappingSet.clear();
+        tableMappingSet.addAll(tableMapping.keySet());
+        tableMappingSet.removeAll(initTableSet);
+        return CollectionUtils.isNotEmpty(tableMappingSet);
     }
 
     private String extractJsonNode(JsonNode record, String key) {

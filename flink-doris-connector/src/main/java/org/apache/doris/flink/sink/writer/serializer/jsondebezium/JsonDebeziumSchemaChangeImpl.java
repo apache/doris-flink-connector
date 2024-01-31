@@ -32,6 +32,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -55,7 +56,7 @@ public class JsonDebeziumSchemaChangeImpl extends JsonDebeziumSchemaChange {
     }
 
     @Override
-    public void init(JsonNode recordRoot) {
+    public void init(JsonNode recordRoot, Set<String> initTableSet) {
         // do nothing
     }
 
