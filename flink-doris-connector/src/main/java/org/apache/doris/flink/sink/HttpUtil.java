@@ -17,6 +17,8 @@
 
 package org.apache.doris.flink.sink;
 
+import org.apache.http.client.config.RequestConfig;
+import org.apache.http.impl.NoConnectionReuseStrategy;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.DefaultRedirectStrategy;
 import org.apache.http.impl.client.HttpClientBuilder;
@@ -36,5 +38,23 @@ public class HttpUtil {
 
     public CloseableHttpClient getHttpClient() {
         return httpClientBuilder.build();
+    }
+
+    private RequestConfig requestConfig =
+            RequestConfig.custom()
+                    .setConnectTimeout(60 * 1000)
+                    .setConnectionRequestTimeout(60 * 1000)
+                    // default checkpoint timeout is 10min
+                    .setSocketTimeout(9 * 60 * 1000)
+                    .build();
+
+    private final HttpClientBuilder httpClientBuilderWithTimeout =
+            HttpClients.custom().setDefaultRequestConfig(requestConfig);
+
+    public CloseableHttpClient getHttpClientWithTimeout() {
+        return httpClientBuilderWithTimeout
+                // fix failed to respond for commit copy
+                .setConnectionReuseStrategy(NoConnectionReuseStrategy.INSTANCE)
+                .build();
     }
 }

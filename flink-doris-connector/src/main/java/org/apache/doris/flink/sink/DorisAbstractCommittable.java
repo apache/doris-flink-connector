@@ -17,24 +17,4 @@
 
 package org.apache.doris.flink.sink;
 
-import java.util.regex.Pattern;
-
-/** util for handle response. */
-public class ResponseUtil {
-    public static final Pattern LABEL_EXIST_PATTERN =
-            Pattern.compile("Label \\[(.*)\\] has already been used, relate to txn \\[(\\d+)\\]");
-    public static final Pattern COMMITTED_PATTERN =
-            Pattern.compile(
-                    "transaction \\[(\\d+)\\] is already \\b(COMMITTED|committed|VISIBLE|visible)\\b, not pre-committed.");
-
-    public static boolean isCommitted(String msg) {
-        return COMMITTED_PATTERN.matcher(msg).find();
-    }
-
-    static final Pattern COPY_COMMITTED_PATTERN =
-            Pattern.compile("errCode = 2, detailMessage = No files can be copied.*");
-
-    public static boolean isCopyCommitted(String msg) {
-        return COPY_COMMITTED_PATTERN.matcher(msg).find();
-    }
-}
+public interface DorisAbstractCommittable {}
