@@ -342,15 +342,21 @@ public class TestJsonDebeziumSchemaChangeImplV2 extends TestJsonDebeziumChangeBa
 
     @Test
     public void testGetDorisTableIdentifier() throws Exception {
-        String identifier = schemaChange.getDorisTableIdentifier("test.dbo.t1");
+        String identifier =
+                JsonDebeziumChangeUtils.getDorisTableIdentifier(
+                        "test.dbo.t1", dorisOptions, tableMapping);
         Assert.assertEquals("test.t1", identifier);
 
-        identifier = schemaChange.getDorisTableIdentifier("test.t1");
+        identifier =
+                JsonDebeziumChangeUtils.getDorisTableIdentifier(
+                        "test.t1", dorisOptions, tableMapping);
         Assert.assertEquals("test.t1", identifier);
 
         String tmp = dorisOptions.getTableIdentifier();
         dorisOptions.setTableIdentifier(null);
-        identifier = schemaChange.getDorisTableIdentifier("test.t1");
+        identifier =
+                JsonDebeziumChangeUtils.getDorisTableIdentifier(
+                        "test.t1", dorisOptions, tableMapping);
         Assert.assertNull(identifier);
         dorisOptions.setTableIdentifier(tmp);
     }

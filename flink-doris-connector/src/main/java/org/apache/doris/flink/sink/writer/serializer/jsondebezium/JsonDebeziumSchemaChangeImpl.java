@@ -32,7 +32,6 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -56,7 +55,7 @@ public class JsonDebeziumSchemaChangeImpl extends JsonDebeziumSchemaChange {
     }
 
     @Override
-    public void init(JsonNode recordRoot, Set<String> initTableSet) {
+    public void init(JsonNode recordRoot, String dorisTableName) {
         // do nothing
     }
 
@@ -121,7 +120,14 @@ public class JsonDebeziumSchemaChangeImpl extends JsonDebeziumSchemaChange {
                 String col = matcher.group(3);
                 String type = matcher.group(5);
                 type = handleType(type);
-                ddl = String.format(EXECUTE_DDL, getDorisTableIdentifier(record), op, col, type);
+                ddl =
+                        String.format(
+                                EXECUTE_DDL,
+                                JsonDebeziumChangeUtils.getDorisTableIdentifier(
+                                        record, dorisOptions, tableMapping),
+                                op,
+                                col,
+                                type);
                 LOG.info("parse ddl:{}", ddl);
                 return ddl;
             }

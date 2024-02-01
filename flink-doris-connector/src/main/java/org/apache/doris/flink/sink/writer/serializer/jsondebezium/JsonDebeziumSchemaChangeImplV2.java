@@ -98,12 +98,7 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
     }
 
     @Override
-    public void init(JsonNode recordRoot, Set<String> initTableSet) {
-        String dorisTable = getDorisTableIdentifier(recordRoot);
-        if (Objects.isNull(dorisTable) || originFieldSchemaMap.containsKey(dorisTable)) {
-            return;
-        }
-        initTableSet.add(dorisTable);
+    public void init(JsonNode recordRoot, String dorisTableName) {
         Set<String> columnNameSet = extractAfterRow(recordRoot).keySet();
         if (CollectionUtils.isEmpty(columnNameSet)) {
             columnNameSet = extractBeforeRow(recordRoot).keySet();
@@ -111,7 +106,7 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
         Map<String, FieldSchema> fieldSchemaMap = new LinkedHashMap<>();
         columnNameSet.forEach(columnName -> fieldSchemaMap.put(columnName, new FieldSchema()));
 
-        originFieldSchemaMap.put(dorisTable, fieldSchemaMap);
+        originFieldSchemaMap.put(dorisTableName, fieldSchemaMap);
     }
 
     @Override
@@ -177,7 +172,8 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
     /** Parse Alter Event. */
     @VisibleForTesting
     public List<String> extractDDLList(JsonNode record) throws IOException {
-        String dorisTable = getDorisTableIdentifier(record);
+        String dorisTable =
+                JsonDebeziumChangeUtils.getDorisTableIdentifier(record, dorisOptions, tableMapping);
         JsonNode historyRecord = extractHistoryRecord(record);
         String ddl = extractJsonNode(historyRecord, "ddl");
         JsonNode tableChange = extractTableChange(record);
