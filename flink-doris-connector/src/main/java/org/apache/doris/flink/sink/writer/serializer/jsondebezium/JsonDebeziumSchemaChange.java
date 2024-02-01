@@ -19,7 +19,6 @@ package org.apache.doris.flink.sink.writer.serializer.jsondebezium;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.StringUtils;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -60,7 +59,7 @@ public abstract class JsonDebeziumSchemaChange implements ChangeEvent {
 
     public abstract boolean schemaChange(JsonNode recordRoot);
 
-    public abstract void init(JsonNode recordRoot);
+    public abstract void init(JsonNode recordRoot, String dorisTableName);
 
     /** When cdc synchronizes multiple tables, it will capture multiple table schema changes. */
     protected boolean checkTable(JsonNode recordRoot) {
@@ -89,26 +88,9 @@ public abstract class JsonDebeziumSchemaChange implements ChangeEvent {
                 : null;
     }
 
-    @VisibleForTesting
-    public String getDorisTableIdentifier(String cdcTableIdentifier) {
-        if (!StringUtils.isNullOrWhitespaceOnly(dorisOptions.getTableIdentifier())) {
-            return dorisOptions.getTableIdentifier();
-        }
-        if (!CollectionUtil.isNullOrEmpty(tableMapping)
-                && !StringUtils.isNullOrWhitespaceOnly(cdcTableIdentifier)
-                && tableMapping.get(cdcTableIdentifier) != null) {
-            return tableMapping.get(cdcTableIdentifier);
-        }
-        return null;
-    }
-
-    protected String getDorisTableIdentifier(JsonNode record) {
-        String identifier = getCdcTableIdentifier(record);
-        return getDorisTableIdentifier(identifier);
-    }
-
     protected Tuple2<String, String> getDorisTableTuple(JsonNode record) {
-        String identifier = getDorisTableIdentifier(record);
+        String identifier =
+                JsonDebeziumChangeUtils.getDorisTableIdentifier(record, dorisOptions, tableMapping);
         if (StringUtils.isNullOrWhitespaceOnly(identifier)) {
             return null;
         }
@@ -134,6 +116,10 @@ public abstract class JsonDebeziumSchemaChange implements ChangeEvent {
         // The ddl passed by some scenes will not be included in the historyRecord,
         // such as DebeziumSourceFunction
         return record;
+    }
+
+    public Map<String, String> getTableMapping() {
+        return tableMapping;
     }
 
     @VisibleForTesting

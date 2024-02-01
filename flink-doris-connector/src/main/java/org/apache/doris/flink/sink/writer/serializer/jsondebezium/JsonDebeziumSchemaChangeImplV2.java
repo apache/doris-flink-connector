@@ -48,6 +48,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -66,13 +67,15 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
             Pattern.compile(
                     "ALTER\\s+TABLE\\s+(\\w+)\\s+RENAME\\s+COLUMN\\s+(\\w+)\\s+TO\\s+(\\w+)",
                     Pattern.CASE_INSENSITIVE);
-    private Map<String, FieldSchema> originFieldSchemaMap;
+    // schemaChange saves table names, field, and field column information
+    private Map<String, Map<String, FieldSchema>> originFieldSchemaMap = new LinkedHashMap<>();
     private SourceConnector sourceConnector;
     // create table properties
     private final Map<String, String> tableProperties;
     private String targetDatabase;
     private String targetTablePrefix;
     private String targetTableSuffix;
+    private final Set<String> filledTables = new HashSet<>();
 
     public JsonDebeziumSchemaChangeImplV2(JsonDebeziumChangeContext changeContext) {
         this.addDropDDLPattern = Pattern.compile(addDropDDLRegex, Pattern.CASE_INSENSITIVE);
@@ -95,14 +98,15 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
     }
 
     @Override
-    public void init(JsonNode recordRoot) {
-        originFieldSchemaMap = new LinkedHashMap<>();
+    public void init(JsonNode recordRoot, String dorisTableName) {
         Set<String> columnNameSet = extractAfterRow(recordRoot).keySet();
         if (CollectionUtils.isEmpty(columnNameSet)) {
             columnNameSet = extractBeforeRow(recordRoot).keySet();
         }
-        columnNameSet.forEach(
-                columnName -> originFieldSchemaMap.put(columnName, new FieldSchema()));
+        Map<String, FieldSchema> fieldSchemaMap = new LinkedHashMap<>();
+        columnNameSet.forEach(columnName -> fieldSchemaMap.put(columnName, new FieldSchema()));
+
+        originFieldSchemaMap.put(dorisTableName, fieldSchemaMap);
     }
 
     @Override
@@ -168,7 +172,8 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
     /** Parse Alter Event. */
     @VisibleForTesting
     public List<String> extractDDLList(JsonNode record) throws IOException {
-        String dorisTable = getDorisTableIdentifier(record);
+        String dorisTable =
+                JsonDebeziumChangeUtils.getDorisTableIdentifier(record, dorisOptions, tableMapping);
         JsonNode historyRecord = extractHistoryRecord(record);
         String ddl = extractJsonNode(historyRecord, "ddl");
         JsonNode tableChange = extractTableChange(record);
@@ -184,16 +189,20 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
             sourceConnector =
                     SourceConnector.valueOf(
                             record.get("source").get("connector").asText().toUpperCase());
-            fillOriginSchema(columns);
+        }
+        if (!filledTables.contains(dorisTable)) {
+            fillOriginSchema(dorisTable, columns);
+            filledTables.add(dorisTable);
         }
 
+        Map<String, FieldSchema> fieldSchemaMap = originFieldSchemaMap.get(dorisTable);
         // rename ddl
         Matcher renameMatcher = renameDDLPattern.matcher(ddl);
         if (renameMatcher.find()) {
             String oldColumnName = renameMatcher.group(2);
             String newColumnName = renameMatcher.group(3);
             return SchemaChangeHelper.generateRenameDDLSql(
-                    dorisTable, oldColumnName, newColumnName, originFieldSchemaMap);
+                    dorisTable, oldColumnName, newColumnName, fieldSchemaMap);
         }
 
         // add/drop ddl
@@ -201,7 +210,7 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
         for (JsonNode column : columns) {
             buildFieldSchema(updateFiledSchema, column);
         }
-        SchemaChangeHelper.compareSchema(updateFiledSchema, originFieldSchemaMap);
+        SchemaChangeHelper.compareSchema(updateFiledSchema, fieldSchemaMap);
         // In order to avoid other source table column change operations other than add/drop/rename,
         // which may lead to the accidental deletion of the doris column.
         Matcher matcher = addDropDDLPattern.matcher(ddl);
@@ -330,16 +339,17 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
     }
 
     @VisibleForTesting
-    public void fillOriginSchema(JsonNode columns) {
-        if (Objects.nonNull(originFieldSchemaMap)) {
+    public void fillOriginSchema(String tableName, JsonNode columns) {
+        Map<String, FieldSchema> fieldSchemaMap = originFieldSchemaMap.get(tableName);
+        if (Objects.nonNull(fieldSchemaMap)) {
             for (JsonNode column : columns) {
                 String fieldName = column.get("name").asText();
-                if (originFieldSchemaMap.containsKey(fieldName)) {
+                if (fieldSchemaMap.containsKey(fieldName)) {
                     String dorisTypeName = buildDorisTypeName(column);
                     String defaultValue =
                             handleDefaultValue(extractJsonNode(column, "defaultValueExpression"));
                     String comment = extractJsonNode(column, "comment");
-                    FieldSchema fieldSchema = originFieldSchemaMap.get(fieldName);
+                    FieldSchema fieldSchema = fieldSchemaMap.get(fieldName);
                     fieldSchema.setName(fieldName);
                     fieldSchema.setTypeString(dorisTypeName);
                     fieldSchema.setComment(comment);
@@ -351,8 +361,10 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
                     "Current schema change failed! You need to ensure that "
                             + "there is data in the table."
                             + dorisOptions.getTableIdentifier());
-            originFieldSchemaMap = new LinkedHashMap<>();
-            columns.forEach(column -> buildFieldSchema(originFieldSchemaMap, column));
+            fieldSchemaMap = new LinkedHashMap<>();
+            Map<String, FieldSchema> finalFieldSchemaMap = fieldSchemaMap;
+            columns.forEach(column -> buildFieldSchema(finalFieldSchemaMap, column));
+            originFieldSchemaMap.put(tableName, fieldSchemaMap);
         }
     }
 
@@ -403,12 +415,13 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
     }
 
     @VisibleForTesting
-    public void setOriginFieldSchemaMap(Map<String, FieldSchema> originFieldSchemaMap) {
+    public void setOriginFieldSchemaMap(
+            Map<String, Map<String, FieldSchema>> originFieldSchemaMap) {
         this.originFieldSchemaMap = originFieldSchemaMap;
     }
 
     @VisibleForTesting
-    public Map<String, FieldSchema> getOriginFieldSchemaMap() {
+    public Map<String, Map<String, FieldSchema>> getOriginFieldSchemaMap() {
         return originFieldSchemaMap;
     }
 

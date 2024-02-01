@@ -28,6 +28,7 @@ import com.fasterxml.jackson.databind.node.NullNode;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.sink.writer.serializer.jsondebezium.JsonDebeziumChangeContext;
+import org.apache.doris.flink.sink.writer.serializer.jsondebezium.JsonDebeziumChangeUtils;
 import org.apache.doris.flink.sink.writer.serializer.jsondebezium.JsonDebeziumDataChange;
 import org.apache.doris.flink.sink.writer.serializer.jsondebezium.JsonDebeziumSchemaChange;
 import org.apache.doris.flink.sink.writer.serializer.jsondebezium.JsonDebeziumSchemaChangeImpl;
@@ -36,8 +37,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 import static org.apache.doris.flink.sink.writer.LoadConstants.LINE_DELIMITER_DEFAULT;
@@ -58,7 +61,6 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
     private final ObjectMapper objectMapper = new ObjectMapper();
     // table name of the cdc upstream, format is db.tbl
     private final String sourceTableName;
-    private boolean firstLoad;
     private final boolean newSchemaChange;
     private String lineDelimiter = LINE_DELIMITER_DEFAULT;
     private boolean ignoreUpdateBefore = true;
@@ -71,6 +73,7 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
     private String targetTableSuffix;
     private JsonDebeziumDataChange dataChange;
     private JsonDebeziumSchemaChange schemaChange;
+    private final Set<String> initTableSet = new HashSet<>();
 
     public JsonDebeziumSchemaSerializer(
             DorisOptions dorisOptions,
@@ -85,7 +88,6 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
         JsonNodeFactory jsonNodeFactory = JsonNodeFactory.withExactBigDecimals(true);
         this.objectMapper.setNodeFactory(jsonNodeFactory);
         this.newSchemaChange = newSchemaChange;
-        this.firstLoad = true;
     }
 
     public JsonDebeziumSchemaSerializer(
@@ -156,11 +158,22 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
             return null;
         }
 
-        if (firstLoad) {
-            schemaChange.init(recordRoot);
-            firstLoad = false;
+        this.tableMapping = schemaChange.getTableMapping();
+        String dorisTableName =
+                JsonDebeziumChangeUtils.getDorisTableIdentifier(
+                        recordRoot, dorisOptions, tableMapping);
+        if (initSchemaChange(dorisTableName)) {
+            schemaChange.init(recordRoot, dorisTableName);
         }
         return dataChange.serialize(record, recordRoot, op);
+    }
+
+    private boolean initSchemaChange(String dorisTableName) {
+        if (initTableSet.contains(dorisTableName)) {
+            return false;
+        }
+        initTableSet.add(dorisTableName);
+        return true;
     }
 
     private String extractJsonNode(JsonNode record, String key) {

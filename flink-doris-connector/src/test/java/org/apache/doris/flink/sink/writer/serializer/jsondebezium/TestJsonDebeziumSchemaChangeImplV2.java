@@ -73,16 +73,18 @@ public class TestJsonDebeziumSchemaChangeImplV2 extends TestJsonDebeziumChangeBa
         String sql3 = "ALTER TABLE `test`.`t1` DROP COLUMN `c13`";
         List<String> srcSqlList = Arrays.asList(sql0, sql1, sql2, sql3);
 
-        Map<String, FieldSchema> originFiledSchemaMap = new LinkedHashMap<>();
-        originFiledSchemaMap.put("c2", new FieldSchema());
-        originFiledSchemaMap.put("c555", new FieldSchema());
-        originFiledSchemaMap.put("c666", new FieldSchema());
-        originFiledSchemaMap.put("c4", new FieldSchema());
-        originFiledSchemaMap.put("c13", new FieldSchema());
+        Map<String, Map<String, FieldSchema>> originFiledSchemaMap = new LinkedHashMap<>();
+        Map<String, FieldSchema> filedSchemaMap = new LinkedHashMap<>();
+        filedSchemaMap.put("c2", new FieldSchema());
+        filedSchemaMap.put("c555", new FieldSchema());
+        filedSchemaMap.put("c666", new FieldSchema());
+        filedSchemaMap.put("c4", new FieldSchema());
+        filedSchemaMap.put("c13", new FieldSchema());
+        originFiledSchemaMap.put("test.t1", filedSchemaMap);
 
-        String record =
+        String record1 =
                 "{\"source\":{\"version\":\"1.9.7.Final\",\"connector\":\"mysql\",\"name\":\"mysql_binlog_source\",\"ts_ms\":1691033764674,\"snapshot\":\"false\",\"db\":\"test\",\"sequence\":null,\"table\":\"t1\",\"server_id\":1,\"gtid\":null,\"file\":\"binlog.000029\",\"pos\":23305,\"row\":0,\"thread\":null,\"query\":null},\"historyRecord\":\"{\\\"source\\\":{\\\"file\\\":\\\"binlog.000029\\\",\\\"pos\\\":23305,\\\"server_id\\\":1},\\\"position\\\":{\\\"transaction_id\\\":null,\\\"ts_sec\\\":1691033764,\\\"file\\\":\\\"binlog.000029\\\",\\\"pos\\\":23464,\\\"server_id\\\":1},\\\"databaseName\\\":\\\"test\\\",\\\"ddl\\\":\\\"alter table t1 drop c11, drop column c3, add c12 int default 100\\\",\\\"tableChanges\\\":[{\\\"type\\\":\\\"ALTER\\\",\\\"id\\\":\\\"\\\\\\\"test\\\\\\\".\\\\\\\"t1\\\\\\\"\\\",\\\"table\\\":{\\\"defaultCharsetName\\\":\\\"utf8mb4\\\",\\\"primaryKeyColumnNames\\\":[\\\"id\\\"],\\\"columns\\\":[{\\\"name\\\":\\\"id\\\",\\\"jdbcType\\\":4,\\\"typeName\\\":\\\"INT\\\",\\\"typeExpression\\\":\\\"INT\\\",\\\"charsetName\\\":null,\\\"position\\\":1,\\\"optional\\\":false,\\\"autoIncremented\\\":false,\\\"generated\\\":false,\\\"comment\\\":null,\\\"hasDefaultValue\\\":true,\\\"defaultValueExpression\\\":\\\"10000\\\",\\\"enumValues\\\":[]},{\\\"name\\\":\\\"c2\\\",\\\"jdbcType\\\":4,\\\"typeName\\\":\\\"INT\\\",\\\"typeExpression\\\":\\\"INT\\\",\\\"charsetName\\\":null,\\\"position\\\":2,\\\"optional\\\":true,\\\"autoIncremented\\\":false,\\\"generated\\\":false,\\\"comment\\\":null,\\\"hasDefaultValue\\\":true,\\\"enumValues\\\":[]},{\\\"name\\\":\\\"c555\\\",\\\"jdbcType\\\":12,\\\"typeName\\\":\\\"VARCHAR\\\",\\\"typeExpression\\\":\\\"VARCHAR\\\",\\\"charsetName\\\":\\\"utf8mb4\\\",\\\"length\\\":100,\\\"position\\\":3,\\\"optional\\\":true,\\\"autoIncremented\\\":false,\\\"generated\\\":false,\\\"comment\\\":null,\\\"hasDefaultValue\\\":true,\\\"enumValues\\\":[]},{\\\"name\\\":\\\"c666\\\",\\\"jdbcType\\\":4,\\\"typeName\\\":\\\"INT\\\",\\\"typeExpression\\\":\\\"INT\\\",\\\"charsetName\\\":null,\\\"position\\\":4,\\\"optional\\\":true,\\\"autoIncremented\\\":false,\\\"generated\\\":false,\\\"comment\\\":null,\\\"hasDefaultValue\\\":true,\\\"defaultValueExpression\\\":\\\"100\\\",\\\"enumValues\\\":[]},{\\\"name\\\":\\\"c4\\\",\\\"jdbcType\\\":-5,\\\"typeName\\\":\\\"BIGINT\\\",\\\"typeExpression\\\":\\\"BIGINT\\\",\\\"charsetName\\\":null,\\\"position\\\":5,\\\"optional\\\":true,\\\"autoIncremented\\\":false,\\\"generated\\\":false,\\\"comment\\\":null,\\\"hasDefaultValue\\\":true,\\\"defaultValueExpression\\\":\\\"555\\\",\\\"enumValues\\\":[]},{\\\"name\\\":\\\"c199\\\",\\\"jdbcType\\\":4,\\\"typeName\\\":\\\"INT\\\",\\\"typeExpression\\\":\\\"INT\\\",\\\"charsetName\\\":null,\\\"position\\\":6,\\\"optional\\\":true,\\\"autoIncremented\\\":false,\\\"generated\\\":false,\\\"comment\\\":null,\\\"hasDefaultValue\\\":true,\\\"enumValues\\\":[]},{\\\"name\\\":\\\"c12\\\",\\\"jdbcType\\\":4,\\\"typeName\\\":\\\"INT\\\",\\\"typeExpression\\\":\\\"INT\\\",\\\"charsetName\\\":null,\\\"position\\\":7,\\\"optional\\\":true,\\\"autoIncremented\\\":false,\\\"generated\\\":false,\\\"comment\\\":null,\\\"hasDefaultValue\\\":true,\\\"defaultValueExpression\\\":\\\"100\\\",\\\"enumValues\\\":[]}]},\\\"comment\\\":null}]}\"}";
-        JsonNode recordRoot = objectMapper.readTree(record);
+        JsonNode recordRoot = objectMapper.readTree(record1);
         schemaChange.setOriginFieldSchemaMap(originFiledSchemaMap);
         List<String> ddlSQLList = schemaChange.extractDDLList(recordRoot);
         for (int i = 0; i < ddlSQLList.size(); i++) {
@@ -157,15 +159,18 @@ public class TestJsonDebeziumSchemaChangeImplV2 extends TestJsonDebeziumChangeBa
                 "test_time", new FieldSchema("test_time", "DATETIMEV2(0)", null, null));
         srcFiledSchemaMap.put("c1", new FieldSchema("c1", "INT", "100", null));
 
+        String tableName = "db.test_fill";
         schemaChange.setSourceConnector("mysql");
         String columnsString =
                 "[{\"name\":\"id\",\"jdbcType\":4,\"typeName\":\"INT\",\"typeExpression\":\"INT\",\"charsetName\":null,\"position\":1,\"optional\":false,\"autoIncremented\":false,\"generated\":false,\"comment\":null,\"hasDefaultValue\":false,\"enumValues\":[]},{\"name\":\"name\",\"jdbcType\":12,\"typeName\":\"VARCHAR\",\"typeExpression\":\"VARCHAR\",\"charsetName\":\"utf8mb4\",\"length\":50,\"position\":2,\"optional\":true,\"autoIncremented\":false,\"generated\":false,\"comment\":null,\"hasDefaultValue\":true,\"enumValues\":[]},{\"name\":\"test_time\",\"jdbcType\":93,\"typeName\":\"DATETIME\",\"typeExpression\":\"DATETIME\",\"charsetName\":null,\"position\":3,\"optional\":true,\"autoIncremented\":false,\"generated\":false,\"comment\":null,\"hasDefaultValue\":true,\"enumValues\":[]},{\"name\":\"c1\",\"jdbcType\":4,\"typeName\":\"INT\",\"typeExpression\":\"INT\",\"charsetName\":null,\"position\":4,\"optional\":true,\"autoIncremented\":false,\"generated\":false,\"comment\":null,\"hasDefaultValue\":true,\"defaultValueExpression\":\"100\",\"enumValues\":[]},{\"name\":\"cc\",\"jdbcType\":4,\"typeName\":\"INT\",\"typeExpression\":\"INT\",\"charsetName\":null,\"position\":5,\"optional\":true,\"autoIncremented\":false,\"generated\":false,\"comment\":null,\"hasDefaultValue\":true,\"defaultValueExpression\":\"100\",\"enumValues\":[]}]";
         JsonNode columns = objectMapper.readTree(columnsString);
-        schemaChange.fillOriginSchema(columns);
-        Map<String, FieldSchema> originFieldSchemaMap = schemaChange.getOriginFieldSchemaMap();
+        schemaChange.fillOriginSchema(tableName, columns);
+        Map<String, Map<String, FieldSchema>> originFieldSchemaMap =
+                schemaChange.getOriginFieldSchemaMap();
+        Map<String, FieldSchema> fieldSchemaMap = originFieldSchemaMap.get(tableName);
 
         Iterator<Entry<String, FieldSchema>> originFieldSchemaIterator =
-                originFieldSchemaMap.entrySet().iterator();
+                fieldSchemaMap.entrySet().iterator();
         for (Entry<String, FieldSchema> entry : srcFiledSchemaMap.entrySet()) {
             FieldSchema srcFiledSchema = entry.getValue();
             Entry<String, FieldSchema> originField = originFieldSchemaIterator.next();
@@ -178,6 +183,102 @@ public class TestJsonDebeziumSchemaChangeImplV2 extends TestJsonDebeziumChangeBa
                     srcFiledSchema.getDefaultValue(), originField.getValue().getDefaultValue());
             Assert.assertEquals(srcFiledSchema.getComment(), originField.getValue().getComment());
         }
+    }
+
+    @Test
+    public void testMultipleFillOriginSchema() throws IOException {
+        Map<String, Map<String, FieldSchema>> originFiledSchema = buildOriginFiledSchema();
+        String tableName1 = "db.test_fill";
+        String tableName2 = "test.t1";
+
+        schemaChange.setOriginFieldSchemaMap(originFiledSchema);
+        schemaChange.setSourceConnector("mysql");
+        String columnsString1 =
+                "[{\"name\":\"id\",\"jdbcType\":4,\"typeName\":\"INT\",\"typeExpression\":\"INT\",\"charsetName\":null,\"position\":1,\"optional\":false,\"autoIncremented\":false,\"generated\":false,\"comment\":null,\"hasDefaultValue\":false,\"enumValues\":[]},{\"name\":\"name\",\"jdbcType\":12,\"typeName\":\"VARCHAR\",\"typeExpression\":\"VARCHAR\",\"charsetName\":\"utf8mb4\",\"length\":50,\"position\":2,\"optional\":true,\"autoIncremented\":false,\"generated\":false,\"comment\":null,\"hasDefaultValue\":true,\"enumValues\":[]},{\"name\":\"test_time\",\"jdbcType\":93,\"typeName\":\"DATETIME\",\"typeExpression\":\"DATETIME\",\"charsetName\":null,\"position\":3,\"optional\":true,\"autoIncremented\":false,\"generated\":false,\"comment\":null,\"hasDefaultValue\":true,\"enumValues\":[]},{\"name\":\"c1\",\"jdbcType\":4,\"typeName\":\"INT\",\"typeExpression\":\"INT\",\"charsetName\":null,\"position\":4,\"optional\":true,\"autoIncremented\":false,\"generated\":false,\"comment\":null,\"hasDefaultValue\":true,\"defaultValueExpression\":\"100\",\"enumValues\":[]},{\"name\":\"cc\",\"jdbcType\":4,\"typeName\":\"INT\",\"typeExpression\":\"INT\",\"charsetName\":null,\"position\":5,\"optional\":true,\"autoIncremented\":false,\"generated\":false,\"comment\":null,\"hasDefaultValue\":true,\"defaultValueExpression\":\"100\",\"enumValues\":[]}]";
+        JsonNode columns1 = objectMapper.readTree(columnsString1);
+
+        String columnsString2 =
+                "[{\"name\":\"id\",\"jdbcType\":4,\"typeName\":\"INT\",\"typeExpression\":\"INT\",\"charsetName\":null,\"position\":1,\"optional\":false,\"autoIncremented\":false,\"generated\":false,\"comment\":null,\"hasDefaultValue\":true,\"defaultValueExpression\":\"10000\",\"enumValues\":[]},{\"name\":\"c2\",\"jdbcType\":4,\"typeName\":\"INT\",\"typeExpression\":\"INT\",\"charsetName\":null,\"position\":2,\"optional\":true,\"autoIncremented\":false,\"generated\":false,\"comment\":null,\"hasDefaultValue\":true,\"enumValues\":[]},{\"name\":\"c555\",\"jdbcType\":12,\"typeName\":\"VARCHAR\",\"typeExpression\":\"VARCHAR\",\"charsetName\":\"utf8mb4\",\"length\":100,\"position\":3,\"optional\":true,\"autoIncremented\":false,\"generated\":false,\"comment\":null,\"hasDefaultValue\":true,\"enumValues\":[]},{\"name\":\"c666\",\"jdbcType\":4,\"typeName\":\"INT\",\"typeExpression\":\"INT\",\"charsetName\":null,\"position\":4,\"optional\":true,\"autoIncremented\":false,\"generated\":false,\"comment\":null,\"hasDefaultValue\":true,\"defaultValueExpression\":\"100\",\"enumValues\":[]},{\"name\":\"c4\",\"jdbcType\":-5,\"typeName\":\"BIGINT\",\"typeExpression\":\"BIGINT\",\"charsetName\":null,\"position\":5,\"optional\":true,\"autoIncremented\":false,\"generated\":false,\"comment\":null,\"hasDefaultValue\":true,\"defaultValueExpression\":\"555\",\"enumValues\":[]},{\"name\":\"c199\",\"jdbcType\":4,\"typeName\":\"INT\",\"typeExpression\":\"INT\",\"charsetName\":null,\"position\":6,\"optional\":true,\"autoIncremented\":false,\"generated\":false,\"comment\":null,\"hasDefaultValue\":true,\"enumValues\":[]},{\"name\":\"c12\",\"jdbcType\":4,\"typeName\":\"INT\",\"typeExpression\":\"INT\",\"charsetName\":null,\"position\":7,\"optional\":true,\"autoIncremented\":false,\"generated\":false,\"comment\":null,\"hasDefaultValue\":true,\"defaultValueExpression\":\"100\",\"enumValues\":[]}]";
+        JsonNode columns2 = objectMapper.readTree(columnsString2);
+
+        schemaChange.fillOriginSchema(tableName1, columns1);
+        schemaChange.fillOriginSchema(tableName2, columns2);
+        Map<String, Map<String, FieldSchema>> originFieldSchemaMap =
+                schemaChange.getOriginFieldSchemaMap();
+
+        Map<String, FieldSchema> originSchema1 = originFieldSchemaMap.get(tableName1);
+        Map<String, FieldSchema> originSchema2 = originFieldSchemaMap.get(tableName2);
+
+        Map<String, Map<String, FieldSchema>> scrFiledSchema = buildSrcFiledSchema();
+        Map<String, FieldSchema> scrSchema1 = scrFiledSchema.get(tableName1);
+        Map<String, FieldSchema> scrSchema2 = scrFiledSchema.get(tableName2);
+
+        compareResults(originSchema1, scrSchema1);
+        compareResults(originSchema2, scrSchema2);
+    }
+
+    private void compareResults(
+            Map<String, FieldSchema> originSchema, Map<String, FieldSchema> scrSchema) {
+        Iterator<Entry<String, FieldSchema>> originFieldSchemaIterator =
+                originSchema.entrySet().iterator();
+        for (Entry<String, FieldSchema> srcEntry : scrSchema.entrySet()) {
+            FieldSchema srcFiledSchema = srcEntry.getValue();
+            Entry<String, FieldSchema> originField = originFieldSchemaIterator.next();
+
+            Assert.assertEquals(srcEntry.getKey(), originField.getKey());
+            Assert.assertEquals(srcFiledSchema.getName(), originField.getValue().getName());
+            Assert.assertEquals(
+                    srcFiledSchema.getTypeString(), originField.getValue().getTypeString());
+            Assert.assertEquals(
+                    srcFiledSchema.getDefaultValue(), originField.getValue().getDefaultValue());
+            Assert.assertEquals(srcFiledSchema.getComment(), originField.getValue().getComment());
+        }
+    }
+
+    private Map<String, Map<String, FieldSchema>> buildSrcFiledSchema() {
+        String tab1 = "db.test_fill";
+        String tab2 = "test.t1";
+        Map<String, Map<String, FieldSchema>> scrFiledSchema = new LinkedHashMap<>();
+        Map<String, FieldSchema> filedSchemaMap1 = new LinkedHashMap<>();
+        filedSchemaMap1.put("id", new FieldSchema("id", "INT", null, null));
+        filedSchemaMap1.put("name", new FieldSchema("name", "VARCHAR(150)", null, null));
+        filedSchemaMap1.put("test_time", new FieldSchema("test_time", "DATETIMEV2(0)", null, null));
+        filedSchemaMap1.put("c1", new FieldSchema("c1", "INT", "100", null));
+        scrFiledSchema.put(tab1, filedSchemaMap1);
+
+        Map<String, FieldSchema> filedSchemaMap2 = new LinkedHashMap<>();
+        filedSchemaMap2.put("id", new FieldSchema("id", "INT", "10000", null));
+        filedSchemaMap2.put("c2", new FieldSchema("c2", "INT", null, null));
+        filedSchemaMap2.put("c555", new FieldSchema("c555", "VARCHAR(300)", null, null));
+        filedSchemaMap2.put("c666", new FieldSchema("c666", "INT", "100", null));
+        filedSchemaMap2.put("c4", new FieldSchema("c4", "BIGINT", "555", null));
+        filedSchemaMap2.put("c199", new FieldSchema("c199", "INT", null, null));
+        filedSchemaMap2.put("c12", new FieldSchema("c12", "INT", "100", null));
+        scrFiledSchema.put(tab2, filedSchemaMap2);
+        return scrFiledSchema;
+    }
+
+    private Map<String, Map<String, FieldSchema>> buildOriginFiledSchema() {
+        String tab1 = "db.test_fill";
+        String tab2 = "test.t1";
+        Map<String, Map<String, FieldSchema>> originFiledSchema = new LinkedHashMap<>();
+        Map<String, FieldSchema> filedSchemaMap1 = new LinkedHashMap<>();
+        filedSchemaMap1.put("id", new FieldSchema());
+        filedSchemaMap1.put("name", new FieldSchema());
+        filedSchemaMap1.put("test_time", new FieldSchema());
+        filedSchemaMap1.put("c1", new FieldSchema());
+        originFiledSchema.put(tab1, filedSchemaMap1);
+
+        Map<String, FieldSchema> filedSchemaMap2 = new LinkedHashMap<>();
+        filedSchemaMap2.put("id", new FieldSchema());
+        filedSchemaMap2.put("c2", new FieldSchema());
+        filedSchemaMap2.put("c555", new FieldSchema());
+        filedSchemaMap2.put("c666", new FieldSchema());
+        filedSchemaMap2.put("c4", new FieldSchema());
+        filedSchemaMap2.put("c199", new FieldSchema());
+        filedSchemaMap2.put("c12", new FieldSchema());
+        originFiledSchema.put(tab2, filedSchemaMap2);
+        return originFiledSchema;
     }
 
     @Test
@@ -204,14 +305,16 @@ public class TestJsonDebeziumSchemaChangeImplV2 extends TestJsonDebeziumChangeBa
     public void testExtractDDLListRename() throws IOException {
         String columnInfo =
                 "{\"source\":{\"version\":\"1.9.7.Final\",\"connector\":\"mysql\",\"name\":\"mysql_binlog_source\",\"ts_ms\":1698314781975,\"snapshot\":\"false\",\"db\":\"test\",\"sequence\":null,\"table\":\"t1\",\"server_id\":1,\"gtid\":null,\"file\":\"binlog.000046\",\"pos\":5197,\"row\":0,\"thread\":null,\"query\":null},\"historyRecord\":\"{\\\"source\\\":{\\\"file\\\":\\\"binlog.000046\\\",\\\"pos\\\":5197,\\\"server_id\\\":1},\\\"position\\\":{\\\"transaction_id\\\":null,\\\"ts_sec\\\":1698314781,\\\"file\\\":\\\"binlog.000046\\\",\\\"pos\\\":5331,\\\"server_id\\\":1},\\\"databaseName\\\":\\\"test\\\",\\\"ddl\\\":\\\"alter table t1 rename column c3 to c333\\\",\\\"tableChanges\\\":[{\\\"type\\\":\\\"ALTER\\\",\\\"id\\\":\\\"\\\\\\\"test\\\\\\\".\\\\\\\"t1\\\\\\\"\\\",\\\"table\\\":{\\\"defaultCharsetName\\\":\\\"utf8mb4\\\",\\\"primaryKeyColumnNames\\\":[\\\"id\\\"],\\\"columns\\\":[{\\\"name\\\":\\\"id\\\",\\\"jdbcType\\\":4,\\\"typeName\\\":\\\"INT\\\",\\\"typeExpression\\\":\\\"INT\\\",\\\"charsetName\\\":null,\\\"position\\\":1,\\\"optional\\\":false,\\\"autoIncremented\\\":false,\\\"generated\\\":false,\\\"comment\\\":null,\\\"hasDefaultValue\\\":true,\\\"defaultValueExpression\\\":\\\"10000\\\",\\\"enumValues\\\":[]},{\\\"name\\\":\\\"c2\\\",\\\"jdbcType\\\":4,\\\"typeName\\\":\\\"INT\\\",\\\"typeExpression\\\":\\\"INT\\\",\\\"charsetName\\\":null,\\\"position\\\":2,\\\"optional\\\":true,\\\"autoIncremented\\\":false,\\\"generated\\\":false,\\\"comment\\\":null,\\\"hasDefaultValue\\\":true,\\\"enumValues\\\":[]},{\\\"name\\\":\\\"c333\\\",\\\"jdbcType\\\":12,\\\"typeName\\\":\\\"VARCHAR\\\",\\\"typeExpression\\\":\\\"VARCHAR\\\",\\\"charsetName\\\":\\\"utf8mb4\\\",\\\"length\\\":10,\\\"position\\\":3,\\\"optional\\\":true,\\\"autoIncremented\\\":false,\\\"generated\\\":false,\\\"comment\\\":null,\\\"hasDefaultValue\\\":true,\\\"enumValues\\\":[]}]},\\\"comment\\\":null}]}\"}";
-        Map<String, FieldSchema> originFieldSchemaMap = Maps.newHashMap();
+        Map<String, Map<String, FieldSchema>> originFieldSchemaHashMap = new LinkedHashMap<>();
+        Map<String, FieldSchema> fieldSchemaHashMap = Maps.newHashMap();
         JsonNode record = objectMapper.readTree(columnInfo);
         schemaChange.setSourceConnector("mysql");
 
-        originFieldSchemaMap.put("id", new FieldSchema("id", "INT", "", ""));
-        originFieldSchemaMap.put("c2", new FieldSchema("c2", "INT", "", ""));
-        originFieldSchemaMap.put("c3", new FieldSchema("c3", "VARCHAR(30)", "", ""));
-        schemaChange.setOriginFieldSchemaMap(originFieldSchemaMap);
+        fieldSchemaHashMap.put("id", new FieldSchema("id", "INT", "", ""));
+        fieldSchemaHashMap.put("c2", new FieldSchema("c2", "INT", "", ""));
+        fieldSchemaHashMap.put("c3", new FieldSchema("c3", "VARCHAR(30)", "", ""));
+        originFieldSchemaHashMap.put("test.t1", fieldSchemaHashMap);
+        schemaChange.setOriginFieldSchemaMap(originFieldSchemaHashMap);
 
         List<String> ddlList = schemaChange.extractDDLList(record);
         Assert.assertEquals("ALTER TABLE `test`.`t1` RENAME COLUMN `c3` `c333`", ddlList.get(0));
@@ -239,15 +342,21 @@ public class TestJsonDebeziumSchemaChangeImplV2 extends TestJsonDebeziumChangeBa
 
     @Test
     public void testGetDorisTableIdentifier() throws Exception {
-        String identifier = schemaChange.getDorisTableIdentifier("test.dbo.t1");
+        String identifier =
+                JsonDebeziumChangeUtils.getDorisTableIdentifier(
+                        "test.dbo.t1", dorisOptions, tableMapping);
         Assert.assertEquals("test.t1", identifier);
 
-        identifier = schemaChange.getDorisTableIdentifier("test.t1");
+        identifier =
+                JsonDebeziumChangeUtils.getDorisTableIdentifier(
+                        "test.t1", dorisOptions, tableMapping);
         Assert.assertEquals("test.t1", identifier);
 
         String tmp = dorisOptions.getTableIdentifier();
         dorisOptions.setTableIdentifier(null);
-        identifier = schemaChange.getDorisTableIdentifier("test.t1");
+        identifier =
+                JsonDebeziumChangeUtils.getDorisTableIdentifier(
+                        "test.t1", dorisOptions, tableMapping);
         Assert.assertNull(identifier);
         dorisOptions.setTableIdentifier(tmp);
     }
@@ -293,15 +402,18 @@ public class TestJsonDebeziumSchemaChangeImplV2 extends TestJsonDebeziumChangeBa
                 "test_ts_6",
                 new FieldSchema("test_ts_6", "DATETIMEV2(6)", "current_timestamp", null));
 
+        String tableName = "db.test_fill";
         schemaChange.setSourceConnector("mysql");
         String columnsString =
                 "[{\"name\":\"id\",\"jdbcType\":4,\"typeName\":\"INT\",\"typeExpression\":\"INT\",\"charsetName\":null,\"position\":1,\"optional\":false,\"autoIncremented\":false,\"generated\":false,\"comment\":null,\"hasDefaultValue\":false,\"enumValues\":[]},{\"name\":\"test_dt_0\",\"jdbcType\":93,\"typeName\":\"DATETIME\",\"typeExpression\":\"DATETIME\",\"charsetName\":null,\"position\":2,\"optional\":true,\"autoIncremented\":false,\"generated\":false,\"comment\":null,\"hasDefaultValue\":true,\"enumValues\":[]},{\"name\":\"test_dt_1\",\"jdbcType\":93,\"typeName\":\"DATETIME\",\"typeExpression\":\"DATETIME\",\"charsetName\":null,\"length\":1,\"position\":3,\"optional\":true,\"autoIncremented\":false,\"generated\":false,\"comment\":null,\"hasDefaultValue\":true,\"enumValues\":[]},{\"name\":\"test_dt_3\",\"jdbcType\":93,\"typeName\":\"DATETIME\",\"typeExpression\":\"DATETIME\",\"charsetName\":null,\"length\":3,\"position\":4,\"optional\":true,\"autoIncremented\":false,\"generated\":false,\"comment\":null,\"hasDefaultValue\":true,\"enumValues\":[]},{\"name\":\"test_dt_6\",\"jdbcType\":93,\"typeName\":\"DATETIME\",\"typeExpression\":\"DATETIME\",\"charsetName\":null,\"length\":6,\"position\":5,\"optional\":true,\"autoIncremented\":false,\"generated\":false,\"comment\":null,\"hasDefaultValue\":true,\"enumValues\":[]},{\"name\":\"test_ts_0\",\"jdbcType\":2014,\"typeName\":\"TIMESTAMP\",\"typeExpression\":\"TIMESTAMP\",\"charsetName\":null,\"position\":6,\"optional\":true,\"autoIncremented\":false,\"generated\":false,\"comment\":null,\"hasDefaultValue\":true,\"enumValues\":[]},{\"name\":\"test_ts_1\",\"jdbcType\":2014,\"typeName\":\"TIMESTAMP\",\"typeExpression\":\"TIMESTAMP\",\"charsetName\":null,\"length\":1,\"position\":7,\"optional\":true,\"autoIncremented\":false,\"generated\":false,\"comment\":null,\"hasDefaultValue\":true,\"defaultValueExpression\":\"1970-01-01 00:00:00\",\"enumValues\":[]},{\"name\":\"test_ts_3\",\"jdbcType\":2014,\"typeName\":\"TIMESTAMP\",\"typeExpression\":\"TIMESTAMP\",\"charsetName\":null,\"length\":3,\"position\":8,\"optional\":true,\"autoIncremented\":false,\"generated\":false,\"comment\":null,\"hasDefaultValue\":true,\"defaultValueExpression\":\"1970-01-01 00:00:00\",\"enumValues\":[]},{\"name\":\"test_ts_6\",\"jdbcType\":2014,\"typeName\":\"TIMESTAMP\",\"typeExpression\":\"TIMESTAMP\",\"charsetName\":null,\"length\":6,\"position\":9,\"optional\":true,\"autoIncremented\":false,\"generated\":false,\"comment\":null,\"hasDefaultValue\":true,\"defaultValueExpression\":\"1970-01-01 00:00:00\",\"enumValues\":[]}]},\"comment\":null}]}";
         JsonNode columns = objectMapper.readTree(columnsString);
-        schemaChange.fillOriginSchema(columns);
-        Map<String, FieldSchema> originFieldSchemaMap = schemaChange.getOriginFieldSchemaMap();
+        schemaChange.fillOriginSchema(tableName, columns);
+        Map<String, Map<String, FieldSchema>> originFieldSchemaMap =
+                schemaChange.getOriginFieldSchemaMap();
+        Map<String, FieldSchema> fieldSchemaMap = originFieldSchemaMap.get(tableName);
 
         Iterator<Entry<String, FieldSchema>> originFieldSchemaIterator =
-                originFieldSchemaMap.entrySet().iterator();
+                fieldSchemaMap.entrySet().iterator();
         for (Entry<String, FieldSchema> entry : srcFiledSchemaMap.entrySet()) {
             FieldSchema srcFiledSchema = entry.getValue();
             Entry<String, FieldSchema> originField = originFieldSchemaIterator.next();

@@ -17,19 +17,15 @@
 
 package org.apache.doris.flink.sink.writer.serializer.jsondebezium;
 
-import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.StringUtils;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.NullNode;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.sink.writer.ChangeEvent;
 import org.apache.doris.flink.sink.writer.serializer.DorisRecord;
-import org.apache.doris.flink.tools.cdc.SourceSchema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,7 +52,7 @@ public class JsonDebeziumDataChange implements ChangeEvent {
     private final DorisOptions dorisOptions;
     private final boolean ignoreUpdateBefore;
     private final String lineDelimiter;
-    private JsonDebeziumChangeContext changeContext;
+    private final JsonDebeziumChangeContext changeContext;
 
     public JsonDebeziumDataChange(JsonDebeziumChangeContext changeContext) {
         this.changeContext = changeContext;
@@ -68,8 +64,11 @@ public class JsonDebeziumDataChange implements ChangeEvent {
 
     public DorisRecord serialize(String record, JsonNode recordRoot, String op) throws IOException {
         // Filter out table records that are not in tableMapping
-        String cdcTableIdentifier = getCdcTableIdentifier(recordRoot);
-        String dorisTableIdentifier = getDorisTableIdentifier(cdcTableIdentifier);
+        Map<String, String> tableMapping = changeContext.getTableMapping();
+        String cdcTableIdentifier = JsonDebeziumChangeUtils.getCdcTableIdentifier(recordRoot);
+        String dorisTableIdentifier =
+                JsonDebeziumChangeUtils.getDorisTableIdentifier(
+                        cdcTableIdentifier, dorisOptions, tableMapping);
         if (StringUtils.isNullOrWhitespaceOnly(dorisTableIdentifier)) {
             LOG.warn(
                     "filter table {}, because it is not listened, record detail is {}",
@@ -121,34 +120,6 @@ public class JsonDebeziumDataChange implements ChangeEvent {
         addDeleteSign(afterRow, false);
         updateRow.append(objectMapper.writeValueAsString(afterRow));
         return updateRow.toString().getBytes(StandardCharsets.UTF_8);
-    }
-
-    @VisibleForTesting
-    public String getCdcTableIdentifier(JsonNode record) {
-        String db = extractJsonNode(record.get("source"), "db");
-        String schema = extractJsonNode(record.get("source"), "schema");
-        String table = extractJsonNode(record.get("source"), "table");
-        return SourceSchema.getString(db, schema, table);
-    }
-
-    @VisibleForTesting
-    public String getDorisTableIdentifier(String cdcTableIdentifier) {
-        if (!StringUtils.isNullOrWhitespaceOnly(dorisOptions.getTableIdentifier())) {
-            return dorisOptions.getTableIdentifier();
-        }
-        Map<String, String> tableMapping = changeContext.getTableMapping();
-        if (!CollectionUtil.isNullOrEmpty(tableMapping)
-                && !StringUtils.isNullOrWhitespaceOnly(cdcTableIdentifier)
-                && tableMapping.get(cdcTableIdentifier) != null) {
-            return tableMapping.get(cdcTableIdentifier);
-        }
-        return null;
-    }
-
-    private String extractJsonNode(JsonNode record, String key) {
-        return record != null && record.get(key) != null && !(record.get(key) instanceof NullNode)
-                ? record.get(key).asText()
-                : null;
     }
 
     private Map<String, Object> extractBeforeRow(JsonNode record) {
