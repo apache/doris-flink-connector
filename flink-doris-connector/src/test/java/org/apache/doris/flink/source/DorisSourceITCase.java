@@ -29,17 +29,23 @@ import org.apache.doris.flink.DorisTestBase;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.deserialization.SimpleListDeserializationSchema;
-import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
+import org.testcontainers.lifecycle.Startables;
 
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
+
+import static org.awaitility.Awaitility.given;
+import static org.awaitility.Durations.ONE_SECOND;
 
 /** DorisSource ITCase. */
 @Execution(ExecutionMode.SAME_THREAD)
@@ -48,14 +54,23 @@ public class DorisSourceITCase extends DorisTestBase {
     static final String TABLE_READ = "tbl_read";
     static final String TABLE_READ_TBL = "tbl_read_tbl";
 
-    @BeforeEach
-    public void startContainers() {
-        super.startContainers();
+    @BeforeAll
+    public static void startDorisContainers() {
+        LOG.info("Starting doris containers...");
+        Startables.deepStart(Stream.of(DORIS_CONTAINER)).join();
+        given().ignoreExceptions()
+                .await()
+                .atMost(300, TimeUnit.SECONDS)
+                .pollInterval(ONE_SECOND)
+                .untilAsserted(DorisTestBase::initializeJdbcConnection);
+        LOG.info("Containers doris are started.");
     }
 
-    @AfterEach
-    public void stopContainers() {
-        super.stopContainers();
+    @AfterAll
+    public static void stopDorisContainers() {
+        LOG.info("Stopping doris containers...");
+        DORIS_CONTAINER.stop();
+        LOG.info("Containers doris are stopped.");
     }
 
     @Test

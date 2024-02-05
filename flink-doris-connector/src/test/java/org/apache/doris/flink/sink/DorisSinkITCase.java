@@ -27,12 +27,13 @@ import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.sink.writer.serializer.SimpleStringSerializer;
-import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
+import org.testcontainers.lifecycle.Startables;
 
 import java.sql.ResultSet;
 import java.sql.Statement;
@@ -44,8 +45,12 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import static org.awaitility.Awaitility.given;
+import static org.awaitility.Durations.ONE_SECOND;
 
 /** DorisSink ITCase with csv and arrow format. */
 @Execution(ExecutionMode.SAME_THREAD)
@@ -55,14 +60,23 @@ public class DorisSinkITCase extends DorisTestBase {
     static final String TABLE_JSON = "tbl_json";
     static final String TABLE_JSON_TBL = "tbl_json_tbl";
 
-    @BeforeEach
-    public void startContainers() {
-        super.startContainers();
+    @BeforeAll
+    public static void startDorisContainers() {
+        LOG.info("Starting doris containers...");
+        Startables.deepStart(Stream.of(DORIS_CONTAINER)).join();
+        given().ignoreExceptions()
+                .await()
+                .atMost(300, TimeUnit.SECONDS)
+                .pollInterval(ONE_SECOND)
+                .untilAsserted(DorisTestBase::initializeJdbcConnection);
+        LOG.info("Containers doris are started.");
     }
 
-    @AfterEach
-    public void stopContainers() {
-        super.stopContainers();
+    @AfterAll
+    public static void stopDorisContainers() {
+        LOG.info("Stopping doris containers...");
+        DORIS_CONTAINER.stop();
+        LOG.info("Containers doris are stopped.");
     }
 
     @Test
