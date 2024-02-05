@@ -27,8 +27,12 @@ import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.sink.writer.serializer.SimpleStringSerializer;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
 
 import java.sql.ResultSet;
 import java.sql.Statement;
@@ -44,11 +48,22 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /** DorisSink ITCase with csv and arrow format. */
+@Execution(ExecutionMode.SAME_THREAD)
 public class DorisSinkITCase extends DorisTestBase {
     static final String DATABASE = "test";
     static final String TABLE_CSV = "tbl_csv";
     static final String TABLE_JSON = "tbl_json";
     static final String TABLE_JSON_TBL = "tbl_json_tbl";
+
+    @BeforeEach
+    public void startContainers() {
+        super.startContainers();
+    }
+
+    @AfterEach
+    public void stopContainers() {
+        super.stopContainers();
+    }
 
     @Test
     public void testSinkCsvFormat() throws Exception {

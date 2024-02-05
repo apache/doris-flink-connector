@@ -18,8 +18,8 @@
 package org.apache.doris.flink;
 
 import com.google.common.collect.Lists;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.GenericContainer;
@@ -66,23 +66,23 @@ public abstract class DorisTestBase {
         return DORIS_CONTAINER.getHost() + ":8030";
     }
 
-    @BeforeClass
-    public static void startContainers() {
-        LOG.info("Starting containers...");
+    @BeforeEach
+    public void startContainers() {
+        LOG.info("Starting doris containers...");
         Startables.deepStart(Stream.of(DORIS_CONTAINER)).join();
         given().ignoreExceptions()
                 .await()
                 .atMost(300, TimeUnit.SECONDS)
                 .pollInterval(ONE_SECOND)
                 .untilAsserted(DorisTestBase::initializeJdbcConnection);
-        LOG.info("Containers are started.");
+        LOG.info("Containers doris are started.");
     }
 
-    @AfterClass
-    public static void stopContainers() {
-        LOG.info("Stopping containers...");
+    @AfterEach
+    public void stopContainers() {
+        LOG.info("Stopping doris containers...");
         DORIS_CONTAINER.stop();
-        LOG.info("Containers are stopped.");
+        LOG.info("Containers doris are stopped.");
     }
 
     public static GenericContainer createDorisContainer() {

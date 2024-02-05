@@ -27,10 +27,14 @@ import org.apache.flink.util.function.SupplierWithException;
 
 import org.apache.doris.flink.DorisTestBase;
 import org.apache.doris.flink.tools.cdc.mysql.MysqlDatabaseSync;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.MySQLContainer;
@@ -61,6 +65,7 @@ import static org.apache.flink.api.common.JobStatus.RUNNING;
  * MySQLDorisE2ECase 1. Automatically create tables 2. Schema change event synchronization
  * 3.Synchronization of addition, deletion and modification events 4. CDC multi-table writing.
  */
+@Execution(ExecutionMode.SAME_THREAD)
 public class MySQLDorisE2ECase extends DorisTestBase {
     protected static final Logger LOG = LoggerFactory.getLogger(MySQLDorisE2ECase.class);
     private static final String DATABASE = "test";
@@ -71,13 +76,24 @@ public class MySQLDorisE2ECase extends DorisTestBase {
     private static final String TABLE_3 = "tbl3";
     private static final String TABLE_4 = "tbl4";
 
+    private static final String MYSQL_IMAGE_NAME = "mysql:8.0";
     private static final MySQLContainer MYSQL_CONTAINER =
-            new MySQLContainer("mysql:8.0")
+            new MySQLContainer(MYSQL_IMAGE_NAME)
                     .withDatabaseName(DATABASE)
                     .withUsername(MYSQL_USER)
                     .withPassword(MYSQL_PASSWD);
 
-    @BeforeClass
+    @BeforeEach
+    public void startContainers() {
+        super.startContainers();
+    }
+
+    @AfterEach
+    public void stopContainers() {
+        super.stopContainers();
+    }
+
+    @BeforeAll
     public static void startMySQLContainers() {
         MYSQL_CONTAINER.setCommand("--default-time-zone=Asia/Shanghai");
         LOG.info("Starting MySQL containers...");
@@ -85,30 +101,32 @@ public class MySQLDorisE2ECase extends DorisTestBase {
         LOG.info("MySQL Containers are started.");
     }
 
-    @AfterClass
+    @AfterAll
     public static void stopMySQLContainers() {
         LOG.info("Stopping MySQL containers...");
         MYSQL_CONTAINER.stop();
         LOG.info("MySQL Containers are stopped.");
+
+        // Cleanup the mysql image, because it's too large and will cause the next test to fail.
+        LOG.info("Cleaning MySQL containers...");
+        MYSQL_CONTAINER.getDockerClient().removeImageCmd(MYSQL_IMAGE_NAME).exec();
+        MYSQL_CONTAINER
+                .getDockerClient()
+                .listImagesCmd()
+                .withImageNameFilter(MYSQL_IMAGE_NAME)
+                .exec()
+                .forEach(
+                        image ->
+                                MYSQL_CONTAINER
+                                        .getDockerClient()
+                                        .removeImageCmd(image.getId())
+                                        .exec());
+        LOG.info("MySQL containers cleaned");
     }
 
     @Test
     public void testMySQL2Doris() throws Exception {
-        printClusterStatus();
-        initializeMySQLTable();
-        JobClient jobClient = submitJob();
-        // wait 2 times checkpoint
-        Thread.sleep(20000);
-        Set<List<Object>> expected =
-                Stream.<List<Object>>of(
-                                Arrays.asList("doris_1", 1),
-                                Arrays.asList("doris_2", 2),
-                                Arrays.asList("doris_3", 3))
-                        .collect(Collectors.toSet());
-        String sql =
-                "select * from ( select * from %s.%s union all select * from %s.%s union all select * from %s.%s ) res order by 1";
-        String query1 = String.format(sql, DATABASE, TABLE_1, DATABASE, TABLE_2, DATABASE, TABLE_3);
-        checkResult(expected, query1, 2);
+        JobClient jobClient = initHistoricalData();
 
         // add incremental data
         try (Connection connection =
@@ -138,7 +156,7 @@ public class MySQLDorisE2ECase extends DorisTestBase {
                                 Arrays.asList("doris_3", 3),
                                 Arrays.asList("doris_3_1", 12))
                         .collect(Collectors.toSet());
-        sql =
+        String sql =
                 "select * from ( select * from %s.%s union all select * from %s.%s union all select * from %s.%s ) res order by 1";
         String query2 = String.format(sql, DATABASE, TABLE_1, DATABASE, TABLE_2, DATABASE, TABLE_3);
         checkResult(expected2, query2, 2);
@@ -174,22 +192,7 @@ public class MySQLDorisE2ECase extends DorisTestBase {
 
     @Test
     public void testAutoAddTable() throws Exception {
-        printClusterStatus();
-        initializeMySQLTable();
-        initializeDorisTable();
-        JobClient jobClient = submitJob();
-        // wait 2 times checkpoint
-        Thread.sleep(20000);
-        Set<List<Object>> expected =
-                Stream.<List<Object>>of(
-                                Arrays.asList("doris_1", 1),
-                                Arrays.asList("doris_2", 2),
-                                Arrays.asList("doris_3", 3))
-                        .collect(Collectors.toSet());
-        String sql =
-                "select * from ( select * from %s.%s union all select * from %s.%s union all select * from %s.%s ) res order by 1";
-        String query1 = String.format(sql, DATABASE, TABLE_1, DATABASE, TABLE_2, DATABASE, TABLE_3);
-        checkResult(expected, query1, 2);
+        JobClient jobClient = initHistoricalData();
 
         // auto create table4
         addTableTable_4();
@@ -198,7 +201,7 @@ public class MySQLDorisE2ECase extends DorisTestBase {
                 Stream.<List<Object>>of(
                                 Arrays.asList("doris_4_1", 4), Arrays.asList("doris_4_2", 4))
                         .collect(Collectors.toSet());
-        sql = "select * from %s.%s order by 1";
+        String sql = "select * from %s.%s order by 1";
         String query2 = String.format(sql, DATABASE, TABLE_4);
         checkResult(expected2, query2, 2);
 
@@ -275,13 +278,24 @@ public class MySQLDorisE2ECase extends DorisTestBase {
         jobClient.cancel().get();
     }
 
-    private void initializeDorisTable() throws Exception {
-        try (Statement statement = connection.createStatement()) {
-            statement.execute(String.format("DROP TABLE IF EXISTS %s.%s", DATABASE, TABLE_1));
-            statement.execute(String.format("DROP TABLE IF EXISTS %s.%s", DATABASE, TABLE_2));
-            statement.execute(String.format("DROP TABLE IF EXISTS %s.%s", DATABASE, TABLE_3));
-            statement.execute(String.format("DROP TABLE IF EXISTS %s.%s", DATABASE, TABLE_4));
-        }
+    private JobClient initHistoricalData() throws Exception {
+        printClusterStatus();
+        initializeMySQLTable();
+        JobClient jobClient = submitJob();
+
+        // wait 2 times checkpoint
+        Thread.sleep(20000);
+        Set<List<Object>> expected =
+                Stream.<List<Object>>of(
+                                Arrays.asList("doris_1", 1),
+                                Arrays.asList("doris_2", 2),
+                                Arrays.asList("doris_3", 3))
+                        .collect(Collectors.toSet());
+        String sql =
+                "select * from ( select * from %s.%s union all select * from %s.%s union all select * from %s.%s ) res order by 1";
+        String query1 = String.format(sql, DATABASE, TABLE_1, DATABASE, TABLE_2, DATABASE, TABLE_3);
+        checkResult(expected, query1, 2);
+        return jobClient;
     }
 
     public void checkResult(Set<List<Object>> expected, String query, int columnSize)

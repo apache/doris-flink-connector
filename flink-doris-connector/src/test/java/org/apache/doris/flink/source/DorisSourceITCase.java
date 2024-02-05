@@ -29,8 +29,12 @@ import org.apache.doris.flink.DorisTestBase;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.deserialization.SimpleListDeserializationSchema;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
 
 import java.sql.Statement;
 import java.util.ArrayList;
@@ -38,10 +42,21 @@ import java.util.Arrays;
 import java.util.List;
 
 /** DorisSource ITCase. */
+@Execution(ExecutionMode.SAME_THREAD)
 public class DorisSourceITCase extends DorisTestBase {
     static final String DATABASE = "test";
     static final String TABLE_READ = "tbl_read";
     static final String TABLE_READ_TBL = "tbl_read_tbl";
+
+    @BeforeEach
+    public void startContainers() {
+        super.startContainers();
+    }
+
+    @AfterEach
+    public void stopContainers() {
+        super.stopContainers();
+    }
 
     @Test
     public void testSource() throws Exception {
