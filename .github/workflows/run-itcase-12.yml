@@ -40,5 +40,5 @@ jobs:
 
     - name: Run ITCases
       run: |
-        cd flink-doris-connector && mvn test -Dtest="*ITCase" -Dimage="adamlee489/doris:1.2.7.1_x86"
+        cd flink-doris-connector && mvn test -T 1C -Dtest="*ITCase" -Dimage="adamlee489/doris:1.2.7.1_x86"
 
