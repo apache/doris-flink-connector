@@ -81,7 +81,8 @@ public class MongoJsonDebeziumSchemaChange extends CdcSchemaChange {
     }
 
     @Override
-    public void init(JsonNode recordRoot) {}
+    public void init(JsonNode recordRoot) {
+    }
 
     @Override
     public boolean schemaChange(JsonNode recordRoot) throws IOException {
@@ -100,13 +101,13 @@ public class MongoJsonDebeziumSchemaChange extends CdcSchemaChange {
         // Determine whether change stream log and tableField are exactly the same, if not, perform
         // schema change
         checkAndUpdateSchemaChange(logData, dorisTableIdentifier, dataBase, table);
-        formatSpecialFieldData(dorisTableIdentifier, logData);
+        formatSpecialFieldData(logData);
         //        checkDataAndReplace(logData, dorisTableIdentifier);
         ((ObjectNode) recordRoot).set(FIELD_DATA, logData);
         return true;
     }
 
-    private void formatSpecialFieldData(String dorisTableIdentifier, JsonNode logData) {
+    private void formatSpecialFieldData(JsonNode logData) {
         logData.fieldNames()
                 .forEachRemaining(
                         fieldName -> {
