@@ -85,6 +85,7 @@ public class DorisStreamLoad implements Serializable {
     private final CloseableHttpClient httpClient;
     private final ExecutorService executorService;
     private boolean loadBatchFirstRecord;
+    private volatile String currentLabel;
 
     public DorisStreamLoad(
             String hostPort,
@@ -246,9 +247,9 @@ public class DorisStreamLoad implements Serializable {
         throw new StreamLoadException("stream load error: " + response.getStatusLine().toString());
     }
 
-    public RespContent stopLoad(String label) throws IOException {
+    public RespContent stopLoad() throws IOException {
         recordStream.endInput();
-        LOG.info("table {} stream load stopped for {} on host {}", table, label, hostPort);
+        LOG.info("table {} stream load stopped for {} on host {}", table, currentLabel, hostPort);
         Preconditions.checkState(pendingLoadFuture != null);
         try {
             return handlePreCommitResponse(pendingLoadFuture.get());
@@ -268,6 +269,7 @@ public class DorisStreamLoad implements Serializable {
         HttpPutBuilder putBuilder = new HttpPutBuilder();
         recordStream.startInput(isResume);
         LOG.info("table {} stream load started for {} on host {}", table, label, hostPort);
+        this.currentLabel = label;
         try {
             InputStreamEntity entity = new InputStreamEntity(recordStream);
             putBuilder
@@ -284,7 +286,7 @@ public class DorisStreamLoad implements Serializable {
             pendingLoadFuture =
                     executorService.submit(
                             () -> {
-                                LOG.info("table {} start execute load", table);
+                                LOG.info("table {} start execute load for label {}", table, label);
                                 return httpClient.execute(putBuilder.build());
                             });
         } catch (Exception e) {
