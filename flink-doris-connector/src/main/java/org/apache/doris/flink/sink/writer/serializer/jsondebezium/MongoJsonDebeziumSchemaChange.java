@@ -22,7 +22,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.NullNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.apache.doris.flink.catalog.doris.DorisSystem;
-import org.apache.doris.flink.catalog.doris.DorisType;
 import org.apache.doris.flink.catalog.doris.FieldSchema;
 import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.apache.doris.flink.exception.IllegalArgumentException;
@@ -56,13 +55,9 @@ public class MongoJsonDebeziumSchemaChange extends CdcSchemaChange {
 
     private final Map<String, Map<String, String>> tableFields;
 
-    private final Map<String, Map<String, String>> tableFieldsNeedReplace;
-
     private SchemaChangeManager schemaChangeManager;
 
     private final DorisSystem dorisSystem;
-
-    //    private final List<String> specialType = Arrays.asList(DATE_FIELD, DECIMAL_FIELD);
 
     private final Set<String> specialFields =
             new HashSet<>(Arrays.asList(DATE_FIELD, DECIMAL_FIELD, LONG_FIELD));
@@ -71,7 +66,6 @@ public class MongoJsonDebeziumSchemaChange extends CdcSchemaChange {
         this.objectMapper = changeContext.getObjectMapper();
         this.dorisOptions = changeContext.getDorisOptions();
         this.tableFields = new HashMap<>();
-        tableFieldsNeedReplace = new HashMap<>();
         this.schemaChangeManager = new SchemaChangeManager(dorisOptions);
         this.dorisSystem = new DorisSystem(dorisOptions);
     }
@@ -145,28 +139,6 @@ public class MongoJsonDebeziumSchemaChange extends CdcSchemaChange {
                         });
     }
 
-    //    private void checkDataAndReplace(JsonNode recordData, String dorisTableIdentifier) {
-    //        recordData
-    //                .fieldNames()
-    //                .forEachRemaining(
-    //                        key -> {
-    //                            if
-    // (tableFieldsNeedReplace.get(dorisTableIdentifier).containsKey(key)) {
-    //                                String type =
-    //
-    // tableFieldsNeedReplace.get(dorisTableIdentifier).get(key);
-    //                                if (type.toUpperCase().contains(DorisType.DATETIME)) {
-    //                                    long timestamp =
-    // recordData.get(key).get(DATE_FIELD).asLong();
-    //                                    String date =
-    //
-    // MongoDateConverter.convertTimestampToString(timestamp);
-    //                                    ((ObjectNode) recordData).put(key, date);
-    //                                }
-    //                            }
-    //                        });
-    //    }
-
     private JsonNode getFullDocument(JsonNode recordRoot) {
         try {
             return objectMapper.readTree(recordRoot.get(FIELD_DATA).asText());
@@ -199,33 +171,13 @@ public class MongoJsonDebeziumSchemaChange extends CdcSchemaChange {
                 database, table, new FieldSchema(logFieldName, dorisType, null));
         String identifier = database + "." + table;
         tableFields.computeIfAbsent(identifier, k -> new HashMap<>()).put(logFieldName, dorisType);
-        //        checkDataType(identifier, logFieldName, dorisType);
     }
-
-    //    private void checkDataType(String identifier, String logFieldName, String dorisType) {
-    //        if (dorisType.toUpperCase().contains(DorisType.DATETIME)) {
-    //            tableFieldsNeedReplace.get(identifier).put(logFieldName, dorisType);
-    //        }
-    //    }
 
     private void buildDorisTableFieldsMapping(String databaseName, String tableName) {
         String identifier = databaseName + "." + tableName;
         Map<String, String> tableFieldNames =
                 dorisSystem.getTableFieldNames(databaseName, tableName);
         tableFields.computeIfAbsent(identifier, k -> tableFieldNames);
-        // Reuse fieldTypeMap
-        Map<String, String> fieldTypeMap =
-                tableFieldsNeedReplace.computeIfAbsent(identifier, k -> new HashMap<>());
-
-        tableFieldNames.forEach(
-                (fieldName, fieldType) -> {
-                    if (fieldType.equalsIgnoreCase(DorisType.DATETIME)) {
-                        fieldTypeMap.put(fieldName, fieldType);
-                    }
-                    if (fieldType.equalsIgnoreCase(DorisType.DECIMAL)) {
-                        fieldTypeMap.put(fieldName, fieldType);
-                    }
-                });
     }
 
     @Override
