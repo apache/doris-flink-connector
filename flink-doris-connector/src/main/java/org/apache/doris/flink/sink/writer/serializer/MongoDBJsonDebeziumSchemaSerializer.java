@@ -17,50 +17,35 @@
 
 package org.apache.doris.flink.sink.writer.serializer;
 
-import org.apache.flink.annotation.VisibleForTesting;
-
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
-import com.fasterxml.jackson.databind.node.NullNode;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.sink.writer.serializer.jsondebezium.CdcDataChange;
 import org.apache.doris.flink.sink.writer.serializer.jsondebezium.CdcSchemaChange;
 import org.apache.doris.flink.sink.writer.serializer.jsondebezium.JsonDebeziumChangeContext;
-import org.apache.doris.flink.sink.writer.serializer.jsondebezium.JsonDebeziumDataChange;
-import org.apache.doris.flink.sink.writer.serializer.jsondebezium.JsonDebeziumSchemaChange;
-import org.apache.doris.flink.sink.writer.serializer.jsondebezium.JsonDebeziumSchemaChangeImpl;
-import org.apache.doris.flink.sink.writer.serializer.jsondebezium.JsonDebeziumSchemaChangeImplV2;
+import org.apache.doris.flink.sink.writer.serializer.jsondebezium.MongoJsonDebeziumDataChange;
+import org.apache.doris.flink.sink.writer.serializer.jsondebezium.MongoJsonDebeziumSchemaChange;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Map;
-import java.util.Objects;
 import java.util.regex.Pattern;
 
 import static org.apache.doris.flink.sink.writer.LoadConstants.LINE_DELIMITER_DEFAULT;
 import static org.apache.doris.flink.sink.writer.LoadConstants.LINE_DELIMITER_KEY;
 
-/**
- * Serialize the records of the upstream data source into a data form that can be recognized by
- * downstream doris.
- *
- * <p>There are two serialization methods here: <br>
- * 1. data change{@link JsonDebeziumDataChange} record. <br>
- * 2. schema change{@link JsonDebeziumSchemaChange} records.
- */
-public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<String> {
+public class MongoDBJsonDebeziumSchemaSerializer implements DorisRecordSerializer<String> {
+
     private static final Logger LOG = LoggerFactory.getLogger(JsonDebeziumSchemaSerializer.class);
     private final Pattern pattern;
     private final DorisOptions dorisOptions;
     private final ObjectMapper objectMapper = new ObjectMapper();
     // table name of the cdc upstream, format is db.tbl
     private final String sourceTableName;
-    private boolean firstLoad;
-    private final boolean newSchemaChange;
     private String lineDelimiter = LINE_DELIMITER_DEFAULT;
     private boolean ignoreUpdateBefore = true;
     // <cdc db.schema.table, doris db.table>
@@ -68,16 +53,18 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
     // create table properties
     private Map<String, String> tableProperties;
     private String targetDatabase;
-    //    private JsonDebeziumDataChange dataChange;
 
     private CdcDataChange dataChange;
     private CdcSchemaChange schemaChange;
 
-    public JsonDebeziumSchemaSerializer(
+    public MongoDBJsonDebeziumSchemaSerializer(
             DorisOptions dorisOptions,
             Pattern pattern,
             String sourceTableName,
-            boolean newSchemaChange) {
+            DorisExecutionOptions executionOptions,
+            Map<String, String> tableMapping,
+            Map<String, String> tableProperties,
+            String targetDatabase) {
         this.dorisOptions = dorisOptions;
         this.pattern = pattern;
         this.sourceTableName = sourceTableName;
@@ -85,17 +72,9 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
         this.objectMapper.enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS);
         JsonNodeFactory jsonNodeFactory = JsonNodeFactory.withExactBigDecimals(true);
         this.objectMapper.setNodeFactory(jsonNodeFactory);
-        this.newSchemaChange = newSchemaChange;
-        this.firstLoad = true;
-    }
-
-    public JsonDebeziumSchemaSerializer(
-            DorisOptions dorisOptions,
-            Pattern pattern,
-            String sourceTableName,
-            boolean newSchemaChange,
-            DorisExecutionOptions executionOptions) {
-        this(dorisOptions, pattern, sourceTableName, newSchemaChange);
+        this.tableMapping = tableMapping;
+        this.tableProperties = tableProperties;
+        this.targetDatabase = targetDatabase;
         if (executionOptions != null) {
             this.lineDelimiter =
                     executionOptions
@@ -103,21 +82,6 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
                             .getProperty(LINE_DELIMITER_KEY, LINE_DELIMITER_DEFAULT);
             this.ignoreUpdateBefore = executionOptions.getIgnoreUpdateBefore();
         }
-    }
-
-    public JsonDebeziumSchemaSerializer(
-            DorisOptions dorisOptions,
-            Pattern pattern,
-            String sourceTableName,
-            boolean newSchemaChange,
-            DorisExecutionOptions executionOptions,
-            Map<String, String> tableMapping,
-            Map<String, String> tableProperties,
-            String targetDatabase) {
-        this(dorisOptions, pattern, sourceTableName, newSchemaChange, executionOptions);
-        this.tableMapping = tableMapping;
-        this.tableProperties = tableProperties;
-        this.targetDatabase = targetDatabase;
         init();
     }
 
@@ -133,104 +97,86 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
                         pattern,
                         lineDelimiter,
                         ignoreUpdateBefore);
-
-        this.schemaChange =
-                newSchemaChange
-                        ? new JsonDebeziumSchemaChangeImplV2(changeContext)
-                        : new JsonDebeziumSchemaChangeImpl(changeContext);
-        this.dataChange = new JsonDebeziumDataChange(changeContext);
+        this.dataChange = new MongoJsonDebeziumDataChange(changeContext);
+        this.schemaChange = new MongoJsonDebeziumSchemaChange(changeContext);
     }
 
     @Override
     public DorisRecord serialize(String record) throws IOException {
         LOG.debug("received debezium json data {} :", record);
         JsonNode recordRoot = objectMapper.readValue(record, JsonNode.class);
-        String op = extractJsonNode(recordRoot, "op");
-        if (Objects.isNull(op)) {
-            // schema change ddl
+        String op = getOperateType(recordRoot);
+        try {
             schemaChange.schemaChange(recordRoot);
-            return null;
-        }
-
-        if (firstLoad) {
-            schemaChange.init(recordRoot);
-            firstLoad = false;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
         return dataChange.serialize(record, recordRoot, op);
     }
 
-    private String extractJsonNode(JsonNode record, String key) {
-        return record != null && record.get(key) != null && !(record.get(key) instanceof NullNode)
-                ? record.get(key).asText()
-                : null;
+    private String getOperateType(JsonNode recordRoot) {
+        return recordRoot.get("operationType").asText();
     }
 
-    @VisibleForTesting
-    public CdcSchemaChange getJsonDebeziumSchemaChange() {
-        return this.schemaChange;
+    public static MongoDBJsonDebeziumSchemaSerializer.Builder builder() {
+        return new MongoDBJsonDebeziumSchemaSerializer.Builder();
     }
 
-    public static JsonDebeziumSchemaSerializer.Builder builder() {
-        return new JsonDebeziumSchemaSerializer.Builder();
-    }
-
-    /** Builder for JsonDebeziumSchemaSerializer. */
     public static class Builder {
         private DorisOptions dorisOptions;
         private Pattern addDropDDLPattern;
         private String sourceTableName;
-        private boolean newSchemaChange;
         private DorisExecutionOptions executionOptions;
         private Map<String, String> tableMapping;
         private Map<String, String> tableProperties;
         private String targetDatabase;
 
-        public JsonDebeziumSchemaSerializer.Builder setDorisOptions(DorisOptions dorisOptions) {
+        public MongoDBJsonDebeziumSchemaSerializer.Builder setDorisOptions(
+                DorisOptions dorisOptions) {
             this.dorisOptions = dorisOptions;
             return this;
         }
 
-        public JsonDebeziumSchemaSerializer.Builder setNewSchemaChange(boolean newSchemaChange) {
-            this.newSchemaChange = newSchemaChange;
-            return this;
-        }
-
-        public JsonDebeziumSchemaSerializer.Builder setPattern(Pattern addDropDDLPattern) {
+        public MongoDBJsonDebeziumSchemaSerializer.Builder setPattern(Pattern addDropDDLPattern) {
             this.addDropDDLPattern = addDropDDLPattern;
             return this;
         }
 
-        public JsonDebeziumSchemaSerializer.Builder setSourceTableName(String sourceTableName) {
+        public MongoDBJsonDebeziumSchemaSerializer.Builder setSourceTableName(
+                String sourceTableName) {
             this.sourceTableName = sourceTableName;
             return this;
         }
 
-        public Builder setExecutionOptions(DorisExecutionOptions executionOptions) {
+        public MongoDBJsonDebeziumSchemaSerializer.Builder setExecutionOptions(
+                DorisExecutionOptions executionOptions) {
             this.executionOptions = executionOptions;
             return this;
         }
 
-        public Builder setTableMapping(Map<String, String> tableMapping) {
+        public MongoDBJsonDebeziumSchemaSerializer.Builder setTableMapping(
+                Map<String, String> tableMapping) {
             this.tableMapping = tableMapping;
             return this;
         }
 
-        public Builder setTableProperties(Map<String, String> tableProperties) {
+        public MongoDBJsonDebeziumSchemaSerializer.Builder setTableProperties(
+                Map<String, String> tableProperties) {
             this.tableProperties = tableProperties;
             return this;
         }
 
-        public Builder setTargetDatabase(String targetDatabase) {
+        public MongoDBJsonDebeziumSchemaSerializer.Builder setTargetDatabase(
+                String targetDatabase) {
             this.targetDatabase = targetDatabase;
             return this;
         }
 
-        public JsonDebeziumSchemaSerializer build() {
-            return new JsonDebeziumSchemaSerializer(
+        public MongoDBJsonDebeziumSchemaSerializer build() {
+            return new MongoDBJsonDebeziumSchemaSerializer(
                     dorisOptions,
                     addDropDDLPattern,
                     sourceTableName,
-                    newSchemaChange,
                     executionOptions,
                     tableMapping,
                     tableProperties,

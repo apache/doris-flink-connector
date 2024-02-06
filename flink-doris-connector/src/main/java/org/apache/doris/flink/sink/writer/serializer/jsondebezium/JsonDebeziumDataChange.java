@@ -18,16 +18,10 @@
 package org.apache.doris.flink.sink.writer.serializer.jsondebezium;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.StringUtils;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.NullNode;
-import org.apache.doris.flink.cfg.DorisOptions;
-import org.apache.doris.flink.sink.writer.ChangeEvent;
 import org.apache.doris.flink.sink.writer.serializer.DorisRecord;
 import org.apache.doris.flink.tools.cdc.SourceSchema;
 import org.slf4j.Logger;
@@ -35,7 +29,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
 import java.util.Map;
 
 import static org.apache.doris.flink.sink.util.DeleteOperation.addDeleteSign;
@@ -45,17 +38,18 @@ import static org.apache.doris.flink.sink.util.DeleteOperation.addDeleteSign;
  * into doris through stream load.<br>
  * Supported data changes include: read, insert, update, delete.
  */
-public class JsonDebeziumDataChange implements ChangeEvent {
+public class JsonDebeziumDataChange extends CdcDataChange {
     private static final Logger LOG = LoggerFactory.getLogger(JsonDebeziumDataChange.class);
 
     private static final String OP_READ = "r"; // snapshot read
     private static final String OP_CREATE = "c"; // insert
     private static final String OP_UPDATE = "u"; // update
     private static final String OP_DELETE = "d"; // delete
-    private final ObjectMapper objectMapper;
-    private final DorisOptions dorisOptions;
+
+    //    private final ObjectMapper objectMapper;
+    //    private final DorisOptions dorisOptions;
     private final boolean ignoreUpdateBefore;
-    private final String lineDelimiter;
+    //    private final String lineDelimiter;
     private JsonDebeziumChangeContext changeContext;
 
     public JsonDebeziumDataChange(JsonDebeziumChangeContext changeContext) {
@@ -66,6 +60,7 @@ public class JsonDebeziumDataChange implements ChangeEvent {
         this.lineDelimiter = changeContext.getLineDelimiter();
     }
 
+    @Override
     public DorisRecord serialize(String record, JsonNode recordRoot, String op) throws IOException {
         // Filter out table records that are not in tableMapping
         String cdcTableIdentifier = getCdcTableIdentifier(recordRoot);
@@ -131,37 +126,41 @@ public class JsonDebeziumDataChange implements ChangeEvent {
         return SourceSchema.getString(db, schema, table);
     }
 
-    @VisibleForTesting
-    public String getDorisTableIdentifier(String cdcTableIdentifier) {
-        if (!StringUtils.isNullOrWhitespaceOnly(dorisOptions.getTableIdentifier())) {
-            return dorisOptions.getTableIdentifier();
-        }
-        Map<String, String> tableMapping = changeContext.getTableMapping();
-        if (!CollectionUtil.isNullOrEmpty(tableMapping)
-                && !StringUtils.isNullOrWhitespaceOnly(cdcTableIdentifier)
-                && tableMapping.get(cdcTableIdentifier) != null) {
-            return tableMapping.get(cdcTableIdentifier);
-        }
-        return null;
-    }
+    //    @VisibleForTesting
+    //    public String getDorisTableIdentifier(String cdcTableIdentifier) {
+    //        if (!StringUtils.isNullOrWhitespaceOnly(dorisOptions.getTableIdentifier())) {
+    //            return dorisOptions.getTableIdentifier();
+    //        }
+    //        Map<String, String> tableMapping = changeContext.getTableMapping();
+    //        if (!CollectionUtil.isNullOrEmpty(tableMapping)
+    //                && !StringUtils.isNullOrWhitespaceOnly(cdcTableIdentifier)
+    //                && tableMapping.get(cdcTableIdentifier) != null) {
+    //            return tableMapping.get(cdcTableIdentifier);
+    //        }
+    //        return null;
+    //    }
 
-    private String extractJsonNode(JsonNode record, String key) {
-        return record != null && record.get(key) != null && !(record.get(key) instanceof NullNode)
-                ? record.get(key).asText()
-                : null;
-    }
+    //    private String extractJsonNode(JsonNode record, String key) {
+    //        return record != null && record.get(key) != null && !(record.get(key) instanceof
+    // NullNode)
+    //                ? record.get(key).asText()
+    //                : null;
+    //    }
 
-    private Map<String, Object> extractBeforeRow(JsonNode record) {
+    @Override
+    public Map<String, Object> extractBeforeRow(JsonNode record) {
         return extractRow(record.get("before"));
     }
 
-    private Map<String, Object> extractAfterRow(JsonNode record) {
+    @Override
+    public Map<String, Object> extractAfterRow(JsonNode record) {
         return extractRow(record.get("after"));
     }
 
-    private Map<String, Object> extractRow(JsonNode recordRow) {
-        Map<String, Object> recordMap =
-                objectMapper.convertValue(recordRow, new TypeReference<Map<String, Object>>() {});
-        return recordMap != null ? recordMap : new HashMap<>();
-    }
+    //    private Map<String, Object> extractRow(JsonNode recordRow) {
+    //        Map<String, Object> recordMap =
+    //                objectMapper.convertValue(recordRow, new TypeReference<Map<String, Object>>()
+    // {});
+    //        return recordMap != null ? recordMap : new HashMap<>();
+    //    }
 }

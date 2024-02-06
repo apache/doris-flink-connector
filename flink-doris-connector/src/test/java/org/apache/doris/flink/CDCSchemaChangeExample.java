@@ -67,10 +67,10 @@ public class CDCSchemaChangeExample {
         props.setProperty("read_json_by_line", "true");
         DorisOptions dorisOptions =
                 DorisOptions.builder()
-                        .setFenodes("127.0.0.1:8030")
+                        .setFenodes("10.16.10.6:8036")
                         .setTableIdentifier("test.t1")
                         .setUsername("root")
-                        .setPassword("")
+                        .setPassword("12345")
                         .build();
 
         DorisExecutionOptions.Builder executionBuilder = DorisExecutionOptions.builder();

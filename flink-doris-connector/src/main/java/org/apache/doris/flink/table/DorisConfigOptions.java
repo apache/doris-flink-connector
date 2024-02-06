@@ -280,6 +280,13 @@ public class DorisConfigOptions {
     // Prefix for Doris StreamLoad specific properties.
     public static final String STREAM_LOAD_PROP_PREFIX = "sink.properties.";
 
+    // mongo cdc
+    public static final ConfigOption<Double> MongoCDC_CREATE_SIMPALE_PERCENT =
+            ConfigOptions.key("mongo-cdc.create-sample-percent")
+                    .doubleType()
+                    .defaultValue(0.2)
+                    .withDescription("mongo cdc sample percent");
+
     public static Properties getStreamLoadProp(Map<String, String> tableOptions) {
         final Properties streamLoadProp = new Properties();
 
