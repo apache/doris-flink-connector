@@ -249,13 +249,8 @@ public class DorisSystem implements Serializable {
                     String.format("%s(%s)", DorisType.VARCHAR, DorisTypeMapper.MAX_VARCHAR_SIZE);
         }
         sql.append(identifier(field.getName())).append(" ").append(fieldType);
-        // The nextval() is a built-in function in PostgreSQL that allows the use of sequences
-        // on the database to automatically set values by incrementing the set of default
-        // values.
-        // Tus, we can't use nextval() as a default value for numeric columns in Doris.
-        // see https://www.postgresql.org/docs/current/ddl-default.html
         String defaultValue = field.getDefaultValue();
-        if (defaultValue != null && !defaultValue.toUpperCase().contains("NEXTVAL(")) {
+        if (defaultValue != null) {
             sql.append(" DEFAULT ").append(quoteDefaultValue(defaultValue));
         }
         sql.append(" COMMENT '").append(quoteComment(field.getComment())).append("',");
