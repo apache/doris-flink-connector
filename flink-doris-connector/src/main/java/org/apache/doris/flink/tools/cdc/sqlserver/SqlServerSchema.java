@@ -17,11 +17,14 @@
 
 package org.apache.doris.flink.tools.cdc.sqlserver;
 
+import org.apache.doris.flink.catalog.DorisTypeMapper;
 import org.apache.doris.flink.tools.cdc.SourceSchema;
 
 import java.sql.DatabaseMetaData;
 
 public class SqlServerSchema extends SourceSchema {
+
+    public static final String SQLSERVER_FUNCTIOIN_PATTERN = ".+\\(.*\\)";
 
     public SqlServerSchema(
             DatabaseMetaData metaData,
@@ -36,5 +39,47 @@ public class SqlServerSchema extends SourceSchema {
     @Override
     public String convertToDorisType(String fieldType, Integer precision, Integer scale) {
         return SqlServerType.toDorisType(fieldType, precision, scale);
+    }
+
+    @Override
+    public String convertStringDefault(String defaultStr, String dorisType) {
+        // (SYSDATETIMEOFFSET())
+        if (defaultStr.matches("\\(.*\\)")) {
+            if (defaultStr.matches(SQLSERVER_FUNCTIOIN_PATTERN)) {
+                return null;
+            }
+            return defaultStr.replaceAll("\\(", "").replaceAll("\\)", "").replaceAll("'", "");
+        }
+        return null;
+    }
+
+    @Override
+    public String convertNoDateTimeDefault(String defaultStr, String dorisType) {
+        if (defaultStr.matches("\\(\\(.*\\)\\)")) {
+            return defaultStr.replaceAll("\\(", "").replaceAll("\\)", "");
+        }
+        return null;
+    }
+
+    @Override
+    public String convertDateTimeDefault(String defaultStr, String dorisType) {
+        String defaultStrUpperCase = defaultStr.toUpperCase();
+        if (defaultStrUpperCase.startsWith(DEFAULT_CURRENT_TIMESTAMP)) {
+            // In SQL Server, the default length of CURRENT_TIMESTAMP is 6.
+            long length = 6;
+            int startIndex = defaultStrUpperCase.indexOf('(') + 1;
+            int endIndex = defaultStrUpperCase.indexOf(')');
+            // In MariaDB, the CURRENT_TIMESTAMP() is the same as CURRENT_TIMESTAMP(0) in MySQL.
+            if (endIndex >= 0) {
+                String substring = defaultStrUpperCase.substring(startIndex, endIndex).trim();
+                length = substring.isEmpty() ? 0 : Long.parseLong(substring);
+                if (length > DorisTypeMapper.MAX_SUPPORTED_DATE_TIME_PRECISION) {
+                    length = DorisTypeMapper.MAX_SUPPORTED_DATE_TIME_PRECISION;
+                }
+            }
+            return String.format("CURRENT_TIMESTAMP(%d)", length);
+        }
+        String s = convertStringDefault(defaultStr, dorisType);
+        return handleTimestampNanoseconds(s);
     }
 }

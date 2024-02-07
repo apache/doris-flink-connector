@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 
 public class TableSchema {
+    public static final String TABLE_REGEX = "^[a-zA-Z][a-zA-Z0-9-_]*$";
     private String database;
     private String table;
     private String tableComment;
@@ -31,7 +32,6 @@ public class TableSchema {
     private DataModel model = DataModel.DUPLICATE;
     private List<String> distributeKeys = new ArrayList<>();
     private Map<String, String> properties = new HashMap<>();
-
     private Integer tableBuckets;
 
     public String getDatabase() {
