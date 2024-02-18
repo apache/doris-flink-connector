@@ -10,6 +10,7 @@ public class Db2Type {
     private static final String INT = "INT";
     private static final String BIGINT = "BIGINT";
     private static final String REAL = "REAL";
+    private static final String DECFLOAT = "DECFLOAT";
     private static final String DOUBLE = "DOUBLE";
     private static final String DECIMAL = "DECIMAL";
     private static final String NUMERIC = "NUMERIC";
@@ -41,6 +42,7 @@ public class Db2Type {
             case REAL:
                 return DorisType.FLOAT;
             case DOUBLE:
+            case DECFLOAT:
                 return DorisType.DOUBLE;
             case DATE:
                 return DorisType.DATE_V2;
@@ -65,15 +67,9 @@ public class Db2Type {
             case TIMESTAMP:
                 return String.format(
                         "%s(%s)", DorisType.DATETIME_V2, Math.min(scale == null ? 0 : scale, 6));
-            case XML:
             case VARGRAPHIC:
             case GRAPHIC:
-            case BLOB:
-            case CLOB:
-            case DBCLOB:
                 return DorisType.STRING;
-            case BINARY:
-            case VARBINARY:
             default:
                 throw new UnsupportedOperationException("Unsupported DB2 Type: " + db2Type);
         }

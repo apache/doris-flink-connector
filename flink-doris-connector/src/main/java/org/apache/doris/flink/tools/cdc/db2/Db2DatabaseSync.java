@@ -21,13 +21,13 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.util.Preconditions;
 
 import com.ververica.cdc.connectors.base.options.JdbcSourceOptions;
 import com.ververica.cdc.connectors.base.options.SourceOptions;
 import com.ververica.cdc.connectors.db2.Db2Source;
 import com.ververica.cdc.connectors.db2.table.StartupOptions;
-import com.ververica.cdc.debezium.DebeziumSourceFunction;
 import com.ververica.cdc.debezium.JsonDebeziumDeserializationSchema;
 import com.ververica.cdc.debezium.table.DebeziumOptions;
 import org.apache.doris.flink.catalog.doris.DataModel;
@@ -103,8 +103,7 @@ public class Db2DatabaseSync extends DatabaseSync {
                         continue;
                     }
                     SourceSchema sourceSchema =
-                            new Db2Schema(
-                                    metaData, null, schemaName, tableName, tableComment);
+                            new Db2Schema(metaData, null, schemaName, tableName, tableComment);
                     sourceSchema.setModel(
                             !sourceSchema.primaryKeys.isEmpty()
                                     ? DataModel.UNIQUE
@@ -139,8 +138,8 @@ public class Db2DatabaseSync extends DatabaseSync {
 
         // debezium properties set
         Properties debeziumProperties = new Properties();
-                debeziumProperties.putAll(Db2DateConverter.DEFAULT_PROPS);
-//                debeziumProperties.put("decimal.handling.mode", "string");
+        debeziumProperties.putAll(Db2DateConverter.DEFAULT_PROPS);
+        debeziumProperties.put("decimal.handling.mode", "string");
 
         for (Map.Entry<String, String> entry : config.toMap().entrySet()) {
             String key = entry.getKey();
@@ -155,7 +154,7 @@ public class Db2DatabaseSync extends DatabaseSync {
         JsonDebeziumDeserializationSchema schema =
                 new JsonDebeziumDeserializationSchema(false, customConverterConfigs);
 
-        DebeziumSourceFunction<String> db2Source =
+        SourceFunction<String> db2Source =
                 Db2Source.<String>builder()
                         .hostname(hostname)
                         .port(port)

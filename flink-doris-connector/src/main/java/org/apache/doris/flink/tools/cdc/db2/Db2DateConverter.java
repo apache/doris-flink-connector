@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.sql.Date;
+import java.sql.Time;
 import java.sql.Timestamp;
 import java.time.DateTimeException;
 import java.time.Instant;
@@ -21,6 +22,7 @@ public class Db2DateConverter implements CustomConverter<SchemaBuilder, Relation
     private static final Logger LOGGER = LoggerFactory.getLogger(Db2DateConverter.class);
     private DateTimeFormatter dateFormatter = DateTimeFormatter.ISO_DATE;
     private DateTimeFormatter timestampFormatter = DateTimeFormatter.ISO_DATE_TIME;
+    private final DateTimeFormatter timeFormatter = DateTimeFormatter.ISO_TIME;
 
     protected static final Properties DEFAULT_PROPS = new Properties();
 
@@ -91,8 +93,8 @@ public class Db2DateConverter implements CustomConverter<SchemaBuilder, Relation
     }
 
     private String convertTime(Object input) {
-        if (input instanceof String) {
-            return input.toString();
+        if (input instanceof Time) {
+            return timeFormatter.format(((Time) input).toLocalTime());
         }
         return null;
     }
