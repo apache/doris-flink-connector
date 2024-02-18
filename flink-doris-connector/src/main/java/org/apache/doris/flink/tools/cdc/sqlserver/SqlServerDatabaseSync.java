@@ -134,7 +134,7 @@ public class SqlServerDatabaseSync extends DatabaseSync {
         String password = config.get(JdbcSourceOptions.PASSWORD);
 
         StartupOptions startupOptions = StartupOptions.initial();
-        String startupMode = config.get(SourceOptions.SCAN_STARTUP_MODE);
+        String startupMode = config.get(JdbcSourceOptions.SCAN_STARTUP_MODE);
         if ("initial".equalsIgnoreCase(startupMode)) {
             startupOptions = StartupOptions.initial();
         } else if ("latest-offset".equalsIgnoreCase(startupMode)) {
