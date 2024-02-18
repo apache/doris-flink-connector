@@ -12,7 +12,7 @@ public class Db2Schema extends SourceSchema {
             String tableName,
             String tableComment)
             throws Exception {
-        super(metaData,null, schemaName, tableName, tableComment);
+        super(metaData, null, schemaName, tableName, tableComment);
     }
 
     @Override
