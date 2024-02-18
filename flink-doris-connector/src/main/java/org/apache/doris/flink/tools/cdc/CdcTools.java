@@ -23,6 +23,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
+import org.apache.doris.flink.tools.cdc.db2.Db2DatabaseSync;
 import org.apache.doris.flink.tools.cdc.mysql.MysqlDatabaseSync;
 import org.apache.doris.flink.tools.cdc.oracle.OracleDatabaseSync;
 import org.apache.doris.flink.tools.cdc.postgres.PostgresDatabaseSync;
@@ -109,9 +110,9 @@ public class CdcTools {
         MultipleParameterTool params = MultipleParameterTool.fromArgs(opArgs);
         Preconditions.checkArgument(params.has("db2-conf"));
         Map<String, String> db2Map = getConfigMap(params, "db2-conf");
-        Configuration postgresConfig = Configuration.fromMap(db2Map);
-        DatabaseSync databaseSync = new SqlServerDatabaseSync();
-        syncDatabase(params, databaseSync, postgresConfig, "Db2");
+        Configuration db2Config = Configuration.fromMap(db2Map);
+        DatabaseSync databaseSync = new Db2DatabaseSync();
+        syncDatabase(params, databaseSync, db2Config, "Db2");
     }
 
     private static void syncDatabase(
