@@ -89,7 +89,7 @@ public class BackendUtil {
 
     public static boolean tryHttpConnection(String host) {
         try {
-            LOG.info("try to connect host {}", host);
+            LOG.debug("try to connect host {}", host);
             host = "http://" + host;
             URL url = new URL(host);
             HttpURLConnection co = (HttpURLConnection) url.openConnection();
