@@ -27,7 +27,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.NullNode;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.sink.schema.SchemaChangeManager;
-import org.apache.doris.flink.sink.writer.ChangeEvent;
 import org.apache.doris.flink.tools.cdc.SourceSchema;
 
 import java.util.Map;
@@ -43,7 +42,7 @@ import java.util.regex.Pattern;
  * comment synchronization, supports multi-column changes, and supports column name rename. Need to
  * be enabled by configuring use-new-schema-change.
  */
-public abstract class JsonDebeziumSchemaChange implements ChangeEvent {
+public abstract class JsonDebeziumSchemaChange extends CdcSchemaChange {
     protected static String addDropDDLRegex =
             "ALTER\\s+TABLE\\s+[^\\s]+\\s+(ADD|DROP)\\s+(COLUMN\\s+)?([^\\s]+)(\\s+([^\\s]+))?.*";
     protected Pattern addDropDDLPattern;
@@ -69,6 +68,7 @@ public abstract class JsonDebeziumSchemaChange implements ChangeEvent {
         return sourceTableName.equals(dbTbl);
     }
 
+    @Override
     protected String extractDatabase(JsonNode record) {
         if (record.get("source").has("schema")) {
             // compatible with schema
@@ -78,6 +78,7 @@ public abstract class JsonDebeziumSchemaChange implements ChangeEvent {
         }
     }
 
+    @Override
     protected String extractTable(JsonNode record) {
         return extractJsonNode(record.get("source"), "table");
     }
@@ -102,6 +103,7 @@ public abstract class JsonDebeziumSchemaChange implements ChangeEvent {
     }
 
     @VisibleForTesting
+    @Override
     public String getCdcTableIdentifier(JsonNode record) {
         String db = extractJsonNode(record.get("source"), "db");
         String schema = extractJsonNode(record.get("source"), "schema");

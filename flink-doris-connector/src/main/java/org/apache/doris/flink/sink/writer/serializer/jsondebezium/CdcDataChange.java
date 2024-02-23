@@ -15,26 +15,21 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.flink.tools.cdc.postgres;
+package org.apache.doris.flink.sink.writer.serializer.jsondebezium;
 
-import org.apache.doris.flink.tools.cdc.JdbcSourceSchema;
+import com.fasterxml.jackson.databind.JsonNode;
+import org.apache.doris.flink.sink.writer.ChangeEvent;
+import org.apache.doris.flink.sink.writer.serializer.DorisRecord;
 
-import java.sql.DatabaseMetaData;
+import java.io.IOException;
+import java.util.Map;
 
-public class PostgresSchema extends JdbcSourceSchema {
+public abstract class CdcDataChange implements ChangeEvent {
 
-    public PostgresSchema(
-            DatabaseMetaData metaData,
-            String databaseName,
-            String schemaName,
-            String tableName,
-            String tableComment)
-            throws Exception {
-        super(metaData, databaseName, schemaName, tableName, tableComment);
-    }
+    protected abstract DorisRecord serialize(String record, JsonNode recordRoot, String op)
+            throws IOException;
 
-    @Override
-    public String convertToDorisType(String fieldType, Integer precision, Integer scale) {
-        return PostgresType.toDorisType(fieldType, precision, scale);
-    }
+    protected abstract Map<String, Object> extractBeforeRow(JsonNode record);
+
+    protected abstract Map<String, Object> extractAfterRow(JsonNode record);
 }
