@@ -32,6 +32,7 @@ import com.ververica.cdc.debezium.DebeziumSourceFunction;
 import com.ververica.cdc.debezium.JsonDebeziumDeserializationSchema;
 import com.ververica.cdc.debezium.table.DebeziumOptions;
 import org.apache.doris.flink.catalog.doris.DataModel;
+import org.apache.doris.flink.catalog.doris.TableSchema;
 import org.apache.doris.flink.tools.cdc.DatabaseSync;
 import org.apache.doris.flink.tools.cdc.SourceSchema;
 import org.slf4j.Logger;
@@ -115,6 +116,13 @@ public class OracleDatabaseSync extends DatabaseSync {
                 while (tables.next()) {
                     String tableName = tables.getString("TABLE_NAME");
                     String tableComment = tables.getString("REMARKS");
+                    if (!tableName.matches(TableSchema.TABLE_REGEX)) {
+                        LOG.warn(
+                                "table name {} is not valid in Doris, the regex of Doris table name is {}",
+                                tableName,
+                                TableSchema.TABLE_REGEX);
+                        continue;
+                    }
                     if (!isSyncNeeded(tableName)) {
                         continue;
                     }

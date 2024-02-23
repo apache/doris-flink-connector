@@ -17,11 +17,14 @@
 
 package org.apache.doris.flink.tools.cdc.postgres;
 
+import org.apache.doris.flink.catalog.DorisTypeMapper;
 import org.apache.doris.flink.tools.cdc.SourceSchema;
 
 import java.sql.DatabaseMetaData;
 
 public class PostgresSchema extends SourceSchema {
+
+    private static final String POSTGRES_DEFAULT_SEPARATOR = "::";
 
     public PostgresSchema(
             DatabaseMetaData metaData,
@@ -36,5 +39,46 @@ public class PostgresSchema extends SourceSchema {
     @Override
     public String convertToDorisType(String fieldType, Integer precision, Integer scale) {
         return PostgresType.toDorisType(fieldType, precision, scale);
+    }
+
+    public String convertNoDateTimeDefault(String defaultStr, String dorisType) {
+        if (defaultStr.contains(POSTGRES_DEFAULT_SEPARATOR)) {
+            return defaultStr.split(POSTGRES_DEFAULT_SEPARATOR)[0].replace("'", "");
+        } else if (defaultStr.matches(DEFAULT_FUNCTION_REGEX)) {
+            return null;
+        }
+        return defaultStr.replaceAll(DEFAULT_STRING_SINGLE_QUOTE, "");
+    }
+
+    @Override
+    public String convertStringDefault(String defaultStr, String dorisType) {
+        if (defaultStr.contains(POSTGRES_DEFAULT_SEPARATOR)) {
+            return defaultStr.split(POSTGRES_DEFAULT_SEPARATOR)[0].replace("'", "");
+        }
+        return null;
+    }
+
+    @Override
+    public String convertDateTimeDefault(String defaultStr, String dorisType) {
+        String defaultStrUpperCase = defaultStr.toUpperCase();
+        if (defaultStrUpperCase.startsWith(DEFAULT_CURRENT_TIMESTAMP)) {
+            // In Postgres, the default precision of CURRENT_TIMESTAMP is 6.
+            long length = 6;
+            int startIndex = defaultStrUpperCase.indexOf('(') + 1;
+            int endIndex = defaultStrUpperCase.indexOf(')');
+            if (endIndex >= 0) {
+                String substring = defaultStrUpperCase.substring(startIndex, endIndex).trim();
+                length = substring.isEmpty() ? 0 : Long.parseLong(substring);
+                if (length > DorisTypeMapper.MAX_SUPPORTED_DATE_TIME_PRECISION) {
+                    length = DorisTypeMapper.MAX_SUPPORTED_DATE_TIME_PRECISION;
+                }
+            }
+            return String.format("CURRENT_TIMESTAMP(%d)", length);
+        }
+        String s = convertStringDefault(defaultStr, dorisType);
+        if (s != null && s.contains("+")) {
+            return s.split("\\+")[0];
+        }
+        return handleTimestampNanoseconds(s);
     }
 }
