@@ -125,7 +125,7 @@ public class SqlServerDatabaseSync extends DatabaseSync {
         String databaseName = config.get(JdbcSourceOptions.DATABASE_NAME);
         String schemaName = config.get(JdbcSourceOptions.SCHEMA_NAME);
         Preconditions.checkNotNull(databaseName, "database-name in sqlserver is required");
-        Preconditions.checkNotNull(databaseName, "schema-name in sqlserver is required");
+        Preconditions.checkNotNull(schemaName, "schema-name in sqlserver is required");
 
         String tableName = config.get(JdbcSourceOptions.TABLE_NAME);
         String hostname = config.get(JdbcSourceOptions.HOSTNAME);
