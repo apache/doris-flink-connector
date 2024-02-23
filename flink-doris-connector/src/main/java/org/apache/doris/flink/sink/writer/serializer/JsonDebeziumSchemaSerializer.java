@@ -196,7 +196,7 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
         private DorisOptions dorisOptions;
         private Pattern addDropDDLPattern;
         private String sourceTableName;
-        private boolean newSchemaChange;
+        private boolean newSchemaChange = true;
         private DorisExecutionOptions executionOptions;
         private Map<String, String> tableMapping;
         private Map<String, String> tableProperties;

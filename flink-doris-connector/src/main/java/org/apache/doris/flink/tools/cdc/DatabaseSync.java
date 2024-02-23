@@ -73,7 +73,7 @@ public abstract class DatabaseSync {
 
     public StreamExecutionEnvironment env;
     private boolean createTableOnly = false;
-    private boolean newSchemaChange;
+    private boolean newSchemaChange = true;
     protected String includingTables;
     protected String excludingTables;
     protected String multiToOneOrigin;
