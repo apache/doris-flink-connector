@@ -37,4 +37,9 @@ public class SqlServerSchema extends SourceSchema {
     public String convertToDorisType(String fieldType, Integer precision, Integer scale) {
         return SqlServerType.toDorisType(fieldType, precision, scale);
     }
+
+    @Override
+    public String getCdcTableName() {
+        return schemaName + "\\." + tableName;
+    }
 }

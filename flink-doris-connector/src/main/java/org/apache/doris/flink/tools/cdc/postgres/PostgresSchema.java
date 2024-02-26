@@ -37,4 +37,9 @@ public class PostgresSchema extends SourceSchema {
     public String convertToDorisType(String fieldType, Integer precision, Integer scale) {
         return PostgresType.toDorisType(fieldType, precision, scale);
     }
+
+    @Override
+    public String getCdcTableName() {
+        return schemaName + "\\." + tableName;
+    }
 }

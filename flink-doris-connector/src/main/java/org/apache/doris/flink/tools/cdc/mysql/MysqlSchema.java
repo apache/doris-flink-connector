@@ -32,4 +32,9 @@ public class MysqlSchema extends SourceSchema {
     public String convertToDorisType(String fieldType, Integer precision, Integer scale) {
         return MysqlType.toDorisType(fieldType, precision, scale);
     }
+
+    @Override
+    public String getCdcTableName() {
+        return databaseName + "\\." + tableName;
+    }
 }

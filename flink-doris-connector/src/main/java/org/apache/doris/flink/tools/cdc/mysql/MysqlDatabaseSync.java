@@ -100,24 +100,34 @@ public class MysqlDatabaseSync extends DatabaseSync {
     @Override
     public List<SourceSchema> getSchemaList() throws Exception {
         String databaseName = config.get(MySqlSourceOptions.DATABASE_NAME);
+
         List<SourceSchema> schemaList = new ArrayList<>();
         try (Connection conn = getConnection()) {
             DatabaseMetaData metaData = conn.getMetaData();
-            try (ResultSet tables =
-                    metaData.getTables(databaseName, null, "%", new String[] {"TABLE"})) {
-                while (tables.next()) {
-                    String tableName = tables.getString("TABLE_NAME");
-                    String tableComment = tables.getString("REMARKS");
-                    if (!isSyncNeeded(tableName)) {
-                        continue;
+            try (ResultSet catalogs = metaData.getCatalogs()) {
+                while (catalogs.next()) {
+                    String tableCatalog = catalogs.getString("TABLE_CAT");
+                    if (tableCatalog.matches(databaseName)) {
+                        try (ResultSet tables =
+                                metaData.getTables(
+                                        tableCatalog, null, "%", new String[] {"TABLE"})) {
+                            while (tables.next()) {
+                                String tableName = tables.getString("TABLE_NAME");
+                                String tableComment = tables.getString("REMARKS");
+                                if (!isSyncNeeded(tableName)) {
+                                    continue;
+                                }
+                                SourceSchema sourceSchema =
+                                        new MysqlSchema(
+                                                metaData, tableCatalog, tableName, tableComment);
+                                sourceSchema.setModel(
+                                        !sourceSchema.primaryKeys.isEmpty()
+                                                ? DataModel.UNIQUE
+                                                : DataModel.DUPLICATE);
+                                schemaList.add(sourceSchema);
+                            }
+                        }
                     }
-                    SourceSchema sourceSchema =
-                            new MysqlSchema(metaData, databaseName, tableName, tableComment);
-                    sourceSchema.setModel(
-                            !sourceSchema.primaryKeys.isEmpty()
-                                    ? DataModel.UNIQUE
-                                    : DataModel.DUPLICATE);
-                    schemaList.add(sourceSchema);
                 }
             }
         }

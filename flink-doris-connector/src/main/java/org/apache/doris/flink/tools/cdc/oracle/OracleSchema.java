@@ -37,4 +37,9 @@ public class OracleSchema extends SourceSchema {
     public String convertToDorisType(String fieldType, Integer precision, Integer scale) {
         return OracleType.toDorisType(fieldType, precision, scale);
     }
+
+    @Override
+    public String getCdcTableName() {
+        return schemaName + "\\." + tableName;
+    }
 }

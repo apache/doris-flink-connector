@@ -33,9 +33,9 @@ import java.util.Map;
 import java.util.StringJoiner;
 
 public abstract class SourceSchema {
-    private final String databaseName;
-    private final String schemaName;
-    private final String tableName;
+    protected final String databaseName;
+    protected final String schemaName;
+    protected final String tableName;
     private final String tableComment;
     private final LinkedHashMap<String, FieldSchema> fields;
     public final List<String> primaryKeys;
@@ -85,6 +85,8 @@ public abstract class SourceSchema {
     }
 
     public abstract String convertToDorisType(String fieldType, Integer precision, Integer scale);
+
+    public abstract String getCdcTableName();
 
     public String getTableIdentifier() {
         return getString(databaseName, schemaName, tableName);
