@@ -24,6 +24,10 @@ import org.apache.doris.flink.sink.writer.serializer.DorisRecord;
 import java.io.IOException;
 import java.util.Map;
 
+/**
+ * When cdc connector captures data changes from the source database you need to inherit this class
+ * to complete the synchronized data changes to Doris schema
+ */
 public abstract class CdcDataChange implements ChangeEvent {
 
     protected abstract DorisRecord serialize(String record, JsonNode recordRoot, String op)
