@@ -25,6 +25,7 @@ import java.io.IOException;
 /**
  * When cdc connector captures data changes about source database schema changes, you need to
  * inherit this class to complete the synchronized changes to Doris schema
+ * Supports data messages serialized to json
  */
 public abstract class CdcSchemaChange implements ChangeEvent {
 
