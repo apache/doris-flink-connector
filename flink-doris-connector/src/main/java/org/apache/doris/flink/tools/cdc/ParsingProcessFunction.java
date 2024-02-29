@@ -29,7 +29,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class ParsingProcessFunction extends ProcessFunction<String, Void> {
-    private ObjectMapper objectMapper = new ObjectMapper();
+    protected ObjectMapper objectMapper = new ObjectMapper();
     private transient Map<String, OutputTag<String>> recordOutputTags;
     private DatabaseSync.TableNameConverter converter;
 
@@ -46,13 +46,17 @@ public class ParsingProcessFunction extends ProcessFunction<String, Void> {
     public void processElement(
             String record, ProcessFunction<String, Void>.Context context, Collector<Void> collector)
             throws Exception {
-        JsonNode recordRoot = objectMapper.readValue(record, JsonNode.class);
-        String tableName = extractJsonNode(recordRoot.get("source"), "table");
+        String tableName = getRecordTableName(record);
         String dorisName = converter.convert(tableName);
         context.output(getRecordOutputTag(dorisName), record);
     }
 
-    private String extractJsonNode(JsonNode record, String key) {
+    protected String getRecordTableName(String record) throws Exception {
+        JsonNode recordRoot = objectMapper.readValue(record, JsonNode.class);
+        return extractJsonNode(recordRoot.get("source"), "table");
+    }
+
+    protected String extractJsonNode(JsonNode record, String key) {
         return record != null && record.get(key) != null ? record.get(key).asText() : null;
     }
 
