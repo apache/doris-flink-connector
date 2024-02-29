@@ -26,7 +26,7 @@ import java.util.LinkedHashMap;
 
 /**
  * JdbcSourceSchema is a subclass of SourceSchema, used to build metadata about jdbc-related
- * databases
+ * databases.
  */
 public abstract class JdbcSourceSchema extends SourceSchema {
 
