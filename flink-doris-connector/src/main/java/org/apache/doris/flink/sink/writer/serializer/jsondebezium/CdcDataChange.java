@@ -26,8 +26,8 @@ import java.util.Map;
 
 /**
  * When cdc connector captures data changes from the source database you need to inherit this class
- * to complete the synchronized data changes to Doris schema
- * Supports data messages serialized to json
+ * to complete the synchronized data changes to Doris schema. Supports data messages serialized to
+ * json
  */
 public abstract class CdcDataChange implements ChangeEvent {
 
