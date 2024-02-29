@@ -24,7 +24,6 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.doris.flink.cfg.DorisOptions;
-import org.apache.doris.flink.sink.writer.ChangeEvent;
 import org.apache.doris.flink.sink.writer.serializer.DorisRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,7 +40,7 @@ import static org.apache.doris.flink.sink.util.DeleteOperation.addDeleteSign;
  * into doris through stream load.<br>
  * Supported data changes include: read, insert, update, delete.
  */
-public class JsonDebeziumDataChange implements ChangeEvent {
+public class JsonDebeziumDataChange extends CdcDataChange {
     private static final Logger LOG = LoggerFactory.getLogger(JsonDebeziumDataChange.class);
 
     private static final String OP_READ = "r"; // snapshot read
@@ -122,11 +121,13 @@ public class JsonDebeziumDataChange implements ChangeEvent {
         return updateRow.toString().getBytes(StandardCharsets.UTF_8);
     }
 
-    private Map<String, Object> extractBeforeRow(JsonNode record) {
+    @Override
+    protected Map<String, Object> extractBeforeRow(JsonNode record) {
         return extractRow(record.get("before"));
     }
 
-    private Map<String, Object> extractAfterRow(JsonNode record) {
+    @Override
+    protected Map<String, Object> extractAfterRow(JsonNode record) {
         return extractRow(record.get("after"));
     }
 

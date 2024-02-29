@@ -15,31 +15,25 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.flink.tools.cdc.sqlserver;
+package org.apache.doris.flink.sink.writer.serializer.jsondebezium;
 
-import org.apache.doris.flink.tools.cdc.JdbcSourceSchema;
+import com.fasterxml.jackson.databind.JsonNode;
+import org.apache.doris.flink.sink.writer.ChangeEvent;
 
-import java.sql.DatabaseMetaData;
+import java.io.IOException;
 
-public class SqlServerSchema extends JdbcSourceSchema {
+/**
+ * When cdc connector captures data changes about source database schema changes, you need to
+ * inherit this class to complete the synchronized changes to Doris schema. Supports data messages
+ * serialized to json
+ */
+public abstract class CdcSchemaChange implements ChangeEvent {
 
-    public SqlServerSchema(
-            DatabaseMetaData metaData,
-            String databaseName,
-            String schemaName,
-            String tableName,
-            String tableComment)
-            throws Exception {
-        super(metaData, databaseName, schemaName, tableName, tableComment);
-    }
+    protected abstract String extractDatabase(JsonNode record);
 
-    @Override
-    public String convertToDorisType(String fieldType, Integer precision, Integer scale) {
-        return SqlServerType.toDorisType(fieldType, precision, scale);
-    }
+    protected abstract String extractTable(JsonNode record);
 
-    @Override
-    public String getCdcTableName() {
-        return schemaName + "\\." + tableName;
-    }
+    public abstract boolean schemaChange(JsonNode recordRoot) throws IOException;
+
+    protected abstract String getCdcTableIdentifier(JsonNode record);
 }

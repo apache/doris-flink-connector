@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 
 public class TableSchema {
+    public static final String DORIS_TABLE_REGEX = "^[a-zA-Z][a-zA-Z0-9-_]*$";
     private String database;
     private String table;
     private String tableComment;

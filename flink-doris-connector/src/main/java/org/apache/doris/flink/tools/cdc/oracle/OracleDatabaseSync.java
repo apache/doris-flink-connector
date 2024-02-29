@@ -32,6 +32,8 @@ import com.ververica.cdc.debezium.DebeziumSourceFunction;
 import com.ververica.cdc.debezium.JsonDebeziumDeserializationSchema;
 import com.ververica.cdc.debezium.table.DebeziumOptions;
 import org.apache.doris.flink.catalog.doris.DataModel;
+import org.apache.doris.flink.catalog.doris.TableSchema;
+import org.apache.doris.flink.exception.CreateTableException;
 import org.apache.doris.flink.tools.cdc.DatabaseSync;
 import org.apache.doris.flink.tools.cdc.SourceSchema;
 import org.slf4j.Logger;
@@ -117,6 +119,15 @@ public class OracleDatabaseSync extends DatabaseSync {
                     String tableComment = tables.getString("REMARKS");
                     if (!isSyncNeeded(tableName)) {
                         continue;
+                    }
+                    // Oracle allows table names to contain special characters such as /, #, $,
+                    // etc., as in 'A/B'.
+                    // However, Doris does not support tables with these characters.
+                    if (!tableName.matches(TableSchema.DORIS_TABLE_REGEX)) {
+                        throw new CreateTableException(
+                                String.format(
+                                        "The table name %s is invalid. Table names in Doris must match the regex pattern %s. Please consider renaming the table or use the 'excluding-tables' option to filter it out.",
+                                        tableName, TableSchema.DORIS_TABLE_REGEX));
                     }
                     SourceSchema sourceSchema =
                             new OracleSchema(
