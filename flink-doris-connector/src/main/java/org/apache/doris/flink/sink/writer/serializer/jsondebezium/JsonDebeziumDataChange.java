@@ -69,7 +69,7 @@ public class JsonDebeziumDataChange extends CdcDataChange {
                 JsonDebeziumChangeUtils.getDorisTableIdentifier(
                         cdcTableIdentifier, dorisOptions, tableMapping);
         if (StringUtils.isNullOrWhitespaceOnly(dorisTableIdentifier)) {
-            LOG.warn(
+            LOG.debug(
                     "filter table {}, because it is not listened, record detail is {}",
                     cdcTableIdentifier,
                     record);
