@@ -61,8 +61,14 @@ public class DatabaseSyncTest {
         config.setString("database-name", "db");
         config.setString("table-name", "tbl.*");
         databaseSync.setConfig(config);
-        String syncTableList = databaseSync.getSyncTableList(Arrays.asList("tbl_1", "tbl_2"));
+        SourceSchema schema1 = new MockSourceSchema("db", null, "tbl_1");
+        SourceSchema schema2 = new MockSourceSchema("db", null, "tbl_2");
+        String syncTableList = databaseSync.getSyncTableList(Arrays.asList(schema1, schema2));
         assertEquals("db\\.tbl_1|db\\.tbl_2", syncTableList);
+
+        databaseSync.setSingleSink(true);
+        String syncTableList2 = databaseSync.getSyncTableList(Arrays.asList(schema1, schema2));
+        assertEquals("(db)\\.(tbl_1|tbl_2)", syncTableList2);
     }
 
     @Test

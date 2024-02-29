@@ -168,7 +168,8 @@ public abstract class DatabaseSync {
         if (singleSink) {
             streamSource.sinkTo(buildDorisSink());
         } else {
-            SingleOutputStreamOperator<Void> parsedStream = streamSource.process(buildProcessFunction());
+            SingleOutputStreamOperator<Void> parsedStream =
+                    streamSource.process(buildProcessFunction());
             for (Tuple2<String, String> dbTbl : dorisTables) {
                 OutputTag<String> recordOutputTag =
                         ParsingProcessFunction.createRecordOutputTag(dbTbl.f1);
