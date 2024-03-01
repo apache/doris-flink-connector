@@ -21,6 +21,7 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.table.factories.FactoryUtil;
 
+import org.apache.doris.flink.sink.committer.CommitTolerance;
 import org.apache.doris.flink.sink.writer.WriteMode;
 
 import java.time.Duration;
@@ -234,6 +235,12 @@ public class DorisConfigOptions {
                     .stringType()
                     .defaultValue(WriteMode.STREAM_LOAD.name())
                     .withDescription("Write mode, supports stream_load, stream_load_batch");
+
+    public static final ConfigOption<String> SINK_COMMIT_TOLERANCE =
+            ConfigOptions.key("sink.commit-tolerance")
+                    .stringType()
+                    .defaultValue(CommitTolerance.NEVER.name())
+                    .withDescription("Commit tolerance, supports never, once, always");
 
     public static final ConfigOption<Integer> SINK_PARALLELISM = FactoryUtil.SINK_PARALLELISM;
 

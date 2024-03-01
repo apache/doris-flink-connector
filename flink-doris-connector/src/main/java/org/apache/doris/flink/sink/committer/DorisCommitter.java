@@ -22,6 +22,7 @@ import org.apache.flink.api.connector.sink2.Committer;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.exception.DorisRuntimeException;
@@ -56,12 +57,20 @@ public class DorisCommitter implements Committer<DorisCommittable>, Closeable {
     private final DorisReadOptions dorisReadOptions;
     private final ObjectMapper jsonMapper = new ObjectMapper();
     private final BackendUtil backendUtil;
-
     int maxRetry;
+    CommitTolerance commitTolerance;
 
     public DorisCommitter(
-            DorisOptions dorisOptions, DorisReadOptions dorisReadOptions, int maxRetry) {
-        this(dorisOptions, dorisReadOptions, maxRetry, new HttpUtil().getHttpClient());
+            DorisOptions dorisOptions,
+            DorisReadOptions dorisReadOptions,
+            DorisExecutionOptions executionOptions) {
+        this(
+                dorisOptions,
+                dorisReadOptions,
+                executionOptions.getMaxRetries(),
+                new HttpUtil().getHttpClient());
+
+        commitTolerance = executionOptions.getCommitTolerance();
     }
 
     public DorisCommitter(
@@ -84,11 +93,18 @@ public class DorisCommitter implements Committer<DorisCommittable>, Closeable {
     public void commit(Collection<CommitRequest<DorisCommittable>> requests)
             throws IOException, InterruptedException {
         for (CommitRequest<DorisCommittable> request : requests) {
-            commitTransaction(request.getCommittable());
+            commitTransaction(request);
         }
     }
 
-    private void commitTransaction(DorisCommittable committable) throws IOException {
+    private void commitTransaction(CommitRequest<DorisCommittable> request) throws IOException {
+        DorisCommittable committable = request.getCommittable();
+
+        if (committable.getCommitTolerance() != null) {
+            //  The commitTolerance variable of committable is the value passed
+            //  after the last commit failed.
+            commitTolerance = committable.getCommitTolerance();
+        }
         // basic params
         HttpPutBuilder builder =
                 new HttpPutBuilder()
@@ -99,8 +115,11 @@ public class DorisCommitter implements Committer<DorisCommittable>, Closeable {
 
         // hostPort
         String hostPort = committable.getHostPort();
-
-        LOG.info("commit txn {} to host {}", committable.getTxnID(), hostPort);
+        LOG.info(
+                "commit txn {} to host {}, tolerance is {}",
+                committable.getTxnID(),
+                hostPort,
+                committable.getCommitTolerance());
         int retry = 0;
         while (retry <= maxRetry) {
             // get latest-url
@@ -136,7 +155,26 @@ public class DorisCommitter implements Committer<DorisCommittable>, Closeable {
             } catch (Exception e) {
                 LOG.error("commit transaction failed, to retry, {}", e.getMessage());
                 if (retry == maxRetry) {
-                    throw new DorisRuntimeException("commit transaction error, ", e);
+                    if (CommitTolerance.ALWAYS.equals(commitTolerance)) {
+                        LOG.error(
+                                "Unable to commit transaction {} and data has been potentially lost ",
+                                committable,
+                                e);
+                    } else if (CommitTolerance.ONCE.equals(commitTolerance)) {
+                        // CommitTolerance.ONCE means that the transaction that failed to submit for
+                        // the first time (txnid stored in the state) will be ignored when resuming
+                        // the task.
+                        // Generally used when txn expires and unexpected errors occur in commit.
+
+                        // It should be noted that you must manually ensure that the txn has been
+                        // successfully submitted to doris, otherwise there may be a risk of data
+                        // loss.
+                        committable.setCommitTolerance(CommitTolerance.NEVER);
+                        request.updateAndRetryLater(committable);
+                        LOG.error("Unable to commit transaction, skip once {} ", e.getMessage());
+                    } else {
+                        throw new DorisRuntimeException("Commit transaction error, ", e);
+                    }
                 }
                 hostPort = backendUtil.getAvailableBackend();
             }

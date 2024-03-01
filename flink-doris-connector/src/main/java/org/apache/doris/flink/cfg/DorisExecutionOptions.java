@@ -19,6 +19,7 @@ package org.apache.doris.flink.cfg;
 
 import org.apache.flink.util.Preconditions;
 
+import org.apache.doris.flink.sink.committer.CommitTolerance;
 import org.apache.doris.flink.sink.writer.WriteMode;
 
 import java.io.Serializable;
@@ -63,6 +64,7 @@ public class DorisExecutionOptions implements Serializable {
     private final boolean enableBatchMode;
     private final boolean ignoreUpdateBefore;
     private final WriteMode writeMode;
+    private final CommitTolerance commitTolerance;
 
     public DorisExecutionOptions(
             int checkInterval,
@@ -81,7 +83,8 @@ public class DorisExecutionOptions implements Serializable {
             long bufferFlushIntervalMs,
             boolean ignoreUpdateBefore,
             boolean force2PC,
-            WriteMode writeMode) {
+            WriteMode writeMode,
+            CommitTolerance commitTolerance) {
         Preconditions.checkArgument(maxRetries >= 0);
         this.checkInterval = checkInterval;
         this.maxRetries = maxRetries;
@@ -102,6 +105,7 @@ public class DorisExecutionOptions implements Serializable {
 
         this.ignoreUpdateBefore = ignoreUpdateBefore;
         this.writeMode = writeMode;
+        this.commitTolerance = commitTolerance;
     }
 
     public static Builder builder() {
@@ -205,6 +209,10 @@ public class DorisExecutionOptions implements Serializable {
         return writeMode;
     }
 
+    public CommitTolerance getCommitTolerance() {
+        return commitTolerance;
+    }
+
     /** Builder of {@link DorisExecutionOptions}. */
     public static class Builder {
         private int checkInterval = DEFAULT_CHECK_INTERVAL;
@@ -229,6 +237,7 @@ public class DorisExecutionOptions implements Serializable {
 
         private boolean ignoreUpdateBefore = true;
         private WriteMode writeMode = WriteMode.STREAM_LOAD;
+        private CommitTolerance commitTolerance = CommitTolerance.NEVER;
 
         public Builder setCheckInterval(Integer checkInterval) {
             this.checkInterval = checkInterval;
@@ -320,6 +329,10 @@ public class DorisExecutionOptions implements Serializable {
             return this;
         }
 
+        public void setCommitTolerance(CommitTolerance commitTolerance) {
+            this.commitTolerance = commitTolerance;
+        }
+
         public DorisExecutionOptions build() {
             // If format=json is set but read_json_by_line is not set, record may not be written.
             if (streamLoadProp != null
@@ -344,7 +357,8 @@ public class DorisExecutionOptions implements Serializable {
                     bufferFlushIntervalMs,
                     ignoreUpdateBefore,
                     force2PC,
-                    writeMode);
+                    writeMode,
+                    commitTolerance);
         }
     }
 }

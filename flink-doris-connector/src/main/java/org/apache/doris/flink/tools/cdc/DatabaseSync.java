@@ -34,6 +34,7 @@ import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.sink.DorisSink;
+import org.apache.doris.flink.sink.committer.CommitTolerance;
 import org.apache.doris.flink.sink.writer.WriteMode;
 import org.apache.doris.flink.sink.writer.serializer.DorisRecordSerializer;
 import org.apache.doris.flink.sink.writer.serializer.JsonDebeziumSchemaSerializer;
@@ -291,6 +292,9 @@ public abstract class DatabaseSync {
         sinkConfig
                 .getOptional(DorisConfigOptions.SINK_WRITE_MODE)
                 .ifPresent(v -> executionBuilder.setWriteMode(WriteMode.of(v)));
+        sinkConfig
+                .getOptional(DorisConfigOptions.SINK_COMMIT_TOLERANCE)
+                .ifPresent(v -> executionBuilder.setCommitTolerance(CommitTolerance.of(v)));
 
         DorisExecutionOptions executionOptions = executionBuilder.build();
         builder.setDorisReadOptions(DorisReadOptions.builder().build())

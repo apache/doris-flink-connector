@@ -17,6 +17,8 @@
 
 package org.apache.doris.flink.sink;
 
+import org.apache.doris.flink.sink.committer.CommitTolerance;
+
 import java.util.Objects;
 
 /** DorisCommittable hold the info for Committer to commit. */
@@ -24,6 +26,7 @@ public class DorisCommittable implements DorisAbstractCommittable {
     private final String hostPort;
     private final String db;
     private final long txnID;
+    private CommitTolerance commitTolerance;
 
     public DorisCommittable(String hostPort, String db, long txnID) {
         this.hostPort = hostPort;
@@ -41,6 +44,14 @@ public class DorisCommittable implements DorisAbstractCommittable {
 
     public long getTxnID() {
         return txnID;
+    }
+
+    public void setCommitTolerance(CommitTolerance commitTolerance) {
+        this.commitTolerance = commitTolerance;
+    }
+
+    public CommitTolerance getCommitTolerance() {
+        return commitTolerance;
     }
 
     @Override
@@ -73,6 +84,8 @@ public class DorisCommittable implements DorisAbstractCommittable {
                 + '\''
                 + ", txnID="
                 + txnID
+                + ", commitTolerance="
+                + commitTolerance
                 + '}';
     }
 }

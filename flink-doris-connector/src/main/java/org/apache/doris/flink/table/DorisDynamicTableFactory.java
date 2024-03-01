@@ -32,6 +32,7 @@ import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisLookupOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
+import org.apache.doris.flink.sink.committer.CommitTolerance;
 import org.apache.doris.flink.sink.writer.WriteMode;
 
 import java.util.HashSet;
@@ -69,6 +70,7 @@ import static org.apache.doris.flink.table.DorisConfigOptions.SINK_BUFFER_FLUSH_
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_BUFFER_FLUSH_MAX_ROWS;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_BUFFER_SIZE;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_CHECK_INTERVAL;
+import static org.apache.doris.flink.table.DorisConfigOptions.SINK_COMMIT_TOLERANCE;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_ENABLE_2PC;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_ENABLE_BATCH_MODE;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_ENABLE_DELETE;
@@ -156,6 +158,7 @@ public final class DorisDynamicTableFactory
 
         options.add(SOURCE_USE_OLD_API);
         options.add(SINK_WRITE_MODE);
+        options.add(SINK_COMMIT_TOLERANCE);
         return options;
     }
 
@@ -235,6 +238,7 @@ public final class DorisDynamicTableFactory
         }
 
         builder.setWriteMode(WriteMode.of(readableConfig.get(SINK_WRITE_MODE)));
+        builder.setCommitTolerance(CommitTolerance.of(readableConfig.get(SINK_COMMIT_TOLERANCE)));
         builder.setBatchMode(readableConfig.get(SINK_ENABLE_BATCH_MODE));
         // Compatible with previous versions
         if (readableConfig.get(SINK_ENABLE_BATCH_MODE)) {
