@@ -97,7 +97,7 @@ public class TestDorisCommitter {
     @Test
     public void testCommitAbort() throws Exception {
         thrown.expect(DorisRuntimeException.class);
-        thrown.expectMessage("commit transaction error");
+        thrown.expectMessage("Commit transaction error");
 
         String response =
                 "{\n"
