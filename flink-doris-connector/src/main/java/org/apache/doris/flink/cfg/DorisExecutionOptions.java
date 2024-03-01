@@ -329,8 +329,9 @@ public class DorisExecutionOptions implements Serializable {
             return this;
         }
 
-        public void setCommitTolerance(CommitTolerance commitTolerance) {
+        public Builder setCommitTolerance(CommitTolerance commitTolerance) {
             this.commitTolerance = commitTolerance;
+            return this;
         }
 
         public DorisExecutionOptions build() {
