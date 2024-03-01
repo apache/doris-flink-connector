@@ -90,7 +90,7 @@ public class DorisCatalog extends AbstractCatalog {
 
     private static final Logger LOG = LoggerFactory.getLogger(DorisCatalog.class);
     private DorisSystem dorisSystem;
-    private DorisConnectionOptions connectionOptions;
+    private final DorisConnectionOptions connectionOptions;
     private final Map<String, String> properties;
 
     public DorisCatalog(
@@ -168,7 +168,7 @@ public class DorisCatalog extends AbstractCatalog {
             throw new DatabaseNotExistException(getName(), name);
         }
 
-        if (!cascade && listTables(name).size() > 0) {
+        if (!cascade && !listTables(name).isEmpty()) {
             throw new DatabaseNotEmptyException(getName(), name);
         }
         dorisSystem.dropDatabase(name);
