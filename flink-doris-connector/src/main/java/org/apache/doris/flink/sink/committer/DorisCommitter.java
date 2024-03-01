@@ -119,7 +119,7 @@ public class DorisCommitter implements Committer<DorisCommittable>, Closeable {
                 "commit txn {} to host {}, tolerance is {}",
                 committable.getTxnID(),
                 hostPort,
-                committable.getCommitTolerance());
+                commitTolerance);
         int retry = 0;
         while (retry <= maxRetry) {
             // get latest-url
