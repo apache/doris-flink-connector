@@ -15,32 +15,27 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.flink.sink;
+package org.apache.doris.flink.sink.copy;
+
+import org.apache.doris.flink.sink.DorisAbstractCommittable;
 
 import java.util.Objects;
 
-/** DorisCommittable hold the info for Committer to commit. */
-public class DorisCommittable implements DorisAbstractCommittable {
+public class DorisCopyCommittable implements DorisAbstractCommittable {
     private final String hostPort;
-    private final String db;
-    private final long txnID;
+    private final String copySQL;
 
-    public DorisCommittable(String hostPort, String db, long txnID) {
+    public DorisCopyCommittable(String hostPort, String copySQL) {
         this.hostPort = hostPort;
-        this.db = db;
-        this.txnID = txnID;
+        this.copySQL = copySQL;
     }
 
     public String getHostPort() {
         return hostPort;
     }
 
-    public String getDb() {
-        return db;
-    }
-
-    public long getTxnID() {
-        return txnID;
+    public String getCopySQL() {
+        return copySQL;
     }
 
     @Override
@@ -51,15 +46,13 @@ public class DorisCommittable implements DorisAbstractCommittable {
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        DorisCommittable that = (DorisCommittable) o;
-        return txnID == that.txnID
-                && Objects.equals(hostPort, that.hostPort)
-                && Objects.equals(db, that.db);
+        DorisCopyCommittable that = (DorisCopyCommittable) o;
+        return Objects.equals(hostPort, that.hostPort) && Objects.equals(copySQL, that.copySQL);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(hostPort, db, txnID);
+        return Objects.hash(hostPort, copySQL);
     }
 
     @Override
@@ -68,11 +61,9 @@ public class DorisCommittable implements DorisAbstractCommittable {
                 + "hostPort='"
                 + hostPort
                 + '\''
-                + ", db='"
-                + db
+                + ", copySQL='"
+                + copySQL
                 + '\''
-                + ", txnID="
-                + txnID
                 + '}';
     }
 }

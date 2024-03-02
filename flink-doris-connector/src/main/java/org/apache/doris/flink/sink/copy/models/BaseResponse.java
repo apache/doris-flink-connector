@@ -15,26 +15,26 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.flink.tools.cdc.postgres;
+package org.apache.doris.flink.sink.copy.models;
 
-import org.apache.doris.flink.tools.cdc.JdbcSourceSchema;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
-import java.sql.DatabaseMetaData;
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class BaseResponse<T> {
+    private int code;
+    private String msg;
+    private T data;
+    private int count;
 
-public class PostgresSchema extends JdbcSourceSchema {
-
-    public PostgresSchema(
-            DatabaseMetaData metaData,
-            String databaseName,
-            String schemaName,
-            String tableName,
-            String tableComment)
-            throws Exception {
-        super(metaData, databaseName, schemaName, tableName, tableComment);
+    public int getCode() {
+        return code;
     }
 
-    @Override
-    public String convertToDorisType(String fieldType, Integer precision, Integer scale) {
-        return PostgresType.toDorisType(fieldType, precision, scale);
+    public String getMsg() {
+        return msg;
+    }
+
+    public T getData() {
+        return data;
     }
 }

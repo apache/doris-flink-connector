@@ -19,7 +19,6 @@ package org.apache.doris.flink.sink.writer.serializer.jsondebezium;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.StringUtils;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -28,7 +27,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.NullNode;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.sink.schema.SchemaChangeManager;
-import org.apache.doris.flink.sink.writer.ChangeEvent;
 import org.apache.doris.flink.tools.cdc.SourceSchema;
 
 import java.util.Map;
@@ -44,7 +42,7 @@ import java.util.regex.Pattern;
  * comment synchronization, supports multi-column changes, and supports column name rename. Need to
  * be enabled by configuring use-new-schema-change.
  */
-public abstract class JsonDebeziumSchemaChange implements ChangeEvent {
+public abstract class JsonDebeziumSchemaChange extends CdcSchemaChange {
     protected static String addDropDDLRegex =
             "ALTER\\s+TABLE\\s+[^\\s]+\\s+(ADD|DROP)\\s+(COLUMN\\s+)?([^\\s]+)(\\s+([^\\s]+))?.*";
     protected Pattern addDropDDLPattern;
@@ -60,7 +58,7 @@ public abstract class JsonDebeziumSchemaChange implements ChangeEvent {
 
     public abstract boolean schemaChange(JsonNode recordRoot);
 
-    public abstract void init(JsonNode recordRoot);
+    public abstract void init(JsonNode recordRoot, String dorisTableName);
 
     /** When cdc synchronizes multiple tables, it will capture multiple table schema changes. */
     protected boolean checkTable(JsonNode recordRoot) {
@@ -70,6 +68,7 @@ public abstract class JsonDebeziumSchemaChange implements ChangeEvent {
         return sourceTableName.equals(dbTbl);
     }
 
+    @Override
     protected String extractDatabase(JsonNode record) {
         if (record.get("source").has("schema")) {
             // compatible with schema
@@ -79,6 +78,7 @@ public abstract class JsonDebeziumSchemaChange implements ChangeEvent {
         }
     }
 
+    @Override
     protected String extractTable(JsonNode record) {
         return extractJsonNode(record.get("source"), "table");
     }
@@ -89,26 +89,9 @@ public abstract class JsonDebeziumSchemaChange implements ChangeEvent {
                 : null;
     }
 
-    @VisibleForTesting
-    public String getDorisTableIdentifier(String cdcTableIdentifier) {
-        if (!StringUtils.isNullOrWhitespaceOnly(dorisOptions.getTableIdentifier())) {
-            return dorisOptions.getTableIdentifier();
-        }
-        if (!CollectionUtil.isNullOrEmpty(tableMapping)
-                && !StringUtils.isNullOrWhitespaceOnly(cdcTableIdentifier)
-                && tableMapping.get(cdcTableIdentifier) != null) {
-            return tableMapping.get(cdcTableIdentifier);
-        }
-        return null;
-    }
-
-    protected String getDorisTableIdentifier(JsonNode record) {
-        String identifier = getCdcTableIdentifier(record);
-        return getDorisTableIdentifier(identifier);
-    }
-
     protected Tuple2<String, String> getDorisTableTuple(JsonNode record) {
-        String identifier = getDorisTableIdentifier(record);
+        String identifier =
+                JsonDebeziumChangeUtils.getDorisTableIdentifier(record, dorisOptions, tableMapping);
         if (StringUtils.isNullOrWhitespaceOnly(identifier)) {
             return null;
         }
@@ -120,6 +103,7 @@ public abstract class JsonDebeziumSchemaChange implements ChangeEvent {
     }
 
     @VisibleForTesting
+    @Override
     public String getCdcTableIdentifier(JsonNode record) {
         String db = extractJsonNode(record.get("source"), "db");
         String schema = extractJsonNode(record.get("source"), "schema");
@@ -134,6 +118,10 @@ public abstract class JsonDebeziumSchemaChange implements ChangeEvent {
         // The ddl passed by some scenes will not be included in the historyRecord,
         // such as DebeziumSourceFunction
         return record;
+    }
+
+    public Map<String, String> getTableMapping() {
+        return tableMapping;
     }
 
     @VisibleForTesting

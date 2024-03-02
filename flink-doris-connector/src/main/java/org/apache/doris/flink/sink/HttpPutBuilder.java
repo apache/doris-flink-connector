@@ -58,6 +58,11 @@ public class HttpPutBuilder {
         return this;
     }
 
+    public HttpPutBuilder addFileName(String fileName) {
+        header.put("fileName", fileName);
+        return this;
+    }
+
     public HttpPutBuilder enable2PC() {
         header.put("two_phase_commit", "true");
         return this;

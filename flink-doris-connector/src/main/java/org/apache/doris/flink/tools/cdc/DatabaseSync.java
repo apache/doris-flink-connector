@@ -34,6 +34,8 @@ import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.sink.DorisSink;
+import org.apache.doris.flink.sink.writer.WriteMode;
+import org.apache.doris.flink.sink.writer.serializer.DorisRecordSerializer;
 import org.apache.doris.flink.sink.writer.serializer.JsonDebeziumSchemaSerializer;
 import org.apache.doris.flink.table.DorisConfigOptions;
 import org.slf4j.Logger;
@@ -72,7 +74,7 @@ public abstract class DatabaseSync {
 
     public StreamExecutionEnvironment env;
     private boolean createTableOnly = false;
-    private boolean newSchemaChange;
+    private boolean newSchemaChange = true;
     protected String includingTables;
     protected String excludingTables;
     protected String multiToOneOrigin;
@@ -158,7 +160,7 @@ public abstract class DatabaseSync {
             streamSource.sinkTo(buildDorisSink());
         } else {
             SingleOutputStreamOperator<Void> parsedStream =
-                    streamSource.process(new ParsingProcessFunction(converter));
+                    streamSource.process(buildProcessFunction());
             for (String table : dorisTables) {
                 OutputTag<String> recordOutputTag =
                         ParsingProcessFunction.createRecordOutputTag(table);
@@ -199,16 +201,26 @@ public abstract class DatabaseSync {
         return buildDorisSink(null);
     }
 
+    public ParsingProcessFunction buildProcessFunction() {
+        return new ParsingProcessFunction(converter);
+    }
+
     /** create doris sink. */
     public DorisSink<String> buildDorisSink(String table) {
         String fenodes = sinkConfig.getString(DorisConfigOptions.FENODES);
         String benodes = sinkConfig.getString(DorisConfigOptions.BENODES);
         String user = sinkConfig.getString(DorisConfigOptions.USERNAME);
         String passwd = sinkConfig.getString(DorisConfigOptions.PASSWORD, "");
+        String jdbcUrl = sinkConfig.getString(DorisConfigOptions.JDBC_URL);
 
         DorisSink.Builder<String> builder = DorisSink.builder();
         DorisOptions.Builder dorisBuilder = DorisOptions.builder();
-        dorisBuilder.setFenodes(fenodes).setBenodes(benodes).setUsername(user).setPassword(passwd);
+        dorisBuilder
+                .setJdbcUrl(jdbcUrl)
+                .setFenodes(fenodes)
+                .setBenodes(benodes)
+                .setUsername(user)
+                .setPassword(passwd);
         sinkConfig
                 .getOptional(DorisConfigOptions.AUTO_REDIRECT)
                 .ifPresent(dorisBuilder::setAutoRedirect);
@@ -276,23 +288,28 @@ public abstract class DatabaseSync {
         sinkConfig
                 .getOptional(DorisConfigOptions.SINK_USE_CACHE)
                 .ifPresent(executionBuilder::setUseCache);
+        sinkConfig
+                .getOptional(DorisConfigOptions.SINK_WRITE_MODE)
+                .ifPresent(v -> executionBuilder.setWriteMode(WriteMode.of(v)));
 
         DorisExecutionOptions executionOptions = executionBuilder.build();
         builder.setDorisReadOptions(DorisReadOptions.builder().build())
                 .setDorisExecutionOptions(executionOptions)
-                .setSerializer(
-                        JsonDebeziumSchemaSerializer.builder()
-                                .setDorisOptions(dorisBuilder.build())
-                                .setNewSchemaChange(newSchemaChange)
-                                .setExecutionOptions(executionOptions)
-                                .setTableMapping(tableMapping)
-                                .setTableProperties(tableConfig)
-                                .setTargetDatabase(database)
-                                .setTargetTablePrefix(tablePrefix)
-                                .setTargetTableSuffix(tableSuffix)
-                                .build())
+                .setSerializer(buildSchemaSerializer(dorisBuilder, executionOptions))
                 .setDorisOptions(dorisBuilder.build());
         return builder.build();
+    }
+
+    public DorisRecordSerializer<String> buildSchemaSerializer(
+            DorisOptions.Builder dorisBuilder, DorisExecutionOptions executionOptions) {
+        return JsonDebeziumSchemaSerializer.builder()
+                .setDorisOptions(dorisBuilder.build())
+                .setNewSchemaChange(newSchemaChange)
+                .setExecutionOptions(executionOptions)
+                .setTableMapping(tableMapping)
+                .setTableProperties(tableConfig)
+                .setTargetDatabase(database)
+                .build();
     }
 
     /** Filter table that need to be synchronized. */
@@ -362,7 +379,7 @@ public abstract class DatabaseSync {
      * @param tableBuckets the string of tableBuckets, eg:student:10,student_info:20,student.*:30
      * @return The table name and buckets map. The key is table name, the value is buckets.
      */
-    public Map<String, Integer> getTableBuckets(String tableBuckets) {
+    public static Map<String, Integer> getTableBuckets(String tableBuckets) {
         Map<String, Integer> tableBucketsMap = new LinkedHashMap<>();
         String[] tableBucketsArray = tableBuckets.split(",");
         for (String tableBucket : tableBucketsArray) {

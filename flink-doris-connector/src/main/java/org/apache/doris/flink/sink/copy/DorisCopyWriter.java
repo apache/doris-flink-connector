@@ -15,9 +15,10 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.flink.sink.batch;
+package org.apache.doris.flink.sink.copy;
 
 import org.apache.flink.api.connector.sink2.Sink;
+import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
@@ -25,7 +26,6 @@ import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
-import org.apache.doris.flink.sink.DorisCommittable;
 import org.apache.doris.flink.sink.writer.DorisAbstractWriter;
 import org.apache.doris.flink.sink.writer.DorisWriterState;
 import org.apache.doris.flink.sink.writer.LabelGenerator;
@@ -39,15 +39,18 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-/** Doris Batch StreamLoad. */
-public class DorisBatchWriter<IN>
-        implements DorisAbstractWriter<IN, DorisWriterState, DorisCommittable> {
-    private static final Logger LOG = LoggerFactory.getLogger(DorisBatchWriter.class);
-    private DorisBatchStreamLoad batchStreamLoad;
+public class DorisCopyWriter<IN>
+        implements DorisAbstractWriter<IN, DorisWriterState, DorisCopyCommittable> {
+
+    private static final Logger LOG = LoggerFactory.getLogger(DorisCopyWriter.class);
+    private final long lastCheckpointId;
+    private BatchStageLoad batchStageLoad;
     private final DorisOptions dorisOptions;
     private final DorisReadOptions dorisReadOptions;
     private final DorisExecutionOptions executionOptions;
@@ -60,7 +63,7 @@ public class DorisBatchWriter<IN>
     private String database;
     private String table;
 
-    public DorisBatchWriter(
+    public DorisCopyWriter(
             Sink.InitContext initContext,
             DorisRecordSerializer<IN> serializer,
             DorisOptions dorisOptions,
@@ -74,25 +77,34 @@ public class DorisBatchWriter<IN>
             this.database = tableInfo[0];
             this.table = tableInfo[1];
         }
+        this.lastCheckpointId =
+                initContext
+                        .getRestoredCheckpointId()
+                        .orElse(CheckpointIDCounter.INITIAL_CHECKPOINT_ID - 1);
+        LOG.info("restore checkpointId {}", lastCheckpointId);
         LOG.info("labelPrefix " + executionOptions.getLabelPrefix());
-        this.labelPrefix = executionOptions.getLabelPrefix() + "_" + initContext.getSubtaskId();
-        this.labelGenerator = new LabelGenerator(labelPrefix, false);
+        this.labelPrefix =
+                executionOptions.getLabelPrefix()
+                        + "_"
+                        + UUID.randomUUID().toString().replaceAll("-", "");
+        this.labelGenerator = new LabelGenerator(labelPrefix, false, initContext.getSubtaskId());
         this.scheduledExecutorService =
                 new ScheduledThreadPoolExecutor(
-                        1, new ExecutorThreadFactory("stream-load-flush-interval"));
+                        1, new ExecutorThreadFactory("copy-upload-interval"));
         this.serializer = serializer;
         this.dorisOptions = dorisOptions;
         this.dorisReadOptions = dorisReadOptions;
         this.executionOptions = executionOptions;
         this.flushIntervalMs = executionOptions.getBufferFlushIntervalMs();
-        initializeLoad();
         serializer.initial();
+        initializeLoad();
     }
 
     public void initializeLoad() {
-        this.batchStreamLoad =
-                new DorisBatchStreamLoad(
+        this.batchStageLoad =
+                new BatchStageLoad(
                         dorisOptions, dorisReadOptions, executionOptions, labelGenerator);
+        this.batchStageLoad.setCurrentCheckpointID(lastCheckpointId + 1);
         // when uploading data in streaming mode, we need to regularly detect whether there are
         // exceptions.
         scheduledExecutorService.scheduleWithFixedDelay(
@@ -102,7 +114,7 @@ public class DorisBatchWriter<IN>
     private void intervalFlush() {
         try {
             LOG.info("interval flush triggered.");
-            batchStreamLoad.flush(null, false);
+            batchStageLoad.flush(null, false);
         } catch (InterruptedException e) {
             flushException = e;
         }
@@ -112,25 +124,6 @@ public class DorisBatchWriter<IN>
     public void write(IN in, Context context) throws IOException, InterruptedException {
         checkFlushException();
         writeOneDorisRecord(serializer.serialize(in));
-    }
-
-    @Override
-    public void flush(boolean flush) throws IOException, InterruptedException {
-        checkFlushException();
-        writeOneDorisRecord(serializer.flush());
-        LOG.info("checkpoint flush triggered.");
-        batchStreamLoad.flush(null, true);
-    }
-
-    @Override
-    public Collection<DorisCommittable> prepareCommit() throws IOException, InterruptedException {
-        // nothing to commit
-        return Collections.emptyList();
-    }
-
-    @Override
-    public List<DorisWriterState> snapshotState(long checkpointId) throws IOException {
-        return new ArrayList<>();
     }
 
     public void writeOneDorisRecord(DorisRecord record) throws InterruptedException {
@@ -145,7 +138,46 @@ public class DorisBatchWriter<IN>
             db = record.getDatabase();
             tbl = record.getTable();
         }
-        batchStreamLoad.writeRecord(db, tbl, record.getRow());
+        batchStageLoad.writeRecord(db, tbl, record.getRow());
+    }
+
+    @Override
+    public void flush(boolean b) throws IOException, InterruptedException {
+        checkFlushException();
+        writeOneDorisRecord(serializer.flush());
+        LOG.info("checkpoint flush triggered.");
+        batchStageLoad.flush(null, true);
+    }
+
+    @Override
+    public Collection<DorisCopyCommittable> prepareCommit()
+            throws IOException, InterruptedException {
+        Preconditions.checkState(batchStageLoad != null);
+        LOG.info("checkpoint arrived, upload buffer to storage");
+        List<DorisCopyCommittable> committables = new ArrayList<>();
+        Map<String, List<String>> fileListMap = this.batchStageLoad.getFileListMap();
+        for (Map.Entry<String, List<String>> entry : fileListMap.entrySet()) {
+            String tableIdentifier = entry.getKey();
+            List<String> fileList = entry.getValue();
+            CopySQLBuilder copySQLBuilder =
+                    new CopySQLBuilder(tableIdentifier, executionOptions, fileList);
+            String copySql = copySQLBuilder.buildCopySQL();
+            committables.add(new DorisCopyCommittable(dorisOptions.getFenodes(), copySql));
+        }
+        return committables;
+    }
+
+    @Override
+    public List<DorisWriterState> snapshotState(long checkpointId) throws IOException {
+        Preconditions.checkState(batchStageLoad != null);
+        if (!batchStageLoad.getFileListMap().isEmpty()) {
+            LOG.info("clear the file list {}", batchStageLoad.getFileListMap());
+            this.batchStageLoad.clearFileListMap();
+        }
+
+        this.batchStageLoad.setCurrentCheckpointID(checkpointId + 1);
+        // Files will be automatically cleaned
+        return Collections.emptyList();
     }
 
     @Override
@@ -154,7 +186,7 @@ public class DorisBatchWriter<IN>
         if (scheduledExecutorService != null) {
             scheduledExecutorService.shutdownNow();
         }
-        batchStreamLoad.close();
+        batchStageLoad.close();
     }
 
     private void checkFlushException() {

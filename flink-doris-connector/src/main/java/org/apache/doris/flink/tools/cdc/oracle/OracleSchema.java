@@ -17,11 +17,11 @@
 
 package org.apache.doris.flink.tools.cdc.oracle;
 
-import org.apache.doris.flink.tools.cdc.SourceSchema;
+import org.apache.doris.flink.tools.cdc.JdbcSourceSchema;
 
 import java.sql.DatabaseMetaData;
 
-public class OracleSchema extends SourceSchema {
+public class OracleSchema extends JdbcSourceSchema {
 
     public OracleSchema(
             DatabaseMetaData metaData,

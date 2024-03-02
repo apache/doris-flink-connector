@@ -15,26 +15,6 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.flink.tools.cdc.postgres;
+package org.apache.doris.flink.sink;
 
-import org.apache.doris.flink.tools.cdc.JdbcSourceSchema;
-
-import java.sql.DatabaseMetaData;
-
-public class PostgresSchema extends JdbcSourceSchema {
-
-    public PostgresSchema(
-            DatabaseMetaData metaData,
-            String databaseName,
-            String schemaName,
-            String tableName,
-            String tableComment)
-            throws Exception {
-        super(metaData, databaseName, schemaName, tableName, tableComment);
-    }
-
-    @Override
-    public String convertToDorisType(String fieldType, Integer precision, Integer scale) {
-        return PostgresType.toDorisType(fieldType, precision, scale);
-    }
-}
+public interface DorisAbstractCommittable {}

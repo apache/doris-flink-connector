@@ -41,6 +41,12 @@ public class LabelGenerator {
         this.subtaskId = subtaskId;
     }
 
+    public LabelGenerator(String labelPrefix, boolean enable2PC, int subtaskId) {
+        this.labelPrefix = labelPrefix;
+        this.enable2PC = enable2PC;
+        this.subtaskId = subtaskId;
+    }
+
     public String generateLabel(long chkId) {
         String label = String.format("%s_%s_%s", labelPrefix, subtaskId, chkId);
         return enable2PC ? label : label + "_" + UUID.randomUUID();
@@ -58,5 +64,9 @@ public class LabelGenerator {
 
     public String generateBatchLabel(String table) {
         return String.format("%s_%s_%s", labelPrefix, table, UUID.randomUUID());
+    }
+
+    public String generateCopyBatchLabel(String table, long chkId, int fileNum) {
+        return String.format("%s_%s_%s_%s_%s", labelPrefix, table, subtaskId, chkId, fileNum);
     }
 }

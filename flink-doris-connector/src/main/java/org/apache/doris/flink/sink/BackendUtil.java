@@ -87,17 +87,20 @@ public class BackendUtil {
         throw new DorisRuntimeException("no available backend.");
     }
 
-    public static boolean tryHttpConnection(String backend) {
+    public static boolean tryHttpConnection(String host) {
         try {
-            backend = "http://" + backend;
-            URL url = new URL(backend);
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("try to connect host {}", host);
+            }
+            host = "http://" + host;
+            URL url = new URL(host);
             HttpURLConnection co = (HttpURLConnection) url.openConnection();
             co.setConnectTimeout(60000);
             co.connect();
             co.disconnect();
             return true;
         } catch (Exception ex) {
-            LOG.warn("Failed to connect to backend:{}", backend, ex);
+            LOG.warn("Failed to connect to host:{}", host, ex);
             return false;
         }
     }

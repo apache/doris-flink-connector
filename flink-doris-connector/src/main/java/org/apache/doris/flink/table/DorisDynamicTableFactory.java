@@ -32,6 +32,7 @@ import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisLookupOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
+import org.apache.doris.flink.sink.writer.WriteMode;
 
 import java.util.HashSet;
 import java.util.Map;
@@ -77,6 +78,7 @@ import static org.apache.doris.flink.table.DorisConfigOptions.SINK_LABEL_PREFIX;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_MAX_RETRIES;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_PARALLELISM;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_USE_CACHE;
+import static org.apache.doris.flink.table.DorisConfigOptions.SINK_WRITE_MODE;
 import static org.apache.doris.flink.table.DorisConfigOptions.SOURCE_USE_OLD_API;
 import static org.apache.doris.flink.table.DorisConfigOptions.STREAM_LOAD_PROP_PREFIX;
 import static org.apache.doris.flink.table.DorisConfigOptions.TABLE_IDENTIFIER;
@@ -153,6 +155,7 @@ public final class DorisDynamicTableFactory
         options.add(SINK_USE_CACHE);
 
         options.add(SOURCE_USE_OLD_API);
+        options.add(SINK_WRITE_MODE);
         return options;
     }
 
@@ -231,12 +234,16 @@ public final class DorisDynamicTableFactory
             builder.enable2PC();
         }
 
+        builder.setWriteMode(WriteMode.of(readableConfig.get(SINK_WRITE_MODE)));
         builder.setBatchMode(readableConfig.get(SINK_ENABLE_BATCH_MODE));
+        // Compatible with previous versions
+        if (readableConfig.get(SINK_ENABLE_BATCH_MODE)) {
+            builder.setWriteMode(WriteMode.STREAM_LOAD_BATCH);
+        }
         builder.setFlushQueueSize(readableConfig.get(SINK_FLUSH_QUEUE_SIZE));
         builder.setBufferFlushMaxRows(readableConfig.get(SINK_BUFFER_FLUSH_MAX_ROWS));
         builder.setBufferFlushMaxBytes(readableConfig.get(SINK_BUFFER_FLUSH_MAX_BYTES));
         builder.setBufferFlushIntervalMs(readableConfig.get(SINK_BUFFER_FLUSH_INTERVAL).toMillis());
-
         builder.setUseCache(readableConfig.get(SINK_USE_CACHE));
         return builder.build();
     }
