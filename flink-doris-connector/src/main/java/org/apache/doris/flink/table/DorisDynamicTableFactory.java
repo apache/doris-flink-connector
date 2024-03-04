@@ -73,6 +73,7 @@ import static org.apache.doris.flink.table.DorisConfigOptions.SINK_ENABLE_2PC;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_ENABLE_BATCH_MODE;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_ENABLE_DELETE;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_FLUSH_QUEUE_SIZE;
+import static org.apache.doris.flink.table.DorisConfigOptions.SINK_IGNORE_COMMIT_ERROR;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_IGNORE_UPDATE_BEFORE;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_LABEL_PREFIX;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_MAX_RETRIES;
@@ -156,6 +157,7 @@ public final class DorisDynamicTableFactory
 
         options.add(SOURCE_USE_OLD_API);
         options.add(SINK_WRITE_MODE);
+        options.add(SINK_IGNORE_COMMIT_ERROR);
         return options;
     }
 
@@ -226,6 +228,7 @@ public final class DorisDynamicTableFactory
         builder.setStreamLoadProp(streamLoadProp);
         builder.setDeletable(readableConfig.get(SINK_ENABLE_DELETE));
         builder.setIgnoreUpdateBefore(readableConfig.get(SINK_IGNORE_UPDATE_BEFORE));
+        builder.setIgnoreCommitError(readableConfig.get(SINK_IGNORE_COMMIT_ERROR));
 
         if (!readableConfig.get(SINK_ENABLE_2PC)) {
             builder.disable2PC();

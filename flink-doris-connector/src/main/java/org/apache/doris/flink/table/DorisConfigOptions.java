@@ -235,6 +235,13 @@ public class DorisConfigOptions {
                     .defaultValue(WriteMode.STREAM_LOAD.name())
                     .withDescription("Write mode, supports stream_load, stream_load_batch");
 
+    public static final ConfigOption<Boolean> SINK_IGNORE_COMMIT_ERROR =
+            ConfigOptions.key("sink.ignore.commit-error")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Whether to ignore commit errors. Usually used when the checkpoint cannot be restored to skip the commit of txn. The default is false.");
+
     public static final ConfigOption<Integer> SINK_PARALLELISM = FactoryUtil.SINK_PARALLELISM;
 
     public static final ConfigOption<Boolean> SINK_ENABLE_BATCH_MODE =
