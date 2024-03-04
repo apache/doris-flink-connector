@@ -53,7 +53,6 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 public abstract class DatabaseSync {
     private static final Logger LOG = LoggerFactory.getLogger(DatabaseSync.class);
@@ -327,9 +326,7 @@ public abstract class DatabaseSync {
 
     protected String getSyncTableList(List<String> syncTables) {
         if (!singleSink) {
-            return syncTables.stream()
-                    .map(v -> getTableListPrefix() + "\\." + v)
-                    .collect(Collectors.joining("|"));
+            return String.format("(%s)\\.(%s)", getTableListPrefix(), String.join("|", syncTables));
         } else {
             // includingTablePattern and ^excludingPattern
             if (includingTables == null) {
