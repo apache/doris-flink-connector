@@ -290,6 +290,9 @@ public abstract class DatabaseSync {
         sinkConfig
                 .getOptional(DorisConfigOptions.SINK_WRITE_MODE)
                 .ifPresent(v -> executionBuilder.setWriteMode(WriteMode.of(v)));
+        sinkConfig
+                .getOptional(DorisConfigOptions.SINK_IGNORE_COMMIT_ERROR)
+                .ifPresent(executionBuilder::setIgnoreCommitError);
 
         DorisExecutionOptions executionOptions = executionBuilder.build();
         builder.setDorisReadOptions(DorisReadOptions.builder().build())
