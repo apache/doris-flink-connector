@@ -17,11 +17,11 @@
 
 package org.apache.doris.flink.tools.cdc.db2;
 
-import org.apache.doris.flink.tools.cdc.SourceSchema;
+import org.apache.doris.flink.tools.cdc.JdbcSourceSchema;
 
 import java.sql.DatabaseMetaData;
 
-public class Db2Schema extends SourceSchema {
+public class Db2Schema extends JdbcSourceSchema {
     public Db2Schema(
             DatabaseMetaData metaData,
             String databaseName,
