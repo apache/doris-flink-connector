@@ -54,7 +54,6 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 public abstract class DatabaseSync {
     private static final Logger LOG = LoggerFactory.getLogger(DatabaseSync.class);
@@ -123,7 +122,7 @@ public abstract class DatabaseSync {
             LOG.info("database {} not exist, created", database);
             dorisSystem.createDatabase(database);
         }
-
+        List<String> syncTables = new ArrayList<>();
         List<Tuple2<String, String>> dorisTables = new ArrayList<>();
         Map<String, Integer> tableBucketsMap = null;
         if (tableConfig.containsKey("table-buckets")) {
@@ -131,6 +130,7 @@ public abstract class DatabaseSync {
         }
         Set<String> bucketsTable = new HashSet<>();
         for (SourceSchema schema : schemaList) {
+            syncTables.add(schema.getTableName());
             String targetDb = database;
             // Synchronize multiple databases using the src database name
             if (StringUtils.isNullOrWhitespaceOnly(targetDb)) {
@@ -163,7 +163,7 @@ public abstract class DatabaseSync {
             System.out.println("Create table finished.");
             System.exit(0);
         }
-        config.setString(TABLE_NAME_OPTIONS, getSyncTableList(schemaList));
+        config.setString(TABLE_NAME_OPTIONS, getSyncTableList(syncTables));
         DataStreamSource<String> streamSource = buildCdcSource(env);
         if (singleSink) {
             streamSource.sinkTo(buildDorisSink());
@@ -300,6 +300,9 @@ public abstract class DatabaseSync {
         sinkConfig
                 .getOptional(DorisConfigOptions.SINK_WRITE_MODE)
                 .ifPresent(v -> executionBuilder.setWriteMode(WriteMode.of(v)));
+        sinkConfig
+                .getOptional(DorisConfigOptions.SINK_IGNORE_COMMIT_ERROR)
+                .ifPresent(executionBuilder::setIgnoreCommitError);
 
         DorisExecutionOptions executionOptions = executionBuilder.build();
         builder.setDorisReadOptions(DorisReadOptions.builder().build())
@@ -334,11 +337,9 @@ public abstract class DatabaseSync {
         return sync;
     }
 
-    protected String getSyncTableList(List<SourceSchema> syncTables) {
+    protected String getSyncTableList(List<String> syncTables) {
         if (!singleSink) {
-            return syncTables.stream()
-                    .map(SourceSchema::getCdcTableName)
-                    .collect(Collectors.joining("|"));
+            return String.format("(%s)\\.(%s)", getTableListPrefix(), String.join("|", syncTables));
         } else {
             // includingTablePattern and ^excludingPattern
             if (includingTables == null) {

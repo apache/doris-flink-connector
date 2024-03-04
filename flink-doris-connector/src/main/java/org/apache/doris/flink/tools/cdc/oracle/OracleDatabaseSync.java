@@ -154,10 +154,8 @@ public class OracleDatabaseSync extends DatabaseSync {
         // When debezium incrementally reads, it will be judged based on regexp_like.
         // When the regular length exceeds 512, an error will be reported,
         // like ORA-12733: regular expression too long
-        if (tableName.length() > 384) {
-            // max database name length 128
-            tableName =
-                    StringUtils.isNullOrWhitespaceOnly(includingTables) ? ".*" : includingTables;
+        if (tableName.length() > 512) {
+            tableName = StringUtils.isNullOrWhitespaceOnly(includingTables) ? ".*" : tableName;
         }
 
         String url = config.get(OracleSourceOptions.URL);

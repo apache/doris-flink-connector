@@ -89,8 +89,7 @@ public class DorisSink<IN>
     public Committer createCommitter() throws IOException {
         if (WriteMode.STREAM_LOAD.equals(dorisExecutionOptions.getWriteMode())
                 || WriteMode.STREAM_LOAD_BATCH.equals(dorisExecutionOptions.getWriteMode())) {
-            return new DorisCommitter(
-                    dorisOptions, dorisReadOptions, dorisExecutionOptions.getMaxRetries());
+            return new DorisCommitter(dorisOptions, dorisReadOptions, dorisExecutionOptions);
         } else if (WriteMode.COPY.equals(dorisExecutionOptions.getWriteMode())) {
             return new DorisCopyCommitter(dorisOptions, dorisExecutionOptions.getMaxRetries());
         }
