@@ -59,7 +59,6 @@ public abstract class DorisTestBase {
     protected static final String USERNAME = "root";
     protected static final String PASSWORD = "";
     protected static final GenericContainer DORIS_CONTAINER = createDorisContainer();
-    protected static Connection connection;
     protected static final int DEFAULT_PARALLELISM = 4;
 
     protected static String getFenodes() {
@@ -118,10 +117,10 @@ public abstract class DorisTestBase {
                         new URL[] {new URL(DRIVER_JAR)}, DorisTestBase.class.getClassLoader());
         LOG.info("Try to connect to Doris...");
         Thread.currentThread().setContextClassLoader(urlClassLoader);
-        connection =
-                DriverManager.getConnection(
-                        String.format(URL, DORIS_CONTAINER.getHost()), USERNAME, PASSWORD);
-        try (Statement statement = connection.createStatement()) {
+        try (Connection connection =
+                        DriverManager.getConnection(
+                                String.format(URL, DORIS_CONTAINER.getHost()), USERNAME, PASSWORD);
+                Statement statement = connection.createStatement()) {
             ResultSet resultSet;
             do {
                 LOG.info("Wait for the Backend to start successfully...");
@@ -143,14 +142,11 @@ public abstract class DorisTestBase {
     }
 
     protected static void printClusterStatus() throws Exception {
-        LOG.info(
-                "{} {} Current machine IP: {} {} {}",
-                Thread.currentThread().getId(),
-                Thread.currentThread().getName(),
-                InetAddress.getLocalHost(),
-                connection.isClosed(),
-                connection.isValid(1000));
-        try (Statement statement = connection.createStatement()) {
+        LOG.info("Current machine IP: {}", InetAddress.getLocalHost());
+        try (Connection connection =
+                        DriverManager.getConnection(
+                                String.format(URL, DORIS_CONTAINER.getHost()), USERNAME, PASSWORD);
+                Statement statement = connection.createStatement()) {
             ResultSet showFrontends = statement.executeQuery("show frontends");
             LOG.info("Frontends status: {}", convertList(showFrontends));
             ResultSet showBackends = statement.executeQuery("show backends");
