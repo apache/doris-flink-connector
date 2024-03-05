@@ -100,8 +100,7 @@ public abstract class DorisTestBase {
                         .withPrivilegedMode(true)
                         .withLogConsumer(
                                 new Slf4jLogConsumer(
-                                        DockerLoggerFactory.getLogger(DORIS_DOCKER_IMAGE)))
-                        .withReuse(true);
+                                        DockerLoggerFactory.getLogger(DORIS_DOCKER_IMAGE)));
 
         container.setPortBindings(
                 Lists.newArrayList(
