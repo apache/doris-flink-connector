@@ -143,7 +143,7 @@ public abstract class DorisTestBase {
     }
 
     protected static void printClusterStatus() throws Exception {
-        LOG.info("Current machine IP: {}", InetAddress.getLocalHost());
+        LOG.info("{} {} Current machine IP: {}", Thread.currentThread().getId(), Thread.currentThread().getName(), InetAddress.getLocalHost());
         try (Statement statement = connection.createStatement()) {
             ResultSet showFrontends = statement.executeQuery("show frontends");
             LOG.info("Frontends status: {}", convertList(showFrontends));
