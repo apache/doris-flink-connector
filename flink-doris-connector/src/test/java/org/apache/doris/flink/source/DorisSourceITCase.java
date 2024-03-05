@@ -41,7 +41,7 @@ import java.util.List;
 
 /** DorisSource ITCase. */
 public class DorisSourceITCase extends DorisTestBase {
-    static final String DATABASE = "test";
+    static final String DATABASE = "test_source";
     static final String TABLE_READ = "tbl_read";
     static final String TABLE_READ_TBL = "tbl_read_tbl";
 

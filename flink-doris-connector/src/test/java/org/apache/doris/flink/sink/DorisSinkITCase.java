@@ -47,7 +47,7 @@ import java.util.stream.Stream;
 
 /** DorisSink ITCase with csv and arrow format. */
 public class DorisSinkITCase extends DorisTestBase {
-    static final String DATABASE = "test";
+    static final String DATABASE = "test_sink";
     static final String TABLE_CSV = "tbl_csv";
     static final String TABLE_JSON = "tbl_json";
     static final String TABLE_JSON_TBL = "tbl_json_tbl";

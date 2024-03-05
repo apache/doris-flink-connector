@@ -63,7 +63,7 @@ import static org.apache.flink.api.common.JobStatus.RUNNING;
  */
 public class MySQLDorisE2ECase extends DorisTestBase {
     protected static final Logger LOG = LoggerFactory.getLogger(MySQLDorisE2ECase.class);
-    private static final String DATABASE = "test";
+    private static final String DATABASE = "test_mysql";
     private static final String MYSQL_USER = "root";
     private static final String MYSQL_PASSWD = "123456";
     private static final String TABLE_1 = "tbl1";
