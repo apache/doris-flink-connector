@@ -17,6 +17,7 @@
 
 package org.apache.doris.flink.tools.cdc;
 
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
@@ -115,14 +116,14 @@ public abstract class DatabaseSync {
 
         List<SourceSchema> schemaList = getSchemaList();
         Preconditions.checkState(!schemaList.isEmpty(), "No tables to be synchronized.");
-        if (!dorisSystem.databaseExists(database)) {
+
+        if (!StringUtils.isNullOrWhitespaceOnly(database)
+                && !dorisSystem.databaseExists(database)) {
             LOG.info("database {} not exist, created", database);
             dorisSystem.createDatabase(database);
         }
-
         List<String> syncTables = new ArrayList<>();
-        List<String> dorisTables = new ArrayList<>();
-
+        List<Tuple2<String, String>> dorisTables = new ArrayList<>();
         Map<String, Integer> tableBucketsMap = null;
         if (tableConfig.containsKey("table-buckets")) {
             tableBucketsMap = getTableBuckets(tableConfig.get("table-buckets"));
@@ -130,23 +131,32 @@ public abstract class DatabaseSync {
         Set<String> bucketsTable = new HashSet<>();
         for (SourceSchema schema : schemaList) {
             syncTables.add(schema.getTableName());
+            String targetDb = database;
+            // Synchronize multiple databases using the src database name
+            if (StringUtils.isNullOrWhitespaceOnly(targetDb)) {
+                targetDb = schema.getDatabaseName();
+            }
+            if (StringUtils.isNullOrWhitespaceOnly(database)
+                    && !dorisSystem.databaseExists(targetDb)) {
+                LOG.info("database {} not exist, created", targetDb);
+                dorisSystem.createDatabase(targetDb);
+            }
             String dorisTable = converter.convert(schema.getTableName());
-
             // Calculate the mapping relationship between upstream and downstream tables
             tableMapping.put(
-                    schema.getTableIdentifier(), String.format("%s.%s", database, dorisTable));
-            if (!dorisSystem.tableExists(database, dorisTable)) {
+                    schema.getTableIdentifier(), String.format("%s.%s", targetDb, dorisTable));
+            if (!dorisSystem.tableExists(targetDb, dorisTable)) {
                 TableSchema dorisSchema = schema.convertTableSchema(tableConfig);
                 // set doris target database
-                dorisSchema.setDatabase(database);
+                dorisSchema.setDatabase(targetDb);
                 dorisSchema.setTable(dorisTable);
                 if (tableBucketsMap != null) {
                     setTableSchemaBuckets(tableBucketsMap, dorisSchema, dorisTable, bucketsTable);
                 }
                 dorisSystem.createTable(dorisSchema);
             }
-            if (!dorisTables.contains(dorisTable)) {
-                dorisTables.add(dorisTable);
+            if (!dorisTables.contains(Tuple2.of(targetDb, dorisTable))) {
+                dorisTables.add(Tuple2.of(targetDb, dorisTable));
             }
         }
         if (createTableOnly) {
@@ -160,18 +170,18 @@ public abstract class DatabaseSync {
         } else {
             SingleOutputStreamOperator<Void> parsedStream =
                     streamSource.process(buildProcessFunction());
-            for (String table : dorisTables) {
+            for (Tuple2<String, String> dbTbl : dorisTables) {
                 OutputTag<String> recordOutputTag =
-                        ParsingProcessFunction.createRecordOutputTag(table);
+                        ParsingProcessFunction.createRecordOutputTag(dbTbl.f1);
                 DataStream<String> sideOutput = parsedStream.getSideOutput(recordOutputTag);
                 int sinkParallel =
                         sinkConfig.getInteger(
                                 DorisConfigOptions.SINK_PARALLELISM, sideOutput.getParallelism());
                 sideOutput
-                        .sinkTo(buildDorisSink(table))
+                        .sinkTo(buildDorisSink(dbTbl.f0 + "." + dbTbl.f1))
                         .setParallelism(sinkParallel)
-                        .name(table)
-                        .uid(table);
+                        .name(dbTbl.f1)
+                        .uid(dbTbl.f1);
             }
         }
     }
@@ -205,7 +215,7 @@ public abstract class DatabaseSync {
     }
 
     /** create doris sink. */
-    public DorisSink<String> buildDorisSink(String table) {
+    public DorisSink<String> buildDorisSink(String tableIdentifier) {
         String fenodes = sinkConfig.getString(DorisConfigOptions.FENODES);
         String benodes = sinkConfig.getString(DorisConfigOptions.BENODES);
         String user = sinkConfig.getString(DorisConfigOptions.USERNAME);
@@ -225,8 +235,8 @@ public abstract class DatabaseSync {
                 .ifPresent(dorisBuilder::setAutoRedirect);
 
         // single sink not need table identifier
-        if (!singleSink && !StringUtils.isNullOrWhitespaceOnly(table)) {
-            dorisBuilder.setTableIdentifier(database + "." + table);
+        if (!singleSink && !StringUtils.isNullOrWhitespaceOnly(tableIdentifier)) {
+            dorisBuilder.setTableIdentifier(tableIdentifier);
         }
 
         Properties pro = new Properties();
