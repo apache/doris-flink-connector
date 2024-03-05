@@ -68,21 +68,21 @@ public abstract class DorisTestBase {
 
     @BeforeClass
     public static void startContainers() {
-        LOG.info("Starting containers...");
+        LOG.info("Starting doris containers...");
         Startables.deepStart(Stream.of(DORIS_CONTAINER)).join();
         given().ignoreExceptions()
                 .await()
                 .atMost(300, TimeUnit.SECONDS)
                 .pollInterval(ONE_SECOND)
                 .untilAsserted(DorisTestBase::initializeJdbcConnection);
-        LOG.info("Containers are started.");
+        LOG.info("Containers doris are started.");
     }
 
     @AfterClass
     public static void stopContainers() {
-        LOG.info("Stopping containers...");
+        LOG.info("Stopping doris containers...");
         DORIS_CONTAINER.stop();
-        LOG.info("Containers are stopped.");
+        LOG.info("Containers doris are stopped.");
     }
 
     public static GenericContainer createDorisContainer() {
