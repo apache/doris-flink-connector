@@ -28,6 +28,9 @@ import org.testcontainers.containers.output.Slf4jLogConsumer;
 import org.testcontainers.lifecycle.Startables;
 import org.testcontainers.utility.DockerLoggerFactory;
 
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.net.InetAddress;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -51,7 +54,11 @@ import static org.awaitility.Durations.ONE_SECOND;
 
 public abstract class DorisTestBase {
     protected static final Logger LOG = LoggerFactory.getLogger(DorisTestBase.class);
-    protected static final String DORIS_DOCKER_IMAGE = System.getProperty("image");
+    private static final String DEFAULT_DOCKER_IMAGE = "adamlee489/doris:2.0.3";
+    protected static final String DORIS_DOCKER_IMAGE =
+            System.getProperty("image") == null
+                    ? DEFAULT_DOCKER_IMAGE
+                    : System.getProperty("image");
     private static final String DRIVER_JAR =
             "https://repo1.maven.org/maven2/mysql/mysql-connector-java/8.0.16/mysql-connector-java-8.0.16.jar";
     protected static final String DRIVER_CLASS = "com.mysql.cj.jdbc.Driver";
@@ -59,7 +66,6 @@ public abstract class DorisTestBase {
     protected static final String USERNAME = "root";
     protected static final String PASSWORD = "";
     protected static final GenericContainer DORIS_CONTAINER = createDorisContainer();
-    protected static Connection connection;
     protected static final int DEFAULT_PARALLELISM = 4;
 
     protected static String getFenodes() {
@@ -68,21 +74,21 @@ public abstract class DorisTestBase {
 
     @BeforeClass
     public static void startContainers() {
-        LOG.info("Starting containers...");
+        LOG.info("Starting doris containers...");
         Startables.deepStart(Stream.of(DORIS_CONTAINER)).join();
         given().ignoreExceptions()
                 .await()
                 .atMost(300, TimeUnit.SECONDS)
                 .pollInterval(ONE_SECOND)
                 .untilAsserted(DorisTestBase::initializeJdbcConnection);
-        LOG.info("Containers are started.");
+        LOG.info("Containers doris are started.");
     }
 
     @AfterClass
     public static void stopContainers() {
-        LOG.info("Stopping containers...");
+        LOG.info("Stopping doris containers...");
         DORIS_CONTAINER.stop();
-        LOG.info("Containers are stopped.");
+        LOG.info("Containers doris are stopped.");
     }
 
     public static GenericContainer createDorisContainer() {
@@ -90,17 +96,11 @@ public abstract class DorisTestBase {
                 new GenericContainer<>(DORIS_DOCKER_IMAGE)
                         .withNetwork(Network.newNetwork())
                         .withNetworkAliases("DorisContainer")
-                        .withEnv("FE_SERVERS", "fe1:127.0.0.1:9010")
-                        .withEnv("FE_ID", "1")
-                        .withEnv("CURRENT_BE_IP", "127.0.0.1")
-                        .withEnv("CURRENT_BE_PORT", "9050")
-                        .withCommand("ulimit -n 65536")
-                        .withCreateContainerCmdModifier(
-                                cmd -> cmd.getHostConfig().withMemorySwap(0L))
                         .withPrivilegedMode(true)
                         .withLogConsumer(
                                 new Slf4jLogConsumer(
-                                        DockerLoggerFactory.getLogger(DORIS_DOCKER_IMAGE)));
+                                        DockerLoggerFactory.getLogger(DORIS_DOCKER_IMAGE)))
+                        .withReuse(true);
 
         container.setPortBindings(
                 Lists.newArrayList(
@@ -118,10 +118,10 @@ public abstract class DorisTestBase {
                         new URL[] {new URL(DRIVER_JAR)}, DorisTestBase.class.getClassLoader());
         LOG.info("Try to connect to Doris...");
         Thread.currentThread().setContextClassLoader(urlClassLoader);
-        connection =
-                DriverManager.getConnection(
-                        String.format(URL, DORIS_CONTAINER.getHost()), USERNAME, PASSWORD);
-        try (Statement statement = connection.createStatement()) {
+        try (Connection connection =
+                        DriverManager.getConnection(
+                                String.format(URL, DORIS_CONTAINER.getHost()), USERNAME, PASSWORD);
+                Statement statement = connection.createStatement()) {
             ResultSet resultSet;
             do {
                 LOG.info("Wait for the Backend to start successfully...");
@@ -144,11 +144,34 @@ public abstract class DorisTestBase {
 
     protected static void printClusterStatus() throws Exception {
         LOG.info("Current machine IP: {}", InetAddress.getLocalHost());
-        try (Statement statement = connection.createStatement()) {
+        echo("sh", "-c", "cat /proc/cpuinfo | grep 'cpu cores' | uniq");
+        echo("sh", "-c", "free -h");
+        try (Connection connection =
+                        DriverManager.getConnection(
+                                String.format(URL, DORIS_CONTAINER.getHost()), USERNAME, PASSWORD);
+                Statement statement = connection.createStatement()) {
             ResultSet showFrontends = statement.executeQuery("show frontends");
             LOG.info("Frontends status: {}", convertList(showFrontends));
             ResultSet showBackends = statement.executeQuery("show backends");
             LOG.info("Backends status: {}", convertList(showBackends));
+        }
+    }
+
+    static void echo(String... cmd) {
+        try {
+            Process p = Runtime.getRuntime().exec(cmd);
+            InputStream is = p.getInputStream();
+            BufferedReader reader = new BufferedReader(new InputStreamReader(is));
+            String line;
+            while ((line = reader.readLine()) != null) {
+                System.out.println(line);
+            }
+            p.waitFor();
+            is.close();
+            reader.close();
+            p.destroy();
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
