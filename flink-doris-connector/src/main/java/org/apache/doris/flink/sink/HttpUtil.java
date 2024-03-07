@@ -48,6 +48,10 @@ public class HttpUtil {
                     .setSocketTimeout(9 * 60 * 1000)
                     .build();
 
+    public CloseableHttpClient getHttpClientForBatch() {
+        return httpClientBuilder.setDefaultRequestConfig(requestConfig).build();
+    }
+
     private final HttpClientBuilder httpClientBuilderWithTimeout =
             HttpClients.custom().setDefaultRequestConfig(requestConfig);
 
