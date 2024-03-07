@@ -321,6 +321,8 @@ public abstract class DatabaseSync {
                 .setTableMapping(tableMapping)
                 .setTableProperties(tableConfig)
                 .setTargetDatabase(database)
+                .setTargetTablePrefix(tablePrefix)
+                .setTargetTableSuffix(tableSuffix)
                 .build();
     }
 
