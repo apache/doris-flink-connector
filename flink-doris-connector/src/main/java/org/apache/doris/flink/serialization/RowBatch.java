@@ -30,6 +30,7 @@ import org.apache.arrow.vector.Float8Vector;
 import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.SmallIntVector;
 import org.apache.arrow.vector.TinyIntVector;
+import org.apache.arrow.vector.UInt4Vector;
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
@@ -61,10 +62,10 @@ import java.util.NoSuchElementException;
 
 /** row batch data container. */
 public class RowBatch {
-    private static Logger logger = LoggerFactory.getLogger(RowBatch.class);
+    private static final Logger logger = LoggerFactory.getLogger(RowBatch.class);
 
     public static class Row {
-        private List<Object> cols;
+        private final List<Object> cols;
 
         Row(int colCount) {
             this.cols = new ArrayList<>(colCount);
@@ -80,10 +81,10 @@ public class RowBatch {
     }
 
     // offset for iterate the rowBatch
-    private int offsetInRowBatch = 0;
+    private int offsetInRowBatch;
     private int rowCountInOneBatch = 0;
     private int readRowCount = 0;
-    private List<Row> rowBatch = new ArrayList<>();
+    private final List<Row> rowBatch = new ArrayList<>();
     private final ArrowStreamReader arrowStreamReader;
     private VectorSchemaRoot root;
     private List<FieldVector> fieldVectors;
@@ -145,10 +146,7 @@ public class RowBatch {
     }
 
     public boolean hasNext() {
-        if (offsetInRowBatch < readRowCount) {
-            return true;
-        }
-        return false;
+        return offsetInRowBatch < readRowCount;
     }
 
     private void addValueToRow(int rowIndex, Object obj) {
@@ -220,6 +218,17 @@ public class RowBatch {
                 }
                 IntVector intVector = (IntVector) fieldVector;
                 fieldValue = intVector.isNull(rowIndex) ? null : intVector.get(rowIndex);
+                addValueToRow(rowIndex, fieldValue);
+                break;
+            case "IPV4":
+                if (!minorType.equals(Types.MinorType.UINT4)) {
+                    return false;
+                }
+                UInt4Vector ipv4Vector = (UInt4Vector) fieldVector;
+                fieldValue =
+                        ipv4Vector.isNull(rowIndex)
+                                ? null
+                                : convertLongToIPv4String(ipv4Vector.getValueAsLong(0));
                 addValueToRow(rowIndex, fieldValue);
                 break;
             case "BIGINT":
@@ -362,6 +371,20 @@ public class RowBatch {
                 stringValue = new String(varCharVector.get(rowIndex));
                 addValueToRow(rowIndex, stringValue);
                 break;
+            case "IPV6":
+                if (!minorType.equals(Types.MinorType.VARCHAR)) {
+                    return false;
+                }
+                VarCharVector ipv6VarcharVector = (VarCharVector) fieldVector;
+                if (ipv6VarcharVector.isNull(rowIndex)) {
+                    addValueToRow(rowIndex, null);
+                    break;
+                }
+                String numericString = new String(ipv6VarcharVector.get(rowIndex));
+                //                String ipv6String = new String(ipv6VarcharVector.get(rowIndex));
+                String ipv6String = convertVarcharToIPv6String(numericString);
+                addValueToRow(rowIndex, ipv6String);
+                break;
             case "ARRAY":
                 if (!minorType.equals(Types.MinorType.LIST)) {
                     return false;
@@ -409,6 +432,12 @@ public class RowBatch {
         return true;
     }
 
+    //    private static StringBuilder convertToIpv4(IntVector fieldVector) {
+    //        StringBuilder result = new StringBuilder();
+    //        System.out.println(fieldVector.getValueAsLong(0));
+    //        return result;
+    //    }
+
     private String completeMilliseconds(String stringValue) {
         if (stringValue.length() == DATETIMEV2_PATTERN.length()) {
             return stringValue;
@@ -436,6 +465,77 @@ public class RowBatch {
     private String typeMismatchMessage(final String flinkType, final Types.MinorType arrowType) {
         final String messageTemplate = "FLINK type is %1$s, but arrow type is %2$s.";
         return String.format(messageTemplate, flinkType, arrowType.name());
+    }
+
+    private String convertLongToIPv4String(long ipLongValue) {
+        return ((ipLongValue >> 24) & 0xFF)
+                + "."
+                + ((ipLongValue >> 16) & 0xFF)
+                + "."
+                + ((ipLongValue >> 8) & 0xFF)
+                + "."
+                + (ipLongValue & 0xFF);
+    }
+
+    private String convertVarcharToIPv6String(String numricString) {
+        System.out.println(numricString);
+        BigInteger numericValue = new BigInteger(numricString);
+        StringBuilder hexString = new StringBuilder(numericValue.toString(16));
+
+        // 补全到32位十六进制字符串
+        while (hexString.length() < 32) {
+            hexString.insert(0, "0");
+        }
+
+        StringBuilder ipv6Address = new StringBuilder();
+        for (int i = 0; i < 8; i++) {
+            String block = hexString.substring(i * 4, (i + 1) * 4);
+            if (!block.equals("0000")) {
+                ipv6Address.append(block);
+            }
+            if (i < 7) {
+                ipv6Address.append(":");
+            }
+        }
+
+        return ipv6Address.toString();
+    }
+
+    public static String simplifyIPv6(String ipv6Address) {
+        // 分割IPv6地址的各个部分
+        String[] parts = ipv6Address.split(":");
+
+        // 初始化一个 StringBuilder 用于构建简化后的IPv6地址
+        StringBuilder simplifiedIPv6 = new StringBuilder();
+
+        // 记录是否已经遇到连续的 0 块
+        boolean encounteredDoubleColon = false;
+
+        // 遍历各个部分
+        for (String part : parts) {
+            // 如果当前部分是空的，则代表出现连续的 0 块
+            if (part.isEmpty()) {
+                // 如果已经遇到了连续的 0 块，则忽略当前部分
+                if (encounteredDoubleColon) {
+                    continue;
+                }
+                // 如果是第一次遇到连续的 0 块，则添加双冒号
+                simplifiedIPv6.append(":");
+                encounteredDoubleColon = true;
+            } else {
+                // 如果当前部分不为空，则直接添加到简化后的IPv6地址中
+                simplifiedIPv6.append(part).append(":");
+                encounteredDoubleColon = false;
+            }
+        }
+
+        // 删除结尾的多余冒号
+        if (ipv6Address.endsWith(":")) {
+            simplifiedIPv6.append(":");
+        }
+
+        // 返回简化后的IPv6地址
+        return simplifiedIPv6.toString();
     }
 
     public int getReadRowCount() {
