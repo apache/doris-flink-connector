@@ -72,7 +72,10 @@ public abstract class DorisTestBase {
         return DORIS_CONTAINER.getHost() + ":8030";
     }
 
-    @BeforeClass
+    static {
+        startContainers();
+    }
+
     public static void startContainers() {
         LOG.info("Starting doris containers...");
         Startables.deepStart(Stream.of(DORIS_CONTAINER)).join();
@@ -84,7 +87,6 @@ public abstract class DorisTestBase {
         LOG.info("Containers doris are started.");
     }
 
-    @AfterClass
     public static void stopContainers() {
         LOG.info("Stopping doris containers...");
         DORIS_CONTAINER.stop();
@@ -92,6 +94,7 @@ public abstract class DorisTestBase {
     }
 
     public static GenericContainer createDorisContainer() {
+        LOG.info("Create doris containers...");
         GenericContainer container =
                 new GenericContainer<>(DORIS_DOCKER_IMAGE)
                         .withNetwork(Network.newNetwork())
@@ -99,8 +102,7 @@ public abstract class DorisTestBase {
                         .withPrivilegedMode(true)
                         .withLogConsumer(
                                 new Slf4jLogConsumer(
-                                        DockerLoggerFactory.getLogger(DORIS_DOCKER_IMAGE)))
-                        .withReuse(true);
+                                        DockerLoggerFactory.getLogger(DORIS_DOCKER_IMAGE)));
 
         container.setPortBindings(
                 Lists.newArrayList(
