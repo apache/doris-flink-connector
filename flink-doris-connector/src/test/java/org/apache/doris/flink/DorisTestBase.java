@@ -23,7 +23,7 @@ import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
 import org.testcontainers.containers.output.Slf4jLogConsumer;
-import org.testcontainers.lifecycle.Startables;
+import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.utility.DockerLoggerFactory;
 
 import java.io.BufferedReader;
@@ -43,12 +43,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
-import java.util.stream.Stream;
-
-import static org.awaitility.Awaitility.given;
-import static org.awaitility.Durations.ONE_SECOND;
 
 public abstract class DorisTestBase {
     protected static final Logger LOG = LoggerFactory.getLogger(DorisTestBase.class);
@@ -64,7 +59,6 @@ public abstract class DorisTestBase {
     protected static final String USERNAME = "root";
     protected static final String PASSWORD = "";
     protected static final GenericContainer DORIS_CONTAINER = createDorisContainer();
-    protected static final int DEFAULT_PARALLELISM = 4;
 
     protected static String getFenodes() {
         return DORIS_CONTAINER.getHost() + ":8030";
@@ -75,20 +69,15 @@ public abstract class DorisTestBase {
     }
 
     public static void startContainers() {
-        LOG.info("Starting doris containers...");
-        Startables.deepStart(Stream.of(DORIS_CONTAINER)).join();
-        given().ignoreExceptions()
-                .await()
-                .atMost(300, TimeUnit.SECONDS)
-                .pollInterval(ONE_SECOND)
-                .untilAsserted(DorisTestBase::initializeJdbcConnection);
+        try {
+            LOG.info("Starting doris containers...");
+            // singleton doris container
+            DORIS_CONTAINER.start();
+            initializeJdbcConnection();
+        } catch (Exception ex) {
+            LOG.error("Failed to start containers doris, ", ex);
+        }
         LOG.info("Containers doris are started.");
-    }
-
-    public static void stopContainers() {
-        LOG.info("Stopping doris containers...");
-        DORIS_CONTAINER.stop();
-        LOG.info("Containers doris are stopped.");
     }
 
     public static GenericContainer createDorisContainer() {
@@ -100,7 +89,9 @@ public abstract class DorisTestBase {
                         .withPrivilegedMode(true)
                         .withLogConsumer(
                                 new Slf4jLogConsumer(
-                                        DockerLoggerFactory.getLogger(DORIS_DOCKER_IMAGE)));
+                                        DockerLoggerFactory.getLogger(DORIS_DOCKER_IMAGE)))
+                        .withExposedPorts(8030, 9030, 8040, 9060)
+                        .waitingFor(Wait.forLogMessage(".*register be exec success.*\\n", 1));
 
         container.setPortBindings(
                 Lists.newArrayList(
