@@ -23,7 +23,6 @@ import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
 import org.testcontainers.containers.output.Slf4jLogConsumer;
-import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.utility.DockerLoggerFactory;
 
 import java.io.BufferedReader;
@@ -90,8 +89,7 @@ public abstract class DorisTestBase {
                         .withLogConsumer(
                                 new Slf4jLogConsumer(
                                         DockerLoggerFactory.getLogger(DORIS_DOCKER_IMAGE)))
-                        .withExposedPorts(8030, 9030, 8040, 9060)
-                        .waitingFor(Wait.forLogMessage(".*register be exec success.*\\n", 1));
+                        .withExposedPorts(8030, 9030, 8040, 9060);
 
         container.setPortBindings(
                 Lists.newArrayList(
