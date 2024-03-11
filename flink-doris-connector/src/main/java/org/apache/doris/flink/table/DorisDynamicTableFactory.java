@@ -204,13 +204,16 @@ public final class DorisDynamicTableFactory
         final DorisReadOptions.Builder builder = DorisReadOptions.builder();
         builder.setDeserializeArrowAsync(readableConfig.get(DORIS_DESERIALIZE_ARROW_ASYNC))
                 .setDeserializeQueueSize(readableConfig.get(DORIS_DESERIALIZE_QUEUE_SIZE))
-                .setExecMemLimit(readableConfig.get(DORIS_EXEC_MEM_LIMIT))
+                .setExecMemLimit(readableConfig.get(DORIS_EXEC_MEM_LIMIT).getBytes())
                 .setFilterQuery(readableConfig.get(DORIS_FILTER_QUERY))
                 .setReadFields(readableConfig.get(DORIS_READ_FIELD))
-                .setRequestQueryTimeoutS(readableConfig.get(DORIS_REQUEST_QUERY_TIMEOUT_S))
+                .setRequestQueryTimeoutS(
+                        (int) readableConfig.get(DORIS_REQUEST_QUERY_TIMEOUT_S).getSeconds())
                 .setRequestBatchSize(readableConfig.get(DORIS_BATCH_SIZE))
-                .setRequestConnectTimeoutMs(readableConfig.get(DORIS_REQUEST_CONNECT_TIMEOUT_MS))
-                .setRequestReadTimeoutMs(readableConfig.get(DORIS_REQUEST_READ_TIMEOUT_MS))
+                .setRequestConnectTimeoutMs(
+                        (int) readableConfig.get(DORIS_REQUEST_CONNECT_TIMEOUT_MS).toMillis())
+                .setRequestReadTimeoutMs(
+                        (int) readableConfig.get(DORIS_REQUEST_READ_TIMEOUT_MS).toMillis())
                 .setRequestRetries(readableConfig.get(DORIS_REQUEST_RETRIES))
                 .setRequestTabletSize(readableConfig.get(DORIS_TABLET_SIZE))
                 .setUseOldApi(readableConfig.get(SOURCE_USE_OLD_API));
@@ -220,9 +223,9 @@ public final class DorisDynamicTableFactory
     private DorisExecutionOptions getDorisExecutionOptions(
             ReadableConfig readableConfig, Properties streamLoadProp) {
         final DorisExecutionOptions.Builder builder = DorisExecutionOptions.builder();
-        builder.setCheckInterval(readableConfig.get(SINK_CHECK_INTERVAL));
+        builder.setCheckInterval((int) readableConfig.get(SINK_CHECK_INTERVAL).toMillis());
         builder.setMaxRetries(readableConfig.get(SINK_MAX_RETRIES));
-        builder.setBufferSize(readableConfig.get(SINK_BUFFER_SIZE));
+        builder.setBufferSize((int) readableConfig.get(SINK_BUFFER_SIZE).getBytes());
         builder.setBufferCount(readableConfig.get(SINK_BUFFER_COUNT));
         builder.setLabelPrefix(readableConfig.get(SINK_LABEL_PREFIX));
         builder.setStreamLoadProp(streamLoadProp);
@@ -245,7 +248,8 @@ public final class DorisDynamicTableFactory
         }
         builder.setFlushQueueSize(readableConfig.get(SINK_FLUSH_QUEUE_SIZE));
         builder.setBufferFlushMaxRows(readableConfig.get(SINK_BUFFER_FLUSH_MAX_ROWS));
-        builder.setBufferFlushMaxBytes(readableConfig.get(SINK_BUFFER_FLUSH_MAX_BYTES));
+        builder.setBufferFlushMaxBytes(
+                (int) readableConfig.get(SINK_BUFFER_FLUSH_MAX_BYTES).getBytes());
         builder.setBufferFlushIntervalMs(readableConfig.get(SINK_BUFFER_FLUSH_INTERVAL).toMillis());
         builder.setUseCache(readableConfig.get(SINK_USE_CACHE));
         return builder.build();
