@@ -467,14 +467,14 @@ public class RowBatch {
         return String.format(messageTemplate, flinkType, arrowType.name());
     }
 
-    private String convertLongToIPv4String(long ipLongValue) {
-        return ((ipLongValue >> 24) & 0xFF)
+    private String convertLongToIPv4String(long ipv4LongValue) {
+        return ((ipv4LongValue >> 24) & 0xFF)
                 + "."
-                + ((ipLongValue >> 16) & 0xFF)
+                + ((ipv4LongValue >> 16) & 0xFF)
                 + "."
-                + ((ipLongValue >> 8) & 0xFF)
+                + ((ipv4LongValue >> 8) & 0xFF)
                 + "."
-                + (ipLongValue & 0xFF);
+                + (ipv4LongValue & 0xFF);
     }
 
     private String convertVarcharToIPv6String(String numricString) {
