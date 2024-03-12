@@ -63,7 +63,7 @@ import static org.apache.flink.api.common.JobStatus.RUNNING;
  */
 public class MySQLDorisE2ECase extends DorisTestBase {
     protected static final Logger LOG = LoggerFactory.getLogger(MySQLDorisE2ECase.class);
-    private static final String DATABASE = "test";
+    private static final String DATABASE = "test_e2e_mysql";
     private static final String MYSQL_USER = "root";
     private static final String MYSQL_PASSWD = "123456";
     private static final String TABLE_1 = "tbl1";
@@ -276,7 +276,11 @@ public class MySQLDorisE2ECase extends DorisTestBase {
     }
 
     private void initializeDorisTable() throws Exception {
-        try (Statement statement = connection.createStatement()) {
+        try (Connection connection =
+                        DriverManager.getConnection(
+                                String.format(URL, DORIS_CONTAINER.getHost()), USERNAME, PASSWORD);
+                Statement statement = connection.createStatement()) {
+            statement.execute(String.format("CREATE DATABASE IF NOT EXISTS %s", DATABASE));
             statement.execute(String.format("DROP TABLE IF EXISTS %s.%s", DATABASE, TABLE_1));
             statement.execute(String.format("DROP TABLE IF EXISTS %s.%s", DATABASE, TABLE_2));
             statement.execute(String.format("DROP TABLE IF EXISTS %s.%s", DATABASE, TABLE_3));
@@ -287,8 +291,11 @@ public class MySQLDorisE2ECase extends DorisTestBase {
     public void checkResult(Set<List<Object>> expected, String query, int columnSize)
             throws Exception {
         Set<List<Object>> actual = new HashSet<>();
-        try (Statement sinkStatement = connection.createStatement()) {
-            ResultSet sinkResultSet = sinkStatement.executeQuery(query);
+        try (Connection connection =
+                        DriverManager.getConnection(
+                                String.format(URL, DORIS_CONTAINER.getHost()), USERNAME, PASSWORD);
+                Statement statement = connection.createStatement()) {
+            ResultSet sinkResultSet = statement.executeQuery(query);
             while (sinkResultSet.next()) {
                 List<Object> row = new ArrayList<>();
                 for (int i = 1; i <= columnSize; i++) {

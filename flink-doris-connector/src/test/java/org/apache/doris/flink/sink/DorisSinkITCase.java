@@ -30,6 +30,8 @@ import org.apache.doris.flink.sink.writer.serializer.SimpleStringSerializer;
 import org.junit.Test;
 import org.junit.jupiter.api.Assertions;
 
+import java.sql.Connection;
+import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.Arrays;
@@ -45,7 +47,7 @@ import java.util.stream.Stream;
 
 /** DorisSink ITCase with csv and arrow format. */
 public class DorisSinkITCase extends DorisTestBase {
-    static final String DATABASE = "test";
+    static final String DATABASE = "test_sink";
     static final String TABLE_CSV = "tbl_csv";
     static final String TABLE_JSON = "tbl_json";
     static final String TABLE_JSON_TBL = "tbl_json_tbl";
@@ -61,9 +63,13 @@ public class DorisSinkITCase extends DorisTestBase {
 
         Thread.sleep(10000);
         Set<List<Object>> actual = new HashSet<>();
-        try (Statement sinkStatement = connection.createStatement()) {
+
+        try (Connection connection =
+                        DriverManager.getConnection(
+                                String.format(URL, DORIS_CONTAINER.getHost()), USERNAME, PASSWORD);
+                Statement statement = connection.createStatement()) {
             ResultSet sinkResultSet =
-                    sinkStatement.executeQuery(
+                    statement.executeQuery(
                             String.format(
                                     "select name,age from %s.%s order by 1", DATABASE, TABLE_CSV));
             while (sinkResultSet.next()) {
@@ -102,9 +108,12 @@ public class DorisSinkITCase extends DorisTestBase {
 
         Thread.sleep(10000);
         Set<List<Object>> actual = new HashSet<>();
-        try (Statement sinkStatement = connection.createStatement()) {
+        try (Connection connection =
+                        DriverManager.getConnection(
+                                String.format(URL, DORIS_CONTAINER.getHost()), USERNAME, PASSWORD);
+                Statement statement = connection.createStatement()) {
             ResultSet sinkResultSet =
-                    sinkStatement.executeQuery(
+                    statement.executeQuery(
                             String.format(
                                     "select name,age from %s.%s order by 1", DATABASE, TABLE_JSON));
             while (sinkResultSet.next()) {
@@ -172,9 +181,12 @@ public class DorisSinkITCase extends DorisTestBase {
 
         Thread.sleep(10000);
         Set<List<Object>> actual = new HashSet<>();
-        try (Statement sinkStatement = connection.createStatement()) {
+        try (Connection connection =
+                        DriverManager.getConnection(
+                                String.format(URL, DORIS_CONTAINER.getHost()), USERNAME, PASSWORD);
+                Statement statement = connection.createStatement()) {
             ResultSet sinkResultSet =
-                    sinkStatement.executeQuery(
+                    statement.executeQuery(
                             String.format(
                                     "select name,age from %s.%s order by 1",
                                     DATABASE, TABLE_JSON_TBL));
@@ -191,7 +203,10 @@ public class DorisSinkITCase extends DorisTestBase {
     }
 
     private void initializeTable(String table) throws Exception {
-        try (Statement statement = connection.createStatement()) {
+        try (Connection connection =
+                        DriverManager.getConnection(
+                                String.format(URL, DORIS_CONTAINER.getHost()), USERNAME, PASSWORD);
+                Statement statement = connection.createStatement()) {
             statement.execute(String.format("CREATE DATABASE IF NOT EXISTS %s", DATABASE));
             statement.execute(String.format("DROP TABLE IF EXISTS %s.%s", DATABASE, table));
             statement.execute(

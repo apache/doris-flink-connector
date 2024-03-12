@@ -18,10 +18,12 @@
 package org.apache.doris.flink.sink.committer;
 
 import org.apache.flink.api.connector.sink2.Committer;
+import org.apache.flink.util.Preconditions;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.exception.DorisRuntimeException;
@@ -58,20 +60,25 @@ public class DorisCommitter implements Committer<DorisCommittable>, Closeable {
     private final BackendUtil backendUtil;
 
     int maxRetry;
+    final boolean ignoreCommitError;
 
     public DorisCommitter(
-            DorisOptions dorisOptions, DorisReadOptions dorisReadOptions, int maxRetry) {
-        this(dorisOptions, dorisReadOptions, maxRetry, new HttpUtil().getHttpClient());
+            DorisOptions dorisOptions,
+            DorisReadOptions dorisReadOptions,
+            DorisExecutionOptions executionOptions) {
+        this(dorisOptions, dorisReadOptions, executionOptions, new HttpUtil().getHttpClient());
     }
 
     public DorisCommitter(
             DorisOptions dorisOptions,
             DorisReadOptions dorisReadOptions,
-            int maxRetry,
+            DorisExecutionOptions executionOptions,
             CloseableHttpClient client) {
         this.dorisOptions = dorisOptions;
         this.dorisReadOptions = dorisReadOptions;
-        this.maxRetry = maxRetry;
+        Preconditions.checkArgument(maxRetry >= 0);
+        this.maxRetry = executionOptions.getMaxRetries();
+        this.ignoreCommitError = executionOptions.ignoreCommitError();
         this.httpClient = client;
         this.backendUtil =
                 StringUtils.isNotEmpty(dorisOptions.getBenodes())
@@ -99,8 +106,8 @@ public class DorisCommitter implements Committer<DorisCommittable>, Closeable {
 
         // hostPort
         String hostPort = committable.getHostPort();
-
         LOG.info("commit txn {} to host {}", committable.getTxnID(), hostPort);
+        Throwable ex = new Throwable();
         int retry = 0;
         while (retry <= maxRetry) {
             // get latest-url
@@ -130,17 +137,31 @@ public class DorisCommitter implements Committer<DorisCommittable>, Closeable {
                 String reasonPhrase = statusLine.getReasonPhrase();
                 LOG.error("commit failed with {}, reason {}", hostPort, reasonPhrase);
                 if (retry == maxRetry) {
-                    throw new DorisRuntimeException("commit transaction error: " + reasonPhrase);
+                    ex = new DorisRuntimeException("commit transaction error: " + reasonPhrase);
                 }
                 hostPort = backendUtil.getAvailableBackend();
             } catch (Exception e) {
                 LOG.error("commit transaction failed, to retry, {}", e.getMessage());
-                if (retry == maxRetry) {
-                    throw new DorisRuntimeException("commit transaction error, ", e);
-                }
+                ex = e;
                 hostPort = backendUtil.getAvailableBackend();
             }
-            retry++;
+
+            if (retry++ >= maxRetry) {
+                if (ignoreCommitError) {
+                    // Generally used when txn(stored in checkpoint) expires and unexpected
+                    // errors occur in commit.
+
+                    // It should be noted that you must manually ensure that the txn has been
+                    // successfully submitted to doris, otherwise there may be a risk of data
+                    // loss.
+                    LOG.error(
+                            "Unable to commit transaction {} and data has been potentially lost ",
+                            committable,
+                            ex);
+                } else {
+                    throw new DorisRuntimeException("commit transaction error, ", ex);
+                }
+            }
         }
     }
 
