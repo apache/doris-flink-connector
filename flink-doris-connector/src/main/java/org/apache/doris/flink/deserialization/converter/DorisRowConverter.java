@@ -200,7 +200,7 @@ public class DorisRowConverter implements Serializable {
                         return TimestampData.fromTimestamp((Timestamp) val);
                     } else {
                         throw new UnsupportedOperationException(
-                                "timestamp type must be java.time.LocalDateTime or java.time.Timestamp, the actual type is: "
+                                "timestamp type must be java.time.LocalDateTime or java.sql.Timestamp, the actual type is: "
                                         + val.getClass().getName());
                     }
                 };
