@@ -46,7 +46,7 @@ import java.util.concurrent.locks.LockSupport;
 
 public abstract class DorisTestBase {
     protected static final Logger LOG = LoggerFactory.getLogger(DorisTestBase.class);
-    private static final String DEFAULT_DOCKER_IMAGE = "adamlee489/doris:2.0.3";
+    private static final String DEFAULT_DOCKER_IMAGE = "apache/doris:doris-all-in-one-2.1.0";
     protected static final String DORIS_DOCKER_IMAGE =
             System.getProperty("image") == null
                     ? DEFAULT_DOCKER_IMAGE
