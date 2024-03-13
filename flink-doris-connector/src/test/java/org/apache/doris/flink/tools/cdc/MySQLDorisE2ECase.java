@@ -280,6 +280,7 @@ public class MySQLDorisE2ECase extends DorisTestBase {
                         DriverManager.getConnection(
                                 String.format(URL, DORIS_CONTAINER.getHost()), USERNAME, PASSWORD);
                 Statement statement = connection.createStatement()) {
+            statement.execute(String.format("CREATE DATABASE IF NOT EXISTS %s", DATABASE));
             statement.execute(String.format("DROP TABLE IF EXISTS %s.%s", DATABASE, TABLE_1));
             statement.execute(String.format("DROP TABLE IF EXISTS %s.%s", DATABASE, TABLE_2));
             statement.execute(String.format("DROP TABLE IF EXISTS %s.%s", DATABASE, TABLE_3));

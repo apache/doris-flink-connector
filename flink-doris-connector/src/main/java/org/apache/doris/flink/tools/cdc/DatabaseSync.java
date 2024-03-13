@@ -260,10 +260,10 @@ public abstract class DatabaseSync {
                 .ifPresent(executionBuilder::setBufferCount);
         sinkConfig
                 .getOptional(DorisConfigOptions.SINK_BUFFER_SIZE)
-                .ifPresent(executionBuilder::setBufferSize);
+                .ifPresent(v -> executionBuilder.setBufferSize((int) v.getBytes()));
         sinkConfig
                 .getOptional(DorisConfigOptions.SINK_CHECK_INTERVAL)
-                .ifPresent(executionBuilder::setCheckInterval);
+                .ifPresent(v -> executionBuilder.setCheckInterval((int) v.toMillis()));
         sinkConfig
                 .getOptional(DorisConfigOptions.SINK_MAX_RETRIES)
                 .ifPresent(executionBuilder::setMaxRetries);
@@ -289,7 +289,7 @@ public abstract class DatabaseSync {
                 .ifPresent(executionBuilder::setBufferFlushMaxRows);
         sinkConfig
                 .getOptional(DorisConfigOptions.SINK_BUFFER_FLUSH_MAX_BYTES)
-                .ifPresent(executionBuilder::setBufferFlushMaxBytes);
+                .ifPresent(v -> executionBuilder.setBufferFlushMaxBytes((int) v.getBytes()));
         sinkConfig
                 .getOptional(DorisConfigOptions.SINK_BUFFER_FLUSH_INTERVAL)
                 .ifPresent(v -> executionBuilder.setBufferFlushIntervalMs(v.toMillis()));
