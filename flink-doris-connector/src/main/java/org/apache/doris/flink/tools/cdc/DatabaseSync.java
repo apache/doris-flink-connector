@@ -17,6 +17,7 @@
 
 package org.apache.doris.flink.tools.cdc;
 
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
@@ -34,6 +35,8 @@ import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.sink.DorisSink;
+import org.apache.doris.flink.sink.writer.WriteMode;
+import org.apache.doris.flink.sink.writer.serializer.DorisRecordSerializer;
 import org.apache.doris.flink.sink.writer.serializer.JsonDebeziumSchemaSerializer;
 import org.apache.doris.flink.table.DorisConfigOptions;
 import org.slf4j.Logger;
@@ -51,7 +54,6 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 public abstract class DatabaseSync {
     private static final Logger LOG = LoggerFactory.getLogger(DatabaseSync.class);
@@ -72,7 +74,7 @@ public abstract class DatabaseSync {
 
     public StreamExecutionEnvironment env;
     private boolean createTableOnly = false;
-    private boolean newSchemaChange;
+    private boolean newSchemaChange = true;
     protected String includingTables;
     protected String excludingTables;
     protected String multiToOneOrigin;
@@ -114,14 +116,14 @@ public abstract class DatabaseSync {
 
         List<SourceSchema> schemaList = getSchemaList();
         Preconditions.checkState(!schemaList.isEmpty(), "No tables to be synchronized.");
-        if (!dorisSystem.databaseExists(database)) {
+
+        if (!StringUtils.isNullOrWhitespaceOnly(database)
+                && !dorisSystem.databaseExists(database)) {
             LOG.info("database {} not exist, created", database);
             dorisSystem.createDatabase(database);
         }
-
         List<String> syncTables = new ArrayList<>();
-        List<String> dorisTables = new ArrayList<>();
-
+        List<Tuple2<String, String>> dorisTables = new ArrayList<>();
         Map<String, Integer> tableBucketsMap = null;
         if (tableConfig.containsKey("table-buckets")) {
             tableBucketsMap = getTableBuckets(tableConfig.get("table-buckets"));
@@ -129,23 +131,32 @@ public abstract class DatabaseSync {
         Set<String> bucketsTable = new HashSet<>();
         for (SourceSchema schema : schemaList) {
             syncTables.add(schema.getTableName());
+            String targetDb = database;
+            // Synchronize multiple databases using the src database name
+            if (StringUtils.isNullOrWhitespaceOnly(targetDb)) {
+                targetDb = schema.getDatabaseName();
+            }
+            if (StringUtils.isNullOrWhitespaceOnly(database)
+                    && !dorisSystem.databaseExists(targetDb)) {
+                LOG.info("database {} not exist, created", targetDb);
+                dorisSystem.createDatabase(targetDb);
+            }
             String dorisTable = converter.convert(schema.getTableName());
-
             // Calculate the mapping relationship between upstream and downstream tables
             tableMapping.put(
-                    schema.getTableIdentifier(), String.format("%s.%s", database, dorisTable));
-            if (!dorisSystem.tableExists(database, dorisTable)) {
+                    schema.getTableIdentifier(), String.format("%s.%s", targetDb, dorisTable));
+            if (!dorisSystem.tableExists(targetDb, dorisTable)) {
                 TableSchema dorisSchema = schema.convertTableSchema(tableConfig);
                 // set doris target database
-                dorisSchema.setDatabase(database);
+                dorisSchema.setDatabase(targetDb);
                 dorisSchema.setTable(dorisTable);
                 if (tableBucketsMap != null) {
                     setTableSchemaBuckets(tableBucketsMap, dorisSchema, dorisTable, bucketsTable);
                 }
                 dorisSystem.createTable(dorisSchema);
             }
-            if (!dorisTables.contains(dorisTable)) {
-                dorisTables.add(dorisTable);
+            if (!dorisTables.contains(Tuple2.of(targetDb, dorisTable))) {
+                dorisTables.add(Tuple2.of(targetDb, dorisTable));
             }
         }
         if (createTableOnly) {
@@ -158,19 +169,19 @@ public abstract class DatabaseSync {
             streamSource.sinkTo(buildDorisSink());
         } else {
             SingleOutputStreamOperator<Void> parsedStream =
-                    streamSource.process(new ParsingProcessFunction(converter));
-            for (String table : dorisTables) {
+                    streamSource.process(buildProcessFunction());
+            for (Tuple2<String, String> dbTbl : dorisTables) {
                 OutputTag<String> recordOutputTag =
-                        ParsingProcessFunction.createRecordOutputTag(table);
+                        ParsingProcessFunction.createRecordOutputTag(dbTbl.f1);
                 DataStream<String> sideOutput = parsedStream.getSideOutput(recordOutputTag);
                 int sinkParallel =
                         sinkConfig.getInteger(
                                 DorisConfigOptions.SINK_PARALLELISM, sideOutput.getParallelism());
                 sideOutput
-                        .sinkTo(buildDorisSink(table))
+                        .sinkTo(buildDorisSink(dbTbl.f0 + "." + dbTbl.f1))
                         .setParallelism(sinkParallel)
-                        .name(table)
-                        .uid(table);
+                        .name(dbTbl.f1)
+                        .uid(dbTbl.f1);
             }
         }
     }
@@ -199,23 +210,33 @@ public abstract class DatabaseSync {
         return buildDorisSink(null);
     }
 
+    public ParsingProcessFunction buildProcessFunction() {
+        return new ParsingProcessFunction(converter);
+    }
+
     /** create doris sink. */
-    public DorisSink<String> buildDorisSink(String table) {
+    public DorisSink<String> buildDorisSink(String tableIdentifier) {
         String fenodes = sinkConfig.getString(DorisConfigOptions.FENODES);
         String benodes = sinkConfig.getString(DorisConfigOptions.BENODES);
         String user = sinkConfig.getString(DorisConfigOptions.USERNAME);
         String passwd = sinkConfig.getString(DorisConfigOptions.PASSWORD, "");
+        String jdbcUrl = sinkConfig.getString(DorisConfigOptions.JDBC_URL);
 
         DorisSink.Builder<String> builder = DorisSink.builder();
         DorisOptions.Builder dorisBuilder = DorisOptions.builder();
-        dorisBuilder.setFenodes(fenodes).setBenodes(benodes).setUsername(user).setPassword(passwd);
+        dorisBuilder
+                .setJdbcUrl(jdbcUrl)
+                .setFenodes(fenodes)
+                .setBenodes(benodes)
+                .setUsername(user)
+                .setPassword(passwd);
         sinkConfig
                 .getOptional(DorisConfigOptions.AUTO_REDIRECT)
                 .ifPresent(dorisBuilder::setAutoRedirect);
 
         // single sink not need table identifier
-        if (!singleSink && !StringUtils.isNullOrWhitespaceOnly(table)) {
-            dorisBuilder.setTableIdentifier(database + "." + table);
+        if (!singleSink && !StringUtils.isNullOrWhitespaceOnly(tableIdentifier)) {
+            dorisBuilder.setTableIdentifier(tableIdentifier);
         }
 
         Properties pro = new Properties();
@@ -239,10 +260,10 @@ public abstract class DatabaseSync {
                 .ifPresent(executionBuilder::setBufferCount);
         sinkConfig
                 .getOptional(DorisConfigOptions.SINK_BUFFER_SIZE)
-                .ifPresent(executionBuilder::setBufferSize);
+                .ifPresent(v -> executionBuilder.setBufferSize((int) v.getBytes()));
         sinkConfig
                 .getOptional(DorisConfigOptions.SINK_CHECK_INTERVAL)
-                .ifPresent(executionBuilder::setCheckInterval);
+                .ifPresent(v -> executionBuilder.setCheckInterval((int) v.toMillis()));
         sinkConfig
                 .getOptional(DorisConfigOptions.SINK_MAX_RETRIES)
                 .ifPresent(executionBuilder::setMaxRetries);
@@ -268,7 +289,7 @@ public abstract class DatabaseSync {
                 .ifPresent(executionBuilder::setBufferFlushMaxRows);
         sinkConfig
                 .getOptional(DorisConfigOptions.SINK_BUFFER_FLUSH_MAX_BYTES)
-                .ifPresent(executionBuilder::setBufferFlushMaxBytes);
+                .ifPresent(v -> executionBuilder.setBufferFlushMaxBytes((int) v.getBytes()));
         sinkConfig
                 .getOptional(DorisConfigOptions.SINK_BUFFER_FLUSH_INTERVAL)
                 .ifPresent(v -> executionBuilder.setBufferFlushIntervalMs(v.toMillis()));
@@ -276,23 +297,33 @@ public abstract class DatabaseSync {
         sinkConfig
                 .getOptional(DorisConfigOptions.SINK_USE_CACHE)
                 .ifPresent(executionBuilder::setUseCache);
+        sinkConfig
+                .getOptional(DorisConfigOptions.SINK_WRITE_MODE)
+                .ifPresent(v -> executionBuilder.setWriteMode(WriteMode.of(v)));
+        sinkConfig
+                .getOptional(DorisConfigOptions.SINK_IGNORE_COMMIT_ERROR)
+                .ifPresent(executionBuilder::setIgnoreCommitError);
 
         DorisExecutionOptions executionOptions = executionBuilder.build();
         builder.setDorisReadOptions(DorisReadOptions.builder().build())
                 .setDorisExecutionOptions(executionOptions)
-                .setSerializer(
-                        JsonDebeziumSchemaSerializer.builder()
-                                .setDorisOptions(dorisBuilder.build())
-                                .setNewSchemaChange(newSchemaChange)
-                                .setExecutionOptions(executionOptions)
-                                .setTableMapping(tableMapping)
-                                .setTableProperties(tableConfig)
-                                .setTargetDatabase(database)
-                                .setTargetTablePrefix(tablePrefix)
-                                .setTargetTableSuffix(tableSuffix)
-                                .build())
+                .setSerializer(buildSchemaSerializer(dorisBuilder, executionOptions))
                 .setDorisOptions(dorisBuilder.build());
         return builder.build();
+    }
+
+    public DorisRecordSerializer<String> buildSchemaSerializer(
+            DorisOptions.Builder dorisBuilder, DorisExecutionOptions executionOptions) {
+        return JsonDebeziumSchemaSerializer.builder()
+                .setDorisOptions(dorisBuilder.build())
+                .setNewSchemaChange(newSchemaChange)
+                .setExecutionOptions(executionOptions)
+                .setTableMapping(tableMapping)
+                .setTableProperties(tableConfig)
+                .setTargetDatabase(database)
+                .setTargetTablePrefix(tablePrefix)
+                .setTargetTableSuffix(tableSuffix)
+                .build();
     }
 
     /** Filter table that need to be synchronized. */
@@ -310,9 +341,7 @@ public abstract class DatabaseSync {
 
     protected String getSyncTableList(List<String> syncTables) {
         if (!singleSink) {
-            return syncTables.stream()
-                    .map(v -> getTableListPrefix() + "\\." + v)
-                    .collect(Collectors.joining("|"));
+            return String.format("(%s)\\.(%s)", getTableListPrefix(), String.join("|", syncTables));
         } else {
             // includingTablePattern and ^excludingPattern
             if (includingTables == null) {
@@ -362,7 +391,7 @@ public abstract class DatabaseSync {
      * @param tableBuckets the string of tableBuckets, eg:student:10,student_info:20,student.*:30
      * @return The table name and buckets map. The key is table name, the value is buckets.
      */
-    public Map<String, Integer> getTableBuckets(String tableBuckets) {
+    public static Map<String, Integer> getTableBuckets(String tableBuckets) {
         Map<String, Integer> tableBucketsMap = new LinkedHashMap<>();
         String[] tableBucketsArray = tableBuckets.split(",");
         for (String tableBucket : tableBucketsArray) {

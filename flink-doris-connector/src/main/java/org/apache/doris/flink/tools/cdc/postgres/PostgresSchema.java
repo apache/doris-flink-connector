@@ -17,11 +17,11 @@
 
 package org.apache.doris.flink.tools.cdc.postgres;
 
-import org.apache.doris.flink.tools.cdc.SourceSchema;
+import org.apache.doris.flink.tools.cdc.JdbcSourceSchema;
 
 import java.sql.DatabaseMetaData;
 
-public class PostgresSchema extends SourceSchema {
+public class PostgresSchema extends JdbcSourceSchema {
 
     public PostgresSchema(
             DatabaseMetaData metaData,
@@ -36,5 +36,10 @@ public class PostgresSchema extends SourceSchema {
     @Override
     public String convertToDorisType(String fieldType, Integer precision, Integer scale) {
         return PostgresType.toDorisType(fieldType, precision, scale);
+    }
+
+    @Override
+    public String getCdcTableName() {
+        return schemaName + "\\." + tableName;
     }
 }

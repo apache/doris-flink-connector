@@ -90,7 +90,7 @@ public class DorisBatchStreamLoad implements Serializable {
     private final AtomicBoolean started;
     private volatile boolean loadThreadAlive = false;
     private AtomicReference<Throwable> exception = new AtomicReference<>(null);
-    private CloseableHttpClient httpClient = new HttpUtil().getHttpClient();
+    private CloseableHttpClient httpClient = new HttpUtil().getHttpClientForBatch();
     private BackendUtil backendUtil;
 
     public DorisBatchStreamLoad(

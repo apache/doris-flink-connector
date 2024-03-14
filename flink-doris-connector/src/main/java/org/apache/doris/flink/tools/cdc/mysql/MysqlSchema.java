@@ -17,11 +17,11 @@
 
 package org.apache.doris.flink.tools.cdc.mysql;
 
-import org.apache.doris.flink.tools.cdc.SourceSchema;
+import org.apache.doris.flink.tools.cdc.JdbcSourceSchema;
 
 import java.sql.DatabaseMetaData;
 
-public class MysqlSchema extends SourceSchema {
+public class MysqlSchema extends JdbcSourceSchema {
 
     public MysqlSchema(
             DatabaseMetaData metaData, String databaseName, String tableName, String tableComment)
@@ -31,5 +31,10 @@ public class MysqlSchema extends SourceSchema {
 
     public String convertToDorisType(String fieldType, Integer precision, Integer scale) {
         return MysqlType.toDorisType(fieldType, precision, scale);
+    }
+
+    @Override
+    public String getCdcTableName() {
+        return databaseName + "\\." + tableName;
     }
 }

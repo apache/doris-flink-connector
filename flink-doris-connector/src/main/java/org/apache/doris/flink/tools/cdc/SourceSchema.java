@@ -23,8 +23,6 @@ import org.apache.doris.flink.catalog.doris.DataModel;
 import org.apache.doris.flink.catalog.doris.FieldSchema;
 import org.apache.doris.flink.catalog.doris.TableSchema;
 
-import java.sql.DatabaseMetaData;
-import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -33,58 +31,26 @@ import java.util.Map;
 import java.util.StringJoiner;
 
 public abstract class SourceSchema {
-    private final String databaseName;
-    private final String schemaName;
-    private final String tableName;
-    private final String tableComment;
-    private final LinkedHashMap<String, FieldSchema> fields;
-    public final List<String> primaryKeys;
+    protected final String databaseName;
+    protected final String schemaName;
+    protected final String tableName;
+    protected final String tableComment;
+    protected LinkedHashMap<String, FieldSchema> fields;
+    public List<String> primaryKeys;
     public DataModel model = DataModel.UNIQUE;
 
     public SourceSchema(
-            DatabaseMetaData metaData,
-            String databaseName,
-            String schemaName,
-            String tableName,
-            String tableComment)
+            String databaseName, String schemaName, String tableName, String tableComment)
             throws Exception {
         this.databaseName = databaseName;
         this.schemaName = schemaName;
         this.tableName = tableName;
         this.tableComment = tableComment;
-
-        fields = new LinkedHashMap<>();
-        try (ResultSet rs = metaData.getColumns(databaseName, schemaName, tableName, null)) {
-            while (rs.next()) {
-                String fieldName = rs.getString("COLUMN_NAME");
-                String comment = rs.getString("REMARKS");
-                String fieldType = rs.getString("TYPE_NAME");
-                String defaultValue = rs.getString("COLUMN_DEF");
-                Integer precision = rs.getInt("COLUMN_SIZE");
-                if (rs.wasNull()) {
-                    precision = null;
-                }
-
-                Integer scale = rs.getInt("DECIMAL_DIGITS");
-                if (rs.wasNull()) {
-                    scale = null;
-                }
-                String dorisTypeStr = convertToDorisType(fieldType, precision, scale);
-                fields.put(
-                        fieldName, new FieldSchema(fieldName, dorisTypeStr, defaultValue, comment));
-            }
-        }
-
-        primaryKeys = new ArrayList<>();
-        try (ResultSet rs = metaData.getPrimaryKeys(databaseName, schemaName, tableName)) {
-            while (rs.next()) {
-                String fieldName = rs.getString("COLUMN_NAME");
-                primaryKeys.add(fieldName);
-            }
-        }
     }
 
     public abstract String convertToDorisType(String fieldType, Integer precision, Integer scale);
+
+    public abstract String getCdcTableName();
 
     public String getTableIdentifier() {
         return getString(databaseName, schemaName, tableName);

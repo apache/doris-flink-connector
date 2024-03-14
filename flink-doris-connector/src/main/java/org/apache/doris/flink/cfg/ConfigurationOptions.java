@@ -24,21 +24,14 @@ public interface ConfigurationOptions {
     String DORIS_DEFAULT_CLUSTER = "default_cluster";
 
     String TABLE_IDENTIFIER = "table.identifier";
-    String DORIS_TABLE_IDENTIFIER = "doris.table.identifier";
     String DORIS_READ_FIELD = "doris.read.field";
     String DORIS_FILTER_QUERY = "doris.filter.query";
-    String DORIS_FILTER_QUERY_IN_MAX_COUNT = "doris.filter.query.in.max.count";
-    Integer DORIS_FILTER_QUERY_IN_VALUE_UPPER_LIMIT = 10000;
-
     String DORIS_USER = "username";
     String DORIS_PASSWORD = "password";
-
-    String DORIS_REQUEST_AUTH_USER = "doris.request.auth.user";
-    String DORIS_REQUEST_AUTH_PASSWORD = "doris.request.auth.password";
     String DORIS_REQUEST_RETRIES = "doris.request.retries";
-    String DORIS_REQUEST_CONNECT_TIMEOUT_MS = "doris.request.connect.timeout.ms";
-    String DORIS_REQUEST_READ_TIMEOUT_MS = "doris.request.read.timeout.ms";
-    String DORIS_REQUEST_QUERY_TIMEOUT_S = "doris.request.query.timeout.s";
+    String DORIS_REQUEST_CONNECT_TIMEOUT_MS = "doris.request.connect.timeout";
+    String DORIS_REQUEST_READ_TIMEOUT_MS = "doris.request.read.timeout";
+    String DORIS_REQUEST_QUERY_TIMEOUT_S = "doris.request.query.timeout";
     Integer DORIS_REQUEST_RETRIES_DEFAULT = 3;
     Integer DORIS_REQUEST_CONNECT_TIMEOUT_MS_DEFAULT = 30 * 1000;
     Integer DORIS_REQUEST_READ_TIMEOUT_MS_DEFAULT = 30 * 1000;
@@ -53,12 +46,9 @@ public interface ConfigurationOptions {
 
     String DORIS_EXEC_MEM_LIMIT = "doris.exec.mem.limit";
     Long DORIS_EXEC_MEM_LIMIT_DEFAULT = 2147483648L;
-
-    String DORIS_VALUE_READER_CLASS = "doris.value.reader.class";
-
+    String DORIS_EXEC_MEM_LIMIT_DEFAULT_STR = "2048mb";
     String DORIS_DESERIALIZE_ARROW_ASYNC = "doris.deserialize.arrow.async";
     Boolean DORIS_DESERIALIZE_ARROW_ASYNC_DEFAULT = false;
-
     String DORIS_DESERIALIZE_QUEUE_SIZE = "doris.deserialize.queue.size";
     Integer DORIS_DESERIALIZE_QUEUE_SIZE_DEFAULT = 64;
 }

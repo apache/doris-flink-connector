@@ -15,31 +15,28 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.flink.tools.cdc.sqlserver;
+package org.apache.doris.flink.sink.copy.models;
 
-import org.apache.doris.flink.tools.cdc.JdbcSourceSchema;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
-import java.sql.DatabaseMetaData;
+import java.util.Map;
 
-public class SqlServerSchema extends JdbcSourceSchema {
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class CopyIntoResp extends BaseResponse {
+    private String code;
+    private String exception;
 
-    public SqlServerSchema(
-            DatabaseMetaData metaData,
-            String databaseName,
-            String schemaName,
-            String tableName,
-            String tableComment)
-            throws Exception {
-        super(metaData, databaseName, schemaName, tableName, tableComment);
+    private Map<String, String> result;
+
+    public String getDataCode() {
+        return code;
     }
 
-    @Override
-    public String convertToDorisType(String fieldType, Integer precision, Integer scale) {
-        return SqlServerType.toDorisType(fieldType, precision, scale);
+    public String getException() {
+        return exception;
     }
 
-    @Override
-    public String getCdcTableName() {
-        return schemaName + "\\." + tableName;
+    public Map<String, String> getResult() {
+        return result;
     }
 }

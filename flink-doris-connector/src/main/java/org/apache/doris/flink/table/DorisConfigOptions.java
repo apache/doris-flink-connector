@@ -19,6 +19,7 @@ package org.apache.doris.flink.table;
 
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.table.factories.FactoryUtil;
 
 import org.apache.doris.flink.sink.writer.WriteMode;
@@ -30,7 +31,7 @@ import java.util.Properties;
 import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_BATCH_SIZE_DEFAULT;
 import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_DESERIALIZE_ARROW_ASYNC_DEFAULT;
 import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_DESERIALIZE_QUEUE_SIZE_DEFAULT;
-import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_EXEC_MEM_LIMIT_DEFAULT;
+import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_EXEC_MEM_LIMIT_DEFAULT_STR;
 import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_REQUEST_CONNECT_TIMEOUT_MS_DEFAULT;
 import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_REQUEST_QUERY_TIMEOUT_S_DEFAULT;
 import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_REQUEST_READ_TIMEOUT_MS_DEFAULT;
@@ -95,47 +96,52 @@ public class DorisConfigOptions {
             ConfigOptions.key("doris.request.tablet.size")
                     .intType()
                     .defaultValue(DORIS_TABLET_SIZE_DEFAULT)
-                    .withDescription("");
-    public static final ConfigOption<Integer> DORIS_REQUEST_CONNECT_TIMEOUT_MS =
-            ConfigOptions.key("doris.request.connect.timeout.ms")
-                    .intType()
-                    .defaultValue(DORIS_REQUEST_CONNECT_TIMEOUT_MS_DEFAULT)
-                    .withDescription("");
-    public static final ConfigOption<Integer> DORIS_REQUEST_READ_TIMEOUT_MS =
-            ConfigOptions.key("doris.request.read.timeout.ms")
-                    .intType()
-                    .defaultValue(DORIS_REQUEST_READ_TIMEOUT_MS_DEFAULT)
-                    .withDescription("");
-    public static final ConfigOption<Integer> DORIS_REQUEST_QUERY_TIMEOUT_S =
-            ConfigOptions.key("doris.request.query.timeout.s")
-                    .intType()
-                    .defaultValue(DORIS_REQUEST_QUERY_TIMEOUT_S_DEFAULT)
-                    .withDescription("");
+                    .withDescription(
+                            "The number of Doris Tablets corresponding to a Partition. The smaller this value is set, the more Partitions will be generated. This improves the parallelism on the Flink side, but at the same time puts more pressure on Doris.");
+    public static final ConfigOption<Duration> DORIS_REQUEST_CONNECT_TIMEOUT_MS =
+            ConfigOptions.key("doris.request.connect.timeout")
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(DORIS_REQUEST_CONNECT_TIMEOUT_MS_DEFAULT))
+                    .withDescription("Connection timeout for sending requests to Doris");
+    public static final ConfigOption<Duration> DORIS_REQUEST_READ_TIMEOUT_MS =
+            ConfigOptions.key("doris.request.read.timeout")
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(DORIS_REQUEST_READ_TIMEOUT_MS_DEFAULT))
+                    .withDescription("Read timeout for sending requests to Doris");
+    public static final ConfigOption<Duration> DORIS_REQUEST_QUERY_TIMEOUT_S =
+            ConfigOptions.key("doris.request.query.timeout")
+                    .durationType()
+                    .defaultValue(Duration.ofSeconds(DORIS_REQUEST_QUERY_TIMEOUT_S_DEFAULT))
+                    .withDescription(
+                            "The timeout time for querying Doris, the default value is 1 hour, -1 means no timeout limit");
     public static final ConfigOption<Integer> DORIS_REQUEST_RETRIES =
             ConfigOptions.key("doris.request.retries")
                     .intType()
                     .defaultValue(DORIS_REQUEST_RETRIES_DEFAULT)
-                    .withDescription("");
+                    .withDescription("Number of retries to send requests to Doris");
     public static final ConfigOption<Boolean> DORIS_DESERIALIZE_ARROW_ASYNC =
             ConfigOptions.key("doris.deserialize.arrow.async")
                     .booleanType()
                     .defaultValue(DORIS_DESERIALIZE_ARROW_ASYNC_DEFAULT)
-                    .withDescription("");
+                    .withDescription(
+                            "Whether to support asynchronous conversion of Arrow format to RowBatch needed for connector iterations");
     public static final ConfigOption<Integer> DORIS_DESERIALIZE_QUEUE_SIZE =
             ConfigOptions.key("doris.deserialize.queue.size")
                     .intType()
                     .defaultValue(DORIS_DESERIALIZE_QUEUE_SIZE_DEFAULT)
-                    .withDescription("");
+                    .withDescription(
+                            "Asynchronous conversion of internal processing queue in Arrow format, effective when doris.deserialize.arrow.async is true");
     public static final ConfigOption<Integer> DORIS_BATCH_SIZE =
             ConfigOptions.key("doris.batch.size")
                     .intType()
                     .defaultValue(DORIS_BATCH_SIZE_DEFAULT)
-                    .withDescription("");
-    public static final ConfigOption<Long> DORIS_EXEC_MEM_LIMIT =
+                    .withDescription(
+                            "The maximum number of rows to read data from BE at a time. Increasing this value reduces the number of connections established between Flink and Doris. Thereby reducing the additional time overhead caused by network delay.");
+    public static final ConfigOption<MemorySize> DORIS_EXEC_MEM_LIMIT =
             ConfigOptions.key("doris.exec.mem.limit")
-                    .longType()
-                    .defaultValue(DORIS_EXEC_MEM_LIMIT_DEFAULT)
-                    .withDescription("");
+                    .memoryType()
+                    .defaultValue(MemorySize.parse(DORIS_EXEC_MEM_LIMIT_DEFAULT_STR))
+                    .withDescription("Memory limit for a single query. The default is 2048mb.");
     public static final ConfigOption<Boolean> SOURCE_USE_OLD_API =
             ConfigOptions.key("source.use-old-api")
                     .booleanType()
@@ -198,20 +204,20 @@ public class DorisConfigOptions {
                     .defaultValue(true)
                     .withDescription("enable 2PC while loading");
 
-    public static final ConfigOption<Integer> SINK_CHECK_INTERVAL =
+    public static final ConfigOption<Duration> SINK_CHECK_INTERVAL =
             ConfigOptions.key("sink.check-interval")
-                    .intType()
-                    .defaultValue(10000)
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(10000))
                     .withDescription("check exception with the interval while loading");
     public static final ConfigOption<Integer> SINK_MAX_RETRIES =
             ConfigOptions.key("sink.max-retries")
                     .intType()
                     .defaultValue(3)
                     .withDescription("the max retry times if writing records to database failed.");
-    public static final ConfigOption<Integer> SINK_BUFFER_SIZE =
+    public static final ConfigOption<MemorySize> SINK_BUFFER_SIZE =
             ConfigOptions.key("sink.buffer-size")
-                    .intType()
-                    .defaultValue(1024 * 1024)
+                    .memoryType()
+                    .defaultValue(MemorySize.parse("1mb"))
                     .withDescription("the buffer size to cache data for stream load.");
     public static final ConfigOption<Integer> SINK_BUFFER_COUNT =
             ConfigOptions.key("sink.buffer-count")
@@ -235,6 +241,13 @@ public class DorisConfigOptions {
                     .defaultValue(WriteMode.STREAM_LOAD.name())
                     .withDescription("Write mode, supports stream_load, stream_load_batch");
 
+    public static final ConfigOption<Boolean> SINK_IGNORE_COMMIT_ERROR =
+            ConfigOptions.key("sink.ignore.commit-error")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Whether to ignore commit errors. Usually used when the checkpoint cannot be restored to skip the commit of txn. The default is false.");
+
     public static final ConfigOption<Integer> SINK_PARALLELISM = FactoryUtil.SINK_PARALLELISM;
 
     public static final ConfigOption<Boolean> SINK_ENABLE_BATCH_MODE =
@@ -256,10 +269,10 @@ public class DorisConfigOptions {
                     .withDescription(
                             "The maximum number of flush items in each batch, the default is 5w");
 
-    public static final ConfigOption<Integer> SINK_BUFFER_FLUSH_MAX_BYTES =
+    public static final ConfigOption<MemorySize> SINK_BUFFER_FLUSH_MAX_BYTES =
             ConfigOptions.key("sink.buffer-flush.max-bytes")
-                    .intType()
-                    .defaultValue(10 * 1024 * 1024)
+                    .memoryType()
+                    .defaultValue(MemorySize.parse("10mb"))
                     .withDescription(
                             "The maximum number of bytes flushed in each batch, the default is 10MB");
 

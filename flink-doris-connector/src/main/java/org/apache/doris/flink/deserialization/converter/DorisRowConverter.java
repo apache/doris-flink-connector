@@ -47,6 +47,7 @@ import org.apache.doris.flink.serialization.RowBatch;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.sql.Date;
+import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -195,9 +196,11 @@ public class DorisRowConverter implements Serializable {
                 return val -> {
                     if (val instanceof LocalDateTime) {
                         return TimestampData.fromLocalDateTime((LocalDateTime) val);
+                    } else if (val instanceof Timestamp) {
+                        return TimestampData.fromTimestamp((Timestamp) val);
                     } else {
                         throw new UnsupportedOperationException(
-                                "timestamp type must be java.time.LocalDateTime, the actual type is: "
+                                "timestamp type must be java.time.LocalDateTime or java.sql.Timestamp, the actual type is: "
                                         + val.getClass().getName());
                     }
                 };

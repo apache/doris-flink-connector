@@ -16,14 +16,14 @@
 # under the License.
 #
 ---
-name: Build Extensions
+name: Run ITCases
 on:
   pull_request:
   push:
 
 jobs:
   build-extension:
-    name: "Build Extensions"
+    name: "Run ITCases"
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -38,30 +38,7 @@ jobs:
         distribution: adopt
         java-version: '8'
 
-    - name: Build flink connector 1.15
+    - name: Run ITCases
       run: |
-        cd flink-doris-connector && mvn clean package \
-          -Dflink.version=1.15.0 \
-          -Dflink.minor.version=1.15 \
-          -Dflink.python.id=flink-python_2.12
+        cd flink-doris-connector && mvn test -Dtest="*ITCase" -Dimage="apache/doris:doris-all-in-one-2.1.0"
 
-    - name: Build flink connector 1.16
-      run: |
-        cd flink-doris-connector && mvn clean package \
-          -Dflink.version=1.16.0 \
-          -Dflink.minor.version=1.16 \
-          -Dflink.python.id=flink-python
-
-    - name: Build flink connector 1.17
-      run: |
-        cd flink-doris-connector && mvn clean package \
-          -Dflink.version=1.17.0 \
-          -Dflink.minor.version=1.17 \
-          -Dflink.python.id=flink-python
-
-    - name: Build flink connector 1.18
-      run: |
-        cd flink-doris-connector && mvn clean package \
-          -Dflink.version=1.18.0 \
-          -Dflink.minor.version=1.18 \
-          -Dflink.python.id=flink-python

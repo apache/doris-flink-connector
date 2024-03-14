@@ -30,4 +30,11 @@ public class ResponseUtil {
     public static boolean isCommitted(String msg) {
         return COMMITTED_PATTERN.matcher(msg).find();
     }
+
+    static final Pattern COPY_COMMITTED_PATTERN =
+            Pattern.compile("errCode = 2, detailMessage = No files can be copied.*");
+
+    public static boolean isCopyCommitted(String msg) {
+        return COPY_COMMITTED_PATTERN.matcher(msg).find();
+    }
 }

@@ -32,6 +32,8 @@ import com.ververica.cdc.debezium.DebeziumSourceFunction;
 import com.ververica.cdc.debezium.JsonDebeziumDeserializationSchema;
 import com.ververica.cdc.debezium.table.DebeziumOptions;
 import org.apache.doris.flink.catalog.doris.DataModel;
+import org.apache.doris.flink.catalog.doris.TableSchema;
+import org.apache.doris.flink.exception.CreateTableException;
 import org.apache.doris.flink.tools.cdc.DatabaseSync;
 import org.apache.doris.flink.tools.cdc.SourceSchema;
 import org.slf4j.Logger;
@@ -118,6 +120,15 @@ public class OracleDatabaseSync extends DatabaseSync {
                     if (!isSyncNeeded(tableName)) {
                         continue;
                     }
+                    // Oracle allows table names to contain special characters such as /, #, $,
+                    // etc., as in 'A/B'.
+                    // However, Doris does not support tables with these characters.
+                    if (!tableName.matches(TableSchema.DORIS_TABLE_REGEX)) {
+                        throw new CreateTableException(
+                                String.format(
+                                        "The table name %s is invalid. Table names in Doris must match the regex pattern %s. Please consider renaming the table or use the 'excluding-tables' option to filter it out.",
+                                        tableName, TableSchema.DORIS_TABLE_REGEX));
+                    }
                     SourceSchema sourceSchema =
                             new OracleSchema(
                                     metaData, databaseName, schemaName, tableName, tableComment);
@@ -143,10 +154,8 @@ public class OracleDatabaseSync extends DatabaseSync {
         // When debezium incrementally reads, it will be judged based on regexp_like.
         // When the regular length exceeds 512, an error will be reported,
         // like ORA-12733: regular expression too long
-        if (tableName.length() > 384) {
-            // max database name length 128
-            tableName =
-                    StringUtils.isNullOrWhitespaceOnly(includingTables) ? ".*" : includingTables;
+        if (tableName.length() > 512) {
+            tableName = StringUtils.isNullOrWhitespaceOnly(includingTables) ? ".*" : tableName;
         }
 
         String url = config.get(OracleSourceOptions.URL);

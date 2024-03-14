@@ -233,9 +233,7 @@ public class DorisWriter<IN>
                 continue;
             }
             DorisStreamLoad dorisStreamLoad = streamLoader.getValue();
-            LabelGenerator labelGenerator = getLabelGenerator(tableIdentifier);
-            String currentLabel = labelGenerator.generateTableLabel(curCheckpointId);
-            RespContent respContent = dorisStreamLoad.stopLoad(currentLabel);
+            RespContent respContent = dorisStreamLoad.stopLoad();
             // refresh metrics
             if (sinkMetricsMap.containsKey(tableIdentifier)) {
                 DorisWriteMetrics dorisWriteMetrics = sinkMetricsMap.get(tableIdentifier);
