@@ -17,6 +17,7 @@
 
 package org.apache.doris.flink.serialization;
 
+import org.apache.doris.flink.util.IPUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.arrow.memory.RootAllocator;
@@ -380,10 +381,11 @@ public class RowBatch {
                     addValueToRow(rowIndex, null);
                     break;
                 }
-                String numericString = new String(ipv6VarcharVector.get(rowIndex));
-                //                String ipv6String = new String(ipv6VarcharVector.get(rowIndex));
-                String ipv6String = convertVarcharToIPv6String(numericString);
-                addValueToRow(rowIndex, ipv6String);
+                String ipv6Str = new String(ipv6VarcharVector.get(rowIndex));
+                System.out.println(ipv6Str);
+                BigInteger bigInteger = new BigInteger(ipv6Str);
+                String ipv6Address = IPUtils.fromBigInteger(bigInteger);
+                addValueToRow(rowIndex, ipv6Address);
                 break;
             case "ARRAY":
                 if (!minorType.equals(Types.MinorType.LIST)) {
@@ -478,7 +480,7 @@ public class RowBatch {
     }
 
     private String convertVarcharToIPv6String(String numricString) {
-        System.out.println(numricString);
+        System.out.println(numricString.length());
         BigInteger numericValue = new BigInteger(numricString);
         StringBuilder hexString = new StringBuilder(numericValue.toString(16));
 
@@ -490,6 +492,7 @@ public class RowBatch {
         StringBuilder ipv6Address = new StringBuilder();
         for (int i = 0; i < 8; i++) {
             String block = hexString.substring(i * 4, (i + 1) * 4);
+            System.out.println(block);
             if (!block.equals("0000")) {
                 ipv6Address.append(block);
             }

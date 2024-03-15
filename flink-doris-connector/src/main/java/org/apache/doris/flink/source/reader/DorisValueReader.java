@@ -140,7 +140,7 @@ public class DorisValueReader implements AutoCloseable {
                         ? DORIS_EXEC_MEM_LIMIT_DEFAULT
                         : readOptions.getExecMemLimit();
         params.setBatchSize(batchSize);
-        params.setExecutionTimeout(queryDorisTimeout);
+        params.setQueryTimeout(queryDorisTimeout);
         params.setMemLimit(execMemLimit);
         params.setUser(options.getUsername());
         params.setPasswd(options.getPassword());
@@ -151,7 +151,7 @@ public class DorisValueReader implements AutoCloseable {
                 params.getTable(),
                 params.getTabletIds(),
                 params.getBatchSize(),
-                params.getExecutionTimeout(),
+                params.getQueryTimeout(),
                 params.getMemLimit(),
                 params.getUser(),
                 params.getOpaquedQueryPlan());
