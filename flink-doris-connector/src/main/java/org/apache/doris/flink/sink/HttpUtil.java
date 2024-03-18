@@ -18,11 +18,12 @@
 package org.apache.doris.flink.sink;
 
 import org.apache.http.client.config.RequestConfig;
-import org.apache.http.impl.NoConnectionReuseStrategy;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.DefaultRedirectStrategy;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.HttpClients;
+
+import java.util.concurrent.TimeUnit;
 
 /** util to build http client. */
 public class HttpUtil {
@@ -34,7 +35,9 @@ public class HttpUtil {
                                 protected boolean isRedirectable(String method) {
                                     return true;
                                 }
-                            });
+                            })
+                    .evictExpiredConnections()
+                    .evictIdleConnections(60, TimeUnit.SECONDS);
 
     public CloseableHttpClient getHttpClient() {
         return httpClientBuilder.build();
@@ -48,17 +51,7 @@ public class HttpUtil {
                     .setSocketTimeout(9 * 60 * 1000)
                     .build();
 
-    public CloseableHttpClient getHttpClientForBatch() {
-        return httpClientBuilder.setDefaultRequestConfig(requestConfig).build();
-    }
-
-    private final HttpClientBuilder httpClientBuilderWithTimeout =
-            HttpClients.custom().setDefaultRequestConfig(requestConfig);
-
-    public CloseableHttpClient getHttpClientWithTimeout() {
-        return httpClientBuilderWithTimeout
-                // fix failed to respond for commit copy
-                .setConnectionReuseStrategy(NoConnectionReuseStrategy.INSTANCE)
-                .build();
+    public HttpClientBuilder getHttpClientBuilderForBatch() {
+        return httpClientBuilder.setDefaultRequestConfig(requestConfig);
     }
 }
