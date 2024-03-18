@@ -49,7 +49,7 @@ public class DorisCopyCommitter implements Committer<DorisCopyCommittable>, Clos
     private static final String FAIL = "1";
     private ObjectMapper objectMapper = new ObjectMapper();
     private final DorisOptions dorisOptions;
-    private HttpClientBuilder httpClientBuilder = new HttpUtil().getHttpClientBuilderForBatch();
+    private HttpClientBuilder httpClientBuilder = new HttpUtil().getHttpClientBuilderForCopyBatch();
     int maxRetry;
 
     public DorisCopyCommitter(DorisOptions dorisOptions, int maxRetry) {

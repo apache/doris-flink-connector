@@ -52,6 +52,20 @@ public class HttpUtil {
                     .build();
 
     public HttpClientBuilder getHttpClientBuilderForBatch() {
-        return httpClientBuilder.setDefaultRequestConfig(requestConfig);
+        return HttpClients.custom()
+                .setRedirectStrategy(
+                        new DefaultRedirectStrategy() {
+                            @Override
+                            protected boolean isRedirectable(String method) {
+                                return true;
+                            }
+                        })
+                .setDefaultRequestConfig(requestConfig);
+    }
+
+    public HttpClientBuilder getHttpClientBuilderForCopyBatch() {
+        return HttpClients.custom()
+                .disableRedirectHandling()
+                .setDefaultRequestConfig(requestConfig);
     }
 }
