@@ -85,7 +85,8 @@ public class BatchStageLoad implements Serializable {
     private final AtomicBoolean started;
     private volatile boolean loadThreadAlive = false;
     private AtomicReference<Throwable> exception = new AtomicReference<>(null);
-    private HttpClientBuilder httpClientBuilder = new HttpUtil().getHttpClientBuilderForBatch().disableRedirectHandling();
+    private HttpClientBuilder httpClientBuilder =
+            new HttpUtil().getHttpClientBuilderForBatch().disableRedirectHandling();
 
     public BatchStageLoad(
             DorisOptions dorisOptions,
