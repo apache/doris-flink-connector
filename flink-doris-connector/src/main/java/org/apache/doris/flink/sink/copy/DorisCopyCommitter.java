@@ -31,6 +31,7 @@ import org.apache.doris.flink.sink.copy.models.CopyIntoResp;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,18 +48,20 @@ public class DorisCopyCommitter implements Committer<DorisCopyCommittable>, Clos
     private static final int SUCCESS = 0;
     private static final String FAIL = "1";
     private ObjectMapper objectMapper = new ObjectMapper();
-    private final CloseableHttpClient httpClient;
     private final DorisOptions dorisOptions;
+    private HttpClientBuilder httpClientBuilder = new HttpUtil().getHttpClientBuilderForCopyBatch();
     int maxRetry;
 
     public DorisCopyCommitter(DorisOptions dorisOptions, int maxRetry) {
-        this(dorisOptions, maxRetry, new HttpUtil().getHttpClientWithTimeout());
-    }
-
-    public DorisCopyCommitter(DorisOptions dorisOptions, int maxRetry, CloseableHttpClient client) {
         this.dorisOptions = dorisOptions;
         this.maxRetry = maxRetry;
-        this.httpClient = client;
+    }
+
+    public DorisCopyCommitter(
+            DorisOptions dorisOptions, int maxRetry, HttpClientBuilder httpClientBuilder) {
+        this.dorisOptions = dorisOptions;
+        this.maxRetry = maxRetry;
+        this.httpClientBuilder = httpClientBuilder;
     }
 
     @Override
@@ -88,31 +91,32 @@ public class DorisCopyCommitter implements Committer<DorisCopyCommittable>, Clos
                     .setUrl(String.format(commitPattern, hostPort))
                     .baseAuth(dorisOptions.getUsername(), dorisOptions.getPassword())
                     .setEntity(new StringEntity(objectMapper.writeValueAsString(params)));
-
-            try (CloseableHttpResponse response = httpClient.execute(postBuilder.build())) {
-                statusCode = response.getStatusLine().getStatusCode();
-                reasonPhrase = response.getStatusLine().getReasonPhrase();
-                if (statusCode != 200) {
-                    LOG.warn(
-                            "commit failed with status {} {}, reason {}",
-                            statusCode,
-                            hostPort,
-                            reasonPhrase);
-                } else if (response.getEntity() != null) {
-                    loadResult = EntityUtils.toString(response.getEntity());
-                    success = handleCommitResponse(loadResult);
-                    if (success) {
-                        LOG.info(
-                                "commit success cost {}ms, response is {}",
-                                System.currentTimeMillis() - start,
-                                loadResult);
-                        break;
-                    } else {
-                        LOG.warn("commit failed, retry again");
+            try (CloseableHttpClient httpClient = httpClientBuilder.build()) {
+                try (CloseableHttpResponse response = httpClient.execute(postBuilder.build())) {
+                    statusCode = response.getStatusLine().getStatusCode();
+                    reasonPhrase = response.getStatusLine().getReasonPhrase();
+                    if (statusCode != 200) {
+                        LOG.warn(
+                                "commit failed with status {} {}, reason {}",
+                                statusCode,
+                                hostPort,
+                                reasonPhrase);
+                    } else if (response.getEntity() != null) {
+                        loadResult = EntityUtils.toString(response.getEntity());
+                        success = handleCommitResponse(loadResult);
+                        if (success) {
+                            LOG.info(
+                                    "commit success cost {}ms, response is {}",
+                                    System.currentTimeMillis() - start,
+                                    loadResult);
+                            break;
+                        } else {
+                            LOG.warn("commit failed, retry again");
+                        }
                     }
+                } catch (IOException e) {
+                    LOG.error("commit error : ", e);
                 }
-            } catch (IOException e) {
-                LOG.error("commit error : ", e);
             }
         }
 
@@ -158,9 +162,5 @@ public class DorisCopyCommitter implements Committer<DorisCopyCommittable>, Clos
     }
 
     @Override
-    public void close() throws IOException {
-        if (httpClient != null) {
-            httpClient.close();
-        }
-    }
+    public void close() throws IOException {}
 }
