@@ -113,7 +113,7 @@ public class PostgresDatabaseSync extends DatabaseSync {
                             new PostgresSchema(
                                     metaData, databaseName, schemaName, tableName, tableComment);
                     sourceSchema.setModel(
-                            sourceSchema.primaryKeys.size() > 0
+                            !sourceSchema.primaryKeys.isEmpty()
                                     ? DataModel.UNIQUE
                                     : DataModel.DUPLICATE);
                     schemaList.add(sourceSchema);
@@ -215,7 +215,6 @@ public class PostgresDatabaseSync extends DatabaseSync {
 
     @Override
     public String getTableListPrefix() {
-        String schemaName = config.get(PostgresSourceOptions.SCHEMA_NAME);
-        return schemaName;
+        return config.get(PostgresSourceOptions.SCHEMA_NAME);
     }
 }

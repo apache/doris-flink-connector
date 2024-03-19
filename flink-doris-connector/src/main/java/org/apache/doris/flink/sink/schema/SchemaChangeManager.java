@@ -62,7 +62,7 @@ public class SchemaChangeManager implements Serializable {
     }
 
     public boolean createTable(TableSchema table) throws IOException, IllegalArgumentException {
-        String createTableDDL = DorisSystem.buildCreateTableDDL(table);
+        String createTableDDL = DorisSystem.generateDorisTableDdl(table);
         return execute(createTableDDL, table.getDatabase());
     }
 

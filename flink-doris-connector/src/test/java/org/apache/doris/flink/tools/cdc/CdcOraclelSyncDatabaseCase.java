@@ -76,6 +76,7 @@ public class CdcOraclelSyncDatabaseCase {
         String multiToOneTarget = "a|b";
         boolean ignoreDefaultValue = false;
         boolean useNewSchemaChange = false;
+        boolean ignoreIncompatible = true;
         DatabaseSync databaseSync = new OracleDatabaseSync();
         databaseSync
                 .setEnv(env)
@@ -92,6 +93,7 @@ public class CdcOraclelSyncDatabaseCase {
                 .setTableConfig(tableConfig)
                 .setCreateTableOnly(false)
                 .setNewSchemaChange(useNewSchemaChange)
+                .setIgnoreIncompatible(ignoreIncompatible)
                 .create();
         databaseSync.build();
         env.execute(String.format("Oracle-Doris Database Sync: %s", database));

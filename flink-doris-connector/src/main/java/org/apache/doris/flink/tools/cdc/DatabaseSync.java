@@ -29,6 +29,7 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
 import org.apache.doris.flink.catalog.doris.DorisSystem;
+import org.apache.doris.flink.catalog.doris.FieldSchema;
 import org.apache.doris.flink.catalog.doris.TableSchema;
 import org.apache.doris.flink.cfg.DorisConnectionOptions;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
@@ -82,6 +83,7 @@ public abstract class DatabaseSync {
     protected String tablePrefix;
     protected String tableSuffix;
     protected boolean singleSink;
+    protected boolean ignoreInCompatible = true;
     private final Map<String, String> tableMapping = new HashMap<>();
 
     public abstract void registerDriver() throws SQLException;
@@ -105,9 +107,7 @@ public abstract class DatabaseSync {
         this.multiToOneRulesPattern = multiToOneRulesParser(multiToOneOrigin, multiToOneTarget);
         this.converter = new TableNameConverter(tablePrefix, tableSuffix, multiToOneRulesPattern);
         // default enable light schema change
-        if (!this.tableConfig.containsKey(LIGHT_SCHEMA_CHANGE)) {
-            this.tableConfig.put(LIGHT_SCHEMA_CHANGE, "true");
-        }
+        this.tableConfig.computeIfAbsent(LIGHT_SCHEMA_CHANGE, key -> "true");
     }
 
     public void build() throws Exception {
@@ -130,6 +130,15 @@ public abstract class DatabaseSync {
         }
         Set<String> bucketsTable = new HashSet<>();
         for (SourceSchema schema : schemaList) {
+
+            // If ignoreInCompatible is false, an exception is thrown when the source table schema
+            // mismatches the Doris schema.
+            // If it's true, incompatible schemas are skipped, and a warning log is printed.
+            if (shouldIgnoreSchemaIncompatible(
+                    ignoreInCompatible, schema.getTableName(), schema.getFields())) {
+                continue;
+            }
+
             syncTables.add(schema.getTableName());
             String targetDb = database;
             // Synchronize multiple databases using the src database name
@@ -184,6 +193,28 @@ public abstract class DatabaseSync {
                         .uid(dbTbl.f1);
             }
         }
+    }
+
+    /**
+     * Determine whether to ignore incompatible schemas.
+     *
+     * @param ignoreIncompatible the option of `--ignore-incompatible`
+     * @param tableName table name of source.
+     * @param fields the fields of source table.
+     * @return true if the schema should be ignored, otherwise false.
+     */
+    public static boolean shouldIgnoreSchemaIncompatible(
+            boolean ignoreIncompatible, String tableName, Map<String, FieldSchema> fields) {
+        if (!ignoreIncompatible) {
+            return false;
+        }
+
+        if (TableSchema.isInvalidDorisTable(tableName)) {
+            return true;
+        }
+
+        return fields.keySet().stream()
+                .anyMatch(key -> TableSchema.isInValidDorisColumnName(tableName, key));
     }
 
     private DorisConnectionOptions getDorisConnectionOptions() {
@@ -323,6 +354,7 @@ public abstract class DatabaseSync {
                 .setTargetDatabase(database)
                 .setTargetTablePrefix(tablePrefix)
                 .setTargetTableSuffix(tableSuffix)
+                .setIgnoreInCompatible(ignoreInCompatible)
                 .build();
     }
 
@@ -514,6 +546,11 @@ public abstract class DatabaseSync {
 
     public DatabaseSync setTableSuffix(String tableSuffix) {
         this.tableSuffix = tableSuffix;
+        return this;
+    }
+
+    public DatabaseSync setIgnoreIncompatible(boolean ignoreIncompatible) {
+        this.ignoreInCompatible = ignoreIncompatible;
         return this;
     }
 

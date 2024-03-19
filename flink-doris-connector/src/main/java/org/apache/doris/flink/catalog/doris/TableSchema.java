@@ -17,13 +17,19 @@
 
 package org.apache.doris.flink.catalog.doris;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 public class TableSchema {
+    private static final Logger LOGGER = LoggerFactory.getLogger(TableSchema.class);
     public static final String DORIS_TABLE_REGEX = "^[a-zA-Z][a-zA-Z0-9-_]*$";
+    public static final String DORIS_COLUMN_REGEX =
+            "^[_a-zA-Z@0-9\\s<>/][.a-zA-Z0-9_+-/><?@#$%^&*\"\\s,:]{0,255}$";
     private String database;
     private String table;
     private String tableComment;
@@ -105,5 +111,27 @@ public class TableSchema {
 
     public Integer getTableBuckets() {
         return tableBuckets;
+    }
+
+    public static boolean isInvalidDorisTable(String tableName) {
+        if (!tableName.matches(TableSchema.DORIS_TABLE_REGEX)) {
+            LOGGER.warn(
+                    String.format(
+                            "The table name '%s' is invalid. Table names in Doris must match the regex pattern '%s'. Please consider renaming the table or use the 'excluding-tables' option to filter it out.",
+                            tableName, TableSchema.DORIS_TABLE_REGEX));
+            return true;
+        }
+        return false;
+    }
+
+    public static boolean isInValidDorisColumnName(String tableName, String columnName) {
+        if (!columnName.matches(TableSchema.DORIS_COLUMN_REGEX)) {
+            LOGGER.warn(
+                    String.format(
+                            "Incorrect column name '%s' is invalid. column names in Doris must match the regex pattern '%s'. Please consider renaming the column or use the 'excluding-tables' option to filter the table '%s'.",
+                            columnName, TableSchema.DORIS_COLUMN_REGEX, tableName));
+            return true;
+        }
+        return false;
     }
 }

@@ -117,7 +117,7 @@ public class DorisSystem implements Serializable {
     }
 
     public void createTable(TableSchema schema) {
-        String ddl = buildCreateTableDDL(schema);
+        String ddl = generateDorisTableDdl(schema);
         LOG.info("Create table with ddl:{}", ddl);
         execute(ddl);
     }
@@ -157,91 +157,82 @@ public class DorisSystem implements Serializable {
         }
     }
 
-    public static String buildCreateTableDDL(TableSchema schema) {
-        StringBuilder sb = new StringBuilder("CREATE TABLE IF NOT EXISTS ");
-        sb.append(identifier(schema.getDatabase()))
+    /**
+     * Generate the DDL (Data Definition Language) for creating a Doris table based on the given
+     * table schema.
+     *
+     * @param schema the table schema containing information about the table structure and
+     *     properties
+     * @return the DDL string for creating the Doris table
+     */
+    public static String generateDorisTableDdl(TableSchema schema) {
+        StringBuilder sb = new StringBuilder();
+        appendTableHeader(sb, schema);
+
+        // append table columns.
+        appendColumns(sb, schema);
+
+        // append table comment
+        appendTableComment(sb, schema.getTableComment());
+
+        // append distribute key
+        appendDistributeKey(sb, schema.getDistributeKeys());
+
+        // append buckets
+        appendBuckets(sb, schema.getTableBuckets());
+
+        // append properties
+        appendProperties(sb, schema.getProperties());
+        return sb.toString();
+    }
+
+    private static void appendTableHeader(StringBuilder sb, TableSchema schema) {
+        sb.append("CREATE TABLE IF NOT EXISTS ")
+                .append(identifier(schema.getDatabase()))
                 .append(".")
                 .append(identifier(schema.getTable()))
                 .append("(");
+    }
 
+    /**
+     * Append column definitions to the SQL string based on the given table schema.
+     *
+     * @param sql the StringBuilder to append the SQL string
+     * @param schema the table schema containing the fields and keys
+     */
+    private static void appendColumns(StringBuilder sql, TableSchema schema) {
         Map<String, FieldSchema> fields = schema.getFields();
         List<String> keys = schema.getKeys();
-        // append keys
+
         for (String key : keys) {
             if (!fields.containsKey(key)) {
-                throw new CreateTableException("key " + key + " not found in column list");
+                throw new CreateTableException("Key " + key + " not found in column list");
             }
             FieldSchema field = fields.get(key);
-            buildColumn(sb, field, true);
+            appendColumn(sql, field, true);
         }
 
-        // append values
         for (Map.Entry<String, FieldSchema> entry : fields.entrySet()) {
             if (keys.contains(entry.getKey())) {
                 continue;
             }
             FieldSchema field = entry.getValue();
-            buildColumn(sb, field, false);
+            appendColumn(sql, field, false);
         }
-        sb = sb.deleteCharAt(sb.length() - 1);
-        sb.append(" ) ");
-        // append uniq model
-        if (DataModel.UNIQUE.equals(schema.getModel())) {
-            sb.append(schema.getModel().name())
-                    .append(" KEY(")
-                    .append(String.join(",", identifier(schema.getKeys())))
-                    .append(")");
+        if (sql.charAt(sql.length() - 1) == ',') {
+            sql.deleteCharAt(sql.length() - 1);
         }
-
-        // append table comment
-        if (!StringUtils.isNullOrWhitespaceOnly(schema.getTableComment())) {
-            sb.append(" COMMENT '").append(quoteComment(schema.getTableComment())).append("' ");
-        }
-
-        // append distribute key
-        sb.append(" DISTRIBUTED BY HASH(")
-                .append(String.join(",", identifier(schema.getDistributeKeys())))
-                .append(")");
-
-        Map<String, String> properties = schema.getProperties();
-        if (schema.getTableBuckets() != null) {
-
-            int bucketsNum = schema.getTableBuckets();
-            if (bucketsNum <= 0) {
-                throw new CreateTableException("The number of buckets must be positive.");
-            }
-            sb.append(" BUCKETS ").append(bucketsNum);
-        } else {
-            sb.append(" BUCKETS AUTO ");
-        }
-        // append properties
-        int index = 0;
-        int skipProNum = 0;
-        for (Map.Entry<String, String> entry : properties.entrySet()) {
-            // skip table-buckets
-            if (entry.getKey().equals(TABLE_BUCKETS)) {
-                skipProNum++;
-                continue;
-            }
-            if (index == 0) {
-                sb.append(" PROPERTIES (");
-            }
-            if (index > 0) {
-                sb.append(",");
-            }
-            sb.append(quoteProperties(entry.getKey()))
-                    .append("=")
-                    .append(quoteProperties(entry.getValue()));
-            index++;
-
-            if (index == (schema.getProperties().size() - skipProNum)) {
-                sb.append(")");
-            }
-        }
-        return sb.toString();
+        sql.append(" ) ");
     }
 
-    private static void buildColumn(StringBuilder sql, FieldSchema field, boolean isKey) {
+    /**
+     * Append a column definition to the SQL string.
+     *
+     * @param sql the StringBuilder to append the SQL string
+     * @param field the field schema representing the column
+     * @param isKey flag indicating if the column is part of the primary key
+     */
+    private static void appendColumn(StringBuilder sql, FieldSchema field, boolean isKey) {
         String fieldType = field.getTypeString();
         if (isKey && DorisType.STRING.equals(fieldType)) {
             fieldType = String.format("%s(%s)", DorisType.VARCHAR, 65533);
@@ -249,9 +240,63 @@ public class DorisSystem implements Serializable {
         sql.append(identifier(field.getName())).append(" ").append(fieldType);
 
         if (field.getDefaultValue() != null) {
-            sql.append(" DEFAULT " + quoteDefaultValue(field.getDefaultValue()));
+            sql.append(" DEFAULT ").append(quoteDefaultValue(field.getDefaultValue()));
         }
         sql.append(" COMMENT '").append(quoteComment(field.getComment())).append("',");
+    }
+
+    private static void appendTableComment(StringBuilder sb, String tableComment) {
+        if (!StringUtils.isNullOrWhitespaceOnly(tableComment)) {
+            sb.append(" COMMENT '").append(quoteComment(tableComment)).append("' ");
+        }
+    }
+
+    private static void appendDistributeKey(StringBuilder sb, List<String> distributeKeys) {
+        sb.append(" DISTRIBUTED BY HASH(")
+                .append(String.join(",", identifier(distributeKeys)))
+                .append(")");
+    }
+
+    /**
+     * Append the BUCKETS clause to the DDL string. If the number of buckets is provided, append the
+     * specified number of buckets, otherwise append 'BUCKETS AUTO' to let Doris determine the
+     * number of buckets automatically.
+     *
+     * @param sb the StringBuilder to append the DDL string
+     * @param buckets the number of buckets, or null if 'BUCKETS AUTO' should be used
+     * @throws CreateTableException if the number of buckets is not positive
+     */
+    private static void appendBuckets(StringBuilder sb, Integer buckets) {
+        if (buckets != null) {
+            if (buckets <= 0) {
+                throw new CreateTableException("The number of buckets must be positive.");
+            }
+            sb.append(" BUCKETS ").append(buckets);
+        } else {
+            sb.append(" BUCKETS AUTO ");
+        }
+    }
+
+    /**
+     * Append the table properties of Doris.
+     *
+     * @param sb the StringBuilder to append the DDL string
+     * @param properties the properties of the Doris table
+     */
+    private static void appendProperties(StringBuilder sb, Map<String, String> properties) {
+        if (!properties.isEmpty()) {
+            sb.append(" PROPERTIES (");
+            sb.append(
+                    properties.entrySet().stream()
+                            .filter(key -> !key.getKey().equals(TABLE_BUCKETS))
+                            .map(
+                                    entry ->
+                                            quoteProperties(entry.getKey())
+                                                    + "="
+                                                    + quoteProperties(entry.getValue()))
+                            .collect(Collectors.joining(",")));
+            sb.append(")");
+        }
     }
 
     public static String quoteDefaultValue(String defaultValue) {
@@ -271,8 +316,7 @@ public class DorisSystem implements Serializable {
     }
 
     private static List<String> identifier(List<String> name) {
-        List<String> result = name.stream().map(m -> identifier(m)).collect(Collectors.toList());
-        return result;
+        return name.stream().map(DorisSystem::identifier).collect(Collectors.toList());
     }
 
     public static String identifier(String name) {

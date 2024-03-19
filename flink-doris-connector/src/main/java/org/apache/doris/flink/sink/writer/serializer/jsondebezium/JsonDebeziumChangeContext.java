@@ -40,6 +40,7 @@ public class JsonDebeziumChangeContext implements Serializable {
     private final boolean ignoreUpdateBefore;
     private String targetTablePrefix;
     private String targetTableSuffix;
+    private boolean ignoreInCompatible;
 
     public JsonDebeziumChangeContext(
             DorisOptions dorisOptions,
@@ -52,7 +53,8 @@ public class JsonDebeziumChangeContext implements Serializable {
             String lineDelimiter,
             boolean ignoreUpdateBefore,
             String targetTablePrefix,
-            String targetTableSuffix) {
+            String targetTableSuffix,
+            boolean ignoreInCompatible) {
         this.dorisOptions = dorisOptions;
         this.tableMapping = tableMapping;
         this.sourceTableName = sourceTableName;
@@ -64,6 +66,7 @@ public class JsonDebeziumChangeContext implements Serializable {
         this.ignoreUpdateBefore = ignoreUpdateBefore;
         this.targetTablePrefix = targetTablePrefix;
         this.targetTableSuffix = targetTableSuffix;
+        this.ignoreInCompatible = ignoreInCompatible;
     }
 
     public DorisOptions getDorisOptions() {
@@ -108,5 +111,9 @@ public class JsonDebeziumChangeContext implements Serializable {
 
     public String getTargetTableSuffix() {
         return targetTableSuffix;
+    }
+
+    public boolean isIgnoreInCompatible() {
+        return ignoreInCompatible;
     }
 }

@@ -43,10 +43,13 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 
 import static com.ververica.cdc.connectors.base.options.JdbcSourceOptions.CONNECTION_POOL_SIZE;
 import static com.ververica.cdc.connectors.base.options.JdbcSourceOptions.CONNECT_MAX_RETRIES;
@@ -61,6 +64,9 @@ public class SqlServerDatabaseSync extends DatabaseSync {
     private static final Logger LOG = LoggerFactory.getLogger(SqlServerDatabaseSync.class);
     private static final String JDBC_URL = "jdbc:sqlserver://%s:%d;database=%s";
     private static final String PORT = "port";
+
+    private static final Set<String> SYSTEM_TABLE =
+            new HashSet<>(Collections.singleton("systranschemas"));
 
     public SqlServerDatabaseSync() throws SQLException {
         super();
@@ -103,7 +109,8 @@ public class SqlServerDatabaseSync extends DatabaseSync {
                 while (tables.next()) {
                     String tableName = tables.getString("TABLE_NAME");
                     String tableComment = tables.getString("REMARKS");
-                    if (!isSyncNeeded(tableName)) {
+                    // Filter out system tables in SQL Server.
+                    if (!isSyncNeeded(tableName) || SYSTEM_TABLE.contains(tableName)) {
                         continue;
                     }
                     SourceSchema sourceSchema =
