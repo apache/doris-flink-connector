@@ -20,10 +20,10 @@ package org.apache.doris.flink.sink.writer.serializer;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.StringUtils;
 
+import com.fasterxml.jackson.core.JsonGenerator.Feature;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.NullNode;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
@@ -84,9 +84,8 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
         this.pattern = pattern;
         this.sourceTableName = sourceTableName;
         // Prevent loss of decimal data precision
-        this.objectMapper.enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS);
-        JsonNodeFactory jsonNodeFactory = JsonNodeFactory.withExactBigDecimals(true);
-        this.objectMapper.setNodeFactory(jsonNodeFactory);
+        objectMapper.configure(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS, true);
+        objectMapper.configure(Feature.WRITE_BIGDECIMAL_AS_PLAIN, true);
         this.newSchemaChange = newSchemaChange;
     }
 
