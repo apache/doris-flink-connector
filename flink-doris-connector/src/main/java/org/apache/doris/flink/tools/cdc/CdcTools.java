@@ -117,7 +117,7 @@ public class CdcTools {
         String multiToOneTarget = params.get("multi-to-one-target");
         boolean createTableOnly = params.has("create-table-only");
         boolean ignoreDefaultValue = params.has("ignore-default-value");
-        boolean ignoreIncompatible = params.has("ignore-incompatible");
+        boolean ignoreIncompatible = params.getBoolean("ignore-incompatible",true);
         boolean singleSink = params.has("single-sink");
 
         Preconditions.checkArgument(params.has("sink-conf"));
