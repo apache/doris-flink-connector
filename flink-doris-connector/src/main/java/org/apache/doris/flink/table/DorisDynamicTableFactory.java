@@ -181,7 +181,8 @@ public final class DorisDynamicTableFactory
                 getDorisOptions(helper.getOptions()),
                 getDorisReadOptions(helper.getOptions()),
                 getDorisLookupOptions(helper.getOptions()),
-                physicalSchema);
+                physicalSchema,
+                context.getPhysicalRowDataType());
     }
 
     private DorisOptions getDorisOptions(ReadableConfig readableConfig) {

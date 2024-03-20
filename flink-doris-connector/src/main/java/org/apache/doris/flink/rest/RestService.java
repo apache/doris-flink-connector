@@ -605,7 +605,7 @@ public class RestService implements Serializable {
         if (!StringUtils.isEmpty(readOptions.getFilterQuery())) {
             sql += " where " + readOptions.getFilterQuery();
         }
-        logger.debug("Query SQL Sending to Doris FE is: '{}'.", sql);
+        logger.info("Query SQL Sending to Doris FE is: '{}'.", sql);
 
         HttpPost httpPost = new HttpPost(getUriStr(options, logger) + QUERY_PLAN);
         String entity = "{\"sql\": \"" + sql + "\"}";
