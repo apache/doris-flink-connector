@@ -83,7 +83,7 @@ public abstract class DatabaseSync {
     protected String tablePrefix;
     protected String tableSuffix;
     protected boolean singleSink;
-    protected boolean ignoreInCompatible = true;
+    protected boolean ignoreIncompatible = true;
     private final Map<String, String> tableMapping = new HashMap<>();
 
     public abstract void registerDriver() throws SQLException;
@@ -135,7 +135,7 @@ public abstract class DatabaseSync {
             // mismatches the Doris schema.
             // If it's true, incompatible schemas are skipped, and a warning log is printed.
             if (shouldIgnoreSchemaIncompatible(
-                    ignoreInCompatible, schema.getTableName(), schema.getFields())) {
+                    ignoreIncompatible, schema.getTableName(), schema.getFields())) {
                 continue;
             }
 
@@ -354,7 +354,7 @@ public abstract class DatabaseSync {
                 .setTargetDatabase(database)
                 .setTargetTablePrefix(tablePrefix)
                 .setTargetTableSuffix(tableSuffix)
-                .setIgnoreInCompatible(ignoreInCompatible)
+                .setIgnoreIncompatible(ignoreIncompatible)
                 .build();
     }
 
@@ -550,7 +550,7 @@ public abstract class DatabaseSync {
     }
 
     public DatabaseSync setIgnoreIncompatible(boolean ignoreIncompatible) {
-        this.ignoreInCompatible = ignoreIncompatible;
+        this.ignoreIncompatible = ignoreIncompatible;
         return this;
     }
 

@@ -75,7 +75,7 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
     private String targetDatabase;
     private String targetTablePrefix;
     private String targetTableSuffix;
-    private boolean ignoreInCompatible;
+    private boolean ignoreIncompatible;
     private final Set<String> filledTables = new HashSet<>();
 
     public JsonDebeziumSchemaChangeImplV2(JsonDebeziumChangeContext changeContext) {
@@ -96,7 +96,7 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
                 changeContext.getTargetTableSuffix() == null
                         ? ""
                         : changeContext.getTargetTableSuffix();
-        this.ignoreInCompatible = changeContext.isIgnoreInCompatible();
+        this.ignoreIncompatible = changeContext.isIgnoreIncompatible();
     }
 
     @Override
@@ -128,7 +128,7 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
 
                 boolean ignoreSchema =
                         DatabaseSync.shouldIgnoreSchemaIncompatible(
-                                ignoreInCompatible,
+                                ignoreIncompatible,
                                 tableSchema.getTable(),
                                 tableSchema.getFields());
                 // If ignoreInCompatible is false, an exception is thrown when the source table
