@@ -77,7 +77,7 @@ public class CdcSqlServerSyncDatabaseCase {
         String multiToOneTarget = "a|b";
         boolean ignoreDefaultValue = false;
         boolean useNewSchemaChange = false;
-        boolean ignoreIncompatible = true;
+        boolean ignoreIncompatible = false;
         DatabaseSync databaseSync = new SqlServerDatabaseSync();
         databaseSync
                 .setEnv(env)

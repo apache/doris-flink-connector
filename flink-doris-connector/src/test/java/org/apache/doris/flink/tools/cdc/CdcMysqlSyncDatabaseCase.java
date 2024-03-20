@@ -73,7 +73,7 @@ public class CdcMysqlSyncDatabaseCase {
         boolean ignoreDefaultValue = false;
         boolean useNewSchemaChange = false;
         boolean singleSink = false;
-        boolean ignoreIncompatible = true;
+        boolean ignoreIncompatible = false;
         DatabaseSync databaseSync = new MysqlDatabaseSync();
         databaseSync
                 .setEnv(env)
