@@ -175,6 +175,9 @@ public class DorisSystem implements Serializable {
         // append table comment
         appendTableComment(sb, schema.getTableComment());
 
+        // append table model
+        appendTableModel(sb, schema.getModel(), schema.getKeys());
+
         // append distribute key
         appendDistributeKey(sb, schema.getDistributeKeys());
 
@@ -243,6 +246,15 @@ public class DorisSystem implements Serializable {
             sql.append(" DEFAULT ").append(quoteDefaultValue(field.getDefaultValue()));
         }
         sql.append(" COMMENT '").append(quoteComment(field.getComment())).append("',");
+    }
+
+    private static void appendTableModel(StringBuilder sb, DataModel dataModel, List<String> keys) {
+        if (DataModel.UNIQUE.equals(dataModel)) {
+            sb.append(dataModel.name())
+                    .append(" KEY(")
+                    .append(String.join(",", identifier(keys)))
+                    .append(")");
+        }
     }
 
     private static void appendTableComment(StringBuilder sb, String tableComment) {
