@@ -17,22 +17,10 @@
 
 package org.apache.doris.flink.serialization;
 
+import org.apache.arrow.vector.*;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.arrow.memory.RootAllocator;
-import org.apache.arrow.vector.BigIntVector;
-import org.apache.arrow.vector.BitVector;
-import org.apache.arrow.vector.DecimalVector;
-import org.apache.arrow.vector.FieldVector;
-import org.apache.arrow.vector.FixedSizeBinaryVector;
-import org.apache.arrow.vector.Float4Vector;
-import org.apache.arrow.vector.Float8Vector;
-import org.apache.arrow.vector.IntVector;
-import org.apache.arrow.vector.SmallIntVector;
-import org.apache.arrow.vector.TinyIntVector;
-import org.apache.arrow.vector.VarBinaryVector;
-import org.apache.arrow.vector.VarCharVector;
-import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.complex.MapVector;
 import org.apache.arrow.vector.complex.StructVector;
@@ -50,16 +38,24 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
+import java.sql.Date;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
+import java.time.temporal.ChronoField;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 
-/** row batch data container. */
+/**
+ * row batch data container.
+ */
 public class RowBatch {
     private static Logger logger = LoggerFactory.getLogger(RowBatch.class);
 
@@ -89,12 +85,10 @@ public class RowBatch {
     private List<FieldVector> fieldVectors;
     private RootAllocator rootAllocator;
     private final Schema schema;
-    private static final String DATETIME_PATTERN = "yyyy-MM-dd HH:mm:ss";
-    private static final String DATETIMEV2_PATTERN = "yyyy-MM-dd HH:mm:ss.SSSSSS";
-    private final DateTimeFormatter dateTimeFormatter =
-            DateTimeFormatter.ofPattern(DATETIME_PATTERN);
-    private final DateTimeFormatter dateTimeV2Formatter =
-            DateTimeFormatter.ofPattern(DATETIMEV2_PATTERN);
+    private static final DateTimeFormatter DATE_TIME_FORMATTER = new DateTimeFormatterBuilder()
+            .appendPattern("yyyy-MM-dd HH:mm:ss")
+            .appendFraction(ChronoField.MICRO_OF_SECOND, 0, 6, true)
+            .toFormatter();
     private final DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
     public List<Row> getRowBatch() {
@@ -274,44 +268,62 @@ public class RowBatch {
                 break;
             case "DATE":
             case "DATEV2":
-                if (!minorType.equals(Types.MinorType.VARCHAR)) {
+                if (!minorType.equals(Types.MinorType.DATEDAY)
+                        && !minorType.equals(Types.MinorType.VARCHAR)) {
                     return false;
                 }
-                VarCharVector date = (VarCharVector) fieldVector;
-                if (date.isNull(rowIndex)) {
-                    addValueToRow(rowIndex, null);
-                    break;
+                if (minorType.equals(Types.MinorType.VARCHAR)) {
+                    VarCharVector date = (VarCharVector) fieldVector;
+                    if (date.isNull(rowIndex)) {
+                        addValueToRow(rowIndex, null);
+                        break;
+                    }
+                    String stringValue = new String(date.get(rowIndex));
+                    LocalDate localDate = LocalDate.parse(stringValue, dateFormatter);
+                    addValueToRow(rowIndex, localDate);
+                } else {
+                    DateDayVector date = (DateDayVector) fieldVector;
+                    if (date.isNull(rowIndex)) {
+                        addValueToRow(rowIndex, null);
+                        break;
+                    }
+                    LocalDate localDate = LocalDate.ofEpochDay(date.get(rowIndex));
+                    addValueToRow(rowIndex, Date.valueOf(localDate));
                 }
-                String stringValue = new String(date.get(rowIndex));
-                LocalDate localDate = LocalDate.parse(stringValue, dateFormatter);
-                addValueToRow(rowIndex, localDate);
                 break;
             case "DATETIME":
-                if (!minorType.equals(Types.MinorType.VARCHAR)) {
-                    return false;
-                }
-                VarCharVector timeStampSecVector = (VarCharVector) fieldVector;
-                if (timeStampSecVector.isNull(rowIndex)) {
-                    addValueToRow(rowIndex, null);
-                    break;
-                }
-                stringValue = new String(timeStampSecVector.get(rowIndex));
-                LocalDateTime parse = LocalDateTime.parse(stringValue, dateTimeFormatter);
-                addValueToRow(rowIndex, parse);
-                break;
             case "DATETIMEV2":
-                if (!minorType.equals(Types.MinorType.VARCHAR)) {
+                if (!minorType.equals(Types.MinorType.TIMESTAMPMICRO)
+                        && !minorType.equals(Types.MinorType.VARCHAR)) {
                     return false;
                 }
-                VarCharVector timeStampV2SecVector = (VarCharVector) fieldVector;
-                if (timeStampV2SecVector.isNull(rowIndex)) {
-                    addValueToRow(rowIndex, null);
-                    break;
+                if (minorType.equals(Types.MinorType.VARCHAR)) {
+                    VarCharVector varCharVector = (VarCharVector) fieldVector;
+                    if (varCharVector.isNull(rowIndex)) {
+                        addValueToRow(rowIndex, null);
+                        break;
+                    }
+                    String stringValue = new String(varCharVector.get(rowIndex), StandardCharsets.UTF_8);
+                    addValueToRow(rowIndex, stringValue);
+                } else {
+                    TimeStampMicroVector vector = (TimeStampMicroVector) fieldVector;
+                    if (vector.isNull(rowIndex)) {
+                        addValueToRow(rowIndex, null);
+                        break;
+                    }
+                    long time = vector.get(rowIndex);
+                    Instant instant;
+                    if (time / 10000000000L == 0) { // datetime(0)
+                        instant = Instant.ofEpochSecond(time);
+                    } else if (time / 10000000000000L == 0) { // datetime(3)
+                        instant = Instant.ofEpochMilli(time);
+                    } else { // datetime(6)
+                        instant = Instant.ofEpochSecond(time / 1000000, time % 1000000 * 1000);
+                    }
+                    LocalDateTime dateTime = LocalDateTime.ofInstant(instant, ZoneId.systemDefault());
+                    String formatted = DATE_TIME_FORMATTER.format(dateTime);
+                    addValueToRow(rowIndex, formatted);
                 }
-                stringValue = new String(timeStampV2SecVector.get(rowIndex));
-                stringValue = completeMilliseconds(stringValue);
-                parse = LocalDateTime.parse(stringValue, dateTimeV2Formatter);
-                addValueToRow(rowIndex, parse);
                 break;
             case "LARGEINT":
                 if (!minorType.equals(Types.MinorType.FIXEDSIZEBINARY)
@@ -342,7 +354,7 @@ public class RowBatch {
                         addValueToRow(rowIndex, null);
                         break;
                     }
-                    stringValue = new String(largeIntVector.get(rowIndex));
+                    String stringValue = new String(largeIntVector.get(rowIndex));
                     BigInteger largeInt = new BigInteger(stringValue);
                     addValueToRow(rowIndex, largeInt);
                     break;
@@ -359,7 +371,7 @@ public class RowBatch {
                     addValueToRow(rowIndex, null);
                     break;
                 }
-                stringValue = new String(varCharVector.get(rowIndex));
+                String stringValue = new String(varCharVector.get(rowIndex));
                 addValueToRow(rowIndex, stringValue);
                 break;
             case "ARRAY":
@@ -409,19 +421,6 @@ public class RowBatch {
         return true;
     }
 
-    private String completeMilliseconds(String stringValue) {
-        if (stringValue.length() == DATETIMEV2_PATTERN.length()) {
-            return stringValue;
-        }
-        StringBuilder sb = new StringBuilder(stringValue);
-        if (stringValue.length() == DATETIME_PATTERN.length()) {
-            sb.append(".");
-        }
-        while (sb.toString().length() < DATETIMEV2_PATTERN.length()) {
-            sb.append(0);
-        }
-        return sb.toString();
-    }
 
     public List<Object> next() {
         if (!hasNext()) {
