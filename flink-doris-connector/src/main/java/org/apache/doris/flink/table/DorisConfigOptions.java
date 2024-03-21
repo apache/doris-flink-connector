@@ -80,18 +80,6 @@ public class DorisConfigOptions {
                             "Use automatic redirection of fe without explicitly obtaining the be list");
 
     // source config options
-    public static final ConfigOption<String> DORIS_READ_FIELD =
-            ConfigOptions.key("doris.read.field")
-                    .stringType()
-                    .noDefaultValue()
-                    .withDescription(
-                            "List of column names in the Doris table, separated by commas");
-    public static final ConfigOption<String> DORIS_FILTER_QUERY =
-            ConfigOptions.key("doris.filter.query")
-                    .stringType()
-                    .noDefaultValue()
-                    .withDescription(
-                            "Filter expression of the query, which is transparently transmitted to Doris. Doris uses this expression to complete source-side data filtering");
     public static final ConfigOption<Integer> DORIS_TABLET_SIZE =
             ConfigOptions.key("doris.request.tablet.size")
                     .intType()
