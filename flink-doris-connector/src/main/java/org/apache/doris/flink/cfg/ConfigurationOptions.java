@@ -35,18 +35,18 @@ public interface ConfigurationOptions {
     Integer DORIS_REQUEST_RETRIES_DEFAULT = 3;
     Integer DORIS_REQUEST_CONNECT_TIMEOUT_MS_DEFAULT = 30 * 1000;
     Integer DORIS_REQUEST_READ_TIMEOUT_MS_DEFAULT = 30 * 1000;
-    Integer DORIS_REQUEST_QUERY_TIMEOUT_S_DEFAULT = 3600;
+    Integer DORIS_REQUEST_QUERY_TIMEOUT_S_DEFAULT = 21600;
 
     String DORIS_TABLET_SIZE = "doris.request.tablet.size";
-    Integer DORIS_TABLET_SIZE_DEFAULT = Integer.MAX_VALUE;
+    Integer DORIS_TABLET_SIZE_DEFAULT = 1;
     Integer DORIS_TABLET_SIZE_MIN = 1;
 
     String DORIS_BATCH_SIZE = "doris.batch.size";
     Integer DORIS_BATCH_SIZE_DEFAULT = 1024;
 
     String DORIS_EXEC_MEM_LIMIT = "doris.exec.mem.limit";
-    Long DORIS_EXEC_MEM_LIMIT_DEFAULT = 2147483648L;
-    String DORIS_EXEC_MEM_LIMIT_DEFAULT_STR = "2048mb";
+    Long DORIS_EXEC_MEM_LIMIT_DEFAULT = 8589934592L;
+    String DORIS_EXEC_MEM_LIMIT_DEFAULT_STR = "8192mb";
     String DORIS_DESERIALIZE_ARROW_ASYNC = "doris.deserialize.arrow.async";
     Boolean DORIS_DESERIALIZE_ARROW_ASYNC_DEFAULT = false;
     String DORIS_DESERIALIZE_QUEUE_SIZE = "doris.deserialize.queue.size";
