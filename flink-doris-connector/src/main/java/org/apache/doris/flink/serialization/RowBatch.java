@@ -117,9 +117,9 @@ public class RowBatch {
                 fieldVectors = root.getFieldVectors();
                 if (fieldVectors.size() > schema.size()) {
                     logger.error(
-                            "Schema size '{}' is not equal to arrow field size '{}'.",
-                            fieldVectors.size(),
-                            schema.size());
+                            "Data schema size '{}' should not be bigger than arrow field size '{}'",
+                            schema.size(),
+                            fieldVectors.size());
                     throw new DorisException(
                             "Load Doris data failed, schema size of fetch data is wrong.");
                 }
