@@ -17,8 +17,6 @@
 
 package org.apache.doris.flink.table;
 
-import org.apache.flink.api.common.serialization.DeserializationSchema;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.Projection;
@@ -53,15 +51,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
-/**
- * The {@link DorisDynamicTableSource} is used during planning.
- *
- * <p>In our example, we don't implement any of the available ability interfaces such as {@link
- * SupportsFilterPushDown} or {@link SupportsProjectionPushDown}. Therefore, the main logic can be
- * found in {@link #getScanRuntimeProvider(ScanContext)} where we instantiate the required {@link
- * SourceFunction} and its {@link DeserializationSchema} for runtime. Both instances are
- * parameterized to return internal data structures (i.e. {@link RowData}).
- */
+/** The {@link DorisDynamicTableSource} is used during planning. */
 public final class DorisDynamicTableSource
         implements ScanTableSource,
                 LookupTableSource,
