@@ -46,6 +46,7 @@ public class ParsingProcessFunction extends ProcessFunction<String, Void> {
     public void processElement(
             String record, ProcessFunction<String, Void>.Context context, Collector<Void> collector)
             throws Exception {
+        System.out.println(record);
         String tableName = getRecordTableName(record);
         String dorisName = converter.convert(tableName);
         context.output(getRecordOutputTag(dorisName), record);
