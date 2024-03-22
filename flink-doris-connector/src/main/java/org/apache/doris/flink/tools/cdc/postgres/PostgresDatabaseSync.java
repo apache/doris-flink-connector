@@ -162,7 +162,7 @@ public class PostgresDatabaseSync extends DatabaseSync {
 
         Map<String, Object> customConverterConfigs = new HashMap<>();
         JsonDebeziumDeserializationSchema schema =
-                new JsonDebeziumDeserializationSchema(true, customConverterConfigs);
+                new JsonDebeziumDeserializationSchema(false, customConverterConfigs);
 
         if (config.getBoolean(SourceOptions.SCAN_INCREMENTAL_SNAPSHOT_ENABLED, false)) {
             JdbcIncrementalSource<String> incrSource =

@@ -173,7 +173,7 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
 
     @Override
     public DorisRecord serialize(String record) throws IOException {
-        LOG.info("received debezium json data {} :", record);
+        LOG.debug("received debezium json data {} :", record);
         JsonNode recordRoot = objectMapper.readValue(record, JsonNode.class);
         String op = extractJsonNode(recordRoot, "op");
         if (Objects.isNull(op)) {

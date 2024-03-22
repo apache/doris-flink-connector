@@ -172,11 +172,11 @@ public class DorisSystem implements Serializable {
         // append table columns.
         appendColumns(sb, schema);
 
-        // append table model
-        appendTableModel(sb, schema.getModel(), schema.getKeys());
-
         // append table comment
         appendTableComment(sb, schema.getTableComment());
+
+        // append table model
+        appendTableModel(sb, schema.getModel(), schema.getKeys());
 
         // append distribute key
         appendDistributeKey(sb, schema.getDistributeKeys());
