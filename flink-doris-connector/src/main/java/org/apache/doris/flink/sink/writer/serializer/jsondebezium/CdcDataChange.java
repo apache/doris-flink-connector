@@ -31,10 +31,19 @@ import java.util.Map;
  */
 public abstract class CdcDataChange implements ChangeEvent {
 
-    protected abstract DorisRecord serialize(String record, JsonNode recordRoot, String op)
-            throws IOException;
+    protected DorisRecord serialize(String record, JsonNode recordRoot, String op)
+            throws IOException {
+        System.out.println(record);
+        return null;
+    }
 
-    protected abstract Map<String, Object> extractBeforeRow(JsonNode record);
+    protected Map<String, Object> extractBeforeRow(JsonNode record) {
+        System.out.println(record);
+        return null;
+    }
 
-    protected abstract Map<String, Object> extractAfterRow(JsonNode record);
+    protected Map<String, Object> extractAfterRow(JsonNode record) {
+        System.out.println(record);
+        return null;
+    }
 }

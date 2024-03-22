@@ -65,7 +65,9 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
     private static final Logger LOG = LoggerFactory.getLogger(JsonDebeziumSchemaChangeImplV2.class);
     private static final Pattern renameDDLPattern =
             Pattern.compile(
-                    "ALTER\\s+TABLE\\s+(\\w+)\\s+(RENAME\\s+COLUMN\\s+(\\w+)\\s+TO\\s+(\\w+)|CHANGE\\s+(\\w+)\\s+(\\w+)\\s+(\\w+))",
+                    "ALTER\\s+TABLE\\s+\\w+\\s+"
+                            + "(RENAME\\s+COLUMN\\s+(\\w+)\\s+TO\\s+(\\w+)|"
+                            + "CHANGE\\s+(?:column\\s+)?(\\w+)\\s+(\\w+)\\s+(\\w+))",
                     Pattern.CASE_INSENSITIVE);
     // schemaChange saves table names, field, and field column information
     private Map<String, Map<String, FieldSchema>> originFieldSchemaMap = new LinkedHashMap<>();
@@ -196,15 +198,17 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
         }
 
         Map<String, FieldSchema> fieldSchemaMap = originFieldSchemaMap.get(dorisTable);
+        // remove backtick
+        ddl = ddl.replace("`", "");
         // rename ddl
         Matcher renameDdlMatcher = renameDDLPattern.matcher(ddl);
         if (renameDdlMatcher.find()) {
-            String oldColumnName = renameDdlMatcher.group(3);
-            String newColumnName = renameDdlMatcher.group(4);
+            String oldColumnName = renameDdlMatcher.group(2);
+            String newColumnName = renameDdlMatcher.group(3);
             // Change operation
             if (oldColumnName == null) {
-                oldColumnName = renameDdlMatcher.group(5);
-                newColumnName = renameDdlMatcher.group(6);
+                oldColumnName = renameDdlMatcher.group(4);
+                newColumnName = renameDdlMatcher.group(5);
             }
             return SchemaChangeHelper.generateRenameDDLSql(
                     dorisTable, oldColumnName, newColumnName, fieldSchemaMap);

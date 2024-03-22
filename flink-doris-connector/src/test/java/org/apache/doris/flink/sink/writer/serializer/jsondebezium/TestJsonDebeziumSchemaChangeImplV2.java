@@ -339,6 +339,45 @@ public class TestJsonDebeziumSchemaChangeImplV2 extends TestJsonDebeziumChangeBa
     }
 
     @Test
+    public void testExtractDDlListChangeNameWithColumn() throws IOException {
+        String columnInfo =
+                "{\n"
+                        + "  \"source\": {\n"
+                        + "    \"version\": \"1.9.7.Final\",\n"
+                        + "    \"connector\": \"mysql\",\n"
+                        + "    \"name\": \"mysql_binlog_source\",\n"
+                        + "    \"ts_ms\": 1711082679841,\n"
+                        + "    \"snapshot\": \"false\",\n"
+                        + "    \"db\": \"doris_test\",\n"
+                        + "    \"sequence\": null,\n"
+                        + "    \"table\": \"test_key_word\",\n"
+                        + "    \"server_id\": 1,\n"
+                        + "    \"gtid\": null,\n"
+                        + "    \"file\": \"mysql-bin.000292\",\n"
+                        + "    \"pos\": 5496,\n"
+                        + "    \"row\": 0,\n"
+                        + "    \"thread\": null,\n"
+                        + "    \"query\": null\n"
+                        + "  },\n"
+                        + "  \"historyRecord\": \"{\\\"source\\\":{\\\"file\\\":\\\"mysql-bin.000292\\\",\\\"pos\\\":5496,\\\"server_id\\\":1},\\\"position\\\":{\\\"transaction_id\\\":null,\\\"ts_sec\\\":1711082679,\\\"file\\\":\\\"mysql-bin.000292\\\",\\\"pos\\\":5714,\\\"server_id\\\":1},\\\"databaseName\\\":\\\"test\\\",\\\"ddl\\\":\\\"alter table t1\\\\n    change column \\\\n        `key` `key_word` int default 1 not null\\\",\\\"tableChanges\\\":[{\\\"type\\\":\\\"ALTER\\\",\\\"id\\\":\\\"\\\\\\\"doris_test\\\\\\\".\\\\\\\"test_key_word\\\\\\\"\\\",\\\"table\\\":{\\\"defaultCharsetName\\\":\\\"utf8\\\",\\\"primaryKeyColumnNames\\\":[\\\"id\\\"],\\\"columns\\\":[{\\\"name\\\":\\\"id\\\",\\\"jdbcType\\\":4,\\\"typeName\\\":\\\"INT\\\",\\\"typeExpression\\\":\\\"INT\\\",\\\"charsetName\\\":null,\\\"length\\\":11,\\\"position\\\":1,\\\"optional\\\":false,\\\"autoIncremented\\\":false,\\\"generated\\\":false,\\\"comment\\\":null,\\\"hasDefaultValue\\\":false,\\\"enumValues\\\":[]},{\\\"name\\\":\\\"key_word\\\",\\\"jdbcType\\\":4,\\\"typeName\\\":\\\"INT\\\",\\\"typeExpression\\\":\\\"INT\\\",\\\"charsetName\\\":null,\\\"length\\\":11,\\\"position\\\":2,\\\"optional\\\":false,\\\"autoIncremented\\\":false,\\\"generated\\\":false,\\\"comment\\\":null,\\\"hasDefaultValue\\\":true,\\\"defaultValueExpression\\\":\\\"1\\\",\\\"enumValues\\\":[]}]},\\\"comment\\\":null}]}\"\n"
+                        + "}";
+        Map<String, Map<String, FieldSchema>> originFieldSchemaHashMap = new LinkedHashMap<>();
+        Map<String, FieldSchema> fieldSchemaHashMap = Maps.newHashMap();
+        JsonNode record = objectMapper.readTree(columnInfo);
+        schemaChange.setSourceConnector("mysql");
+
+        fieldSchemaHashMap.put("id", new FieldSchema("id", "int", "", ""));
+        fieldSchemaHashMap.put("key", new FieldSchema("key", "int", "", ""));
+        originFieldSchemaHashMap.put("test.t1", fieldSchemaHashMap);
+        schemaChange.setOriginFieldSchemaMap(originFieldSchemaHashMap);
+        List<String> changeNameList = schemaChange.extractDDLList(record);
+        System.out.println(changeNameList.get(0));
+        //        Assert.assertEquals(
+        //                "ALTER TABLE `test`.`t1` RENAME COLUMN `age` `age1`",
+        // changeNameList.get(0));
+    }
+
+    @Test
     public void testGetCdcTableIdentifier() throws Exception {
         String insert =
                 "{\"before\":{\"id\":1,\"name\":\"doris-update\",\"dt\":\"2022-01-01\",\"dtime\":\"2022-01-01 10:01:02\",\"ts\":\"2022-01-01 10:01:03\"},\"after\":null,\"source\":{\"version\":\"1.5.4.Final\",\"connector\":\"mysql\",\"name\":\"mysql_binlog_source\",\"ts_ms\":1663924328000,\"snapshot\":\"false\",\"db\":\"test\",\"sequence\":null,\"table\":\"t1\",\"server_id\":1,\"gtid\":null,\"file\":\"binlog.000006\",\"pos\":12500,\"row\":0,\"thread\":null,\"query\":null},\"op\":\"d\",\"ts_ms\":1663924328869,\"transaction\":null}";
