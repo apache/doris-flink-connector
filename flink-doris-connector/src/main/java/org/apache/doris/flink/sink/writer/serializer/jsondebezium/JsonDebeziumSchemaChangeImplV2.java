@@ -65,7 +65,9 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
     private static final Logger LOG = LoggerFactory.getLogger(JsonDebeziumSchemaChangeImplV2.class);
     private static final Pattern renameDDLPattern =
             Pattern.compile(
-                    "ALTER\\s+TABLE\\s+(\\w+)\\s+RENAME\\s+COLUMN\\s+(\\w+)\\s+TO\\s+(\\w+)",
+                    "ALTER\\s+TABLE\\s+\\w+\\s+"
+                            + "(RENAME\\s+COLUMN\\s+(\\w+)\\s+TO\\s+(\\w+)|"
+                            + "CHANGE\\s+(?:column\\s+)?(\\w+)\\s+(\\w+)\\s+(\\w+))",
                     Pattern.CASE_INSENSITIVE);
     // schemaChange saves table names, field, and field column information
     private Map<String, Map<String, FieldSchema>> originFieldSchemaMap = new LinkedHashMap<>();
@@ -196,15 +198,21 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
         }
 
         Map<String, FieldSchema> fieldSchemaMap = originFieldSchemaMap.get(dorisTable);
+        // remove backtick
+        ddl = ddl.replace("`", "");
         // rename ddl
-        Matcher renameMatcher = renameDDLPattern.matcher(ddl);
-        if (renameMatcher.find()) {
-            String oldColumnName = renameMatcher.group(2);
-            String newColumnName = renameMatcher.group(3);
+        Matcher renameDdlMatcher = renameDDLPattern.matcher(ddl);
+        if (renameDdlMatcher.find()) {
+            String oldColumnName = renameDdlMatcher.group(2);
+            String newColumnName = renameDdlMatcher.group(3);
+            // Change operation
+            if (oldColumnName == null) {
+                oldColumnName = renameDdlMatcher.group(4);
+                newColumnName = renameDdlMatcher.group(5);
+            }
             return SchemaChangeHelper.generateRenameDDLSql(
                     dorisTable, oldColumnName, newColumnName, fieldSchemaMap);
         }
-
         // add/drop ddl
         Map<String, FieldSchema> updateFiledSchema = new LinkedHashMap<>();
         for (JsonNode column : columns) {
