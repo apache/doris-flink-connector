@@ -31,7 +31,7 @@ import java.util.Map;
  */
 public abstract class CdcDataChange implements ChangeEvent {
 
-    protected abstract DorisRecord serialize(String record, JsonNode recordRoot, String op)
+    public abstract DorisRecord serialize(String record, JsonNode recordRoot, String op)
             throws IOException;
 
     protected abstract Map<String, Object> extractBeforeRow(JsonNode record);
