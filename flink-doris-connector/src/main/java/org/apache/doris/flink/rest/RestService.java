@@ -66,7 +66,6 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -149,13 +148,9 @@ public class RestService implements Serializable {
             try {
                 String response;
                 if (request instanceof HttpGet) {
-                    response =
-                            getConnectionGet(
-                                    request, options.getUsername(), options.getPassword(), logger);
+                    response = getConnectionGet(request, options, logger);
                 } else {
-                    response =
-                            getConnectionPost(
-                                    request, options.getUsername(), options.getPassword(), logger);
+                    response = getConnectionPost(request, options, logger);
                 }
                 if (response == null) {
                     logger.warn(
@@ -188,17 +183,12 @@ public class RestService implements Serializable {
     }
 
     private static String getConnectionPost(
-            HttpRequestBase request, String user, String passwd, Logger logger) throws IOException {
+            HttpRequestBase request, DorisOptions dorisOptions, Logger logger) throws IOException {
         URL url = new URL(request.getURI().toString());
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setInstanceFollowRedirects(false);
         conn.setRequestMethod(request.getMethod());
-        String authEncoding =
-                Base64.getEncoder()
-                        .encodeToString(
-                                String.format("%s:%s", user, passwd)
-                                        .getBytes(StandardCharsets.UTF_8));
-        conn.setRequestProperty("Authorization", "Basic " + authEncoding);
+        conn.setRequestProperty("Authorization", authHeader(dorisOptions));
         InputStream content = ((HttpPost) request).getEntity().getContent();
         String res = IOUtils.toString(content);
         conn.setDoOutput(true);
@@ -215,16 +205,11 @@ public class RestService implements Serializable {
     }
 
     private static String getConnectionGet(
-            HttpRequestBase request, String user, String passwd, Logger logger) throws IOException {
+            HttpRequestBase request, DorisOptions dorisOptions, Logger logger) throws IOException {
         URL realUrl = new URL(request.getURI().toString());
         // open connection
         HttpURLConnection connection = (HttpURLConnection) realUrl.openConnection();
-        String authEncoding =
-                Base64.getEncoder()
-                        .encodeToString(
-                                String.format("%s:%s", user, passwd)
-                                        .getBytes(StandardCharsets.UTF_8));
-        connection.setRequestProperty("Authorization", "Basic " + authEncoding);
+        connection.setRequestProperty("Authorization", authHeader(dorisOptions));
 
         connection.connect();
         connection.setConnectTimeout(request.getConfig().getConnectTimeout());

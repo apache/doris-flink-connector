@@ -370,6 +370,7 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
         } else {
             // In order to be compatible with column changes, the data is empty or started from
             // flink checkpoint, resulting in the originFieldSchemaMap not being filled.
+            LOG.info(tableName + " fill origin field schema from doris schema.");
             fieldSchemaMap = new LinkedHashMap<>();
             String[] splitTableName = tableName.split("\\.");
             Schema schema =
