@@ -31,6 +31,9 @@ import org.apache.doris.flink.catalog.doris.DataModel;
 import org.apache.doris.flink.catalog.doris.FieldSchema;
 import org.apache.doris.flink.catalog.doris.TableSchema;
 import org.apache.doris.flink.exception.IllegalArgumentException;
+import org.apache.doris.flink.rest.RestService;
+import org.apache.doris.flink.rest.models.Field;
+import org.apache.doris.flink.rest.models.Schema;
 import org.apache.doris.flink.sink.schema.SchemaChangeHelper;
 import org.apache.doris.flink.sink.schema.SchemaChangeHelper.DDLSchema;
 import org.apache.doris.flink.sink.schema.SchemaChangeManager;
@@ -365,13 +368,21 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
                 }
             }
         } else {
-            LOG.error(
-                    "Current schema change failed! You need to ensure that "
-                            + "there is data in the table."
-                            + dorisOptions.getTableIdentifier());
+            // In order to be compatible with column changes, the data is empty or started from
+            // flink checkpoint, resulting in the originFieldSchemaMap not being filled.
             fieldSchemaMap = new LinkedHashMap<>();
-            Map<String, FieldSchema> finalFieldSchemaMap = fieldSchemaMap;
-            columns.forEach(column -> buildFieldSchema(finalFieldSchemaMap, column));
+            String[] splitTableName = tableName.split("\\.");
+            Schema schema =
+                    RestService.getSchema(dorisOptions, splitTableName[0], splitTableName[1], LOG);
+            List<Field> columnFields = schema.getProperties();
+            for (Field column : columnFields) {
+                String columnName = column.getName();
+                String columnType = column.getType();
+                String columnComment = column.getComment();
+                // TODO need to fill column with default value
+                fieldSchemaMap.put(
+                        columnName, new FieldSchema(columnName, columnType, "", columnComment));
+            }
             originFieldSchemaMap.put(tableName, fieldSchemaMap);
         }
     }
