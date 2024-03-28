@@ -33,7 +33,7 @@ import java.util.StringJoiner;
 public abstract class SourceSchema {
     protected final String databaseName;
     protected final String schemaName;
-    protected final String tableName;
+    protected String tableName;
     protected final String tableComment;
     protected LinkedHashMap<String, FieldSchema> fields;
     public List<String> primaryKeys;
@@ -104,6 +104,10 @@ public abstract class SourceSchema {
 
     public String getTableName() {
         return tableName;
+    }
+
+    public void setTableName(String tableName) {
+        this.tableName = tableName;
     }
 
     public Map<String, FieldSchema> getFields() {
