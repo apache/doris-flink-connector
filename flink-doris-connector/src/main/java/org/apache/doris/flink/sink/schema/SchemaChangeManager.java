@@ -134,7 +134,19 @@ public class SchemaChangeManager implements Serializable {
         HttpGetWithEntity httpGet = new HttpGetWithEntity(requestUrl);
         httpGet.setHeader(HttpHeaders.AUTHORIZATION, authHeader());
         httpGet.setEntity(new StringEntity(objectMapper.writeValueAsString(params)));
-        return handleResponse(httpGet);
+        String responseEntity = "";
+        Map<String, Object> responseMap = handleResponse(httpGet, responseEntity);
+        return handleSchemaChange(responseMap, responseEntity);
+    }
+
+    private boolean handleSchemaChange(Map<String, Object> responseMap, String responseEntity) {
+        String code = responseMap.getOrDefault("code", "-1").toString();
+        if (code.equals("0")) {
+            return true;
+        } else {
+            throw new DorisSchemaChangeException(
+                    "Failed to schemaChange, response: " + responseEntity);
+        }
     }
 
     /** execute sql in doris. */
@@ -145,7 +157,9 @@ public class SchemaChangeManager implements Serializable {
         }
         LOG.info("Execute SQL: {}", ddl);
         HttpPost httpPost = buildHttpPost(ddl, database);
-        return handleResponse(httpPost);
+        String responseEntity = "";
+        Map<String, Object> responseMap = handleResponse(httpPost, responseEntity);
+        return handleSchemaChange(responseMap, responseEntity);
     }
 
     public HttpPost buildHttpPost(String ddl, String database)
@@ -164,21 +178,15 @@ public class SchemaChangeManager implements Serializable {
         return httpPost;
     }
 
-    private boolean handleResponse(HttpUriRequest request) {
+    private Map<String, Object> handleResponse(HttpUriRequest request, String responseEntity) {
         try (CloseableHttpClient httpclient = HttpClients.createDefault()) {
             CloseableHttpResponse response = httpclient.execute(request);
             final int statusCode = response.getStatusLine().getStatusCode();
             final String reasonPhrase = response.getStatusLine().getReasonPhrase();
             if (statusCode == 200 && response.getEntity() != null) {
-                String loadResult = EntityUtils.toString(response.getEntity());
-                Map<String, Object> responseMap = objectMapper.readValue(loadResult, Map.class);
-                String code = responseMap.getOrDefault("code", "-1").toString();
-                if (code.equals("0")) {
-                    return true;
-                } else {
-                    throw new DorisSchemaChangeException(
-                            "Failed to schemaChange, response: " + loadResult);
-                }
+                responseEntity = EntityUtils.toString(response.getEntity());
+                Map<String, Object> responseMap = objectMapper.readValue(responseEntity, Map.class);
+                return responseMap;
             } else {
                 throw new DorisSchemaChangeException(
                         "Failed to schemaChange, status: "

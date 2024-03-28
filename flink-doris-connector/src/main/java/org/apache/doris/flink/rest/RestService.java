@@ -20,6 +20,7 @@ package org.apache.doris.flink.rest;
 import org.apache.flink.annotation.VisibleForTesting;
 
 import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.io.IOUtils;
@@ -30,21 +31,30 @@ import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.exception.ConnectedFailedException;
 import org.apache.doris.flink.exception.DorisException;
 import org.apache.doris.flink.exception.DorisRuntimeException;
+import org.apache.doris.flink.exception.DorisSchemaChangeException;
 import org.apache.doris.flink.exception.IllegalArgumentException;
 import org.apache.doris.flink.exception.ShouldNeverHappenException;
 import org.apache.doris.flink.rest.models.Backend;
 import org.apache.doris.flink.rest.models.BackendRow;
 import org.apache.doris.flink.rest.models.BackendV2;
+import org.apache.doris.flink.rest.models.BackendV2.BackendRowV2;
 import org.apache.doris.flink.rest.models.QueryPlan;
 import org.apache.doris.flink.rest.models.Schema;
 import org.apache.doris.flink.rest.models.Tablet;
 import org.apache.doris.flink.sink.BackendUtil;
+import org.apache.doris.flink.sink.HttpGetWithEntity;
+import org.apache.http.HttpHeaders;
 import org.apache.http.HttpStatus;
 import org.apache.http.client.config.RequestConfig;
+import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpRequestBase;
+import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 
 import java.io.IOException;
@@ -56,12 +66,12 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Scanner;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -78,13 +88,13 @@ public class RestService implements Serializable {
     public static final int REST_RESPONSE_STATUS_OK = 200;
     public static final int REST_RESPONSE_CODE_OK = 0;
     private static final String REST_RESPONSE_BE_ROWS_KEY = "rows";
-    private static final String API_PREFIX = "/api";
-    private static final String SCHEMA = "_schema";
-    private static final String QUERY_PLAN = "_query_plan";
     private static final String UNIQUE_KEYS_TYPE = "UNIQUE_KEYS";
     @Deprecated private static final String BACKENDS = "/rest/v1/system?path=//backends";
     private static final String BACKENDS_V2 = "/api/backends?is_alive=true";
     private static final String FE_LOGIN = "/rest/v1/login";
+    private static final ObjectMapper objectMapper = new ObjectMapper();
+    private static final String TABLE_SCHEMA_API = "http://%s/api/%s/%s/_schema";
+    private static final String QUERY_PLAN_API = "http://%s/api/%s/%s/_query_plan";
 
     /**
      * send request to Doris FE and get response json string.
@@ -138,13 +148,9 @@ public class RestService implements Serializable {
             try {
                 String response;
                 if (request instanceof HttpGet) {
-                    response =
-                            getConnectionGet(
-                                    request, options.getUsername(), options.getPassword(), logger);
+                    response = getConnectionGet(request, options, logger);
                 } else {
-                    response =
-                            getConnectionPost(
-                                    request, options.getUsername(), options.getPassword(), logger);
+                    response = getConnectionPost(request, options, logger);
                 }
                 if (response == null) {
                     logger.warn(
@@ -177,17 +183,12 @@ public class RestService implements Serializable {
     }
 
     private static String getConnectionPost(
-            HttpRequestBase request, String user, String passwd, Logger logger) throws IOException {
+            HttpRequestBase request, DorisOptions dorisOptions, Logger logger) throws IOException {
         URL url = new URL(request.getURI().toString());
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setInstanceFollowRedirects(false);
         conn.setRequestMethod(request.getMethod());
-        String authEncoding =
-                Base64.getEncoder()
-                        .encodeToString(
-                                String.format("%s:%s", user, passwd)
-                                        .getBytes(StandardCharsets.UTF_8));
-        conn.setRequestProperty("Authorization", "Basic " + authEncoding);
+        conn.setRequestProperty("Authorization", authHeader(dorisOptions));
         InputStream content = ((HttpPost) request).getEntity().getContent();
         String res = IOUtils.toString(content);
         conn.setDoOutput(true);
@@ -204,16 +205,11 @@ public class RestService implements Serializable {
     }
 
     private static String getConnectionGet(
-            HttpRequestBase request, String user, String passwd, Logger logger) throws IOException {
+            HttpRequestBase request, DorisOptions dorisOptions, Logger logger) throws IOException {
         URL realUrl = new URL(request.getURI().toString());
         // open connection
         HttpURLConnection connection = (HttpURLConnection) realUrl.openConnection();
-        String authEncoding =
-                Base64.getEncoder()
-                        .encodeToString(
-                                String.format("%s:%s", user, passwd)
-                                        .getBytes(StandardCharsets.UTF_8));
-        connection.setRequestProperty("Authorization", "Basic " + authEncoding);
+        connection.setRequestProperty("Authorization", authHeader(dorisOptions));
 
         connection.connect();
         connection.setConnectTimeout(request.getConfig().getConnectTimeout());
@@ -323,14 +319,14 @@ public class RestService implements Serializable {
     public static String randomBackend(
             DorisOptions options, DorisReadOptions readOptions, Logger logger)
             throws DorisException, IOException {
-        List<BackendV2.BackendRowV2> backends = getBackendsV2(options, readOptions, logger);
+        List<BackendRowV2> backends = getBackendsV2(options, readOptions, logger);
         logger.trace("Parse beNodes '{}'.", backends);
         if (backends == null || backends.isEmpty()) {
             logger.error(ILLEGAL_ARGUMENT_MESSAGE, "beNodes", backends);
             throw new IllegalArgumentException("beNodes", String.valueOf(backends));
         }
         Collections.shuffle(backends);
-        BackendV2.BackendRowV2 backend = backends.get(0);
+        BackendRowV2 backend = backends.get(0);
         return backend.getIp() + ":" + backend.getHttpPort();
     }
 
@@ -408,7 +404,7 @@ public class RestService implements Serializable {
      * @return the chosen one Doris BE node
      * @throws IllegalArgumentException BE nodes is illegal
      */
-    public static List<BackendV2.BackendRowV2> getBackendsV2(
+    public static List<BackendRowV2> getBackendsV2(
             DorisOptions options, DorisReadOptions readOptions, Logger logger) {
         String feNodes = options.getFenodes();
         List<String> feNodeList = allEndpoints(feNodes, logger);
@@ -423,7 +419,7 @@ public class RestService implements Serializable {
                 HttpGet httpGet = new HttpGet(beUrl);
                 String response = send(options, readOptions, httpGet, logger);
                 logger.info("Backend Info:{}", response);
-                List<BackendV2.BackendRowV2> backends = parseBackendV2(response, logger);
+                List<BackendRowV2> backends = parseBackendV2(response, logger);
                 return backends;
             } catch (ConnectedFailedException e) {
                 logger.info(
@@ -444,16 +440,16 @@ public class RestService implements Serializable {
      * @param feNodeList
      * @return
      */
-    private static List<BackendV2.BackendRowV2> convert(List<String> feNodeList) {
-        List<BackendV2.BackendRowV2> nodeList = new ArrayList<>();
+    private static List<BackendRowV2> convert(List<String> feNodeList) {
+        List<BackendRowV2> nodeList = new ArrayList<>();
         for (String node : feNodeList) {
             String[] split = node.split(":");
-            nodeList.add(BackendV2.BackendRowV2.of(split[0], Integer.valueOf(split[1]), true));
+            nodeList.add(BackendRowV2.of(split[0], Integer.valueOf(split[1]), true));
         }
         return nodeList;
     }
 
-    static List<BackendV2.BackendRowV2> parseBackendV2(String response, Logger logger) {
+    static List<BackendRowV2> parseBackendV2(String response, Logger logger) {
         ObjectMapper mapper = new ObjectMapper();
         BackendV2 backend;
         try {
@@ -476,30 +472,9 @@ public class RestService implements Serializable {
             logger.error(SHOULD_NOT_HAPPEN_MESSAGE);
             throw new ShouldNeverHappenException();
         }
-        List<BackendV2.BackendRowV2> backendRows = backend.getBackends();
+        List<BackendRowV2> backendRows = backend.getBackends();
         logger.debug("Parsing schema result is '{}'.", backendRows);
         return backendRows;
-    }
-
-    /**
-     * get a valid URI to connect Doris FE.
-     *
-     * @param options configuration of request
-     * @param logger {@link Logger}
-     * @return uri string
-     * @throws IllegalArgumentException throw when configuration is illegal
-     */
-    @VisibleForTesting
-    static String getUriStr(DorisOptions options, Logger logger) throws IllegalArgumentException {
-        String[] identifier = parseIdentifier(options.getTableIdentifier(), logger);
-        return "http://"
-                + randomEndpoint(options.getFenodes(), logger)
-                + API_PREFIX
-                + "/"
-                + identifier[0]
-                + "/"
-                + identifier[1]
-                + "/";
     }
 
     /**
@@ -514,10 +489,70 @@ public class RestService implements Serializable {
             DorisOptions options, DorisReadOptions readOptions, Logger logger)
             throws DorisException {
         logger.trace("Finding schema.");
-        HttpGet httpGet = new HttpGet(getUriStr(options, logger) + SCHEMA);
+        String[] tableIdentifier = parseIdentifier(options.getTableIdentifier(), logger);
+        String tableSchemaUri =
+                String.format(
+                        TABLE_SCHEMA_API,
+                        randomEndpoint(options.getFenodes(), logger),
+                        tableIdentifier[0],
+                        tableIdentifier[1]);
+        HttpGet httpGet = new HttpGet(tableSchemaUri);
         String response = send(options, readOptions, httpGet, logger);
         logger.debug("Find schema response is '{}'.", response);
         return parseSchema(response, logger);
+    }
+
+    public static Schema getSchema(
+            DorisOptions dorisOptions, String db, String table, Logger logger) {
+        logger.trace("start get " + db + "." + table + " schema from doris.");
+        Object responseData = null;
+        try {
+            String tableSchemaUri =
+                    String.format(
+                            TABLE_SCHEMA_API,
+                            randomEndpoint(dorisOptions.getFenodes(), logger),
+                            db,
+                            table);
+            HttpGetWithEntity httpGet = new HttpGetWithEntity(tableSchemaUri);
+            httpGet.setHeader(HttpHeaders.AUTHORIZATION, authHeader(dorisOptions));
+            Map<String, Object> responseMap = handleResponse(httpGet, logger);
+            responseData = responseMap.get("data");
+            String schemaStr = objectMapper.writeValueAsString(responseData);
+            return objectMapper.readValue(schemaStr, Schema.class);
+        } catch (JsonProcessingException | IllegalArgumentException e) {
+            throw new DorisSchemaChangeException(
+                    "can not parse response schema " + responseData, e);
+        }
+    }
+
+    private static Map handleResponse(HttpUriRequest request, Logger logger) {
+        try (CloseableHttpClient httpclient = HttpClients.createDefault()) {
+            CloseableHttpResponse response = httpclient.execute(request);
+            final int statusCode = response.getStatusLine().getStatusCode();
+            final String reasonPhrase = response.getStatusLine().getReasonPhrase();
+            if (statusCode == 200 && response.getEntity() != null) {
+                String responseEntity = EntityUtils.toString(response.getEntity());
+                return objectMapper.readValue(responseEntity, Map.class);
+            } else {
+                throw new DorisSchemaChangeException(
+                        "Failed to schemaChange, status: "
+                                + statusCode
+                                + ", reason: "
+                                + reasonPhrase);
+            }
+        } catch (Exception e) {
+            logger.trace("SchemaChange request error,", e);
+            throw new DorisSchemaChangeException(
+                    "SchemaChange request error with " + e.getMessage());
+        }
+    }
+
+    private static String authHeader(DorisOptions dorisOptions) {
+        return "Basic "
+                + new String(
+                        org.apache.commons.codec.binary.Base64.encodeBase64(
+                                (dorisOptions.getUsername() + ":" + dorisOptions.getPassword())
+                                        .getBytes(StandardCharsets.UTF_8)));
     }
 
     public static boolean isUniqueKeyType(
@@ -606,8 +641,14 @@ public class RestService implements Serializable {
             sql += " where " + readOptions.getFilterQuery();
         }
         logger.info("Query SQL Sending to Doris FE is: '{}'.", sql);
-
-        HttpPost httpPost = new HttpPost(getUriStr(options, logger) + QUERY_PLAN);
+        String[] tableIdentifier = parseIdentifier(options.getTableIdentifier(), logger);
+        String queryPlanUri =
+                String.format(
+                        QUERY_PLAN_API,
+                        options.getFenodes(),
+                        tableIdentifier[0],
+                        tableIdentifier[1]);
+        HttpPost httpPost = new HttpPost(queryPlanUri);
         String entity = "{\"sql\": \"" + sql + "\"}";
         logger.debug("Post body Sending to Doris FE is: '{}'.", entity);
         StringEntity stringEntity = new StringEntity(entity, StandardCharsets.UTF_8);
@@ -683,7 +724,7 @@ public class RestService implements Serializable {
     static Map<String, List<Long>> selectBeForTablet(QueryPlan queryPlan, Logger logger)
             throws DorisException {
         Map<String, List<Long>> be2Tablets = new HashMap<>();
-        for (Map.Entry<String, Tablet> part : queryPlan.getPartitions().entrySet()) {
+        for (Entry<String, Tablet> part : queryPlan.getPartitions().entrySet()) {
             logger.debug("Parse tablet info: '{}'.", part);
             long tabletId;
             try {
@@ -777,7 +818,7 @@ public class RestService implements Serializable {
             throws IllegalArgumentException {
         int tabletsSize = tabletCountLimitForOnePartition(readOptions, logger);
         List<PartitionDefinition> partitions = new ArrayList<>();
-        for (Map.Entry<String, List<Long>> beInfo : be2Tablets.entrySet()) {
+        for (Entry<String, List<Long>> beInfo : be2Tablets.entrySet()) {
             logger.debug("Generate partition with beInfo: '{}'.", beInfo);
             HashSet<Long> tabletSet = new HashSet<>(beInfo.getValue());
             beInfo.getValue().clear();
