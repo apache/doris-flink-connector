@@ -38,6 +38,15 @@ public abstract class JdbcSourceSchema extends SourceSchema {
             String tableComment)
             throws Exception {
         super(databaseName, schemaName, tableName, tableComment);
+
+        // Oracle permits table names to include special characters like /,
+        // etc., such as 'A/B'.
+        // If we attempt to retrieve column information for `A/B` using JDBC, it can result in an
+        // ORA-01424 error.
+        // To circumvent this issue, we substitute `/` with '_' to prevent encountering the problem.
+        if (tableName.contains("/")) {
+            tableName = tableName.replace("/", "_");
+        }
         fields = new LinkedHashMap<>();
         try (ResultSet rs = metaData.getColumns(databaseName, schemaName, tableName, null)) {
             while (rs.next()) {

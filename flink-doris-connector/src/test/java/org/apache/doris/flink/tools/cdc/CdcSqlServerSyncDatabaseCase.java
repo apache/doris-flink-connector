@@ -77,6 +77,7 @@ public class CdcSqlServerSyncDatabaseCase {
         String multiToOneTarget = "a|b";
         boolean ignoreDefaultValue = false;
         boolean useNewSchemaChange = false;
+        boolean ignoreIncompatible = false;
         DatabaseSync databaseSync = new SqlServerDatabaseSync();
         databaseSync
                 .setEnv(env)
@@ -93,6 +94,7 @@ public class CdcSqlServerSyncDatabaseCase {
                 .setTableConfig(tableConfig)
                 .setCreateTableOnly(false)
                 .setNewSchemaChange(useNewSchemaChange)
+                .setIgnoreIncompatible(ignoreIncompatible)
                 .create();
         databaseSync.build();
         env.execute(String.format("SqlServer-Doris Database Sync: %s", database));

@@ -72,6 +72,7 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
     private String targetDatabase;
     private String targetTablePrefix;
     private String targetTableSuffix;
+    private boolean ignoreIncompatible;
     private JsonDebeziumDataChange dataChange;
     private JsonDebeziumSchemaChange schemaChange;
     private final Set<String> initTableSet = new HashSet<>();
@@ -128,6 +129,28 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
         init();
     }
 
+    public JsonDebeziumSchemaSerializer(
+            DorisOptions dorisOptions,
+            Pattern pattern,
+            String sourceTableName,
+            boolean newSchemaChange,
+            DorisExecutionOptions executionOptions,
+            Map<String, String> tableMapping,
+            Map<String, String> tableProperties,
+            String targetDatabase,
+            String targetTablePrefix,
+            String targetTableSuffix,
+            boolean ignoreIncompatible) {
+        this(dorisOptions, pattern, sourceTableName, newSchemaChange, executionOptions);
+        this.tableMapping = tableMapping;
+        this.tableProperties = tableProperties;
+        this.targetDatabase = targetDatabase;
+        this.targetTablePrefix = targetTablePrefix;
+        this.targetTableSuffix = targetTableSuffix;
+        this.ignoreIncompatible = ignoreIncompatible;
+        init();
+    }
+
     private void init() {
         JsonDebeziumChangeContext changeContext =
                 new JsonDebeziumChangeContext(
@@ -141,7 +164,8 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
                         lineDelimiter,
                         ignoreUpdateBefore,
                         targetTablePrefix,
-                        targetTableSuffix);
+                        targetTableSuffix,
+                        ignoreIncompatible);
         this.schemaChange =
                 newSchemaChange
                         ? new JsonDebeziumSchemaChangeImplV2(changeContext)
@@ -205,6 +229,7 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
         private String targetDatabase;
         private String targetTablePrefix = "";
         private String targetTableSuffix = "";
+        private boolean ignoreIncompatible = true;
 
         public JsonDebeziumSchemaSerializer.Builder setDorisOptions(DorisOptions dorisOptions) {
             this.dorisOptions = dorisOptions;
@@ -260,6 +285,11 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
             return this;
         }
 
+        public Builder setIgnoreIncompatible(boolean ignoreInCompatible) {
+            this.ignoreIncompatible = ignoreInCompatible;
+            return this;
+        }
+
         public JsonDebeziumSchemaSerializer build() {
             return new JsonDebeziumSchemaSerializer(
                     dorisOptions,
@@ -271,7 +301,8 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
                     tableProperties,
                     targetDatabase,
                     targetTablePrefix,
-                    targetTableSuffix);
+                    targetTableSuffix,
+                    ignoreIncompatible);
         }
     }
 }

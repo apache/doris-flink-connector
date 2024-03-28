@@ -230,8 +230,7 @@ public class MysqlDatabaseSync extends DatabaseSync {
 
     @Override
     public String getTableListPrefix() {
-        String databaseName = config.get(MySqlSourceOptions.DATABASE_NAME);
-        return databaseName;
+        return config.get(MySqlSourceOptions.DATABASE_NAME);
     }
 
     /**

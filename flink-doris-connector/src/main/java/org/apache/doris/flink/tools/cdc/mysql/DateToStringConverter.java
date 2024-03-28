@@ -70,7 +70,7 @@ public class DateToStringConverter implements CustomConverter<SchemaBuilder, Rel
 
     private void readProps(Properties properties, String settingKey, Consumer<String> callback) {
         String settingValue = (String) properties.get(settingKey);
-        if (settingValue == null || settingValue.length() == 0) {
+        if (settingValue == null || settingValue.isEmpty()) {
             return;
         }
         try {

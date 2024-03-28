@@ -80,6 +80,7 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
     private String targetDatabase;
     private String targetTablePrefix;
     private String targetTableSuffix;
+    private boolean ignoreIncompatible;
     private final Set<String> filledTables = new HashSet<>();
 
     public JsonDebeziumSchemaChangeImplV2(JsonDebeziumChangeContext changeContext) {
@@ -100,6 +101,7 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
                 changeContext.getTargetTableSuffix() == null
                         ? ""
                         : changeContext.getTargetTableSuffix();
+        this.ignoreIncompatible = changeContext.isIgnoreIncompatible();
     }
 
     @Override
@@ -128,7 +130,19 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
             }
             if (eventType.equals(EventType.CREATE)) {
                 TableSchema tableSchema = extractCreateTableSchema(recordRoot);
-                status = schemaChangeManager.createTable(tableSchema);
+
+                boolean ignoreSchema =
+                        DatabaseSync.shouldIgnoreSchemaIncompatible(
+                                ignoreIncompatible,
+                                tableSchema.getTable(),
+                                tableSchema.getFields());
+                // If ignoreInCompatible is false, an exception is thrown when the source table
+                // schema mismatches the Doris schema.
+                // If it's true, incompatible schemas are skipped, and a warning log is printed.
+                if (!ignoreSchema) {
+                    status = schemaChangeManager.createTable(tableSchema);
+                }
+
                 if (status) {
                     String cdcTbl = getCdcTableIdentifier(recordRoot);
                     String dorisTbl = getCreateTableIdentifier(recordRoot);
@@ -168,8 +182,7 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
         JsonNode historyRecord = extractHistoryRecord(record);
         JsonNode tableChanges = historyRecord.get("tableChanges");
         if (!Objects.isNull(tableChanges)) {
-            JsonNode tableChange = tableChanges.get(0);
-            return tableChange;
+            return tableChanges.get(0);
         }
         return null;
     }
