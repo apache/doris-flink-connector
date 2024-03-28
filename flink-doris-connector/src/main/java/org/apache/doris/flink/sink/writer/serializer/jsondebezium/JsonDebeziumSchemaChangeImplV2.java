@@ -382,7 +382,7 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
                 String columnComment = column.getComment();
                 // TODO need to fill column with default value
                 fieldSchemaMap.put(
-                        columnName, new FieldSchema(columnName, columnType, "", columnComment));
+                        columnName, new FieldSchema(columnName, columnType, columnComment));
             }
             originFieldSchemaMap.put(tableName, fieldSchemaMap);
         }

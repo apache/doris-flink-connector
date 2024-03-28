@@ -197,8 +197,8 @@ public class TestJsonDebeziumSchemaChangeImplV2 extends TestJsonDebeziumChangeBa
     @Test
     public void testFillOriginSchemaWithoutFiledSchema() throws IOException {
         Map<String, FieldSchema> srcFiledSchemaMap = new LinkedHashMap<>();
-        srcFiledSchemaMap.put("id", new FieldSchema("id", "INT", "", ""));
-        srcFiledSchemaMap.put("name", new FieldSchema("name", "VARCHAR", "", ""));
+        srcFiledSchemaMap.put("id", new FieldSchema("id", "INT", null, ""));
+        srcFiledSchemaMap.put("name", new FieldSchema("name", "VARCHAR", null, ""));
 
         schemaChange.setSourceConnector("mysql");
         String tableName = "test.test_sink3";
