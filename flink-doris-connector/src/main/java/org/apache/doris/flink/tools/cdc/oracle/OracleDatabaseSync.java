@@ -125,13 +125,18 @@ public class OracleDatabaseSync extends DatabaseSync {
                     // ORA-01424 error.
                     // To circumvent this issue, we substitute `/` with '_' to prevent encountering
                     // the problem.
+                    String formattedTableName = tableName;
+                    if (tableName.contains("/")) {
+                        formattedTableName = tableName.replace("/", "_");
+                    }
                     SourceSchema sourceSchema =
                             new OracleSchema(
                                     metaData,
                                     databaseName,
                                     schemaName,
-                                    tableName.replace("/", "_"),
+                                    formattedTableName,
                                     tableComment);
+                    // To ensure consistency between the Oracle source table and downstream systems.
                     sourceSchema.setTableName(tableName);
                     sourceSchema.setModel(
                             !sourceSchema.primaryKeys.isEmpty()
