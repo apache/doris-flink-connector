@@ -118,26 +118,9 @@ public class OracleDatabaseSync extends DatabaseSync {
                     if (!isSyncNeeded(tableName)) {
                         continue;
                     }
-                    // Oracle permits table names to include special characters like /,
-                    // etc., such as 'A/B'.
-                    // If we attempt to retrieve column information for `A/B` using JDBC, it can
-                    // result in an
-                    // ORA-01424 error.
-                    // To circumvent this issue, we substitute `/` with '_' to prevent encountering
-                    // the problem.
-                    String formattedTableName = tableName;
-                    if (tableName.contains("/")) {
-                        formattedTableName = tableName.replace("/", "_");
-                    }
                     SourceSchema sourceSchema =
                             new OracleSchema(
-                                    metaData,
-                                    databaseName,
-                                    schemaName,
-                                    formattedTableName,
-                                    tableComment);
-                    // To ensure consistency between the Oracle source table and downstream systems.
-                    sourceSchema.setTableName(tableName);
+                                    metaData, databaseName, schemaName, tableName, tableComment);
                     sourceSchema.setModel(
                             !sourceSchema.primaryKeys.isEmpty()
                                     ? DataModel.UNIQUE
