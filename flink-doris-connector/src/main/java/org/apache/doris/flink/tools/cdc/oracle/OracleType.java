@@ -42,6 +42,7 @@ public class OracleType {
     private static final String NCLOB = "NCLOB";
     private static final String BLOB = "BLOB";
     private static final String BFILE = "BFILE";
+    private static final String XMLTYPE = "XMLTYPE";
 
     public static String toDorisType(String oracleType, Integer precision, Integer scale) {
         oracleType = oracleType.toUpperCase();
@@ -100,6 +101,7 @@ public class OracleType {
             case BLOB:
             case CLOB:
             case NCLOB:
+            case XMLTYPE:
                 return DorisType.STRING;
             case BFILE:
             case BINARY_FLOAT:
