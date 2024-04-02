@@ -45,9 +45,14 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.doris.flink.sink.LoadStatus.PUBLISH_TIMEOUT;
@@ -82,6 +87,15 @@ public class DorisWriter<IN>
     private BackendUtil backendUtil;
     private SinkWriterMetricGroup sinkMetricGroup;
     private Map<String, DorisWriteMetrics> sinkMetricsMap = new ConcurrentHashMap<>();
+    private ExecutorService submitExecutor =
+            new ThreadPoolExecutor(
+                    10,
+                    10,
+                    0L,
+                    TimeUnit.MILLISECONDS,
+                    new LinkedBlockingQueue<>(),
+                    new ExecutorThreadFactory("stream-load-submit"),
+                    new ThreadPoolExecutor.AbortPolicy());
 
     public DorisWriter(
             Sink.InitContext initContext,
@@ -226,6 +240,8 @@ public class DorisWriter<IN>
 
         // submit stream load http request
         List<DorisCommittable> committableList = new ArrayList<>();
+
+        List<CompletableFuture<DorisCommittable>> committableFutures = new ArrayList<>();
         for (Map.Entry<String, DorisStreamLoad> streamLoader : dorisStreamLoadMap.entrySet()) {
             String tableIdentifier = streamLoader.getKey();
             if (!loadingMap.getOrDefault(tableIdentifier, false)) {
@@ -233,28 +249,65 @@ public class DorisWriter<IN>
                 continue;
             }
             DorisStreamLoad dorisStreamLoad = streamLoader.getValue();
-            RespContent respContent = dorisStreamLoad.stopLoad();
-            // refresh metrics
-            if (sinkMetricsMap.containsKey(tableIdentifier)) {
-                DorisWriteMetrics dorisWriteMetrics = sinkMetricsMap.get(tableIdentifier);
-                dorisWriteMetrics.flush(respContent);
-            }
-            if (!DORIS_SUCCESS_STATUS.contains(respContent.getStatus())) {
-                String errMsg =
-                        String.format(
-                                "table %s stream load error: %s, see more in %s",
-                                tableIdentifier,
-                                respContent.getMessage(),
-                                respContent.getErrorURL());
-                throw new DorisRuntimeException(errMsg);
-            }
-            if (executionOptions.enabled2PC()) {
-                long txnId = respContent.getTxnId();
-                committableList.add(
-                        new DorisCommittable(
-                                dorisStreamLoad.getHostPort(), dorisStreamLoad.getDb(), txnId));
+            CompletableFuture<DorisCommittable> respFuture = new CompletableFuture<>();
+            committableFutures.add(respFuture);
+
+            // Submit StreamLoad request asynchronously to prevent long waiting time when writing to
+            // multiple tables.
+            CompletableFuture.supplyAsync(
+                            () -> {
+                                try {
+                                    return dorisStreamLoad.stopLoad();
+                                } catch (IOException e) {
+                                    throw new RuntimeException(e);
+                                }
+                            },
+                            submitExecutor)
+                    .handleAsync(
+                            ((respContent, throwable) -> {
+                                try {
+                                    if (throwable != null) {
+                                        respFuture.completeExceptionally(throwable);
+                                    }
+                                    // refresh metrics
+                                    if (sinkMetricsMap.containsKey(tableIdentifier)) {
+                                        DorisWriteMetrics dorisWriteMetrics =
+                                                sinkMetricsMap.get(tableIdentifier);
+                                        dorisWriteMetrics.flush(respContent);
+                                    }
+                                    if (!DORIS_SUCCESS_STATUS.contains(respContent.getStatus())) {
+                                        String errMsg =
+                                                String.format(
+                                                        "table %s stream load error: %s, see more in %s",
+                                                        tableIdentifier,
+                                                        respContent.getMessage(),
+                                                        respContent.getErrorURL());
+                                        respFuture.completeExceptionally(
+                                                new DorisRuntimeException(errMsg));
+                                    }
+                                    if (executionOptions.enabled2PC()) {
+                                        long txnId = respContent.getTxnId();
+                                        respFuture.complete(
+                                                new DorisCommittable(
+                                                        dorisStreamLoad.getHostPort(),
+                                                        dorisStreamLoad.getDb(),
+                                                        txnId));
+                                    }
+                                } catch (Throwable e) {
+                                    respFuture.completeExceptionally(e);
+                                }
+                                return null;
+                            }));
+        }
+
+        for (CompletableFuture<DorisCommittable> committableFuture : committableFutures) {
+            try {
+                committableList.add(committableFuture.get());
+            } catch (ExecutionException e) {
+                throw new RuntimeException(e);
             }
         }
+
         // clean loadingMap
         loadingMap.clear();
         return committableList;
