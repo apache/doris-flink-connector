@@ -292,6 +292,8 @@ public class DorisWriter<IN>
                                                         dorisStreamLoad.getHostPort(),
                                                         dorisStreamLoad.getDb(),
                                                         txnId));
+                                    } else {
+                                        respFuture.complete(null);
                                     }
                                 } catch (Throwable e) {
                                     respFuture.completeExceptionally(e);
@@ -302,7 +304,10 @@ public class DorisWriter<IN>
 
         for (CompletableFuture<DorisCommittable> committableFuture : committableFutures) {
             try {
-                committableList.add(committableFuture.get());
+                DorisCommittable committable = committableFuture.get();
+                if (committable != null) {
+                    committableList.add(committable);
+                }
             } catch (ExecutionException e) {
                 throw new RuntimeException(e);
             }
