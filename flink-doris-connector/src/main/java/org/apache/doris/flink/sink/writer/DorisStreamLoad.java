@@ -154,20 +154,20 @@ public class DorisStreamLoad implements Serializable {
     }
 
     /**
-     * try to discard pending transactions with labels beginning with labelSuffix.
+     * try to discard pending transactions with labels beginning with labelPrefix.
      *
-     * @param labelSuffix the suffix of the stream load.
+     * @param labelPrefix the prefix of the stream load.
      * @param chkID checkpoint id of task.
      * @throws Exception
      */
-    public void abortPreCommit(String labelSuffix, long chkID) throws Exception {
+    public void abortPreCommit(String labelPrefix, long chkID) throws Exception {
         long startChkID = chkID;
-        LOG.info("abort for labelSuffix {}. start chkId {}.", labelSuffix, chkID);
+        LOG.info("abort for labelPrefix {}. start chkId {}.", labelPrefix, chkID);
         while (true) {
             try {
-                // TODO: According to label abort txn. Currently, it can only be aborted based on
-                // txnid,
-                //  so we must first request a streamload based on the label to get the txnid.
+                // TODO: According to label abort txn.
+                //  Currently, it can only be aborted based on txnid, so we must
+                //  first request a streamload based on the label to get the txnid.
                 String label = labelGenerator.generateTableLabel(startChkID);
                 HttpPutBuilder builder = new HttpPutBuilder();
                 builder.setUrl(loadUrlStr)
@@ -214,7 +214,7 @@ public class DorisStreamLoad implements Serializable {
                 throw e;
             }
         }
-        LOG.info("abort for labelSuffix {} finished", labelSuffix);
+        LOG.info("abort for labelPrefix {} finished", labelPrefix);
     }
 
     /**
@@ -315,14 +315,18 @@ public class DorisStreamLoad implements Serializable {
 
         ObjectMapper mapper = new ObjectMapper();
         String loadResult = EntityUtils.toString(response.getEntity());
+        LOG.info("abort Result {}", loadResult);
         Map<String, String> res =
                 mapper.readValue(loadResult, new TypeReference<HashMap<String, String>>() {});
         if (!SUCCESS.equals(res.get("status"))) {
-            if (ResponseUtil.isCommitted(res.get("msg"))) {
+            String msg = res.get("msg");
+            if (msg != null && ResponseUtil.isCommitted(msg)) {
                 throw new DorisException(
                         "try abort committed transaction, " + "do you recover from old savepoint?");
             }
-            LOG.warn("Fail to abort transaction. txnId: {}, error: {}", txnID, res.get("msg"));
+
+            LOG.error("Fail to abort transaction. txnId: {}, error: {}", txnID, msg);
+            throw new DorisException("Fail to abort transaction, " + loadResult);
         }
     }
 
