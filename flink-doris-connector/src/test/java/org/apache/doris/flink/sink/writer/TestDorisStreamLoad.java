@@ -20,6 +20,7 @@ package org.apache.doris.flink.sink.writer;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
+import org.apache.doris.flink.exception.DorisException;
 import org.apache.doris.flink.sink.HttpTestUtil;
 import org.apache.doris.flink.sink.OptionUtils;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -88,7 +89,7 @@ public class TestDorisStreamLoad {
         dorisStreamLoad.abortTransaction(anyLong());
     }
 
-    @Test
+    @Test(expected = DorisException.class)
     public void testAbortTransactionFailed() throws Exception {
         CloseableHttpClient httpClient = mock(CloseableHttpClient.class);
         CloseableHttpResponse abortFailedResponse =
