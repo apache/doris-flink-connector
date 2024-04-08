@@ -21,8 +21,10 @@ import org.apache.doris.flink.catalog.doris.FieldSchema;
 
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 
 /**
  * JdbcSourceSchema is a subclass of SourceSchema, used to build metadata about jdbc-related
@@ -38,7 +40,15 @@ public abstract class JdbcSourceSchema extends SourceSchema {
             String tableComment)
             throws Exception {
         super(databaseName, schemaName, tableName, tableComment);
-        fields = new LinkedHashMap<>();
+        fields = getColumnInfo(metaData, databaseName, schemaName, tableName);
+        primaryKeys = getPrimaryKeys(metaData, databaseName, schemaName, tableName);
+    }
+
+    public LinkedHashMap<String, FieldSchema> getColumnInfo(
+            DatabaseMetaData metaData, String databaseName, String schemaName, String tableName)
+            throws SQLException {
+        LinkedHashMap<String, FieldSchema> fields = new LinkedHashMap<>();
+        //
         try (ResultSet rs = metaData.getColumns(databaseName, schemaName, tableName, null)) {
             while (rs.next()) {
                 String fieldName = rs.getString("COLUMN_NAME");
@@ -57,14 +67,21 @@ public abstract class JdbcSourceSchema extends SourceSchema {
                 fields.put(fieldName, new FieldSchema(fieldName, dorisTypeStr, comment));
             }
         }
+        return fields;
+    }
 
-        primaryKeys = new ArrayList<>();
+    public List<String> getPrimaryKeys(
+            DatabaseMetaData metaData, String databaseName, String schemaName, String tableName)
+            throws SQLException {
+        List<String> primaryKeys = new ArrayList<>();
         try (ResultSet rs = metaData.getPrimaryKeys(databaseName, schemaName, tableName)) {
             while (rs.next()) {
                 String fieldName = rs.getString("COLUMN_NAME");
                 primaryKeys.add(fieldName);
             }
         }
+
+        return primaryKeys;
     }
 
     public abstract String convertToDorisType(String fieldType, Integer precision, Integer scale);

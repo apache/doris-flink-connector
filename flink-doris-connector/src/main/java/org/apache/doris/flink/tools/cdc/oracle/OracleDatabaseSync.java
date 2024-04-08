@@ -122,15 +122,6 @@ public class OracleDatabaseSync extends DatabaseSync {
                     if (!isSyncNeeded(tableName)) {
                         continue;
                     }
-                    // Oracle allows table names to contain special characters such as /, #, $,
-                    // etc., as in 'A/B'.
-                    // However, Doris does not support tables with these characters.
-                    if (!tableName.matches(TableSchema.DORIS_TABLE_REGEX)) {
-                        throw new CreateTableException(
-                                String.format(
-                                        "The table name %s is invalid. Table names in Doris must match the regex pattern %s. Please consider renaming the table or use the 'excluding-tables' option to filter it out.",
-                                        tableName, TableSchema.DORIS_TABLE_REGEX));
-                    }
                     SourceSchema sourceSchema =
                             new OracleSchema(
                                     metaData, databaseName, schemaName, tableName, tableComment);
