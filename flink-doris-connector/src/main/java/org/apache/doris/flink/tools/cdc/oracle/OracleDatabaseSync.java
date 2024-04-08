@@ -28,11 +28,13 @@ import com.ververica.cdc.connectors.base.source.jdbc.JdbcIncrementalSource;
 import com.ververica.cdc.connectors.oracle.OracleSource;
 import com.ververica.cdc.connectors.oracle.source.OracleSourceBuilder;
 import com.ververica.cdc.connectors.oracle.source.config.OracleSourceOptions;
+import com.ververica.cdc.debezium.DebeziumDeserializationSchema;
 import com.ververica.cdc.debezium.DebeziumSourceFunction;
 import com.ververica.cdc.debezium.JsonDebeziumDeserializationSchema;
 import com.ververica.cdc.debezium.table.DebeziumOptions;
 import org.apache.doris.flink.catalog.doris.DataModel;
 import org.apache.doris.flink.catalog.doris.TableSchema;
+import org.apache.doris.flink.deserialization.DorisJsonDebeziumDeserializationSchema;
 import org.apache.doris.flink.exception.CreateTableException;
 import org.apache.doris.flink.tools.cdc.DatabaseSync;
 import org.apache.doris.flink.tools.cdc.SourceSchema;
@@ -186,9 +188,13 @@ public class OracleDatabaseSync extends DatabaseSync {
             }
         }
 
-        Map<String, Object> customConverterConfigs = new HashMap<>();
-        JsonDebeziumDeserializationSchema schema =
-                new JsonDebeziumDeserializationSchema(false, customConverterConfigs);
+        DebeziumDeserializationSchema<String> schema;
+        if (ignoreDefaultValue) {
+            schema = new DorisJsonDebeziumDeserializationSchema();
+        } else {
+            Map<String, Object> customConverterConfigs = new HashMap<>();
+            schema = new JsonDebeziumDeserializationSchema(false, customConverterConfigs);
+        }
 
         if (config.getBoolean(OracleSourceOptions.SCAN_INCREMENTAL_SNAPSHOT_ENABLED, false)) {
             JdbcIncrementalSource<String> incrSource =

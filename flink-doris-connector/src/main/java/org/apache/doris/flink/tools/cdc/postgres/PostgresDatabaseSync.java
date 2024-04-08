@@ -28,10 +28,12 @@ import com.ververica.cdc.connectors.base.source.jdbc.JdbcIncrementalSource;
 import com.ververica.cdc.connectors.postgres.PostgreSQLSource;
 import com.ververica.cdc.connectors.postgres.source.PostgresSourceBuilder;
 import com.ververica.cdc.connectors.postgres.source.config.PostgresSourceOptions;
+import com.ververica.cdc.debezium.DebeziumDeserializationSchema;
 import com.ververica.cdc.debezium.DebeziumSourceFunction;
 import com.ververica.cdc.debezium.JsonDebeziumDeserializationSchema;
 import com.ververica.cdc.debezium.table.DebeziumOptions;
 import org.apache.doris.flink.catalog.doris.DataModel;
+import org.apache.doris.flink.deserialization.DorisJsonDebeziumDeserializationSchema;
 import org.apache.doris.flink.tools.cdc.DatabaseSync;
 import org.apache.doris.flink.tools.cdc.SourceSchema;
 import org.slf4j.Logger;
@@ -160,9 +162,13 @@ public class PostgresDatabaseSync extends DatabaseSync {
             }
         }
 
-        Map<String, Object> customConverterConfigs = new HashMap<>();
-        JsonDebeziumDeserializationSchema schema =
-                new JsonDebeziumDeserializationSchema(false, customConverterConfigs);
+        DebeziumDeserializationSchema<String> schema;
+        if (ignoreDefaultValue) {
+            schema = new DorisJsonDebeziumDeserializationSchema();
+        } else {
+            Map<String, Object> customConverterConfigs = new HashMap<>();
+            schema = new JsonDebeziumDeserializationSchema(false, customConverterConfigs);
+        }
 
         if (config.getBoolean(SourceOptions.SCAN_INCREMENTAL_SNAPSHOT_ENABLED, false)) {
             JdbcIncrementalSource<String> incrSource =
