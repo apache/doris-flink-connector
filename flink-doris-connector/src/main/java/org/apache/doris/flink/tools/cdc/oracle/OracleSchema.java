@@ -17,9 +17,12 @@
 
 package org.apache.doris.flink.tools.cdc.oracle;
 
+import org.apache.doris.flink.catalog.doris.FieldSchema;
 import org.apache.doris.flink.tools.cdc.JdbcSourceSchema;
 
 import java.sql.DatabaseMetaData;
+import java.sql.SQLException;
+import java.util.LinkedHashMap;
 
 public class OracleSchema extends JdbcSourceSchema {
 
@@ -41,5 +44,17 @@ public class OracleSchema extends JdbcSourceSchema {
     @Override
     public String getCdcTableName() {
         return schemaName + "\\." + tableName;
+    }
+
+    @Override
+    public LinkedHashMap<String, FieldSchema> getColumnInfo(
+            DatabaseMetaData metaData, String databaseName, String schemaName, String tableName)
+            throws SQLException {
+        // Oracle permits table names to include special characters such as /,
+        // etc., as in 'A/B'.
+        // When attempting to fetch column information for `A/B` via JDBC,
+        // it may throw an ORA-01424 error.
+        // Hence, we substitute `/` with '_' to address the issue.
+        return super.getColumnInfo(metaData, databaseName, schemaName, tableName.replace("/", "_"));
     }
 }
