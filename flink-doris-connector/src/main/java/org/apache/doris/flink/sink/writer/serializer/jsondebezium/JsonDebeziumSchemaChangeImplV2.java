@@ -31,6 +31,9 @@ import org.apache.doris.flink.catalog.doris.DataModel;
 import org.apache.doris.flink.catalog.doris.FieldSchema;
 import org.apache.doris.flink.catalog.doris.TableSchema;
 import org.apache.doris.flink.exception.IllegalArgumentException;
+import org.apache.doris.flink.rest.RestService;
+import org.apache.doris.flink.rest.models.Field;
+import org.apache.doris.flink.rest.models.Schema;
 import org.apache.doris.flink.sink.schema.SchemaChangeHelper;
 import org.apache.doris.flink.sink.schema.SchemaChangeHelper.DDLSchema;
 import org.apache.doris.flink.sink.schema.SchemaChangeManager;
@@ -65,7 +68,9 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
     private static final Logger LOG = LoggerFactory.getLogger(JsonDebeziumSchemaChangeImplV2.class);
     private static final Pattern renameDDLPattern =
             Pattern.compile(
-                    "ALTER\\s+TABLE\\s+(\\w+)\\s+RENAME\\s+COLUMN\\s+(\\w+)\\s+TO\\s+(\\w+)",
+                    "ALTER\\s+TABLE\\s+\\w+\\s+"
+                            + "(RENAME\\s+COLUMN\\s+(\\w+)\\s+TO\\s+(\\w+)|"
+                            + "CHANGE\\s+(?:column\\s+)?(\\w+)\\s+(\\w+)\\s+(\\w+))",
                     Pattern.CASE_INSENSITIVE);
     // schemaChange saves table names, field, and field column information
     private Map<String, Map<String, FieldSchema>> originFieldSchemaMap = new LinkedHashMap<>();
@@ -196,15 +201,21 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
         }
 
         Map<String, FieldSchema> fieldSchemaMap = originFieldSchemaMap.get(dorisTable);
+        // remove backtick
+        ddl = ddl.replace("`", "");
         // rename ddl
-        Matcher renameMatcher = renameDDLPattern.matcher(ddl);
-        if (renameMatcher.find()) {
-            String oldColumnName = renameMatcher.group(2);
-            String newColumnName = renameMatcher.group(3);
+        Matcher renameDdlMatcher = renameDDLPattern.matcher(ddl);
+        if (renameDdlMatcher.find()) {
+            String oldColumnName = renameDdlMatcher.group(2);
+            String newColumnName = renameDdlMatcher.group(3);
+            // Change operation
+            if (oldColumnName == null) {
+                oldColumnName = renameDdlMatcher.group(4);
+                newColumnName = renameDdlMatcher.group(5);
+            }
             return SchemaChangeHelper.generateRenameDDLSql(
                     dorisTable, oldColumnName, newColumnName, fieldSchemaMap);
         }
-
         // add/drop ddl
         Map<String, FieldSchema> updateFiledSchema = new LinkedHashMap<>();
         for (JsonNode column : columns) {
@@ -357,13 +368,22 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
                 }
             }
         } else {
-            LOG.error(
-                    "Current schema change failed! You need to ensure that "
-                            + "there is data in the table."
-                            + dorisOptions.getTableIdentifier());
+            // In order to be compatible with column changes, the data is empty or started from
+            // flink checkpoint, resulting in the originFieldSchemaMap not being filled.
+            LOG.info(tableName + " fill origin field schema from doris schema.");
             fieldSchemaMap = new LinkedHashMap<>();
-            Map<String, FieldSchema> finalFieldSchemaMap = fieldSchemaMap;
-            columns.forEach(column -> buildFieldSchema(finalFieldSchemaMap, column));
+            String[] splitTableName = tableName.split("\\.");
+            Schema schema =
+                    RestService.getSchema(dorisOptions, splitTableName[0], splitTableName[1], LOG);
+            List<Field> columnFields = schema.getProperties();
+            for (Field column : columnFields) {
+                String columnName = column.getName();
+                String columnType = column.getType();
+                String columnComment = column.getComment();
+                // TODO need to fill column with default value
+                fieldSchemaMap.put(
+                        columnName, new FieldSchema(columnName, columnType, columnComment));
+            }
             originFieldSchemaMap.put(tableName, fieldSchemaMap);
         }
     }

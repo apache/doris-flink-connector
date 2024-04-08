@@ -26,6 +26,7 @@ import org.apache.http.ProtocolVersion;
 import org.apache.http.StatusLine;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.message.BasicStatusLine;
 import org.junit.Assert;
 import org.junit.Before;
@@ -48,14 +49,16 @@ public class TestDorisCopyCommitter {
     public void setUp() throws Exception {
         DorisOptions dorisOptions = OptionUtils.buildDorisOptions();
         copyCommittable = new DorisCopyCommittable("127.0.0.1:8710", "copy into sql");
+        HttpClientBuilder httpClientBuilder = mock(HttpClientBuilder.class);
         CloseableHttpClient httpClient = mock(CloseableHttpClient.class);
+        when(httpClientBuilder.build()).thenReturn(httpClient);
         entityMock = new HttpEntityMock();
         CloseableHttpResponse httpResponse = mock(CloseableHttpResponse.class);
         StatusLine normalLine = new BasicStatusLine(new ProtocolVersion("http", 1, 0), 200, "");
         when(httpClient.execute(any())).thenReturn(httpResponse);
         when(httpResponse.getStatusLine()).thenReturn(normalLine);
         when(httpResponse.getEntity()).thenReturn(entityMock);
-        copyCommitter = new DorisCopyCommitter(dorisOptions, 1, httpClient);
+        copyCommitter = new DorisCopyCommitter(dorisOptions, 1, httpClientBuilder);
     }
 
     @Test

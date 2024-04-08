@@ -35,6 +35,7 @@ import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPut;
 import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -84,7 +85,7 @@ public class BatchStageLoad implements Serializable {
     private final AtomicBoolean started;
     private volatile boolean loadThreadAlive = false;
     private AtomicReference<Throwable> exception = new AtomicReference<>(null);
-    private CloseableHttpClient httpClient = new HttpUtil().getHttpClientWithTimeout();
+    private HttpClientBuilder httpClientBuilder = new HttpUtil().getHttpClientBuilderForCopyBatch();
 
     public BatchStageLoad(
             DorisOptions dorisOptions,
@@ -290,33 +291,38 @@ public class BatchStageLoad implements Serializable {
                         BackoffAndRetryUtils.backoffAndRetry(
                                 BackoffAndRetryUtils.LoadOperation.UPLOAD_FILE,
                                 () -> {
-                                    try (CloseableHttpResponse response =
-                                            httpClient.execute(httpPut)) {
-                                        final int statusCode =
-                                                response.getStatusLine().getStatusCode();
-                                        String requestId = getRequestId(response.getAllHeaders());
-                                        if (statusCode == 200 && response.getEntity() != null) {
-                                            String loadResult =
-                                                    EntityUtils.toString(response.getEntity());
-                                            if (loadResult == null || loadResult.isEmpty()) {
-                                                // upload finished
-                                                return requestId;
+                                    try (CloseableHttpClient httpClient =
+                                            httpClientBuilder.build()) {
+                                        try (CloseableHttpResponse response =
+                                                httpClient.execute(httpPut)) {
+                                            final int statusCode =
+                                                    response.getStatusLine().getStatusCode();
+                                            String requestId =
+                                                    getRequestId(response.getAllHeaders());
+                                            if (statusCode == 200 && response.getEntity() != null) {
+                                                String loadResult =
+                                                        EntityUtils.toString(response.getEntity());
+                                                if (loadResult == null || loadResult.isEmpty()) {
+                                                    // upload finished
+                                                    return requestId;
+                                                }
+                                                LOG.error(
+                                                        "upload file failed, requestId is {}, response result: {}",
+                                                        requestId,
+                                                        loadResult);
+                                                throw new CopyLoadException(
+                                                        "upload file failed: "
+                                                                + response.getStatusLine()
+                                                                        .toString()
+                                                                + ", with requestId "
+                                                                + requestId);
                                             }
-                                            LOG.error(
-                                                    "upload file failed, requestId is {}, response result: {}",
-                                                    requestId,
-                                                    loadResult);
                                             throw new CopyLoadException(
-                                                    "upload file failed: "
+                                                    "upload file error: "
                                                             + response.getStatusLine().toString()
                                                             + ", with requestId "
                                                             + requestId);
                                         }
-                                        throw new CopyLoadException(
-                                                "upload file error: "
-                                                        + response.getStatusLine().toString()
-                                                        + ", with requestId "
-                                                        + requestId);
                                     }
                                 });
                 return String.valueOf(result);
@@ -361,27 +367,33 @@ public class BatchStageLoad implements Serializable {
                         BackoffAndRetryUtils.backoffAndRetry(
                                 BackoffAndRetryUtils.LoadOperation.GET_INTERNAL_STAGE_ADDRESS,
                                 () -> {
-                                    try (CloseableHttpResponse execute =
-                                            httpClient.execute(putBuilder.build())) {
-                                        int statusCode = execute.getStatusLine().getStatusCode();
-                                        String reason = execute.getStatusLine().getReasonPhrase();
-                                        if (statusCode == 307) {
-                                            Header location = execute.getFirstHeader("location");
-                                            String uploadAddress = location.getValue();
-                                            return uploadAddress;
-                                        } else {
-                                            HttpEntity entity = execute.getEntity();
-                                            String result =
-                                                    entity == null
-                                                            ? null
-                                                            : EntityUtils.toString(entity);
-                                            LOG.error(
-                                                    "Failed to get internalStage address, status {}, reason {}, response {}",
-                                                    statusCode,
-                                                    reason,
-                                                    result);
-                                            throw new CopyLoadException(
-                                                    "Failed get internalStage address");
+                                    try (CloseableHttpClient httpClient =
+                                            httpClientBuilder.build()) {
+                                        try (CloseableHttpResponse execute =
+                                                httpClient.execute(putBuilder.build())) {
+                                            int statusCode =
+                                                    execute.getStatusLine().getStatusCode();
+                                            String reason =
+                                                    execute.getStatusLine().getReasonPhrase();
+                                            if (statusCode == 307) {
+                                                Header location =
+                                                        execute.getFirstHeader("location");
+                                                String uploadAddress = location.getValue();
+                                                return uploadAddress;
+                                            } else {
+                                                HttpEntity entity = execute.getEntity();
+                                                String result =
+                                                        entity == null
+                                                                ? null
+                                                                : EntityUtils.toString(entity);
+                                                LOG.error(
+                                                        "Failed to get internalStage address, status {}, reason {}, response {}",
+                                                        statusCode,
+                                                        reason,
+                                                        result);
+                                                throw new CopyLoadException(
+                                                        "Failed get internalStage address");
+                                            }
                                         }
                                     }
                                 });

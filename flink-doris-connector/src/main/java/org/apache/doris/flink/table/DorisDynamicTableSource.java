@@ -17,10 +17,9 @@
 
 package org.apache.doris.flink.table;
 
-import org.apache.flink.api.common.serialization.DeserializationSchema;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.connector.source.AsyncTableFunctionProvider;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.InputFormatProvider;
@@ -31,8 +30,10 @@ import org.apache.flink.table.connector.source.TableFunctionProvider;
 import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.util.StringUtils;
 
 import org.apache.doris.flink.cfg.DorisLookupOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
@@ -45,36 +46,37 @@ import org.apache.doris.flink.source.DorisSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
-/**
- * The {@link DorisDynamicTableSource} is used during planning.
- *
- * <p>In our example, we don't implement any of the available ability interfaces such as {@link
- * SupportsFilterPushDown} or {@link SupportsProjectionPushDown}. Therefore, the main logic can be
- * found in {@link #getScanRuntimeProvider(ScanContext)} where we instantiate the required {@link
- * SourceFunction} and its {@link DeserializationSchema} for runtime. Both instances are
- * parameterized to return internal data structures (i.e. {@link RowData}).
- */
-public final class DorisDynamicTableSource implements ScanTableSource, LookupTableSource {
+/** The {@link DorisDynamicTableSource} is used during planning. */
+public final class DorisDynamicTableSource
+        implements ScanTableSource,
+                LookupTableSource,
+                SupportsFilterPushDown,
+                SupportsProjectionPushDown {
 
     private static final Logger LOG = LoggerFactory.getLogger(DorisDynamicTableSource.class);
     private final DorisOptions options;
     private final DorisReadOptions readOptions;
     private DorisLookupOptions lookupOptions;
     private TableSchema physicalSchema;
+    private List<String> resolvedFilterQuery = new ArrayList<>();
+    private DataType physicalRowDataType;
 
     public DorisDynamicTableSource(
             DorisOptions options,
             DorisReadOptions readOptions,
             DorisLookupOptions lookupOptions,
-            TableSchema physicalSchema) {
+            TableSchema physicalSchema,
+            DataType physicalRowDataType) {
         this.options = options;
         this.lookupOptions = lookupOptions;
         this.readOptions = readOptions;
         this.physicalSchema = physicalSchema;
+        this.physicalRowDataType = physicalRowDataType;
     }
 
     public DorisDynamicTableSource(
@@ -93,8 +95,11 @@ public final class DorisDynamicTableSource implements ScanTableSource, LookupTab
 
     @Override
     public ScanRuntimeProvider getScanRuntimeProvider(ScanContext runtimeProviderContext) {
+        String filterQuery = resolvedFilterQuery.stream().collect(Collectors.joining(" AND "));
+        readOptions.setFilterQuery(filterQuery);
+        String[] selectFields = DataType.getFieldNames(physicalRowDataType).toArray(new String[0]);
         readOptions.setReadFields(
-                Arrays.stream(physicalSchema.getFieldNames())
+                Arrays.stream(selectFields)
                         .map(item -> String.format("`%s`", item.trim().replace("`", "")))
                         .collect(Collectors.joining(", ")));
 
@@ -114,7 +119,7 @@ public final class DorisDynamicTableSource implements ScanTableSource, LookupTab
                             .setTableIdentifier(options.getTableIdentifier())
                             .setPartitions(dorisPartitions)
                             .setReadOptions(readOptions)
-                            .setRowType((RowType) physicalSchema.toRowDataType().getLogicalType());
+                            .setRowType((RowType) physicalRowDataType.getLogicalType());
             return InputFormatProvider.of(builder.build());
         } else {
             // Read data using the interface of the FLIP-27 specification
@@ -124,10 +129,7 @@ public final class DorisDynamicTableSource implements ScanTableSource, LookupTab
                             .setDorisOptions(options)
                             .setDeserializer(
                                     new RowDataDeserializationSchema(
-                                            (RowType)
-                                                    physicalSchema
-                                                            .toRowDataType()
-                                                            .getLogicalType()))
+                                            (RowType) physicalRowDataType.getLogicalType()))
                             .build();
             return SourceProvider.of(build);
         }
@@ -135,7 +137,6 @@ public final class DorisDynamicTableSource implements ScanTableSource, LookupTab
 
     @Override
     public LookupRuntimeProvider getLookupRuntimeProvider(LookupContext context) {
-        DataType physicalRowDataType = physicalSchema.toRowDataType();
         String[] keyNames = new String[context.getKeys().length];
         int[] keyIndexs = new int[context.getKeys().length];
         for (int i = 0; i < keyNames.length; i++) {
@@ -168,11 +169,43 @@ public final class DorisDynamicTableSource implements ScanTableSource, LookupTab
 
     @Override
     public DynamicTableSource copy() {
-        return new DorisDynamicTableSource(options, readOptions, lookupOptions, physicalSchema);
+        DorisDynamicTableSource newSource =
+                new DorisDynamicTableSource(
+                        options, readOptions, lookupOptions, physicalSchema, physicalRowDataType);
+        newSource.resolvedFilterQuery = new ArrayList<>(this.resolvedFilterQuery);
+        return newSource;
     }
 
     @Override
     public String asSummaryString() {
         return "Doris Table Source";
+    }
+
+    @Override
+    public Result applyFilters(List<ResolvedExpression> filters) {
+        List<ResolvedExpression> acceptedFilters = new ArrayList<>();
+        List<ResolvedExpression> remainingFilters = new ArrayList<>();
+
+        DorisExpressionVisitor expressionVisitor = new DorisExpressionVisitor();
+        for (ResolvedExpression filter : filters) {
+            String filterQuery = filter.accept(expressionVisitor);
+            if (!StringUtils.isNullOrWhitespaceOnly(filterQuery)) {
+                acceptedFilters.add(filter);
+                this.resolvedFilterQuery.add(filterQuery);
+            } else {
+                remainingFilters.add(filter);
+            }
+        }
+        return Result.of(acceptedFilters, remainingFilters);
+    }
+
+    @Override
+    public boolean supportsNestedProjection() {
+        return false;
+    }
+
+    @Override
+    public void applyProjection(int[][] projectedFields, DataType producedDataType) {
+        this.physicalRowDataType = Projection.of(projectedFields).project(physicalRowDataType);
     }
 }

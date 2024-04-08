@@ -33,8 +33,6 @@ import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_BATCH_SIZE;
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_DESERIALIZE_ARROW_ASYNC;
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_DESERIALIZE_QUEUE_SIZE;
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_EXEC_MEM_LIMIT;
-import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_FILTER_QUERY;
-import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_READ_FIELD;
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_REQUEST_CONNECT_TIMEOUT_MS;
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_REQUEST_QUERY_TIMEOUT_S;
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_REQUEST_READ_TIMEOUT_MS;
@@ -86,8 +84,6 @@ public class DorisCatalogFactory implements CatalogFactory {
         options.add(USERNAME);
         options.add(PASSWORD);
 
-        options.add(DORIS_READ_FIELD);
-        options.add(DORIS_FILTER_QUERY);
         options.add(DORIS_TABLET_SIZE);
         options.add(DORIS_REQUEST_CONNECT_TIMEOUT_MS);
         options.add(DORIS_REQUEST_READ_TIMEOUT_MS);
