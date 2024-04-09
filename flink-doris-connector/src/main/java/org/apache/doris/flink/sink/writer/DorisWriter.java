@@ -43,8 +43,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -133,6 +135,7 @@ public class DorisWriter<IN>
     private void abortLingeringTransactions(Collection<DorisWriterState> recoveredStates)
             throws Exception {
         List<String> alreadyAborts = new ArrayList<>();
+        Set<String> alreadyAbortTables = new HashSet<>();
         // abort label in state
         for (DorisWriterState state : recoveredStates) {
             // Todo: When the sink parallelism is reduced,
@@ -152,6 +155,7 @@ public class DorisWriter<IN>
             DorisStreamLoad streamLoader = getStreamLoader(key);
             streamLoader.abortPreCommit(state.getLabelPrefix(), curCheckpointId);
             alreadyAborts.add(state.getLabelPrefix());
+            alreadyAbortTables.add(key);
         }
 
         // TODO: In a multi-table scenario, if do not restore from checkpoint,
@@ -162,6 +166,19 @@ public class DorisWriter<IN>
             // abort current labelPrefix
             DorisStreamLoad streamLoader = getStreamLoader(dorisOptions.getTableIdentifier());
             streamLoader.abortPreCommit(labelPrefix, curCheckpointId);
+            alreadyAbortTables.add(dorisOptions.getTableIdentifier());
+        }
+
+        LOG.info(
+                "doris stream loader size is {}, already abort table size is {}",
+                dorisStreamLoadMap.size(),
+                alreadyAbortTables.size());
+        if (dorisStreamLoadMap.size() != alreadyAbortTables.size()) {
+            Set<String> diff = new HashSet<>(dorisStreamLoadMap.keySet());
+            diff.removeAll(alreadyAbortTables);
+            LOG.warn(
+                    "there are some tables in dorisStreamLoadMap, but they are not aborted: {}",
+                    diff);
         }
     }
 

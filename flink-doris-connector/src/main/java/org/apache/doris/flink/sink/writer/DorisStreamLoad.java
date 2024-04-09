@@ -169,6 +169,7 @@ public class DorisStreamLoad implements Serializable {
                 //  Currently, it can only be aborted based on txnid, so we must
                 //  first request a streamload based on the label to get the txnid.
                 String label = labelGenerator.generateTableLabel(startChkID);
+                LOG.info("start a check label {} to load.", label);
                 HttpPutBuilder builder = new HttpPutBuilder();
                 builder.setUrl(loadUrlStr)
                         .baseAuth(user, passwd)
