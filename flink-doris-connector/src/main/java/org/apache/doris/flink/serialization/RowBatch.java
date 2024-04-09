@@ -388,6 +388,7 @@ public class RowBatch {
             case "VARCHAR":
             case "STRING":
             case "JSONB":
+            case "VARIANT":
                 if (!minorType.equals(Types.MinorType.VARCHAR)) {
                     return false;
                 }
@@ -409,7 +410,6 @@ public class RowBatch {
                     break;
                 }
                 String ipv6Str = new String(ipv6VarcharVector.get(rowIndex));
-                System.out.println(ipv6Str);
                 BigInteger bigInteger = new BigInteger(ipv6Str);
                 String ipv6Address = IPUtils.fromBigInteger(bigInteger);
                 addValueToRow(rowIndex, ipv6Address);

@@ -42,26 +42,7 @@ public class DorisType {
     public static final String JSON = "JSON";
     public static final String MAP = "MAP";
     public static final String STRUCT = "STRUCT";
-
-    /**
-     * VARIANT Type Introduced a new data type VARIANT in Doris 2.1, which can store semi-structured
-     * JSON data .
-     *
-     * @since 1.6.
-     */
     public static final String VARIANT = "VARIANT";
-    /**
-     * IPv4 type, stored as a UInt32 in 4 bytes, has been utilized to represent IPv4 addresses since
-     * Doris 2.1 .
-     *
-     * @since 1.6.
-     */
     public static final String IPV4 = "IPV4";
-    /**
-     * IPv6 type, stored in UInt128 format within 16 bytes, has been employed to represent IPv6
-     * addresses since Doris 2.1 .
-     *
-     * @since 1.6
-     */
     public static final String IPV6 = "IPV6";
 }
