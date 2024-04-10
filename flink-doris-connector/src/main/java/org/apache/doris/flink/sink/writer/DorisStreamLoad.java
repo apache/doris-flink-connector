@@ -323,8 +323,7 @@ public class DorisStreamLoad implements Serializable {
             String msg = res.get("msg");
             if (msg != null && ResponseUtil.isCommitted(msg)) {
                 throw new DorisException(
-                        "try abort committed transaction, "
-                                + "do you recover from old savepoint?");
+                        "try abort committed transaction, " + "do you recover from old savepoint?");
             }
 
             LOG.error("Fail to abort transaction. txnId: {}, error: {}", txnID, msg);

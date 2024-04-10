@@ -187,7 +187,7 @@ public class DorisWriter<IN>
             Set<String> diff = new HashSet<>(dorisStreamLoadMap.keySet());
             diff.removeAll(alreadyAbortTables);
             LOG.warn(
-                    "there are some tables in dorisStreamLoadMap, but they are not aborted: {}",
+                    "There are some tables in dorisStreamLoadMap, but they are not aborted: {}",
                     diff);
         }
 
@@ -197,9 +197,7 @@ public class DorisWriter<IN>
             // an error reported by thread A may cause thread B to be unable to abort in time.
             // In this case, labelPrefix needs to be modified.
             labelPrefix = labelPrefix + "_" + attemptNumber;
-            LOG.info(
-                    "In the multi-table writing state, modify the label prefix to {}.",
-                    labelPrefix);
+            LOG.info("In the multi-table writing, change the labelPrefix to {}.", labelPrefix);
         }
     }
 
