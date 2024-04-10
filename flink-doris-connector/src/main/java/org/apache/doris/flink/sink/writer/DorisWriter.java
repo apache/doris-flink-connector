@@ -77,7 +77,7 @@ public class DorisWriter<IN>
     private final DorisExecutionOptions executionOptions;
     private String labelPrefix;
     private final int subtaskId;
-    private final int attemptNumber;
+    private int attemptNumber;
     private final int intervalTime;
     private final DorisRecordSerializer<IN> serializer;
     private final transient ScheduledExecutorService scheduledExecutorService;
@@ -105,7 +105,7 @@ public class DorisWriter<IN>
         LOG.info("labelPrefix {}", executionOptions.getLabelPrefix());
         this.labelPrefix = executionOptions.getLabelPrefix();
         this.subtaskId = initContext.getSubtaskId();
-        this.attemptNumber = initContext.getAttemptNumber();
+        this.attemptNumber = getAttemptNumber();
         this.scheduledExecutorService =
                 new ScheduledThreadPoolExecutor(1, new ExecutorThreadFactory("stream-load-check"));
         this.serializer = serializer;
@@ -121,6 +121,22 @@ public class DorisWriter<IN>
         sinkMetricGroup = initContext.metricGroup();
         initializeLoad(state);
         serializer.initial();
+    }
+
+    /*
+     * flink1.15 and flink1.16 do not have this method
+     * (initContext.getAttemptNumber())
+     */
+    private int getAttemptNumber() {
+        String threadName = Thread.currentThread().getName();
+        String attemptNumber = threadName.substring(threadName.length() - 1);
+        try {
+            // Prevent unexpected characters from appearing
+            return Integer.valueOf(attemptNumber);
+        } catch (Exception ex) {
+            LOG.info("Fail to get attempt number, thread name is {}", threadName);
+            return 0;
+        }
     }
 
     public void initializeLoad(Collection<DorisWriterState> state) {
