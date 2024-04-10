@@ -67,7 +67,7 @@ under the License.
     </mailingLists>
 
     <properties>
-        <revision>1.6.0-SNAPSHOT</revision>
+        <revision>1.6.1-SNAPSHOT</revision>
         <flink.version>1.18.0</flink.version>
         <flink.major.version>1.18</flink.major.version>
         <flink.sql.cdc.version>2.4.2</flink.sql.cdc.version>
@@ -79,7 +79,7 @@ under the License.
         <maven-source-plugin.version>3.2.1</maven-source-plugin.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.scm.id>github</project.scm.id>
-        <thrift-service.version>1.0.0</thrift-service.version>
+        <thrift-service.version>1.0.1</thrift-service.version>
         <checkstyle.version>8.14</checkstyle.version>
         <maven-checkstyle-plugin.version>2.17</maven-checkstyle-plugin.version>
         <spotless.version>2.4.2</spotless.version>
