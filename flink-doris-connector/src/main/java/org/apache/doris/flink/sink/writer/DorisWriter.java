@@ -43,6 +43,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -84,6 +85,7 @@ public class DorisWriter<IN>
     private BackendUtil backendUtil;
     private SinkWriterMetricGroup sinkMetricGroup;
     private Map<String, DorisWriteMetrics> sinkMetricsMap = new ConcurrentHashMap<>();
+    private volatile boolean multiTableLoad = false;
 
     public DorisWriter(
             Sink.InitContext initContext,
@@ -104,6 +106,10 @@ public class DorisWriter<IN>
         this.scheduledExecutorService =
                 new ScheduledThreadPoolExecutor(1, new ExecutorThreadFactory("stream-load-check"));
         this.serializer = serializer;
+        if (StringUtils.isBlank(dorisOptions.getTableIdentifier())) {
+            this.multiTableLoad = true;
+            LOG.info("table.identifier is empty, multiple table writes.");
+        }
         this.dorisOptions = dorisOptions;
         this.dorisReadOptions = dorisReadOptions;
         this.executionOptions = executionOptions;
@@ -138,6 +144,7 @@ public class DorisWriter<IN>
         Set<String> alreadyAbortTables = new HashSet<>();
         // abort label in state
         for (DorisWriterState state : recoveredStates) {
+            LOG.info("try to abort txn from DorisWriterState {}", state.toString());
             // Todo: When the sink parallelism is reduced,
             //  the txn of the redundant task before aborting is also needed.
             if (!state.getLabelPrefix().equals(labelPrefix)) {
@@ -240,7 +247,9 @@ public class DorisWriter<IN>
         }
         // disable exception checker before stop load.
         globalLoading = false;
+        String precommitErrMsg = null;
 
+        Map<Long, String> precommitTxnIds = new HashMap<>();
         // submit stream load http request
         List<DorisCommittable> committableList = new ArrayList<>();
         for (Map.Entry<String, DorisStreamLoad> streamLoader : dorisStreamLoadMap.entrySet()) {
@@ -263,14 +272,33 @@ public class DorisWriter<IN>
                                 tableIdentifier,
                                 respContent.getMessage(),
                                 respContent.getErrorURL());
-                throw new DorisRuntimeException(errMsg);
+                LOG.error("Failed to load, {}", errMsg);
+                precommitErrMsg = errMsg;
+                break;
             }
             if (executionOptions.enabled2PC()) {
                 long txnId = respContent.getTxnId();
+                precommitTxnIds.put(txnId, tableIdentifier);
                 committableList.add(
                         new DorisCommittable(
                                 dorisStreamLoad.getHostPort(), dorisStreamLoad.getDb(), txnId));
             }
+        }
+
+        if (precommitErrMsg != null) {
+            // In the case of multi-table writing, if a new table is added during the period
+            // (there is no streamloader for this table in the previous Checkpoint state),
+            // in the precommit phase, if some tables succeed and others fail,
+            // the txn of successful precommit cannot be aborted.
+            if (executionOptions.enabled2PC() && multiTableLoad) {
+                LOG.info("try to abort may have successfully precommitted txn.");
+                for (Map.Entry<Long, String> entry : precommitTxnIds.entrySet()) {
+                    Long txnId = entry.getKey();
+                    DorisStreamLoad abortLoader = dorisStreamLoadMap.get(entry.getValue());
+                    abortLoader.abortTransaction(txnId);
+                }
+            }
+            throw new DorisRuntimeException(precommitErrMsg);
         }
         // clean loadingMap
         loadingMap.clear();
@@ -374,6 +402,7 @@ public class DorisWriter<IN>
                             "table {} stream load finished unexpectedly, interrupt worker thread! {}",
                             tableIdentifier,
                             errorMsg);
+
                     // set the executor thread interrupted in case blocking in write data.
                     executorThread.interrupt();
                 }
