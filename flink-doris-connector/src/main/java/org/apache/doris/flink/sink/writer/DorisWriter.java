@@ -75,8 +75,9 @@ public class DorisWriter<IN>
     private final DorisOptions dorisOptions;
     private final DorisReadOptions dorisReadOptions;
     private final DorisExecutionOptions executionOptions;
-    private final String labelPrefix;
+    private String labelPrefix;
     private final int subtaskId;
+    private final int attemptNumber;
     private final int intervalTime;
     private final DorisRecordSerializer<IN> serializer;
     private final transient ScheduledExecutorService scheduledExecutorService;
@@ -86,6 +87,7 @@ public class DorisWriter<IN>
     private SinkWriterMetricGroup sinkMetricGroup;
     private Map<String, DorisWriteMetrics> sinkMetricsMap = new ConcurrentHashMap<>();
     private volatile boolean multiTableLoad = false;
+    private Map<Long, String> preCommitTxnIds = new HashMap<>();
 
     public DorisWriter(
             Sink.InitContext initContext,
@@ -103,6 +105,7 @@ public class DorisWriter<IN>
         LOG.info("labelPrefix {}", executionOptions.getLabelPrefix());
         this.labelPrefix = executionOptions.getLabelPrefix();
         this.subtaskId = initContext.getSubtaskId();
+        this.attemptNumber = initContext.getAttemptNumber();
         this.scheduledExecutorService =
                 new ScheduledThreadPoolExecutor(1, new ExecutorThreadFactory("stream-load-check"));
         this.serializer = serializer;
@@ -187,6 +190,17 @@ public class DorisWriter<IN>
                     "there are some tables in dorisStreamLoadMap, but they are not aborted: {}",
                     diff);
         }
+
+        if (multiTableLoad && attemptNumber > 0) {
+            // In the scenario of writing to multiple tables, if there are multiple sinks
+            // concurrently,
+            // an error reported by thread A may cause thread B to be unable to abort in time.
+            // In this case, labelPrefix needs to be modified.
+            labelPrefix = labelPrefix + "_" + attemptNumber;
+            LOG.info(
+                    "In the multi-table writing state, modify the label prefix to {}.",
+                    labelPrefix);
+        }
     }
 
     @Override
@@ -201,7 +215,6 @@ public class DorisWriter<IN>
     }
 
     public void writeOneDorisRecord(DorisRecord record) throws IOException, InterruptedException {
-
         if (record == null || record.getRow() == null) {
             // ddl or value is null
             return;
@@ -247,9 +260,7 @@ public class DorisWriter<IN>
         }
         // disable exception checker before stop load.
         globalLoading = false;
-        String precommitErrMsg = null;
-
-        Map<Long, String> precommitTxnIds = new HashMap<>();
+        String preCommitErrMsg = null;
         // submit stream load http request
         List<DorisCommittable> committableList = new ArrayList<>();
         for (Map.Entry<String, DorisStreamLoad> streamLoader : dorisStreamLoadMap.entrySet()) {
@@ -273,36 +284,44 @@ public class DorisWriter<IN>
                                 respContent.getMessage(),
                                 respContent.getErrorURL());
                 LOG.error("Failed to load, {}", errMsg);
-                precommitErrMsg = errMsg;
+                preCommitErrMsg = errMsg;
                 break;
             }
             if (executionOptions.enabled2PC()) {
                 long txnId = respContent.getTxnId();
-                precommitTxnIds.put(txnId, tableIdentifier);
+                this.preCommitTxnIds.put(txnId, tableIdentifier);
                 committableList.add(
                         new DorisCommittable(
                                 dorisStreamLoad.getHostPort(), dorisStreamLoad.getDb(), txnId));
             }
         }
 
-        if (precommitErrMsg != null) {
-            // In the case of multi-table writing, if a new table is added during the period
-            // (there is no streamloader for this table in the previous Checkpoint state),
-            // in the precommit phase, if some tables succeed and others fail,
-            // the txn of successful precommit cannot be aborted.
-            if (executionOptions.enabled2PC() && multiTableLoad) {
-                LOG.info("try to abort may have successfully precommitted txn.");
-                for (Map.Entry<Long, String> entry : precommitTxnIds.entrySet()) {
-                    Long txnId = entry.getKey();
-                    DorisStreamLoad abortLoader = dorisStreamLoadMap.get(entry.getValue());
-                    abortLoader.abortTransaction(txnId);
-                }
-            }
-            throw new DorisRuntimeException(precommitErrMsg);
+        if (preCommitErrMsg != null) {
+            throw new DorisRuntimeException(preCommitErrMsg);
         }
         // clean loadingMap
         loadingMap.clear();
         return committableList;
+    }
+
+    private void abortPossibleSuccessfulTransaction() {
+        // In the case of multi-table writing, if a new table is added during the period
+        // (there is no streamloader for this table in the previous Checkpoint state),
+        // in the precommit phase, if some tables succeed and others fail,
+        // the txn of successful precommit cannot be aborted.
+        if (executionOptions.enabled2PC() && multiTableLoad) {
+            LOG.info("Try to abort may have successfully precommitted txn.");
+            for (Map.Entry<Long, String> entry : preCommitTxnIds.entrySet()) {
+                try {
+                    Long txnId = entry.getKey();
+                    DorisStreamLoad abortLoader = dorisStreamLoadMap.get(entry.getValue());
+                    abortLoader.abortTransaction(txnId);
+                } catch (Exception ex) {
+                    LOG.warn("Skip abort failed txn, reason is {}.", ex.getMessage());
+                }
+            }
+            preCommitTxnIds.clear();
+        }
     }
 
     @Override
@@ -320,6 +339,7 @@ public class DorisWriter<IN>
             writerStates.add(writerState);
         }
         this.curCheckpointId = checkpointId + 1;
+        this.preCommitTxnIds.clear();
         return writerStates;
     }
 
@@ -437,6 +457,9 @@ public class DorisWriter<IN>
         if (scheduledExecutorService != null) {
             scheduledExecutorService.shutdownNow();
         }
+        LOG.info("Try to abort txn before closing.");
+        abortPossibleSuccessfulTransaction();
+
         if (dorisStreamLoadMap != null && !dorisStreamLoadMap.isEmpty()) {
             for (DorisStreamLoad dorisStreamLoad : dorisStreamLoadMap.values()) {
                 dorisStreamLoad.close();
