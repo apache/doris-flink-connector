@@ -335,8 +335,47 @@ public class DorisStreamLoad implements Serializable {
         }
     }
 
+    public void abortTransactionByLabel(String label) throws Exception {
+        HttpPutBuilder builder = new HttpPutBuilder();
+        builder.setUrl(abortUrlStr)
+                .baseAuth(user, passwd)
+                .addCommonHeader()
+                .setLabel(label)
+                .setEmptyEntity()
+                .abort();
+        CloseableHttpResponse response = httpClient.execute(builder.build());
+
+        int statusCode = response.getStatusLine().getStatusCode();
+        if (statusCode != 200 || response.getEntity() == null) {
+            LOG.warn("abort transaction by label response: " + response.getStatusLine().toString());
+            throw new DorisRuntimeException(
+                    "Fail to abort transaction by label " + label + " with url " + abortUrlStr);
+        }
+
+        ObjectMapper mapper = new ObjectMapper();
+        String loadResult = EntityUtils.toString(response.getEntity());
+        LOG.info("abort Result {}", loadResult);
+        Map<String, String> res =
+                mapper.readValue(loadResult, new TypeReference<HashMap<String, String>>() {});
+        if (!SUCCESS.equals(res.get("status"))) {
+            String msg = res.get("msg");
+            if (msg != null && ResponseUtil.isCommitted(msg)) {
+                throw new DorisException(
+                        "try abort committed transaction by label, "
+                                + "do you recover from old savepoint?");
+            }
+
+            LOG.error("Fail to abort transaction by label. label: {}, error: {}", label, msg);
+            throw new DorisException("Fail to abort transaction by label, " + loadResult);
+        }
+    }
+
     public void setLabelGenerator(LabelGenerator labelGenerator) {
         this.labelGenerator = labelGenerator;
+    }
+
+    public String getCurrentLabel() {
+        return currentLabel;
     }
 
     public void close() throws IOException {

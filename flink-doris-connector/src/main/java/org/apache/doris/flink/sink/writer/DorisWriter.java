@@ -43,7 +43,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -77,7 +76,6 @@ public class DorisWriter<IN>
     private final DorisExecutionOptions executionOptions;
     private String labelPrefix;
     private final int subtaskId;
-    private long attemptNumber;
     private final int intervalTime;
     private final DorisRecordSerializer<IN> serializer;
     private final transient ScheduledExecutorService scheduledExecutorService;
@@ -87,7 +85,6 @@ public class DorisWriter<IN>
     private SinkWriterMetricGroup sinkMetricGroup;
     private Map<String, DorisWriteMetrics> sinkMetricsMap = new ConcurrentHashMap<>();
     private volatile boolean multiTableLoad = false;
-    private Map<Long, String> preCommitTxnIds = new HashMap<>();
 
     public DorisWriter(
             Sink.InitContext initContext,
@@ -105,7 +102,6 @@ public class DorisWriter<IN>
         LOG.info("labelPrefix {}", executionOptions.getLabelPrefix());
         this.labelPrefix = executionOptions.getLabelPrefix();
         this.subtaskId = initContext.getSubtaskId();
-        this.attemptNumber = getAttemptNumber();
         this.scheduledExecutorService =
                 new ScheduledThreadPoolExecutor(1, new ExecutorThreadFactory("stream-load-check"));
         this.serializer = serializer;
@@ -121,23 +117,6 @@ public class DorisWriter<IN>
         sinkMetricGroup = initContext.metricGroup();
         initializeLoad(state);
         serializer.initial();
-    }
-
-    /*
-     * flink1.15 and flink1.16 do not have this method
-     * thread name: Sink: Writer -> Sink: Committer (7/10)#16
-     * (initContext.getAttemptNumber())
-     */
-    private long getAttemptNumber() {
-        String threadName = Thread.currentThread().getName();
-        try {
-            // Prevent unexpected characters from appearing
-            String attemptNumber = threadName.split("#")[1];
-            return Long.valueOf(attemptNumber);
-        } catch (Exception ex) {
-            LOG.info("Fail to get attempt number, thread name is {}", threadName);
-            return 0;
-        }
     }
 
     public void initializeLoad(Collection<DorisWriterState> state) {
@@ -206,24 +185,6 @@ public class DorisWriter<IN>
             LOG.warn(
                     "There are some tables in dorisStreamLoadMap, but they are not aborted: {}",
                     diff);
-        }
-
-        if (multiTableLoad && attemptNumber > 0) {
-            // In the scenario of writing to multiple tables, if there are multiple sinks
-            // concurrently,
-            // an error reported by thread A may cause thread B to be unable to abort in time.
-            // In this case, labelPrefix needs to be modified.
-            labelPrefix = labelPrefix + "_" + attemptNumber;
-            LOG.info("In the multi-table writing, change the labelPrefix to {}.", labelPrefix);
-            for (Map.Entry<String, DorisStreamLoad> streamLoadEntry :
-                    dorisStreamLoadMap.entrySet()) {
-                String key = streamLoadEntry.getKey();
-                updateLabelGeneratorByPrefix(key, labelPrefix);
-                LabelGenerator labelGenerator = getLabelGenerator(key);
-                DorisStreamLoad streamLoader = streamLoadEntry.getValue();
-                streamLoader.setLabelGenerator(labelGenerator);
-                LOG.info("Change the labelPrefix to {}.", labelGenerator.getConcatLabelPrefix());
-            }
         }
     }
 
@@ -313,7 +274,6 @@ public class DorisWriter<IN>
             }
             if (executionOptions.enabled2PC()) {
                 long txnId = respContent.getTxnId();
-                this.preCommitTxnIds.put(txnId, tableIdentifier);
                 committableList.add(
                         new DorisCommittable(
                                 dorisStreamLoad.getHostPort(), dorisStreamLoad.getDb(), txnId));
@@ -334,17 +294,17 @@ public class DorisWriter<IN>
         // in the precommit phase, if some tables succeed and others fail,
         // the txn of successful precommit cannot be aborted.
         if (executionOptions.enabled2PC() && multiTableLoad) {
-            LOG.info("Try to abort may have successfully precommitted txn.");
-            for (Map.Entry<Long, String> entry : preCommitTxnIds.entrySet()) {
+            LOG.info("Try to abort may have successfully preCommitted label.");
+            for (Map.Entry<String, DorisStreamLoad> entry : dorisStreamLoadMap.entrySet()) {
+                DorisStreamLoad abortLoader = entry.getValue();
                 try {
-                    Long txnId = entry.getKey();
-                    DorisStreamLoad abortLoader = dorisStreamLoadMap.get(entry.getValue());
-                    abortLoader.abortTransaction(txnId);
+                    abortLoader.abortTransactionByLabel(abortLoader.getCurrentLabel());
                 } catch (Exception ex) {
-                    LOG.warn("Skip abort failed txn, reason is {}.", ex.getMessage());
+                    LOG.warn(
+                            "Skip abort transaction failed by label, reason is {}.",
+                            ex.getMessage());
                 }
             }
-            preCommitTxnIds.clear();
         }
     }
 
@@ -363,7 +323,6 @@ public class DorisWriter<IN>
             writerStates.add(writerState);
         }
         this.curCheckpointId = checkpointId + 1;
-        this.preCommitTxnIds.clear();
         return writerStates;
     }
 
@@ -373,12 +332,6 @@ public class DorisWriter<IN>
                 v ->
                         new LabelGenerator(
                                 labelPrefix, executionOptions.enabled2PC(), tableKey, subtaskId));
-    }
-
-    private LabelGenerator updateLabelGeneratorByPrefix(String tableKey, String prefix) {
-        return labelGeneratorMap.put(
-                tableKey,
-                new LabelGenerator(prefix, executionOptions.enabled2PC(), tableKey, subtaskId));
     }
 
     private DorisStreamLoad getStreamLoader(String tableKey) {
