@@ -77,7 +77,7 @@ public class DorisWriter<IN>
     private final DorisExecutionOptions executionOptions;
     private String labelPrefix;
     private final int subtaskId;
-    private int attemptNumber;
+    private long attemptNumber;
     private final int intervalTime;
     private final DorisRecordSerializer<IN> serializer;
     private final transient ScheduledExecutorService scheduledExecutorService;
@@ -101,7 +101,7 @@ public class DorisWriter<IN>
                         .getRestoredCheckpointId()
                         .orElse(CheckpointIDCounter.INITIAL_CHECKPOINT_ID - 1);
         this.curCheckpointId = lastCheckpointId + 1;
-        LOG.info("restore checkpointId {}", lastCheckpointId);
+        LOG.info("restore checkpointId from {}", lastCheckpointId);
         LOG.info("labelPrefix {}", executionOptions.getLabelPrefix());
         this.labelPrefix = executionOptions.getLabelPrefix();
         this.subtaskId = initContext.getSubtaskId();
@@ -125,14 +125,15 @@ public class DorisWriter<IN>
 
     /*
      * flink1.15 and flink1.16 do not have this method
+     * thread name: Sink: Writer -> Sink: Committer (7/10)#16
      * (initContext.getAttemptNumber())
      */
-    private int getAttemptNumber() {
+    private long getAttemptNumber() {
         String threadName = Thread.currentThread().getName();
-        String attemptNumber = threadName.substring(threadName.length() - 1);
         try {
             // Prevent unexpected characters from appearing
-            return Integer.valueOf(attemptNumber);
+            String attemptNumber = threadName.split("#")[1];
+            return Long.valueOf(attemptNumber);
         } catch (Exception ex) {
             LOG.info("Fail to get attempt number, thread name is {}", threadName);
             return 0;
@@ -214,6 +215,15 @@ public class DorisWriter<IN>
             // In this case, labelPrefix needs to be modified.
             labelPrefix = labelPrefix + "_" + attemptNumber;
             LOG.info("In the multi-table writing, change the labelPrefix to {}.", labelPrefix);
+            for (Map.Entry<String, DorisStreamLoad> streamLoadEntry :
+                    dorisStreamLoadMap.entrySet()) {
+                String key = streamLoadEntry.getKey();
+                updateLabelGeneratorByPrefix(key, labelPrefix);
+                LabelGenerator labelGenerator = getLabelGenerator(key);
+                DorisStreamLoad streamLoader = streamLoadEntry.getValue();
+                streamLoader.setLabelGenerator(labelGenerator);
+                LOG.info("Change the labelPrefix to {}.", labelGenerator.getConcatLabelPrefix());
+            }
         }
     }
 
@@ -363,6 +373,12 @@ public class DorisWriter<IN>
                 v ->
                         new LabelGenerator(
                                 labelPrefix, executionOptions.enabled2PC(), tableKey, subtaskId));
+    }
+
+    private LabelGenerator updateLabelGeneratorByPrefix(String tableKey, String prefix) {
+        return labelGeneratorMap.put(
+                tableKey,
+                new LabelGenerator(prefix, executionOptions.enabled2PC(), tableKey, subtaskId));
     }
 
     private DorisStreamLoad getStreamLoader(String tableKey) {

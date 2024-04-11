@@ -64,7 +64,7 @@ import static org.apache.doris.flink.sink.writer.LoadConstants.LINE_DELIMITER_KE
 public class DorisStreamLoad implements Serializable {
     private static final Logger LOG = LoggerFactory.getLogger(DorisStreamLoad.class);
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-    private final LabelGenerator labelGenerator;
+    private LabelGenerator labelGenerator;
     private final byte[] lineDelimiter;
     private static final String LOAD_URL_PATTERN = "http://%s/api/%s/%s/_stream_load";
     private static final String ABORT_URL_PATTERN = "http://%s/api/%s/_stream_load_2pc";
@@ -162,7 +162,11 @@ public class DorisStreamLoad implements Serializable {
      */
     public void abortPreCommit(String labelPrefix, long chkID) throws Exception {
         long startChkID = chkID;
-        LOG.info("abort for labelPrefix {}. start chkId {}.", labelPrefix, chkID);
+        LOG.info(
+                "abort for labelPrefix {}, concat labelPrefix {},  start chkId {}.",
+                labelPrefix,
+                labelGenerator.getConcatLabelPrefix(),
+                chkID);
         while (true) {
             try {
                 // TODO: According to label abort txn.
@@ -329,6 +333,10 @@ public class DorisStreamLoad implements Serializable {
             LOG.error("Fail to abort transaction. txnId: {}, error: {}", txnID, msg);
             throw new DorisException("Fail to abort transaction, " + loadResult);
         }
+    }
+
+    public void setLabelGenerator(LabelGenerator labelGenerator) {
+        this.labelGenerator = labelGenerator;
     }
 
     public void close() throws IOException {
