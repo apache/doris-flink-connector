@@ -301,37 +301,42 @@ public class DorisStreamLoad implements Serializable {
         }
     }
 
-    public void abortTransaction(long txnID) throws Exception {
-        HttpPutBuilder builder = new HttpPutBuilder();
-        builder.setUrl(abortUrlStr)
-                .baseAuth(user, passwd)
-                .addCommonHeader()
-                .addTxnId(txnID)
-                .setEmptyEntity()
-                .abort();
-        CloseableHttpResponse response = httpClient.execute(builder.build());
+    public void abortTransaction(long txnID) {
+        try {
+            HttpPutBuilder builder = new HttpPutBuilder();
+            builder.setUrl(abortUrlStr)
+                    .baseAuth(user, passwd)
+                    .addCommonHeader()
+                    .addTxnId(txnID)
+                    .setEmptyEntity()
+                    .abort();
+            CloseableHttpResponse response = httpClient.execute(builder.build());
 
-        int statusCode = response.getStatusLine().getStatusCode();
-        if (statusCode != 200 || response.getEntity() == null) {
-            LOG.warn("abort transaction response: " + response.getStatusLine().toString());
-            throw new DorisRuntimeException(
-                    "Fail to abort transaction " + txnID + " with url " + abortUrlStr);
-        }
-
-        ObjectMapper mapper = new ObjectMapper();
-        String loadResult = EntityUtils.toString(response.getEntity());
-        LOG.info("abort Result {}", loadResult);
-        Map<String, String> res =
-                mapper.readValue(loadResult, new TypeReference<HashMap<String, String>>() {});
-        if (!SUCCESS.equals(res.get("status"))) {
-            String msg = res.get("msg");
-            if (msg != null && ResponseUtil.isCommitted(msg)) {
-                throw new DorisException(
-                        "try abort committed transaction, " + "do you recover from old savepoint?");
+            int statusCode = response.getStatusLine().getStatusCode();
+            if (statusCode != 200 || response.getEntity() == null) {
+                LOG.warn("abort transaction response: " + response.getStatusLine().toString());
+                throw new DorisRuntimeException(
+                        "Fail to abort transaction " + txnID + " with url " + abortUrlStr);
             }
 
-            LOG.error("Fail to abort transaction. txnId: {}, error: {}", txnID, msg);
-            throw new DorisException("Fail to abort transaction, " + loadResult);
+            ObjectMapper mapper = new ObjectMapper();
+            String loadResult = EntityUtils.toString(response.getEntity());
+            LOG.info("abort Result {}", loadResult);
+            Map<String, String> res =
+                    mapper.readValue(loadResult, new TypeReference<HashMap<String, String>>() {});
+            if (!SUCCESS.equals(res.get("status"))) {
+                String msg = res.get("msg");
+                if (msg != null && ResponseUtil.isAborted(msg)) {
+                    LOG.warn("Failed to abort transaction, {}", msg);
+                    return;
+                }
+
+                LOG.error("Fail to abort transaction. txnId: {}, error: {}", txnID, msg);
+                throw new DorisException("Fail to abort transaction, " + loadResult);
+            }
+        } catch (Exception ex) {
+            LOG.error("abort transaction {} error, ", txnID, ex);
+            throw new DorisRuntimeException(ex);
         }
     }
 
@@ -367,6 +372,21 @@ public class DorisStreamLoad implements Serializable {
 
             LOG.error("Fail to abort transaction by label. label: {}, error: {}", label, msg);
             throw new DorisException("Fail to abort transaction by label, " + loadResult);
+        }
+    }
+
+    public void abortLabelExistTransaction(RespContent respContent) {
+        if (respContent == null && respContent.getMessage() != null) {
+            return;
+        }
+        Matcher matcher = LABEL_EXIST_PATTERN.matcher(respContent.getMessage());
+        if (matcher.find()) {
+            long txnId = Long.parseLong(matcher.group(2));
+            abortTransaction(txnId);
+            LOG.info(
+                    "abort transaction {} for label already exist {}",
+                    txnId,
+                    respContent.getLabel());
         }
     }
 

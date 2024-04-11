@@ -33,6 +33,7 @@ import org.apache.doris.flink.rest.models.RespContent;
 import org.apache.doris.flink.sink.BackendUtil;
 import org.apache.doris.flink.sink.DorisCommittable;
 import org.apache.doris.flink.sink.HttpUtil;
+import org.apache.doris.flink.sink.LoadStatus;
 import org.apache.doris.flink.sink.writer.serializer.DorisRecord;
 import org.apache.doris.flink.sink.writer.serializer.DorisRecordSerializer;
 import org.slf4j.Logger;
@@ -174,18 +175,6 @@ public class DorisWriter<IN>
             streamLoader.abortPreCommit(labelPrefix, curCheckpointId);
             alreadyAbortTables.add(dorisOptions.getTableIdentifier());
         }
-
-        LOG.info(
-                "doris stream loader size is {}, already abort table size is {}",
-                dorisStreamLoadMap.size(),
-                alreadyAbortTables.size());
-        if (dorisStreamLoadMap.size() != alreadyAbortTables.size()) {
-            Set<String> diff = new HashSet<>(dorisStreamLoadMap.keySet());
-            diff.removeAll(alreadyAbortTables);
-            LOG.warn(
-                    "There are some tables in dorisStreamLoadMap, but they are not aborted: {}",
-                    diff);
-        }
     }
 
     @Override
@@ -243,9 +232,9 @@ public class DorisWriter<IN>
         if (!globalLoading && loadingMap.values().stream().noneMatch(Boolean::booleanValue)) {
             return Collections.emptyList();
         }
+
         // disable exception checker before stop load.
         globalLoading = false;
-        String preCommitErrMsg = null;
         // submit stream load http request
         List<DorisCommittable> committableList = new ArrayList<>();
         for (Map.Entry<String, DorisStreamLoad> streamLoader : dorisStreamLoadMap.entrySet()) {
@@ -262,15 +251,18 @@ public class DorisWriter<IN>
                 dorisWriteMetrics.flush(respContent);
             }
             if (!DORIS_SUCCESS_STATUS.contains(respContent.getStatus())) {
-                String errMsg =
-                        String.format(
-                                "table %s stream load error: %s, see more in %s",
-                                tableIdentifier,
-                                respContent.getMessage(),
-                                respContent.getErrorURL());
-                LOG.error("Failed to load, {}", errMsg);
-                preCommitErrMsg = errMsg;
-                break;
+                if (LoadStatus.LABEL_ALREADY_EXIST.equals(respContent.getStatus())) {
+                    dorisStreamLoad.abortLabelExistTransaction(respContent);
+                } else {
+                    String errMsg =
+                            String.format(
+                                    "table %s stream load error: %s, see more in %s",
+                                    tableIdentifier,
+                                    respContent.getMessage(),
+                                    respContent.getErrorURL());
+                    LOG.error("Failed to load, {}", errMsg);
+                    throw new DorisRuntimeException(errMsg);
+                }
             }
             if (executionOptions.enabled2PC()) {
                 long txnId = respContent.getTxnId();
@@ -280,9 +272,6 @@ public class DorisWriter<IN>
             }
         }
 
-        if (preCommitErrMsg != null) {
-            throw new DorisRuntimeException(preCommitErrMsg);
-        }
         // clean loadingMap
         loadingMap.clear();
         return committableList;
@@ -395,6 +384,10 @@ public class DorisWriter<IN>
                         RespContent content =
                                 dorisStreamLoad.handlePreCommitResponse(
                                         dorisStreamLoad.getPendingLoadFuture().get());
+                        if (LoadStatus.LABEL_ALREADY_EXIST.equals(content.getStatus())) {
+                            dorisStreamLoad.abortLabelExistTransaction(content);
+                            return;
+                        }
                         errorMsg = content.getMessage();
                     } catch (Exception e) {
                         errorMsg = e.getMessage();
