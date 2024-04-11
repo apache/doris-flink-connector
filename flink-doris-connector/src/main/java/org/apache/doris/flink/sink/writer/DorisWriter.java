@@ -251,7 +251,8 @@ public class DorisWriter<IN>
                 dorisWriteMetrics.flush(respContent);
             }
             if (!DORIS_SUCCESS_STATUS.contains(respContent.getStatus())) {
-                if (LoadStatus.LABEL_ALREADY_EXIST.equals(respContent.getStatus())) {
+                if (executionOptions.enabled2PC()
+                        && LoadStatus.LABEL_ALREADY_EXIST.equals(respContent.getStatus())) {
                     dorisStreamLoad.abortLabelExistTransaction(respContent);
                 } else {
                     String errMsg =
@@ -384,7 +385,8 @@ public class DorisWriter<IN>
                         RespContent content =
                                 dorisStreamLoad.handlePreCommitResponse(
                                         dorisStreamLoad.getPendingLoadFuture().get());
-                        if (LoadStatus.LABEL_ALREADY_EXIST.equals(content.getStatus())) {
+                        if (executionOptions.enabled2PC()
+                                && LoadStatus.LABEL_ALREADY_EXIST.equals(content.getStatus())) {
                             dorisStreamLoad.abortLabelExistTransaction(content);
                             return;
                         }
