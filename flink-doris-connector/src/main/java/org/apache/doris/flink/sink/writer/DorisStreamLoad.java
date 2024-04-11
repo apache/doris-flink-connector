@@ -19,6 +19,7 @@ package org.apache.doris.flink.sink.writer;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -336,6 +337,9 @@ public class DorisStreamLoad implements Serializable {
     }
 
     public void abortTransactionByLabel(String label) throws Exception {
+        if (StringUtils.isNullOrWhitespaceOnly(label)) {
+            return;
+        }
         HttpPutBuilder builder = new HttpPutBuilder();
         builder.setUrl(abortUrlStr)
                 .baseAuth(user, passwd)
@@ -371,7 +375,7 @@ public class DorisStreamLoad implements Serializable {
     }
 
     public void abortLabelExistTransaction(RespContent respContent) {
-        if (respContent == null && respContent.getMessage() != null) {
+        if (respContent == null || respContent.getMessage() == null) {
             return;
         }
         try {
@@ -380,7 +384,7 @@ public class DorisStreamLoad implements Serializable {
                 long txnId = Long.parseLong(matcher.group(2));
                 abortTransaction(txnId);
                 LOG.info(
-                        "abort transaction {} for label already exist {}",
+                        "Finish to abort transaction {} for label already exist {}",
                         txnId,
                         respContent.getLabel());
             }

@@ -253,6 +253,7 @@ public class DorisWriter<IN>
             if (!DORIS_SUCCESS_STATUS.contains(respContent.getStatus())) {
                 if (executionOptions.enabled2PC()
                         && LoadStatus.LABEL_ALREADY_EXIST.equals(respContent.getStatus())) {
+                    LOG.info("try to abort {} cause Label Already Exists", respContent.getLabel());
                     dorisStreamLoad.abortLabelExistTransaction(respContent);
                 } else {
                     String errMsg =
@@ -387,6 +388,9 @@ public class DorisWriter<IN>
                                         dorisStreamLoad.getPendingLoadFuture().get());
                         if (executionOptions.enabled2PC()
                                 && LoadStatus.LABEL_ALREADY_EXIST.equals(content.getStatus())) {
+                            LOG.info(
+                                    "try to abort {} cause Label Already Exists",
+                                    content.getLabel());
                             dorisStreamLoad.abortLabelExistTransaction(content);
                             return;
                         }
