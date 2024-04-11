@@ -65,7 +65,7 @@ import static org.apache.doris.flink.sink.writer.LoadConstants.LINE_DELIMITER_KE
 public class DorisStreamLoad implements Serializable {
     private static final Logger LOG = LoggerFactory.getLogger(DorisStreamLoad.class);
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-    private LabelGenerator labelGenerator;
+    private final LabelGenerator labelGenerator;
     private final byte[] lineDelimiter;
     private static final String LOAD_URL_PATTERN = "http://%s/api/%s/%s/_stream_load";
     private static final String ABORT_URL_PATTERN = "http://%s/api/%s/_stream_load_2pc";
@@ -392,10 +392,6 @@ public class DorisStreamLoad implements Serializable {
             LOG.error(
                     "Failed abort transaction {} for label already exist", respContent.getLabel());
         }
-    }
-
-    public void setLabelGenerator(LabelGenerator labelGenerator) {
-        this.labelGenerator = labelGenerator;
     }
 
     public String getCurrentLabel() {
