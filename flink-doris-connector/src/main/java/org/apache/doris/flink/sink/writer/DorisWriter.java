@@ -338,8 +338,12 @@ public class DorisWriter<IN>
 
     /** Check the streamload http request regularly. */
     private void checkDone() {
-        for (Map.Entry<String, DorisStreamLoad> streamLoadMap : dorisStreamLoadMap.entrySet()) {
-            checkAllDone(streamLoadMap.getKey(), streamLoadMap.getValue());
+        // todo: When writing to multiple tables,
+        //  the checkdone thread may cause problems. Disable it first.
+        if (!multiTableLoad || dorisStreamLoadMap.size() > 1) {
+            for (Map.Entry<String, DorisStreamLoad> streamLoadMap : dorisStreamLoadMap.entrySet()) {
+                checkAllDone(streamLoadMap.getKey(), streamLoadMap.getValue());
+            }
         }
     }
 
