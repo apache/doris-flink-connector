@@ -17,7 +17,6 @@
 
 package org.apache.doris.flink.serialization;
 
-import org.apache.doris.flink.util.IPUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.arrow.memory.RootAllocator;
@@ -46,6 +45,7 @@ import org.apache.arrow.vector.types.Types;
 import org.apache.doris.flink.exception.DorisException;
 import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.apache.doris.flink.rest.models.Schema;
+import org.apache.doris.flink.util.IPUtils;
 import org.apache.doris.sdk.thrift.TScanBatchResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,6 +64,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+
+import static org.apache.doris.flink.util.IPUtils.convertLongToIPv4String;
 
 /** row batch data container. */
 public class RowBatch {
@@ -233,7 +235,7 @@ public class RowBatch {
                 fieldValue =
                         ipv4Vector.isNull(rowIndex)
                                 ? null
-                                : convertLongToIPv4String(ipv4Vector.getValueAsLong(0));
+                                : convertLongToIPv4String(ipv4Vector.getValueAsLong(rowIndex));
                 addValueToRow(rowIndex, fieldValue);
                 break;
             case "BIGINT":
@@ -410,8 +412,7 @@ public class RowBatch {
                     break;
                 }
                 String ipv6Str = new String(ipv6VarcharVector.get(rowIndex));
-                BigInteger bigInteger = new BigInteger(ipv6Str);
-                String ipv6Address = IPUtils.fromBigInteger(bigInteger);
+                String ipv6Address = IPUtils.fromBigInteger(new BigInteger(ipv6Str));
                 addValueToRow(rowIndex, ipv6Address);
                 break;
             case "ARRAY":
@@ -506,78 +507,6 @@ public class RowBatch {
     private String typeMismatchMessage(final String flinkType, final Types.MinorType arrowType) {
         final String messageTemplate = "FLINK type is %1$s, but arrow type is %2$s.";
         return String.format(messageTemplate, flinkType, arrowType.name());
-    }
-
-    private String convertLongToIPv4String(long ipv4LongValue) {
-        return ((ipv4LongValue >> 24) & 0xFF)
-                + "."
-                + ((ipv4LongValue >> 16) & 0xFF)
-                + "."
-                + ((ipv4LongValue >> 8) & 0xFF)
-                + "."
-                + (ipv4LongValue & 0xFF);
-    }
-
-    private String convertVarcharToIPv6String(String numricString) {
-        System.out.println(numricString.length());
-        BigInteger numericValue = new BigInteger(numricString);
-        StringBuilder hexString = new StringBuilder(numericValue.toString(16));
-
-        // 补全到32位十六进制字符串
-        while (hexString.length() < 32) {
-            hexString.insert(0, "0");
-        }
-
-        StringBuilder ipv6Address = new StringBuilder();
-        for (int i = 0; i < 8; i++) {
-            String block = hexString.substring(i * 4, (i + 1) * 4);
-            System.out.println(block);
-            if (!block.equals("0000")) {
-                ipv6Address.append(block);
-            }
-            if (i < 7) {
-                ipv6Address.append(":");
-            }
-        }
-
-        return ipv6Address.toString();
-    }
-
-    public static String simplifyIPv6(String ipv6Address) {
-        // 分割IPv6地址的各个部分
-        String[] parts = ipv6Address.split(":");
-
-        // 初始化一个 StringBuilder 用于构建简化后的IPv6地址
-        StringBuilder simplifiedIPv6 = new StringBuilder();
-
-        // 记录是否已经遇到连续的 0 块
-        boolean encounteredDoubleColon = false;
-
-        // 遍历各个部分
-        for (String part : parts) {
-            // 如果当前部分是空的，则代表出现连续的 0 块
-            if (part.isEmpty()) {
-                // 如果已经遇到了连续的 0 块，则忽略当前部分
-                if (encounteredDoubleColon) {
-                    continue;
-                }
-                // 如果是第一次遇到连续的 0 块，则添加双冒号
-                simplifiedIPv6.append(":");
-                encounteredDoubleColon = true;
-            } else {
-                // 如果当前部分不为空，则直接添加到简化后的IPv6地址中
-                simplifiedIPv6.append(part).append(":");
-                encounteredDoubleColon = false;
-            }
-        }
-
-        // 删除结尾的多余冒号
-        if (ipv6Address.endsWith(":")) {
-            simplifiedIPv6.append(":");
-        }
-
-        // 返回简化后的IPv6地址
-        return simplifiedIPv6.toString();
     }
 
     public int getReadRowCount() {
