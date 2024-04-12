@@ -65,7 +65,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 
-import static org.apache.doris.flink.util.IPUtils.convertLongToIPv4String;
+import static org.apache.doris.flink.util.IPUtils.convertLongToIPv4Address;
 
 /** row batch data container. */
 public class RowBatch {
@@ -235,7 +235,7 @@ public class RowBatch {
                 fieldValue =
                         ipv4Vector.isNull(rowIndex)
                                 ? null
-                                : convertLongToIPv4String(ipv4Vector.getValueAsLong(rowIndex));
+                                : convertLongToIPv4Address(ipv4Vector.getValueAsLong(rowIndex));
                 addValueToRow(rowIndex, fieldValue);
                 break;
             case "BIGINT":

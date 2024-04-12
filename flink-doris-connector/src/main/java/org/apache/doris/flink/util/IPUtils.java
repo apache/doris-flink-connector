@@ -170,7 +170,7 @@ public class IPUtils {
         return toShortHandNotationString(highBits, lowBits);
     }
 
-    private static String toIPv4AddressString(long lowBits) {
+    public static String convertLongToIPv4Address(long lowBits) {
         int byteZero = (int) ((lowBits & 0x00000000FF000000L) >> 24);
         int byteOne = (int) ((lowBits & 0x0000000000FF0000L) >> 16);
         int byteTwo = (int) ((lowBits & 0x000000000000FF00L) >> 8);
@@ -179,11 +179,11 @@ public class IPUtils {
     }
 
     private static String toIPv4MappedAddressString(long lowBits) {
-        return "::ffff:" + toIPv4AddressString(lowBits);
+        return "::ffff:" + convertLongToIPv4Address(lowBits);
     }
 
     private static String toIPv4CompatibilityAddressString(long lowBits) {
-        return "::" + toIPv4AddressString(lowBits);
+        return "::" + convertLongToIPv4Address(lowBits);
     }
 
     /**
@@ -210,20 +210,5 @@ public class IPUtils {
      */
     private static boolean isIPv4Compatibility(long highBits, long lowBits) {
         return highBits == 0L && lowBits <= 0xFFFFFFFFL && (lowBits & 65536L) == 65536L;
-    }
-
-    /**
-     * Convert a long value representing an IPv4 address to its corresponding string representation.
-     *
-     * @return The string representation of the IPv4 address.
-     */
-    public static String convertLongToIPv4String(long ipv4LongValue) {
-        return ((ipv4LongValue >> 24) & 0xFF)
-                + "."
-                + ((ipv4LongValue >> 16) & 0xFF)
-                + "."
-                + ((ipv4LongValue >> 8) & 0xFF)
-                + "."
-                + (ipv4LongValue & 0xFF);
     }
 }
