@@ -390,7 +390,8 @@ public class DorisWriter<IN>
                                     content.getLabel());
                             dorisStreamLoad.abortLabelExistTransaction(content);
                             errorMsg = "Exist label abort finished, retry";
-                            loadException = new LabelAlreadyExistsException(errorMsg);
+                            LOG.info(errorMsg);
+                            return;
                         } else {
                             errorMsg = content.getMessage();
                             loadException = new StreamLoadException(errorMsg);
