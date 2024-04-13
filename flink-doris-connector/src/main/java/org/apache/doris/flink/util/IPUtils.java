@@ -37,11 +37,11 @@ public class IPUtils {
      */
     public static String fromBigInteger(BigInteger bigInteger) {
         byte[] bytes = bigInteger.toByteArray();
-        long[] ipv6Bits =
-                bytes[0] == 0
-                        ? fromByteArray(
-                                prefixWithZeroBytes(Arrays.copyOfRange(bytes, 1, bytes.length)))
-                        : fromByteArray(prefixWithZeroBytes(bytes));
+        if (bytes[0] == 0) {
+            bytes = Arrays.copyOfRange(bytes, 1, bytes.length); // Skip leading zero byte
+        }
+        bytes = prefixWithZeroBytes(bytes);
+        long[] ipv6Bits = fromByteArray(bytes);
         return toIPv6String(ipv6Bits[0], ipv6Bits[1]);
     }
 
@@ -58,22 +58,12 @@ public class IPUtils {
      * @return IPv6 address
      */
     public static long[] fromByteArray(byte[] bytes) {
-        if (bytes == null) {
-            throw new IllegalArgumentException("can not construct from [null]");
-        } else if (bytes.length != 16) {
-            throw new IllegalArgumentException(
-                    "the byte array to construct from should be 16 bytes long");
-        } else {
-            ByteBuffer buf = ByteBuffer.allocate(16);
-
-            for (byte b : bytes) {
-                buf.put(b);
-            }
-
-            buf.rewind();
-            LongBuffer longBuffer = buf.asLongBuffer();
-            return new long[] {longBuffer.get(), longBuffer.get()};
+        if (bytes == null || bytes.length != 16) {
+            throw new IllegalArgumentException("Byte array must be exactly 16 bytes long");
         }
+        ByteBuffer buf = ByteBuffer.wrap(bytes);
+        LongBuffer longBuffer = buf.asLongBuffer();
+        return new long[] {longBuffer.get(), longBuffer.get()};
     }
 
     private static String toShortHandNotationString(long highBits, long lowBits) {
@@ -171,11 +161,12 @@ public class IPUtils {
     }
 
     public static String convertLongToIPv4Address(long lowBits) {
-        int byteZero = (int) ((lowBits & 0x00000000FF000000L) >> 24);
-        int byteOne = (int) ((lowBits & 0x0000000000FF0000L) >> 16);
-        int byteTwo = (int) ((lowBits & 0x000000000000FF00L) >> 8);
-        int byteThree = (int) (lowBits & 0x00000000000000FFL);
-        return byteZero + "." + byteOne + "." + byteTwo + "." + byteThree;
+        return String.format(
+                "%d.%d.%d.%d",
+                (lowBits >> 24) & 0xff,
+                (lowBits >> 16) & 0xff,
+                (lowBits >> 8) & 0xff,
+                lowBits & 0xff);
     }
 
     private static String toIPv4MappedAddressString(long lowBits) {
