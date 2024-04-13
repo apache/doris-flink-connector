@@ -378,6 +378,7 @@ public class RowBatch {
             case "VARCHAR":
             case "STRING":
             case "JSONB":
+            case "VARIANT":
                 if (!minorType.equals(Types.MinorType.VARCHAR)) {
                     return false;
                 }
