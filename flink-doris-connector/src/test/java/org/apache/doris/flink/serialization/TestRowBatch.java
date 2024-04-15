@@ -35,6 +35,7 @@ import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.SmallIntVector;
 import org.apache.arrow.vector.TimeStampMicroVector;
 import org.apache.arrow.vector.TinyIntVector;
+import org.apache.arrow.vector.UInt4Vector;
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
@@ -79,6 +80,7 @@ import java.util.List;
 import java.util.NoSuchElementException;
 
 import static org.hamcrest.core.StringStartsWith.startsWith;
+import static org.junit.Assert.assertEquals;
 
 public class TestRowBatch {
     private static Logger logger = LoggerFactory.getLogger(TestRowBatch.class);
@@ -939,7 +941,6 @@ public class TestRowBatch {
         Schema schema = RestService.parseSchema(schemaStr, logger);
 
         RowBatch rowBatch = new RowBatch(scanBatchResult, schema).readArrow();
-
         Assert.assertTrue(rowBatch.hasNext());
         List<Object> actualRow0 = rowBatch.next();
         Assert.assertEquals("{\"id\":\"a\"}", actualRow0.get(0));
@@ -950,6 +951,223 @@ public class TestRowBatch {
         List<Object> actualRow2 = rowBatch.next();
         Assert.assertEquals("123.456", actualRow2.get(0));
 
+        Assert.assertFalse(rowBatch.hasNext());
+        thrown.expect(NoSuchElementException.class);
+        thrown.expectMessage(startsWith("Get row offset:"));
+        rowBatch.next();
+    }
+
+    @Test
+    public void testIPV6() throws DorisException, IOException {
+
+        ImmutableList.Builder<Field> childrenBuilder = ImmutableList.builder();
+        childrenBuilder.add(new Field("k1", FieldType.nullable(new ArrowType.Utf8()), null));
+
+        VectorSchemaRoot root =
+                VectorSchemaRoot.create(
+                        new org.apache.arrow.vector.types.pojo.Schema(
+                                childrenBuilder.build(), null),
+                        new RootAllocator(Integer.MAX_VALUE));
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        ArrowStreamWriter arrowStreamWriter =
+                new ArrowStreamWriter(
+                        root, new DictionaryProvider.MapDictionaryProvider(), outputStream);
+
+        arrowStreamWriter.start();
+        root.setRowCount(13);
+
+        FieldVector vector = root.getVector("k1");
+        VarCharVector ipv6Vector = (VarCharVector) vector;
+        ipv6Vector.setInitialCapacity(13);
+        ipv6Vector.allocateNew();
+        ipv6Vector.setIndexDefined(0);
+        ipv6Vector.setValueLengthSafe(0, 1);
+        ipv6Vector.setSafe(0, "0".getBytes());
+
+        ipv6Vector.setIndexDefined(1);
+        ipv6Vector.setValueLengthSafe(0, 1);
+        ipv6Vector.setSafe(1, "1".getBytes());
+
+        ipv6Vector.setIndexDefined(2);
+        ipv6Vector.setSafe(2, "65535".getBytes());
+
+        ipv6Vector.setIndexDefined(3);
+        ipv6Vector.setSafe(3, "65536".getBytes());
+
+        ipv6Vector.setIndexDefined(4);
+        ipv6Vector.setSafe(4, "4294967295".getBytes());
+
+        ipv6Vector.setIndexDefined(5);
+        ipv6Vector.setSafe(5, "4294967296".getBytes());
+
+        ipv6Vector.setIndexDefined(6);
+        ipv6Vector.setSafe(6, "8589934591".getBytes());
+
+        ipv6Vector.setIndexDefined(7);
+        ipv6Vector.setSafe(7, "281470681743359".getBytes());
+
+        ipv6Vector.setIndexDefined(8);
+        ipv6Vector.setSafe(8, "281470681743360".getBytes());
+
+        ipv6Vector.setIndexDefined(9);
+        ipv6Vector.setSafe(9, "281474976710655".getBytes());
+
+        ipv6Vector.setIndexDefined(10);
+        ipv6Vector.setSafe(10, "281474976710656".getBytes());
+
+        ipv6Vector.setIndexDefined(11);
+        ipv6Vector.setSafe(11, "340277174624079928635746639885392347137".getBytes());
+
+        ipv6Vector.setIndexDefined(12);
+        ipv6Vector.setSafe(12, "340282366920938463463374607431768211455".getBytes());
+
+        vector.setValueCount(13);
+        arrowStreamWriter.writeBatch();
+
+        arrowStreamWriter.end();
+        arrowStreamWriter.close();
+
+        TStatus status = new TStatus();
+        status.setStatusCode(TStatusCode.OK);
+        TScanBatchResult scanBatchResult = new TScanBatchResult();
+        scanBatchResult.setStatus(status);
+        scanBatchResult.setEos(false);
+        scanBatchResult.setRows(outputStream.toByteArray());
+
+        String schemaStr =
+                "{\"properties\":["
+                        + "{\"type\":\"IPV6\",\"name\":\"k1\",\"comment\":\"\"}"
+                        + "], \"status\":200}";
+
+        Schema schema = RestService.parseSchema(schemaStr, logger);
+
+        RowBatch rowBatch = new RowBatch(scanBatchResult, schema).readArrow();
+        Assert.assertTrue(rowBatch.hasNext());
+        List<Object> actualRow0 = rowBatch.next();
+        assertEquals("::", actualRow0.get(0));
+
+        Assert.assertTrue(rowBatch.hasNext());
+        List<Object> actualRow1 = rowBatch.next();
+        assertEquals("::1", actualRow1.get(0));
+
+        Assert.assertTrue(rowBatch.hasNext());
+        List<Object> actualRow2 = rowBatch.next();
+        assertEquals("::ffff", actualRow2.get(0));
+
+        Assert.assertTrue(rowBatch.hasNext());
+        List<Object> actualRow3 = rowBatch.next();
+        assertEquals("::0.1.0.0", actualRow3.get(0));
+
+        Assert.assertTrue(rowBatch.hasNext());
+        List<Object> actualRow4 = rowBatch.next();
+        assertEquals("::255.255.255.255", actualRow4.get(0));
+
+        Assert.assertTrue(rowBatch.hasNext());
+        List<Object> actualRow5 = rowBatch.next();
+        assertEquals("::1:0:0", actualRow5.get(0));
+
+        Assert.assertTrue(rowBatch.hasNext());
+        List<Object> actualRow6 = rowBatch.next();
+        assertEquals("::1:ffff:ffff", actualRow6.get(0));
+
+        Assert.assertTrue(rowBatch.hasNext());
+        List<Object> actualRow7 = rowBatch.next();
+        assertEquals("::fffe:ffff:ffff", actualRow7.get(0));
+
+        Assert.assertTrue(rowBatch.hasNext());
+        List<Object> actualRow8 = rowBatch.next();
+        assertEquals("::ffff:0.0.0.0", actualRow8.get(0));
+
+        Assert.assertTrue(rowBatch.hasNext());
+        List<Object> actualRow9 = rowBatch.next();
+        assertEquals("::ffff:255.255.255.255", actualRow9.get(0));
+
+        Assert.assertTrue(rowBatch.hasNext());
+        List<Object> actualRow10 = rowBatch.next();
+        assertEquals("::1:0:0:0", actualRow10.get(0));
+
+        Assert.assertTrue(rowBatch.hasNext());
+        List<Object> actualRow11 = rowBatch.next();
+        assertEquals("ffff::1:ffff:ffff:1", actualRow11.get(0));
+
+        Assert.assertTrue(rowBatch.hasNext());
+        List<Object> actualRow12 = rowBatch.next();
+        assertEquals("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", actualRow12.get(0));
+
+        Assert.assertFalse(rowBatch.hasNext());
+        thrown.expect(NoSuchElementException.class);
+        thrown.expectMessage(startsWith("Get row offset:"));
+        rowBatch.next();
+    }
+
+    @Test
+    public void testIPV4() throws DorisException, IOException {
+
+        ImmutableList.Builder<Field> childrenBuilder = ImmutableList.builder();
+        childrenBuilder.add(
+                new Field("k1", FieldType.nullable(new ArrowType.Int(32, false)), null));
+
+        VectorSchemaRoot root =
+                VectorSchemaRoot.create(
+                        new org.apache.arrow.vector.types.pojo.Schema(
+                                childrenBuilder.build(), null),
+                        new RootAllocator(Integer.MAX_VALUE));
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        ArrowStreamWriter arrowStreamWriter =
+                new ArrowStreamWriter(
+                        root, new DictionaryProvider.MapDictionaryProvider(), outputStream);
+
+        arrowStreamWriter.start();
+        root.setRowCount(5);
+
+        FieldVector vector = root.getVector("k1");
+        UInt4Vector uInt4Vector = (UInt4Vector) vector;
+        uInt4Vector.setInitialCapacity(5);
+        uInt4Vector.allocateNew(4);
+        uInt4Vector.setIndexDefined(0);
+        uInt4Vector.setSafe(0, 0);
+        uInt4Vector.setIndexDefined(1);
+        uInt4Vector.setSafe(1, 255);
+        uInt4Vector.setIndexDefined(2);
+        uInt4Vector.setSafe(2, 65535);
+        uInt4Vector.setIndexDefined(3);
+        uInt4Vector.setSafe(3, 16777215);
+        uInt4Vector.setIndexDefined(4);
+        uInt4Vector.setWithPossibleTruncate(4, 4294967295L);
+        vector.setValueCount(5);
+        arrowStreamWriter.writeBatch();
+
+        arrowStreamWriter.end();
+        arrowStreamWriter.close();
+
+        TStatus status = new TStatus();
+        status.setStatusCode(TStatusCode.OK);
+        TScanBatchResult scanBatchResult = new TScanBatchResult();
+        scanBatchResult.setStatus(status);
+        scanBatchResult.setEos(false);
+        scanBatchResult.setRows(outputStream.toByteArray());
+
+        String schemaStr =
+                "{\"properties\":["
+                        + "{\"type\":\"IPV4\",\"name\":\"k1\",\"comment\":\"\"}"
+                        + "], \"status\":200}";
+
+        Schema schema = RestService.parseSchema(schemaStr, logger);
+
+        RowBatch rowBatch = new RowBatch(scanBatchResult, schema).readArrow();
+        Assert.assertTrue(rowBatch.hasNext());
+        List<Object> actualRow0 = rowBatch.next();
+        assertEquals("0.0.0.0", actualRow0.get(0));
+        List<Object> actualRow1 = rowBatch.next();
+        assertEquals("0.0.0.255", actualRow1.get(0));
+        Assert.assertTrue(rowBatch.hasNext());
+        List<Object> actualRow2 = rowBatch.next();
+        assertEquals("0.0.255.255", actualRow2.get(0));
+        Assert.assertTrue(rowBatch.hasNext());
+        List<Object> actualRow3 = rowBatch.next();
+        assertEquals("0.255.255.255", actualRow3.get(0));
+        List<Object> actualRow4 = rowBatch.next();
+        assertEquals("255.255.255.255", actualRow4.get(0));
         Assert.assertFalse(rowBatch.hasNext());
         thrown.expect(NoSuchElementException.class);
         thrown.expectMessage(startsWith("Get row offset:"));

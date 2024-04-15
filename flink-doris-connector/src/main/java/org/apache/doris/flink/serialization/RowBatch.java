@@ -32,6 +32,7 @@ import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.SmallIntVector;
 import org.apache.arrow.vector.TimeStampMicroVector;
 import org.apache.arrow.vector.TinyIntVector;
+import org.apache.arrow.vector.UInt4Vector;
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
@@ -44,6 +45,7 @@ import org.apache.arrow.vector.types.Types;
 import org.apache.doris.flink.exception.DorisException;
 import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.apache.doris.flink.rest.models.Schema;
+import org.apache.doris.flink.util.IPUtils;
 import org.apache.doris.sdk.thrift.TScanBatchResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,12 +65,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 
+import static org.apache.doris.flink.util.IPUtils.convertLongToIPv4Address;
+
 /** row batch data container. */
 public class RowBatch {
-    private static Logger logger = LoggerFactory.getLogger(RowBatch.class);
+    private static final Logger logger = LoggerFactory.getLogger(RowBatch.class);
 
     public static class Row {
-        private List<Object> cols;
+        private final List<Object> cols;
 
         Row(int colCount) {
             this.cols = new ArrayList<>(colCount);
@@ -84,10 +88,10 @@ public class RowBatch {
     }
 
     // offset for iterate the rowBatch
-    private int offsetInRowBatch = 0;
+    private int offsetInRowBatch;
     private int rowCountInOneBatch = 0;
     private int readRowCount = 0;
-    private List<Row> rowBatch = new ArrayList<>();
+    private final List<Row> rowBatch = new ArrayList<>();
     private final ArrowStreamReader arrowStreamReader;
     private VectorSchemaRoot root;
     private List<FieldVector> fieldVectors;
@@ -149,10 +153,7 @@ public class RowBatch {
     }
 
     public boolean hasNext() {
-        if (offsetInRowBatch < readRowCount) {
-            return true;
-        }
-        return false;
+        return offsetInRowBatch < readRowCount;
     }
 
     private void addValueToRow(int rowIndex, Object obj) {
@@ -224,6 +225,17 @@ public class RowBatch {
                 }
                 IntVector intVector = (IntVector) fieldVector;
                 fieldValue = intVector.isNull(rowIndex) ? null : intVector.get(rowIndex);
+                addValueToRow(rowIndex, fieldValue);
+                break;
+            case "IPV4":
+                if (!minorType.equals(Types.MinorType.UINT4)) {
+                    return false;
+                }
+                UInt4Vector ipv4Vector = (UInt4Vector) fieldVector;
+                fieldValue =
+                        ipv4Vector.isNull(rowIndex)
+                                ? null
+                                : convertLongToIPv4Address(ipv4Vector.getValueAsLong(rowIndex));
                 addValueToRow(rowIndex, fieldValue);
                 break;
             case "BIGINT":
@@ -389,6 +401,19 @@ public class RowBatch {
                 }
                 String stringValue = new String(varCharVector.get(rowIndex));
                 addValueToRow(rowIndex, stringValue);
+                break;
+            case "IPV6":
+                if (!minorType.equals(Types.MinorType.VARCHAR)) {
+                    return false;
+                }
+                VarCharVector ipv6VarcharVector = (VarCharVector) fieldVector;
+                if (ipv6VarcharVector.isNull(rowIndex)) {
+                    addValueToRow(rowIndex, null);
+                    break;
+                }
+                String ipv6Str = new String(ipv6VarcharVector.get(rowIndex));
+                String ipv6Address = IPUtils.fromBigInteger(new BigInteger(ipv6Str));
+                addValueToRow(rowIndex, ipv6Address);
                 break;
             case "ARRAY":
                 if (!minorType.equals(Types.MinorType.LIST)) {

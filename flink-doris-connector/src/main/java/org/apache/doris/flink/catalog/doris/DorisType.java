@@ -42,4 +42,7 @@ public class DorisType {
     public static final String JSON = "JSON";
     public static final String MAP = "MAP";
     public static final String STRUCT = "STRUCT";
+    public static final String VARIANT = "VARIANT";
+    public static final String IPV4 = "IPV4";
+    public static final String IPV6 = "IPV6";
 }
