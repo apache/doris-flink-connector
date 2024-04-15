@@ -28,11 +28,13 @@ import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.exception.DorisRuntimeException;
+import org.apache.doris.flink.exception.LabelAlreadyExistsException;
 import org.apache.doris.flink.exception.StreamLoadException;
 import org.apache.doris.flink.rest.models.RespContent;
 import org.apache.doris.flink.sink.BackendUtil;
 import org.apache.doris.flink.sink.DorisCommittable;
 import org.apache.doris.flink.sink.HttpUtil;
+import org.apache.doris.flink.sink.LoadStatus;
 import org.apache.doris.flink.sink.writer.serializer.DorisRecord;
 import org.apache.doris.flink.sink.writer.serializer.DorisRecordSerializer;
 import org.slf4j.Logger;
@@ -72,7 +74,7 @@ public class DorisWriter<IN>
     private final DorisOptions dorisOptions;
     private final DorisReadOptions dorisReadOptions;
     private final DorisExecutionOptions executionOptions;
-    private final String labelPrefix;
+    private String labelPrefix;
     private final int subtaskId;
     private final int intervalTime;
     private final DorisRecordSerializer<IN> serializer;
@@ -82,6 +84,7 @@ public class DorisWriter<IN>
     private BackendUtil backendUtil;
     private SinkWriterMetricGroup sinkMetricGroup;
     private Map<String, DorisWriteMetrics> sinkMetricsMap = new ConcurrentHashMap<>();
+    private volatile boolean multiTableLoad = false;
 
     public DorisWriter(
             Sink.InitContext initContext,
@@ -95,13 +98,17 @@ public class DorisWriter<IN>
                         .getRestoredCheckpointId()
                         .orElse(CheckpointIDCounter.INITIAL_CHECKPOINT_ID - 1);
         this.curCheckpointId = lastCheckpointId + 1;
-        LOG.info("restore checkpointId {}", lastCheckpointId);
+        LOG.info("restore from checkpointId {}", lastCheckpointId);
         LOG.info("labelPrefix {}", executionOptions.getLabelPrefix());
         this.labelPrefix = executionOptions.getLabelPrefix();
         this.subtaskId = initContext.getSubtaskId();
         this.scheduledExecutorService =
                 new ScheduledThreadPoolExecutor(1, new ExecutorThreadFactory("stream-load-check"));
         this.serializer = serializer;
+        if (StringUtils.isBlank(dorisOptions.getTableIdentifier())) {
+            this.multiTableLoad = true;
+            LOG.info("table.identifier is empty, multiple table writes.");
+        }
         this.dorisOptions = dorisOptions;
         this.dorisReadOptions = dorisReadOptions;
         this.executionOptions = executionOptions;
@@ -135,6 +142,7 @@ public class DorisWriter<IN>
         List<String> alreadyAborts = new ArrayList<>();
         // abort label in state
         for (DorisWriterState state : recoveredStates) {
+            LOG.info("try to abort txn from DorisWriterState {}", state.toString());
             // Todo: When the sink parallelism is reduced,
             //  the txn of the redundant task before aborting is also needed.
             if (!state.getLabelPrefix().equals(labelPrefix)) {
@@ -177,7 +185,6 @@ public class DorisWriter<IN>
     }
 
     public void writeOneDorisRecord(DorisRecord record) throws IOException, InterruptedException {
-
         if (record == null || record.getRow() == null) {
             // ddl or value is null
             return;
@@ -221,9 +228,9 @@ public class DorisWriter<IN>
         if (!globalLoading && loadingMap.values().stream().noneMatch(Boolean::booleanValue)) {
             return Collections.emptyList();
         }
+
         // disable exception checker before stop load.
         globalLoading = false;
-
         // submit stream load http request
         List<DorisCommittable> committableList = new ArrayList<>();
         for (Map.Entry<String, DorisStreamLoad> streamLoader : dorisStreamLoadMap.entrySet()) {
@@ -240,13 +247,21 @@ public class DorisWriter<IN>
                 dorisWriteMetrics.flush(respContent);
             }
             if (!DORIS_SUCCESS_STATUS.contains(respContent.getStatus())) {
-                String errMsg =
-                        String.format(
-                                "table %s stream load error: %s, see more in %s",
-                                tableIdentifier,
-                                respContent.getMessage(),
-                                respContent.getErrorURL());
-                throw new DorisRuntimeException(errMsg);
+                if (executionOptions.enabled2PC()
+                        && LoadStatus.LABEL_ALREADY_EXIST.equals(respContent.getStatus())) {
+                    LOG.info("try to abort {} cause Label Already Exists", respContent.getLabel());
+                    dorisStreamLoad.abortLabelExistTransaction(respContent);
+                    throw new LabelAlreadyExistsException("Exist label abort finished, retry");
+                } else {
+                    String errMsg =
+                            String.format(
+                                    "table %s stream load error: %s, see more in %s",
+                                    tableIdentifier,
+                                    respContent.getMessage(),
+                                    respContent.getErrorURL());
+                    LOG.error("Failed to load, {}", errMsg);
+                    throw new DorisRuntimeException(errMsg);
+                }
             }
             if (executionOptions.enabled2PC()) {
                 long txnId = respContent.getTxnId();
@@ -255,9 +270,30 @@ public class DorisWriter<IN>
                                 dorisStreamLoad.getHostPort(), dorisStreamLoad.getDb(), txnId));
             }
         }
+
         // clean loadingMap
         loadingMap.clear();
         return committableList;
+    }
+
+    private void abortPossibleSuccessfulTransaction() {
+        // In the case of multi-table writing, if a new table is added during the period
+        // (there is no streamloader for this table in the previous Checkpoint state),
+        // in the precommit phase, if some tables succeed and others fail,
+        // the txn of successful precommit cannot be aborted.
+        if (executionOptions.enabled2PC() && multiTableLoad) {
+            LOG.info("Try to abort may have successfully preCommitted label.");
+            for (Map.Entry<String, DorisStreamLoad> entry : dorisStreamLoadMap.entrySet()) {
+                DorisStreamLoad abortLoader = entry.getValue();
+                try {
+                    abortLoader.abortTransactionByLabel(abortLoader.getCurrentLabel());
+                } catch (Exception ex) {
+                    LOG.warn(
+                            "Skip abort transaction failed by label, reason is {}.",
+                            ex.getMessage());
+                }
+            }
+        }
     }
 
     @Override
@@ -302,8 +338,12 @@ public class DorisWriter<IN>
 
     /** Check the streamload http request regularly. */
     private void checkDone() {
-        for (Map.Entry<String, DorisStreamLoad> streamLoadMap : dorisStreamLoadMap.entrySet()) {
-            checkAllDone(streamLoadMap.getKey(), streamLoadMap.getValue());
+        // todo: When writing to multiple tables,
+        //  the checkdone thread may cause problems. Disable it first.
+        if (!multiTableLoad) {
+            for (Map.Entry<String, DorisStreamLoad> streamLoadMap : dorisStreamLoadMap.entrySet()) {
+                checkAllDone(streamLoadMap.getKey(), streamLoadMap.getValue());
+            }
         }
     }
 
@@ -347,16 +387,29 @@ public class DorisWriter<IN>
                         RespContent content =
                                 dorisStreamLoad.handlePreCommitResponse(
                                         dorisStreamLoad.getPendingLoadFuture().get());
-                        errorMsg = content.getMessage();
+                        if (executionOptions.enabled2PC()
+                                && LoadStatus.LABEL_ALREADY_EXIST.equals(content.getStatus())) {
+                            LOG.info(
+                                    "try to abort {} cause Label Already Exists",
+                                    content.getLabel());
+                            dorisStreamLoad.abortLabelExistTransaction(content);
+                            errorMsg = "Exist label abort finished, retry";
+                            LOG.info(errorMsg);
+                            return;
+                        } else {
+                            errorMsg = content.getMessage();
+                            loadException = new StreamLoadException(errorMsg);
+                        }
                     } catch (Exception e) {
                         errorMsg = e.getMessage();
+                        loadException = new DorisRuntimeException(e);
                     }
 
-                    loadException = new StreamLoadException(errorMsg);
                     LOG.error(
                             "table {} stream load finished unexpectedly, interrupt worker thread! {}",
                             tableIdentifier,
                             errorMsg);
+
                     // set the executor thread interrupted in case blocking in write data.
                     executorThread.interrupt();
                 }
@@ -391,6 +444,9 @@ public class DorisWriter<IN>
         if (scheduledExecutorService != null) {
             scheduledExecutorService.shutdownNow();
         }
+        LOG.info("Try to abort txn before closing.");
+        abortPossibleSuccessfulTransaction();
+
         if (dorisStreamLoadMap != null && !dorisStreamLoadMap.isEmpty()) {
             for (DorisStreamLoad dorisStreamLoad : dorisStreamLoadMap.values()) {
                 dorisStreamLoad.close();

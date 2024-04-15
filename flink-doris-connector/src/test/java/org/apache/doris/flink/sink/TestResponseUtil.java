@@ -44,4 +44,25 @@ public class TestResponseUtil {
         Assert.assertFalse(ResponseUtil.isCommitted(commitMsg));
         Assert.assertFalse(ResponseUtil.isCommitted(abortedMsg));
     }
+
+    @Test
+    public void testIsAborted() {
+        String notFoundMsg = "errCode = 2, detailMessage = transaction [2] not found";
+        String alreadyAbort =
+                "errCode = 2, detailMessage = transaction [2] is already aborted. abort reason: User Abort";
+        String systemAlreadAbort =
+                "errCode = 2, detailMessage = transaction [2] is already aborted. abort reason: timeout by txn manager";
+        String alreadCommit =
+                "errCode = 2, detailMessage = transaction [2] is already COMMITTED, could not abort.";
+        String alreadVISIBLE =
+                "errCode = 2, detailMessage = transaction [2] is already VISIBLE, could not abort.";
+        String errormsg =
+                "tCouldn't open transport for :0 (Could not resolve host for client socket.";
+        Assert.assertTrue(ResponseUtil.isAborted(notFoundMsg));
+        Assert.assertTrue(ResponseUtil.isAborted(alreadyAbort));
+        Assert.assertTrue(ResponseUtil.isAborted(systemAlreadAbort));
+        Assert.assertTrue(ResponseUtil.isAborted(alreadCommit));
+        Assert.assertTrue(ResponseUtil.isAborted(alreadVISIBLE));
+        Assert.assertFalse(ResponseUtil.isAborted(errormsg));
+    }
 }

@@ -27,8 +27,16 @@ public class ResponseUtil {
             Pattern.compile(
                     "transaction \\[(\\d+)\\] is already \\b(COMMITTED|committed|VISIBLE|visible)\\b, not pre-committed.");
 
+    public static final Pattern ABORTTED_PATTERN =
+            Pattern.compile(
+                    "transaction \\[(\\d+)\\] is already|transaction \\[(\\d+)\\] not found");
+
     public static boolean isCommitted(String msg) {
         return COMMITTED_PATTERN.matcher(msg).find();
+    }
+
+    public static boolean isAborted(String msg) {
+        return ABORTTED_PATTERN.matcher(msg).find();
     }
 
     static final Pattern COPY_COMMITTED_PATTERN =

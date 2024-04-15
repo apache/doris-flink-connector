@@ -143,6 +143,10 @@ public class RespContent {
         return commitAndPublishTimeMs;
     }
 
+    public String getLabel() {
+        return label;
+    }
+
     @Override
     public String toString() {
         ObjectMapper mapper = new ObjectMapper();
