@@ -22,10 +22,6 @@ import java.nio.ByteBuffer;
 import java.nio.LongBuffer;
 import java.util.Arrays;
 
-/**
- * This class is based on the implementation available at: * <a
- * href="https://github.com/janvanbesien/java-ipv6/blob/master/src/main/java/com/googlecode/ipv6/IPv6Address.java">...</a>
- */
 public class IPUtils {
     /**
      * Create an IPv6 address from a (positive) {@link java.math.BigInteger}. The magnitude of the
