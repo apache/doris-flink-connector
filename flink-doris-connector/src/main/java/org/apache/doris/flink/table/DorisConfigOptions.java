@@ -195,8 +195,9 @@ public class DorisConfigOptions {
     public static final ConfigOption<Duration> SINK_CHECK_INTERVAL =
             ConfigOptions.key("sink.check-interval")
                     .durationType()
-                    .defaultValue(Duration.ofMillis(10000))
-                    .withDescription("check exception with the interval while loading");
+                    .defaultValue(Duration.ofMillis(0))
+                    .withDescription(
+                            "check exception with the interval while loading, The default is 0, disabling the checker thread");
     public static final ConfigOption<Integer> SINK_MAX_RETRIES =
             ConfigOptions.key("sink.max-retries")
                     .intType()
