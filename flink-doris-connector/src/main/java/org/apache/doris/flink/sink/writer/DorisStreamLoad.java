@@ -69,7 +69,7 @@ public class DorisStreamLoad implements Serializable {
     private final byte[] lineDelimiter;
     private static final String LOAD_URL_PATTERN = "http://%s/api/%s/%s/_stream_load";
     private static final String ABORT_URL_PATTERN = "http://%s/api/%s/_stream_load_2pc";
-    private static final String JOB_EXIST_FINISHED = "FINISHED";
+    public static final String JOB_EXIST_FINISHED = "FINISHED";
 
     private String loadUrlStr;
     private String hostPort;

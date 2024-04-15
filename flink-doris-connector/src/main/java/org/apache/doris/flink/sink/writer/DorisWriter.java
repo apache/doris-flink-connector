@@ -54,6 +54,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.apache.doris.flink.sink.LoadStatus.PUBLISH_TIMEOUT;
 import static org.apache.doris.flink.sink.LoadStatus.SUCCESS;
+import static org.apache.doris.flink.sink.writer.DorisStreamLoad.JOB_EXIST_FINISHED;
 
 /**
  * Doris Writer will load data to doris.
@@ -131,10 +132,15 @@ public class DorisWriter<IN>
         }
         // get main work thread.
         executorThread = Thread.currentThread();
-        // when uploading data in streaming mode, we need to regularly detect whether there are
-        // exceptions.
-        scheduledExecutorService.scheduleWithFixedDelay(
-                this::checkDone, 200, intervalTime, TimeUnit.MILLISECONDS);
+        // todo: When writing to multiple tables,
+        //  the checkdone thread may cause problems.
+        if (!multiTableLoad && intervalTime > 1000) {
+            // when uploading data in streaming mode, we need to regularly detect whether there are
+            // exceptions.
+            LOG.info("start stream load checkdone thread.");
+            scheduledExecutorService.scheduleWithFixedDelay(
+                    this::checkDone, 200, intervalTime, TimeUnit.MILLISECONDS);
+        }
     }
 
     private void abortLingeringTransactions(Collection<DorisWriterState> recoveredStates)
@@ -248,8 +254,13 @@ public class DorisWriter<IN>
             }
             if (!DORIS_SUCCESS_STATUS.contains(respContent.getStatus())) {
                 if (executionOptions.enabled2PC()
-                        && LoadStatus.LABEL_ALREADY_EXIST.equals(respContent.getStatus())) {
-                    LOG.info("try to abort {} cause Label Already Exists", respContent.getLabel());
+                        && LoadStatus.LABEL_ALREADY_EXIST.equals(respContent.getStatus())
+                        && !JOB_EXIST_FINISHED.equals(respContent.getExistingJobStatus())) {
+                    LOG.info(
+                            "try to abort {} cause status {}, exist job status {} ",
+                            respContent.getLabel(),
+                            respContent.getStatus(),
+                            respContent.getExistingJobStatus());
                     dorisStreamLoad.abortLabelExistTransaction(respContent);
                     throw new LabelAlreadyExistsException("Exist label abort finished, retry");
                 } else {
@@ -338,12 +349,8 @@ public class DorisWriter<IN>
 
     /** Check the streamload http request regularly. */
     private void checkDone() {
-        // todo: When writing to multiple tables,
-        //  the checkdone thread may cause problems. Disable it first.
-        if (!multiTableLoad) {
-            for (Map.Entry<String, DorisStreamLoad> streamLoadMap : dorisStreamLoadMap.entrySet()) {
-                checkAllDone(streamLoadMap.getKey(), streamLoadMap.getValue());
-            }
+        for (Map.Entry<String, DorisStreamLoad> streamLoadMap : dorisStreamLoadMap.entrySet()) {
+            checkAllDone(streamLoadMap.getKey(), streamLoadMap.getValue());
         }
     }
 
