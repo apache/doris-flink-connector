@@ -1105,7 +1105,8 @@ public class TestRowBatch {
 
         ImmutableList.Builder<Field> childrenBuilder = ImmutableList.builder();
         childrenBuilder.add(
-                new Field("k1", FieldType.nullable(new ArrowType.Int(32, false)), null));
+                new Field("k1", FieldType.nullable(new ArrowType.Int(32, false)), null),
+                new Field("k2", FieldType.nullable(new ArrowType.Int(32, true)), null));
 
         VectorSchemaRoot root =
                 VectorSchemaRoot.create(
@@ -1134,7 +1135,23 @@ public class TestRowBatch {
         uInt4Vector.setSafe(3, 16777215);
         uInt4Vector.setIndexDefined(4);
         uInt4Vector.setWithPossibleTruncate(4, 4294967295L);
+
+        FieldVector vector1 = root.getVector("k2");
+        IntVector intVector = (IntVector) vector1;
+        intVector.setInitialCapacity(5);
+        intVector.allocateNew(4);
+        intVector.setIndexDefined(0);
+        intVector.setSafe(0, 0);
+        intVector.setIndexDefined(1);
+        intVector.setSafe(1, 255);
+        intVector.setIndexDefined(2);
+        intVector.setSafe(2, 65535);
+        intVector.setIndexDefined(3);
+        intVector.setSafe(3, 16777215);
+        intVector.setIndexDefined(4);
+        intVector.setWithPossibleTruncate(4, 4294967295L);
         vector.setValueCount(5);
+        vector1.setValueCount(5);
         arrowStreamWriter.writeBatch();
 
         arrowStreamWriter.end();
@@ -1149,7 +1166,8 @@ public class TestRowBatch {
 
         String schemaStr =
                 "{\"properties\":["
-                        + "{\"type\":\"IPV4\",\"name\":\"k1\",\"comment\":\"\"}"
+                        + "{\"type\":\"IPV4\",\"name\":\"k1\",\"comment\":\"\"},"
+                        + "{\"type\":\"IPV4\",\"name\":\"k2\",\"comment\":\"\"}"
                         + "], \"status\":200}";
 
         Schema schema = RestService.parseSchema(schemaStr, logger);
@@ -1158,16 +1176,21 @@ public class TestRowBatch {
         Assert.assertTrue(rowBatch.hasNext());
         List<Object> actualRow0 = rowBatch.next();
         assertEquals("0.0.0.0", actualRow0.get(0));
+        assertEquals("0.0.0.0", actualRow0.get(1));
         List<Object> actualRow1 = rowBatch.next();
         assertEquals("0.0.0.255", actualRow1.get(0));
+        assertEquals("0.0.0.255", actualRow1.get(1));
         Assert.assertTrue(rowBatch.hasNext());
         List<Object> actualRow2 = rowBatch.next();
         assertEquals("0.0.255.255", actualRow2.get(0));
+        assertEquals("0.0.255.255", actualRow2.get(1));
         Assert.assertTrue(rowBatch.hasNext());
         List<Object> actualRow3 = rowBatch.next();
         assertEquals("0.255.255.255", actualRow3.get(0));
+        assertEquals("0.255.255.255", actualRow3.get(1));
         List<Object> actualRow4 = rowBatch.next();
         assertEquals("255.255.255.255", actualRow4.get(0));
+        assertEquals("255.255.255.255", actualRow4.get(1));
         Assert.assertFalse(rowBatch.hasNext());
         thrown.expect(NoSuchElementException.class);
         thrown.expectMessage(startsWith("Get row offset:"));
