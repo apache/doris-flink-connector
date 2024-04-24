@@ -20,6 +20,7 @@ package org.apache.doris.flink.serialization;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.arrow.memory.RootAllocator;
+import org.apache.arrow.vector.BaseIntVector;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;
 import org.apache.arrow.vector.DateDayVector;
@@ -228,10 +229,17 @@ public class RowBatch {
                 addValueToRow(rowIndex, fieldValue);
                 break;
             case "IPV4":
-                if (!minorType.equals(Types.MinorType.UINT4)) {
+                if (!minorType.equals(Types.MinorType.UINT4)
+                        && !minorType.equals(Types.MinorType.INT)) {
                     return false;
                 }
-                UInt4Vector ipv4Vector = (UInt4Vector) fieldVector;
+                BaseIntVector ipv4Vector;
+                if (minorType.equals(Types.MinorType.INT)) {
+                    ipv4Vector = (IntVector) fieldVector;
+
+                } else {
+                    ipv4Vector = (UInt4Vector) fieldVector;
+                }
                 fieldValue =
                         ipv4Vector.isNull(rowIndex)
                                 ? null
