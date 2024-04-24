@@ -34,6 +34,7 @@ import org.apache.doris.flink.cfg.DorisConnectionOptions;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
+import org.apache.doris.flink.exception.DorisSystemException;
 import org.apache.doris.flink.sink.DorisSink;
 import org.apache.doris.flink.sink.writer.WriteMode;
 import org.apache.doris.flink.sink.writer.serializer.DorisRecordSerializer;
@@ -71,6 +72,7 @@ public abstract class DatabaseSync {
     protected Map<String, String> tableConfig = new HashMap<>();
     protected Configuration sinkConfig;
     protected boolean ignoreDefaultValue;
+    protected boolean ignoreIncompatible;
 
     public StreamExecutionEnvironment env;
     private boolean createTableOnly = false;
@@ -105,9 +107,7 @@ public abstract class DatabaseSync {
         this.multiToOneRulesPattern = multiToOneRulesParser(multiToOneOrigin, multiToOneTarget);
         this.converter = new TableNameConverter(tablePrefix, tableSuffix, multiToOneRulesPattern);
         // default enable light schema change
-        if (!this.tableConfig.containsKey(LIGHT_SCHEMA_CHANGE)) {
-            this.tableConfig.put(LIGHT_SCHEMA_CHANGE, "true");
-        }
+        this.tableConfig.putIfAbsent(LIGHT_SCHEMA_CHANGE, "true");
     }
 
     public void build() throws Exception {
@@ -128,7 +128,8 @@ public abstract class DatabaseSync {
         if (tableConfig.containsKey("table-buckets")) {
             tableBucketsMap = getTableBuckets(tableConfig.get("table-buckets"));
         }
-        Set<String> bucketsTable = new HashSet<>();
+        // Set of table names that have assigned bucket numbers.
+        Set<String> tablesWithBucketsAssigned = new HashSet<>();
         for (SourceSchema schema : schemaList) {
             syncTables.add(schema.getTableName());
             String targetDb = database;
@@ -145,17 +146,13 @@ public abstract class DatabaseSync {
             // Calculate the mapping relationship between upstream and downstream tables
             tableMapping.put(
                     schema.getTableIdentifier(), String.format("%s.%s", targetDb, dorisTable));
-            if (!dorisSystem.tableExists(targetDb, dorisTable)) {
-                TableSchema dorisSchema = schema.convertTableSchema(tableConfig);
-                // set doris target database
-                dorisSchema.setDatabase(targetDb);
-                dorisSchema.setTable(dorisTable);
-                if (tableBucketsMap != null) {
-                    setTableSchemaBuckets(tableBucketsMap, dorisSchema, dorisTable, bucketsTable);
-                }
-                dorisSystem.createTable(dorisSchema);
-            }
-            if (!dorisTables.contains(Tuple2.of(targetDb, dorisTable))) {
+            if (tryCreateTableIfAbsent(
+                    dorisSystem,
+                    targetDb,
+                    dorisTable,
+                    schema,
+                    tableBucketsMap,
+                    tablesWithBucketsAssigned)) {
                 dorisTables.add(Tuple2.of(targetDb, dorisTable));
             }
         }
@@ -239,10 +236,7 @@ public abstract class DatabaseSync {
             dorisBuilder.setTableIdentifier(tableIdentifier);
         }
 
-        Properties pro = new Properties();
-        // default json data format
-        pro.setProperty("format", "json");
-        pro.setProperty("read_json_by_line", "true");
+        Properties pro = DorisExecutionOptions.defaultsProperties();
         // customer stream load properties
         Properties streamLoadProp = DorisConfigOptions.getStreamLoadProp(sinkConfig.toMap());
         pro.putAll(streamLoadProp);
@@ -396,6 +390,11 @@ public abstract class DatabaseSync {
         String[] tableBucketsArray = tableBuckets.split(",");
         for (String tableBucket : tableBucketsArray) {
             String[] tableBucketArray = tableBucket.split(":");
+            Preconditions.checkArgument(
+                    tableBucketArray.length == 2,
+                    "Invalid table bucket entry format for '"
+                            + tableBucket
+                            + "'. Expected format: 'tableName:bucketsNum'");
             tableBucketsMap.put(
                     tableBucketArray[0].trim(), Integer.parseInt(tableBucketArray[1].trim()));
         }
@@ -407,37 +406,71 @@ public abstract class DatabaseSync {
      *
      * @param tableBucketsMap The table name and buckets map. The key is table name, the value is
      *     buckets.
-     * @param dorisSchema @{TableSchema}
      * @param dorisTable the table name need to set buckets
-     * @param tableHasSet The buckets table is set
+     * @param tablesWithBucketsAssigned The buckets table is set
      */
-    public void setTableSchemaBuckets(
+    public Integer getTableBuckets(
             Map<String, Integer> tableBucketsMap,
-            TableSchema dorisSchema,
             String dorisTable,
-            Set<String> tableHasSet) {
+            Set<String> tablesWithBucketsAssigned) {
 
-        if (tableBucketsMap != null) {
+        if (tableBucketsMap == null || tableBucketsMap.isEmpty()) {
+            return null;
+        } else {
             // Firstly, if the table name is in the table-buckets map, set the buckets of the table.
             if (tableBucketsMap.containsKey(dorisTable)) {
-                dorisSchema.setTableBuckets(tableBucketsMap.get(dorisTable));
-                tableHasSet.add(dorisTable);
-                return;
+                tablesWithBucketsAssigned.add(dorisTable);
+                return tableBucketsMap.get(dorisTable);
             }
             // Secondly, iterate over the map to find a corresponding regular expression match,
             for (Map.Entry<String, Integer> entry : tableBucketsMap.entrySet()) {
-                if (tableHasSet.contains(entry.getKey())) {
+                if (tablesWithBucketsAssigned.contains(entry.getKey())) {
                     continue;
                 }
 
                 Pattern pattern = Pattern.compile(entry.getKey());
                 if (pattern.matcher(dorisTable).matches()) {
-                    dorisSchema.setTableBuckets(entry.getValue());
-                    tableHasSet.add(dorisTable);
-                    return;
+                    tablesWithBucketsAssigned.add(dorisTable);
+                    return entry.getValue();
                 }
             }
         }
+        return null;
+    }
+
+    private boolean tryCreateTableIfAbsent(
+            DorisSystem dorisSystem,
+            String targetDb,
+            String dorisTable,
+            SourceSchema schema,
+            Map<String, Integer> tableBucketsMap,
+            Set<String> tableBucketsSet) {
+        if (!dorisSystem.tableExists(targetDb, dorisTable)) {
+            TableSchema dorisSchema = schema.convertTableSchema(tableConfig);
+            dorisSchema.setDatabase(targetDb);
+            dorisSchema.setTable(dorisTable);
+            // set the table buckets of table
+            if (tableBucketsMap != null) {
+                Integer buckets = getTableBuckets(tableBucketsMap, dorisTable, tableBucketsSet);
+                dorisSchema.setTableBuckets(buckets);
+            }
+            try {
+                dorisSystem.createTable(dorisSchema);
+                return true;
+            } catch (Exception ex) {
+                handleTableCreationFailure(ex);
+            }
+        }
+        return false;
+    }
+
+    private void handleTableCreationFailure(Exception ex) throws DorisSystemException {
+        if (!ignoreIncompatible) {
+            throw new DorisSystemException(ex);
+        }
+        LOG.warn(
+                "Doris schema and source table schema are not compatible. Error: {}",
+                ex.getMessage());
     }
 
     public DatabaseSync setEnv(StreamExecutionEnvironment env) {
@@ -504,6 +537,11 @@ public abstract class DatabaseSync {
 
     public DatabaseSync setSingleSink(boolean singleSink) {
         this.singleSink = singleSink;
+        return this;
+    }
+
+    public DatabaseSync setIgnoreIncompatible(boolean ignoreIncompatible) {
+        this.ignoreIncompatible = ignoreIncompatible;
         return this;
     }
 

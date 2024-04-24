@@ -92,8 +92,9 @@ public class DatabaseSyncTest {
                 tableName -> {
                     TableSchema tableSchema = new TableSchema();
                     tableSchema.setTable(tableName);
-                    databaseSync.setTableSchemaBuckets(
-                            tableBucketsMap, tableSchema, tableName, tableSet);
+                    Integer buckets =
+                            databaseSync.getTableBuckets(tableBucketsMap, tableName, tableSet);
+                    tableSchema.setTableBuckets(buckets);
                     assertEquals(
                             matchedTableBucketsMap.get(tableName), tableSchema.getTableBuckets());
                 });
@@ -111,8 +112,9 @@ public class DatabaseSyncTest {
                 tableName -> {
                     TableSchema tableSchema = new TableSchema();
                     tableSchema.setTable(tableName);
-                    databaseSync.setTableSchemaBuckets(
-                            tableBucketsMap, tableSchema, tableName, tableSet);
+                    Integer buckets =
+                            databaseSync.getTableBuckets(tableBucketsMap, tableName, tableSet);
+                    tableSchema.setTableBuckets(buckets);
                     assertEquals(
                             matchedTableBucketsMap.get(tableName), tableSchema.getTableBuckets());
                 });

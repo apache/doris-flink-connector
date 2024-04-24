@@ -271,8 +271,7 @@ public class DorisSystem implements Serializable {
     }
 
     private static List<String> identifier(List<String> name) {
-        List<String> result = name.stream().map(m -> identifier(m)).collect(Collectors.toList());
-        return result;
+        return name.stream().map(DorisSystem::identifier).collect(Collectors.toList());
     }
 
     public static String identifier(String name) {
