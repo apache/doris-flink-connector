@@ -106,7 +106,12 @@ public class DorisSink<IN>
 
     public DorisAbstractWriter getDorisAbstractWriter(
             InitContext initContext, Collection<DorisWriterState> states) {
-        if (WriteMode.STREAM_LOAD.equals(dorisExecutionOptions.getWriteMode())) {
+
+        if (WriteMode.STREAM_LOAD_BATCH.equals(dorisExecutionOptions.getWriteMode())
+                || dorisExecutionOptions.enableBatchMode()) {
+            return new DorisBatchWriter<>(
+                    initContext, serializer, dorisOptions, dorisReadOptions, dorisExecutionOptions);
+        } else if (WriteMode.STREAM_LOAD.equals(dorisExecutionOptions.getWriteMode())) {
             return new DorisWriter<>(
                     initContext,
                     states,
@@ -114,9 +119,6 @@ public class DorisSink<IN>
                     dorisOptions,
                     dorisReadOptions,
                     dorisExecutionOptions);
-        } else if (WriteMode.STREAM_LOAD_BATCH.equals(dorisExecutionOptions.getWriteMode())) {
-            return new DorisBatchWriter<>(
-                    initContext, serializer, dorisOptions, dorisReadOptions, dorisExecutionOptions);
         } else if (WriteMode.COPY.equals(dorisExecutionOptions.getWriteMode())) {
             return new DorisCopyWriter(
                     initContext, serializer, dorisOptions, dorisReadOptions, dorisExecutionOptions);
