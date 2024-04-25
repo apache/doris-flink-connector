@@ -106,7 +106,7 @@ public class DorisSink<IN>
 
     public DorisAbstractWriter getDorisAbstractWriter(
             InitContext initContext, Collection<DorisWriterState> states) {
-
+        //  maintain compatibility with 'sink.enable.batch-mode' option.
         if (WriteMode.STREAM_LOAD_BATCH.equals(dorisExecutionOptions.getWriteMode())
                 || dorisExecutionOptions.enableBatchMode()) {
             return new DorisBatchWriter<>(
