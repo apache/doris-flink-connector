@@ -106,7 +106,6 @@ public class DorisSink<IN>
 
     public DorisAbstractWriter getDorisAbstractWriter(
             InitContext initContext, Collection<DorisWriterState> states) {
-
         if (WriteMode.STREAM_LOAD.equals(dorisExecutionOptions.getWriteMode())) {
             return new DorisWriter<>(
                     initContext,
