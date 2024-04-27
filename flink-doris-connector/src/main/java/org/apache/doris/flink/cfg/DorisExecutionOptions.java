@@ -293,6 +293,9 @@ public class DorisExecutionOptions implements Serializable {
 
         public Builder setBatchMode(Boolean enableBatchMode) {
             this.enableBatchMode = enableBatchMode;
+            if (enableBatchMode.equals(Boolean.TRUE)) {
+                this.writeMode = WriteMode.STREAM_LOAD_BATCH;
+            }
             return this;
         }
 

@@ -73,8 +73,8 @@ public class DorisSinkBatchExample {
                 .setBufferFlushMaxBytes(8 * 1024)
                 .setBufferFlushMaxRows(900)
                 .setBufferFlushIntervalMs(1000 * 10)
+                // .setBatchMode(true);
                 .setWriteMode(WriteMode.STREAM_LOAD_BATCH);
-
         builder.setDorisReadOptions(readOptionBuilder.build())
                 .setDorisExecutionOptions(executionBuilder.build())
                 .setSerializer(new SimpleStringSerializer())

@@ -82,7 +82,7 @@ public class DorisCopyWriter<IN>
                         .getRestoredCheckpointId()
                         .orElse(CheckpointIDCounter.INITIAL_CHECKPOINT_ID - 1);
         LOG.info("restore checkpointId {}", lastCheckpointId);
-        LOG.info("labelPrefix " + executionOptions.getLabelPrefix());
+        LOG.info("labelPrefix {}", executionOptions.getLabelPrefix());
         this.labelPrefix =
                 executionOptions.getLabelPrefix()
                         + "_"
