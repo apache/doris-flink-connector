@@ -421,6 +421,7 @@ public abstract class DatabaseSync {
             if (tableBucketsMap.containsKey(dorisTable)) {
                 dorisSchema.setTableBuckets(tableBucketsMap.get(dorisTable));
                 tableHasSet.add(dorisTable);
+                return;
             }
 
             // Secondly, iterate over the map to find a corresponding regular expression match,
