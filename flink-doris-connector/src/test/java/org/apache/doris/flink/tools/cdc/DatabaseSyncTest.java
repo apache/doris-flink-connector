@@ -69,7 +69,7 @@ public class DatabaseSyncTest {
     public void getTableBucketsTest() throws SQLException {
         String tableBuckets = "tbl1:10,tbl2 : 20, a.* :30,b.*:40,.*:50";
         DatabaseSync databaseSync = new MysqlDatabaseSync();
-        Map<String, Integer> tableBucketsMap = DatabaseSync.getTableBuckets(tableBuckets);
+        Map<String, Integer> tableBucketsMap = databaseSync.getTableBuckets(tableBuckets);
         assertEquals(10, tableBucketsMap.get("tbl1").intValue());
         assertEquals(20, tableBucketsMap.get("tbl2").intValue());
         assertEquals(30, tableBucketsMap.get("a.*").intValue());
