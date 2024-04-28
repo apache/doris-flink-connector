@@ -81,7 +81,7 @@ public class DatabaseSyncTest {
     public void setTableSchemaBucketsTest() throws SQLException {
         DatabaseSync databaseSync = new MysqlDatabaseSync();
         String tableSchemaBuckets = "tbl1:10,tbl2:20,a11.*:30,a1.*:40,b.*:50,b1.*:60,.*:70";
-        Map<String, Integer> tableBucketsMap = DatabaseSync.getTableBuckets(tableSchemaBuckets);
+        Map<String, Integer> tableBucketsMap = databaseSync.getTableBuckets(tableSchemaBuckets);
         List<String> tableList =
                 Arrays.asList(
                         "tbl1", "tbl2", "tbl3", "a11", "a111", "a12", "a13", "b1", "b11", "b2",
@@ -103,7 +103,7 @@ public class DatabaseSyncTest {
     public void setTableSchemaBucketsTest1() throws SQLException {
         DatabaseSync databaseSync = new MysqlDatabaseSync();
         String tableSchemaBuckets = ".*:10,a.*:20,tbl:30,b.*:40";
-        Map<String, Integer> tableBucketsMap = DatabaseSync.getTableBuckets(tableSchemaBuckets);
+        Map<String, Integer> tableBucketsMap = databaseSync.getTableBuckets(tableSchemaBuckets);
         List<String> tableList = Arrays.asList("a1", "a2", "a3", "b1", "a");
         HashMap<String, Integer> matchedTableBucketsMap = mockTableBuckets1();
         Set<String> tableSet = new HashSet<>();
