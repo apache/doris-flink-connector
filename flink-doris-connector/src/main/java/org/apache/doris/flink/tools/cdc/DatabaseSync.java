@@ -406,6 +406,7 @@ public abstract class DatabaseSync {
      *
      * @param tableBucketsMap The table name and buckets map. The key is table name, the value is
      *     buckets.
+     * @param dorisSchema @{TableSchema}
      * @param dorisTable the table name need to set buckets
      * @param tableHasSet The buckets table is set
      */
