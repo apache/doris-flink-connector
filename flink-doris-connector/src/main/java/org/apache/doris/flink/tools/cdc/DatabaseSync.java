@@ -414,7 +414,6 @@ public abstract class DatabaseSync {
             TableSchema dorisSchema,
             String dorisTable,
             Set<String> tableHasSet) {
-
         // Firstly, if the table name is in the table-buckets map, set the buckets of the table.
         if (tableBucketsMap != null) {
             // Firstly, if the table name is in the table-buckets map, set the buckets of the table.
@@ -423,12 +422,12 @@ public abstract class DatabaseSync {
                 tableHasSet.add(dorisTable);
                 return;
             }
-
             // Secondly, iterate over the map to find a corresponding regular expression match,
             for (Map.Entry<String, Integer> entry : tableBucketsMap.entrySet()) {
                 if (tableHasSet.contains(entry.getKey())) {
                     continue;
                 }
+
                 Pattern pattern = Pattern.compile(entry.getKey());
                 if (pattern.matcher(dorisTable).matches()) {
                     dorisSchema.setTableBuckets(entry.getValue());
