@@ -407,31 +407,33 @@ public abstract class DatabaseSync {
      * @param tableBucketsMap The table name and buckets map. The key is table name, the value is
      *     buckets.
      * @param dorisTable the table name need to set buckets
-     * @param tableHashSet The buckets table is set
+     * @param tableHasSet The buckets table is set
      */
-    public static void setTableSchemaBuckets(
+    public void setTableSchemaBuckets(
             Map<String, Integer> tableBucketsMap,
             TableSchema dorisSchema,
             String dorisTable,
-            Set<String> tableHashSet) {
+            Set<String> tableHasSet) {
 
         // Firstly, if the table name is in the table-buckets map, set the buckets of the table.
-        if (tableBucketsMap.containsKey(dorisTable)) {
-            dorisSchema.setTableBuckets(tableBucketsMap.get(dorisTable));
-            tableHashSet.add(dorisTable);
-            return;
-        }
-        // Secondly, iterate over the map to find a corresponding regular expression match,
-        for (Map.Entry<String, Integer> entry : tableBucketsMap.entrySet()) {
-            if (tableHashSet.contains(entry.getKey())) {
-                continue;
+        if (tableBucketsMap != null) {
+            // Firstly, if the table name is in the table-buckets map, set the buckets of the table.
+            if (tableBucketsMap.containsKey(dorisTable)) {
+                dorisSchema.setTableBuckets(tableBucketsMap.get(dorisTable));
+                tableHasSet.add(dorisTable);
             }
 
-            Pattern pattern = Pattern.compile(entry.getKey());
-            if (pattern.matcher(dorisTable).matches()) {
-                dorisSchema.setTableBuckets(entry.getValue());
-                tableHashSet.add(dorisTable);
-                return;
+            // Secondly, iterate over the map to find a corresponding regular expression match,
+            for (Map.Entry<String, Integer> entry : tableBucketsMap.entrySet()) {
+                if (tableHasSet.contains(entry.getKey())) {
+                    continue;
+                }
+                Pattern pattern = Pattern.compile(entry.getKey());
+                if (pattern.matcher(dorisTable).matches()) {
+                    dorisSchema.setTableBuckets(entry.getValue());
+                    tableHasSet.add(dorisTable);
+                    return;
+                }
             }
         }
     }
