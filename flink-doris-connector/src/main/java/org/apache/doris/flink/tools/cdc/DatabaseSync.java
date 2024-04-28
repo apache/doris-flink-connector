@@ -107,7 +107,9 @@ public abstract class DatabaseSync {
         this.multiToOneRulesPattern = multiToOneRulesParser(multiToOneOrigin, multiToOneTarget);
         this.converter = new TableNameConverter(tablePrefix, tableSuffix, multiToOneRulesPattern);
         // default enable light schema change
-        this.tableConfig.putIfAbsent(LIGHT_SCHEMA_CHANGE, "true");
+        if (!this.tableConfig.containsKey(LIGHT_SCHEMA_CHANGE)) {
+            this.tableConfig.put(LIGHT_SCHEMA_CHANGE, "true");
+        }
     }
 
     public void build() throws Exception {
@@ -236,7 +238,10 @@ public abstract class DatabaseSync {
             dorisBuilder.setTableIdentifier(tableIdentifier);
         }
 
-        Properties pro = DorisExecutionOptions.defaultsProperties();
+        Properties pro = new Properties();
+        // default json data format
+        pro.setProperty("format", "json");
+        pro.setProperty("read_json_by_line", "true");
         // customer stream load properties
         Properties streamLoadProp = DorisConfigOptions.getStreamLoadProp(sinkConfig.toMap());
         pro.putAll(streamLoadProp);
@@ -390,11 +395,6 @@ public abstract class DatabaseSync {
         String[] tableBucketsArray = tableBuckets.split(",");
         for (String tableBucket : tableBucketsArray) {
             String[] tableBucketArray = tableBucket.split(":");
-            Preconditions.checkArgument(
-                    tableBucketArray.length == 2,
-                    "Invalid table bucket entry format for '"
-                            + tableBucket
-                            + "'. Expected format: 'tableName:bucketsNum'");
             tableBucketsMap.put(
                     tableBucketArray[0].trim(), Integer.parseInt(tableBucketArray[1].trim()));
         }
@@ -407,35 +407,33 @@ public abstract class DatabaseSync {
      * @param tableBucketsMap The table name and buckets map. The key is table name, the value is
      *     buckets.
      * @param dorisTable the table name need to set buckets
-     * @param tablesWithBucketsAssigned The buckets table is set
+     * @param tableHashSet The buckets table is set
      */
-    public Integer getTableBuckets(
+    public static void setTableSchemaBuckets(
             Map<String, Integer> tableBucketsMap,
+            TableSchema dorisSchema,
             String dorisTable,
-            Set<String> tablesWithBucketsAssigned) {
+            Set<String> tableHashSet) {
 
-        if (tableBucketsMap == null || tableBucketsMap.isEmpty()) {
-            return null;
-        } else {
-            // Firstly, if the table name is in the table-buckets map, set the buckets of the table.
-            if (tableBucketsMap.containsKey(dorisTable)) {
-                tablesWithBucketsAssigned.add(dorisTable);
-                return tableBucketsMap.get(dorisTable);
+        // Firstly, if the table name is in the table-buckets map, set the buckets of the table.
+        if (tableBucketsMap.containsKey(dorisTable)) {
+            dorisSchema.setTableBuckets(tableBucketsMap.get(dorisTable));
+            tableHashSet.add(dorisTable);
+            return;
+        }
+        // Secondly, iterate over the map to find a corresponding regular expression match,
+        for (Map.Entry<String, Integer> entry : tableBucketsMap.entrySet()) {
+            if (tableHashSet.contains(entry.getKey())) {
+                continue;
             }
-            // Secondly, iterate over the map to find a corresponding regular expression match,
-            for (Map.Entry<String, Integer> entry : tableBucketsMap.entrySet()) {
-                if (tablesWithBucketsAssigned.contains(entry.getKey())) {
-                    continue;
-                }
 
-                Pattern pattern = Pattern.compile(entry.getKey());
-                if (pattern.matcher(dorisTable).matches()) {
-                    tablesWithBucketsAssigned.add(dorisTable);
-                    return entry.getValue();
-                }
+            Pattern pattern = Pattern.compile(entry.getKey());
+            if (pattern.matcher(dorisTable).matches()) {
+                dorisSchema.setTableBuckets(entry.getValue());
+                tableHashSet.add(dorisTable);
+                return;
             }
         }
-        return null;
     }
 
     private boolean tryCreateTableIfAbsent(
@@ -451,8 +449,7 @@ public abstract class DatabaseSync {
             dorisSchema.setTable(dorisTable);
             // set the table buckets of table
             if (tableBucketsMap != null) {
-                Integer buckets = getTableBuckets(tableBucketsMap, dorisTable, tableBucketsSet);
-                dorisSchema.setTableBuckets(buckets);
+                setTableSchemaBuckets(tableBucketsMap, dorisSchema, dorisTable, tableBucketsSet);
             }
             try {
                 dorisSystem.createTable(dorisSchema);
