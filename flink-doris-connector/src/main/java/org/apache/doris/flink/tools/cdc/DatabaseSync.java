@@ -46,6 +46,7 @@ import org.slf4j.LoggerFactory;
 import java.io.Serializable;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.sql.SQLSyntaxErrorException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -465,12 +466,13 @@ public abstract class DatabaseSync {
     }
 
     private void handleTableCreationFailure(Exception ex) throws DorisSystemException {
-        if (!ignoreIncompatible) {
-            throw new DorisSystemException(ex);
+        if (ignoreIncompatible && ex.getCause() instanceof SQLSyntaxErrorException) {
+            LOG.warn(
+                    "Doris schema and source table schema are not compatible. Error: {} ",
+                    ex.getCause().toString());
+        } else {
+            throw new DorisSystemException("Failed to create table due to: ", ex);
         }
-        LOG.warn(
-                "Doris schema and source table schema are not compatible. Error: {}",
-                ex.getMessage());
     }
 
     public DatabaseSync setEnv(StreamExecutionEnvironment env) {
