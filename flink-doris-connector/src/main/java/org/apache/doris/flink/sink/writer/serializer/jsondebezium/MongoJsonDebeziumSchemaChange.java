@@ -57,7 +57,7 @@ public class MongoJsonDebeziumSchemaChange extends CdcSchemaChange {
 
     private final Map<String, Map<String, String>> tableFields;
 
-    private SchemaChangeManager schemaChangeManager;
+    private final SchemaChangeManager schemaChangeManager;
 
     private final DorisSystem dorisSystem;
 
@@ -105,7 +105,6 @@ public class MongoJsonDebeziumSchemaChange extends CdcSchemaChange {
         // schema change
         checkAndUpdateSchemaChange(logData, dorisTableIdentifier, dataBase, table);
         formatSpecialFieldData(logData);
-        //        checkDataAndReplace(logData, dorisTableIdentifier);
         ((ObjectNode) recordRoot).set(FIELD_DATA, logData);
         return true;
     }
@@ -136,7 +135,6 @@ public class MongoJsonDebeziumSchemaChange extends CdcSchemaChange {
                                             long longFiled = fieldNode.get(LONG_FIELD).asLong();
                                             ((ObjectNode) logData).put(fieldName, longFiled);
                                             break;
-                                        default:
                                     }
                                 }
                             }
@@ -161,7 +159,7 @@ public class MongoJsonDebeziumSchemaChange extends CdcSchemaChange {
                                 if (!tableFieldMap.containsKey(name)) {
                                     doSchemaChange(name, logData, database, table);
                                 }
-                            } catch (IOException | IllegalArgumentException e) {
+                            } catch (Exception e) {
                                 throw new RuntimeException("Error during schema change", e);
                             }
                         });
@@ -179,9 +177,8 @@ public class MongoJsonDebeziumSchemaChange extends CdcSchemaChange {
 
     private void buildDorisTableFieldsMapping(String databaseName, String tableName) {
         String identifier = databaseName + "." + tableName;
-        Map<String, String> tableFieldNames =
-                dorisSystem.getTableFieldNames(databaseName, tableName);
-        tableFields.computeIfAbsent(identifier, k -> tableFieldNames);
+        tableFields.computeIfAbsent(
+                identifier, k -> dorisSystem.getTableFieldNames(databaseName, tableName));
     }
 
     @Override
@@ -196,9 +193,4 @@ public class MongoJsonDebeziumSchemaChange extends CdcSchemaChange {
         String db = nameSpace.get(FIELD_DATABASE).asText();
         return SourceSchema.getString(db, null, table);
     }
-
-    ////    @Override
-    //    public void setSchemaChangeManager(SchemaChangeManager schemaChangeManager) {
-    //        this.schemaChangeManager = schemaChangeManager;
-    //    }
 }

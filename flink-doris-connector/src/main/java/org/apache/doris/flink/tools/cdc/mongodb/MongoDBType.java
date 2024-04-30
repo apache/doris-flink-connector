@@ -17,6 +17,8 @@
 
 package org.apache.doris.flink.tools.cdc.mongodb;
 
+import org.apache.flink.api.java.tuple.Tuple2;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.BooleanNode;
@@ -27,6 +29,7 @@ import com.fasterxml.jackson.databind.node.LongNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.TextNode;
 import org.apache.doris.flink.catalog.doris.DorisType;
+import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.bson.BsonArray;
 import org.bson.types.Decimal128;
 import org.bson.types.ObjectId;
@@ -56,7 +59,7 @@ public class MongoDBType {
         } else if (value instanceof String) {
             return DorisType.STRING;
         } else if (value instanceof ObjectId) {
-            return DorisType.STRING;
+            return DorisType.VARCHAR + "(30)";
         } else if (value instanceof BsonArray) {
             return DorisType.ARRAY;
         } else if (value instanceof Decimal128) {
@@ -96,19 +99,18 @@ public class MongoDBType {
         }
     }
 
-    public static int[] getDecimalPrecisionAndScale(String decimalString) {
-        int[] precisionAndScale = new int[2];
-
+    public static Tuple2<Integer, Integer> getDecimalPrecisionAndScale(String decimalString) {
         // 简化的正则表达式，匹配括号中的两个数字
         String regex = "\\((\\d+),(\\d+)\\)";
         Pattern pattern = Pattern.compile(regex);
         Matcher matcher = pattern.matcher(decimalString);
 
         if (matcher.find()) {
-            precisionAndScale[0] = Integer.parseInt(matcher.group(1));
-            precisionAndScale[1] = Integer.parseInt(matcher.group(2));
+            Integer precision = Integer.parseInt(matcher.group(1));
+            Integer scale = Integer.parseInt(matcher.group(2));
+            return new Tuple2<>(precision, scale);
         }
-        return precisionAndScale;
+        throw new DorisRuntimeException("Get Decimal precision and Scale error !");
     }
 
     public static String checkAndRebuildBigDecimal(BigDecimal decimal) {

@@ -11,8 +11,14 @@ import java.util.UUID;
 
 public class CdcMongoSyncDatabaseCase {
     public static void main(String[] args) throws Exception {
+        Configuration conf = new Configuration();
+        //        conf.setString(RestOptions.BIND_PORT, "8018");
+        //        conf.setString("rest.flamegraph.enabled", "true");
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        //        env.setParallelism(1);
+        //        StreamExecutionEnvironment env =
+        // StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(conf);
+
+        //                env.setParallelism(4);
         //        env.getCheckpointConfig().setCheckpointTimeout(10000);
         //        env.getCheckpointConfig().setMinPauseBetweenCheckpoints(2000);
         //        env.getCheckpointConfig().setCheckpointStorage(
@@ -22,7 +28,7 @@ public class CdcMongoSyncDatabaseCase {
         Map<String, String> flinkMap = new HashMap<>();
         flinkMap.put("execution.checkpointing.interval", "10s");
         flinkMap.put("pipeline.operator-chaining", "false");
-        flinkMap.put("parallelism.default", "1");
+        flinkMap.put("parallelism.default", "8");
 
         String database = "cdc_test";
         String tablePrefix = "";
@@ -56,7 +62,7 @@ public class CdcMongoSyncDatabaseCase {
         Map<String, String> tableConfig = new HashMap<>();
         tableConfig.put("replication_num", "1");
         tableConfig.put("table-buckets", ".*:1");
-        String includingTables = "cdc_test_3";
+        String includingTables = "cdc_test";
         //        String includingTables = "a_.*|b_.*|c";
         String excludingTables = "";
         String multiToOneOrigin = "a_.*|b_.*";

@@ -17,31 +17,29 @@
 
 package org.apache.doris.flink.tools.cdc.mongodb;
 
+import org.apache.flink.api.java.tuple.Tuple2;
+
 import org.apache.doris.flink.catalog.doris.DorisType;
 import org.apache.doris.flink.catalog.doris.FieldSchema;
 import org.apache.doris.flink.tools.cdc.SourceSchema;
 import org.bson.Document;
 
-import java.math.BigDecimal;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.Map;
 
 public class MongoDBSchema extends SourceSchema {
 
-    private HashMap<String, BigDecimal> decimalFiledMap = new LinkedHashMap<>();
-
     public MongoDBSchema(
-            //            HashMap<String, Object> fieldDatas,
-            ArrayList<Document> sampleDatas,
+            ArrayList<Document> sampleData,
             String databaseName,
             String tableName,
             String tableComment)
             throws Exception {
         super(databaseName, null, tableName, tableComment);
         fields = new LinkedHashMap<>();
-        for (Document sampleData : sampleDatas) {
-            processSampleData(sampleData);
+        for (Document data : sampleData) {
+            processSampleData(data);
         }
 
         primaryKeys = new ArrayList<>();
@@ -49,11 +47,11 @@ public class MongoDBSchema extends SourceSchema {
     }
 
     private void processSampleData(Document sampleData) {
-        for (String fieldName : sampleData.keySet()) {
-            Object value = sampleData.get(fieldName);
+        for (Map.Entry<String, Object> entry : sampleData.entrySet()) {
+            String fieldName = entry.getKey();
+            Object value = entry.getValue();
             String dorisType = MongoDBType.toDorisType(value);
             if (isDecimalField(fieldName)) {
-
                 dorisType = replaceDecimalTypeIfNeeded(fieldName, dorisType);
             }
             fields.put(fieldName, new FieldSchema(fieldName, dorisType, null));
@@ -68,19 +66,17 @@ public class MongoDBSchema extends SourceSchema {
     private String replaceDecimalTypeIfNeeded(String fieldName, String newDorisType) {
         FieldSchema existingField = fields.get(fieldName);
         if (existingField.getTypeString().startsWith(DorisType.DECIMAL)) {
-            int[] existingPrecisionAndScale =
+            Tuple2<Integer, Integer> existingPrecisionAndScale =
                     MongoDBType.getDecimalPrecisionAndScale(existingField.getTypeString());
-            int existingPrecision = existingPrecisionAndScale[0];
-            int existingScale = existingPrecisionAndScale[1];
+            int existingPrecision = existingPrecisionAndScale.f0;
+            int existingScale = existingPrecisionAndScale.f1;
 
-            // 提取当前值的 decimal 精度和小数位数
-            int[] currentPrecisionAndScale = MongoDBType.getDecimalPrecisionAndScale(newDorisType);
-            int currentPrecision = currentPrecisionAndScale[0];
-            int currentScale = currentPrecisionAndScale[1];
+            Tuple2<Integer, Integer> currentPrecisionAndScale =
+                    MongoDBType.getDecimalPrecisionAndScale(newDorisType);
+            int currentPrecision = currentPrecisionAndScale.f0;
+            int currentScale = currentPrecisionAndScale.f1;
 
-            // 新的标度是现有标度和当前标度中的最大值
             int newScale = Math.max(existingScale, currentScale);
-            // 新的精度是两者整数部分的最大值加上新的标度
             int newIntegerPartSize =
                     Math.max(existingPrecision - existingScale, currentPrecision - currentScale);
             int newPrecision = newIntegerPartSize + newScale;
