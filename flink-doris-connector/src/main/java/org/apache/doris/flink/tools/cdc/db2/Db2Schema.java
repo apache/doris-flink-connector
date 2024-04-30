@@ -17,11 +17,11 @@
 
 package org.apache.doris.flink.tools.cdc.db2;
 
-import org.apache.doris.flink.tools.cdc.SourceSchema;
+import org.apache.doris.flink.tools.cdc.JdbcSourceSchema;
 
 import java.sql.DatabaseMetaData;
 
-public class Db2Schema extends SourceSchema {
+public class Db2Schema extends JdbcSourceSchema {
     public Db2Schema(
             DatabaseMetaData metaData,
             String databaseName,
@@ -29,11 +29,16 @@ public class Db2Schema extends SourceSchema {
             String tableName,
             String tableComment)
             throws Exception {
-        super(metaData, null, schemaName, tableName, tableComment);
+        super(metaData, databaseName, schemaName, tableName, tableComment);
     }
 
     @Override
     public String convertToDorisType(String fieldType, Integer precision, Integer scale) {
         return Db2Type.toDorisType(fieldType, precision, scale);
+    }
+
+    @Override
+    public String getCdcTableName() {
+        return schemaName + "\\." + tableName;
     }
 }
