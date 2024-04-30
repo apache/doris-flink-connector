@@ -396,6 +396,11 @@ public abstract class DatabaseSync {
         String[] tableBucketsArray = tableBuckets.split(",");
         for (String tableBucket : tableBucketsArray) {
             String[] tableBucketArray = tableBucket.split(":");
+            Preconditions.checkArgument(
+                    tableBucketArray.length == 2,
+                    "Invalid table bucket entry format for '"
+                            + tableBucket
+                            + "'. Expected format: 'tableName:bucketsNum'");
             tableBucketsMap.put(
                     tableBucketArray[0].trim(), Integer.parseInt(tableBucketArray[1].trim()));
         }
@@ -403,41 +408,37 @@ public abstract class DatabaseSync {
     }
 
     /**
-     * Set table schema buckets.
+     * Get the number of buckets for a specified table schema.
      *
      * @param tableBucketsMap The table name and buckets map. The key is table name, the value is
      *     buckets.
-     * @param dorisSchema @{TableSchema}
      * @param dorisTable the table name need to set buckets
-     * @param tableHasSet The buckets table is set
+     * @param tablesWithBucketsAssigned The buckets table is set
      */
-    public void setTableSchemaBuckets(
+    public Integer getTableSchemaBuckets(
             Map<String, Integer> tableBucketsMap,
-            TableSchema dorisSchema,
             String dorisTable,
-            Set<String> tableHasSet) {
+            Set<String> tablesWithBucketsAssigned) {
 
-        if (tableBucketsMap != null) {
-            // Firstly, if the table name is in the table-buckets map, set the buckets of the table.
-            if (tableBucketsMap.containsKey(dorisTable)) {
-                dorisSchema.setTableBuckets(tableBucketsMap.get(dorisTable));
-                tableHasSet.add(dorisTable);
-                return;
-            }
-            // Secondly, iterate over the map to find a corresponding regular expression match,
-            for (Map.Entry<String, Integer> entry : tableBucketsMap.entrySet()) {
-                if (tableHasSet.contains(entry.getKey())) {
-                    continue;
-                }
-
+        if (tableBucketsMap == null || tableBucketsMap.isEmpty()) {
+            return null;
+        }
+        // Firstly, if the table name is in the table-buckets map, set the buckets of the table.
+        if (tableBucketsMap.containsKey(dorisTable)) {
+            tablesWithBucketsAssigned.add(dorisTable);
+            return tableBucketsMap.get(dorisTable);
+        }
+        // Secondly, iterate over the map to find a corresponding regular expression match,
+        for (Map.Entry<String, Integer> entry : tableBucketsMap.entrySet()) {
+            if (!tablesWithBucketsAssigned.contains(entry.getKey())) {
                 Pattern pattern = Pattern.compile(entry.getKey());
                 if (pattern.matcher(dorisTable).matches()) {
-                    dorisSchema.setTableBuckets(entry.getValue());
-                    tableHasSet.add(dorisTable);
-                    return;
+                    tablesWithBucketsAssigned.add(dorisTable);
+                    return entry.getValue();
                 }
             }
         }
+        return null;
     }
 
     private boolean tryCreateTableIfAbsent(
@@ -453,7 +454,9 @@ public abstract class DatabaseSync {
             dorisSchema.setTable(dorisTable);
             // set the table buckets of table
             if (tableBucketsMap != null) {
-                setTableSchemaBuckets(tableBucketsMap, dorisSchema, dorisTable, tableBucketsSet);
+                Integer bucketsNum =
+                        getTableSchemaBuckets(tableBucketsMap, dorisTable, tableBucketsSet);
+                dorisSchema.setTableBuckets(bucketsNum);
             }
             try {
                 dorisSystem.createTable(dorisSchema);

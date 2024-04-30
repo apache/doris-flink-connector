@@ -278,18 +278,19 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
 
     @VisibleForTesting
     public Integer getTableSchemaBuckets(Map<String, Integer> tableBucketsMap, String tableName) {
-        if (tableBucketsMap != null) {
-            // Firstly, if the table name is in the table-buckets map, set the buckets of the table.
-            if (tableBucketsMap.containsKey(tableName)) {
-                return tableBucketsMap.get(tableName);
-            }
-            // Secondly, iterate over the map to find a corresponding regular expression match,
-            for (Map.Entry<String, Integer> entry : tableBucketsMap.entrySet()) {
+        if (tableBucketsMap == null || tableBucketsMap.isEmpty()) {
+            return null;
+        }
+        // Firstly, if the table name is in the table-buckets map, set the buckets of the table.
+        if (tableBucketsMap.containsKey(tableName)) {
+            return tableBucketsMap.get(tableName);
+        }
+        // Secondly, iterate over the map to find a corresponding regular expression match,
+        for (Map.Entry<String, Integer> entry : tableBucketsMap.entrySet()) {
 
-                Pattern pattern = Pattern.compile(entry.getKey());
-                if (pattern.matcher(tableName).matches()) {
-                    return entry.getValue();
-                }
+            Pattern pattern = Pattern.compile(entry.getKey());
+            if (pattern.matcher(tableName).matches()) {
+                return entry.getValue();
             }
         }
         return null;
