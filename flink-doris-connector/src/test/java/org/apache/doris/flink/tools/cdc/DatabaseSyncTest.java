@@ -62,7 +62,7 @@ public class DatabaseSyncTest {
         config.setString("table-name", "tbl.*");
         databaseSync.setConfig(config);
         String syncTableList = databaseSync.getSyncTableList(Arrays.asList("tbl_1", "tbl_2"));
-        assertEquals("db\\.tbl_1|db\\.tbl_2", syncTableList);
+        assertEquals("(db)\\.(tbl_1|tbl_2)", syncTableList);
     }
 
     @Test

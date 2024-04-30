@@ -16,14 +16,14 @@
 # under the License.
 #
 ---
-name: Run ITCases 2.0
+name: Run ITCases
 on:
   pull_request:
   push:
 
 jobs:
   build-extension:
-    name: "Run ITCases 2.0"
+    name: "Run ITCases"
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -40,5 +40,5 @@ jobs:
 
     - name: Run ITCases
       run: |
-        cd flink-doris-connector && mvn test -Dtest="*ITCase" -Dimage="adamlee489/doris:2.0.3"
+        cd flink-doris-connector && mvn test -Dtest="*ITCase" -Dimage="apache/doris:doris-all-in-one-2.1.0"
 

@@ -19,6 +19,7 @@ package org.apache.doris.flink.sink.writer;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -68,7 +69,7 @@ public class DorisStreamLoad implements Serializable {
     private final byte[] lineDelimiter;
     private static final String LOAD_URL_PATTERN = "http://%s/api/%s/%s/_stream_load";
     private static final String ABORT_URL_PATTERN = "http://%s/api/%s/_stream_load_2pc";
-    private static final String JOB_EXIST_FINISHED = "FINISHED";
+    public static final String JOB_EXIST_FINISHED = "FINISHED";
 
     private String loadUrlStr;
     private String hostPort;
@@ -154,21 +155,26 @@ public class DorisStreamLoad implements Serializable {
     }
 
     /**
-     * try to discard pending transactions with labels beginning with labelSuffix.
+     * try to discard pending transactions with labels beginning with labelPrefix.
      *
-     * @param labelSuffix the suffix of the stream load.
+     * @param labelPrefix the prefix of the stream load.
      * @param chkID checkpoint id of task.
      * @throws Exception
      */
-    public void abortPreCommit(String labelSuffix, long chkID) throws Exception {
+    public void abortPreCommit(String labelPrefix, long chkID) throws Exception {
         long startChkID = chkID;
-        LOG.info("abort for labelSuffix {}. start chkId {}.", labelSuffix, chkID);
+        LOG.info(
+                "abort for labelPrefix {}, concat labelPrefix {},  start chkId {}.",
+                labelPrefix,
+                labelGenerator.getConcatLabelPrefix(),
+                chkID);
         while (true) {
             try {
-                // TODO: According to label abort txn. Currently, it can only be aborted based on
-                // txnid,
-                //  so we must first request a streamload based on the label to get the txnid.
+                // TODO: According to label abort txn.
+                //  Currently, it can only be aborted based on txnid, so we must
+                //  first request a streamload based on the label to get the txnid.
                 String label = labelGenerator.generateTableLabel(startChkID);
+                LOG.info("start a check label {} to load.", label);
                 HttpPutBuilder builder = new HttpPutBuilder();
                 builder.setUrl(loadUrlStr)
                         .baseAuth(user, passwd)
@@ -210,11 +216,11 @@ public class DorisStreamLoad implements Serializable {
                 }
                 startChkID++;
             } catch (Exception e) {
-                LOG.warn("failed to stream load data", e);
+                LOG.warn("failed to abort labelPrefix {}", labelPrefix, e);
                 throw e;
             }
         }
-        LOG.info("abort for labelSuffix {} finished", labelSuffix);
+        LOG.info("abort for labelPrefix {} finished", labelPrefix);
     }
 
     /**
@@ -315,15 +321,81 @@ public class DorisStreamLoad implements Serializable {
 
         ObjectMapper mapper = new ObjectMapper();
         String loadResult = EntityUtils.toString(response.getEntity());
+        LOG.info("abort Result {}", loadResult);
         Map<String, String> res =
                 mapper.readValue(loadResult, new TypeReference<HashMap<String, String>>() {});
         if (!SUCCESS.equals(res.get("status"))) {
-            if (ResponseUtil.isCommitted(res.get("msg"))) {
-                throw new DorisException(
-                        "try abort committed transaction, " + "do you recover from old savepoint?");
+            String msg = res.get("msg");
+            if (msg != null && ResponseUtil.isAborted(msg)) {
+                LOG.warn("Failed to abort transaction, {}", msg);
+                return;
             }
-            LOG.warn("Fail to abort transaction. txnId: {}, error: {}", txnID, res.get("msg"));
+
+            LOG.error("Fail to abort transaction. txnId: {}, error: {}", txnID, msg);
+            throw new DorisException("Fail to abort transaction, " + loadResult);
         }
+    }
+
+    public void abortTransactionByLabel(String label) throws Exception {
+        if (StringUtils.isNullOrWhitespaceOnly(label)) {
+            return;
+        }
+        HttpPutBuilder builder = new HttpPutBuilder();
+        builder.setUrl(abortUrlStr)
+                .baseAuth(user, passwd)
+                .addCommonHeader()
+                .setLabel(label)
+                .setEmptyEntity()
+                .abort();
+        CloseableHttpResponse response = httpClient.execute(builder.build());
+
+        int statusCode = response.getStatusLine().getStatusCode();
+        if (statusCode != 200 || response.getEntity() == null) {
+            LOG.warn("abort transaction by label response: " + response.getStatusLine().toString());
+            throw new DorisRuntimeException(
+                    "Fail to abort transaction by label " + label + " with url " + abortUrlStr);
+        }
+
+        ObjectMapper mapper = new ObjectMapper();
+        String loadResult = EntityUtils.toString(response.getEntity());
+        LOG.info("abort Result {}", loadResult);
+        Map<String, String> res =
+                mapper.readValue(loadResult, new TypeReference<HashMap<String, String>>() {});
+        if (!SUCCESS.equals(res.get("status"))) {
+            String msg = res.get("msg");
+            if (msg != null && ResponseUtil.isCommitted(msg)) {
+                throw new DorisException(
+                        "try abort committed transaction by label, "
+                                + "do you recover from old savepoint?");
+            }
+
+            LOG.error("Fail to abort transaction by label. label: {}, error: {}", label, msg);
+            throw new DorisException("Fail to abort transaction by label, " + loadResult);
+        }
+    }
+
+    public void abortLabelExistTransaction(RespContent respContent) {
+        if (respContent == null || respContent.getMessage() == null) {
+            return;
+        }
+        try {
+            Matcher matcher = LABEL_EXIST_PATTERN.matcher(respContent.getMessage());
+            if (matcher.find()) {
+                long txnId = Long.parseLong(matcher.group(2));
+                abortTransaction(txnId);
+                LOG.info(
+                        "Finish to abort transaction {} for label already exist {}",
+                        txnId,
+                        respContent.getLabel());
+            }
+        } catch (Exception ex) {
+            LOG.error(
+                    "Failed abort transaction {} for label already exist", respContent.getLabel());
+        }
+    }
+
+    public String getCurrentLabel() {
+        return currentLabel;
     }
 
     public void close() throws IOException {

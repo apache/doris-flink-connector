@@ -57,4 +57,19 @@ public class RecordWithMeta {
     public String getTableIdentifier() {
         return this.database + "." + this.table;
     }
+
+    @Override
+    public String toString() {
+        return "RecordWithMeta{"
+                + "database='"
+                + database
+                + '\''
+                + ", table='"
+                + table
+                + '\''
+                + ", record='"
+                + record
+                + '\''
+                + '}';
+    }
 }

@@ -32,7 +32,8 @@ import static org.apache.doris.flink.sink.writer.LoadConstants.READ_JSON_BY_LINE
 public class DorisExecutionOptions implements Serializable {
 
     private static final long serialVersionUID = 1L;
-    public static final int DEFAULT_CHECK_INTERVAL = 10000;
+    // 0 means disable checker thread
+    public static final int DEFAULT_CHECK_INTERVAL = 0;
     public static final int DEFAULT_MAX_RETRY_TIMES = 3;
     private static final int DEFAULT_BUFFER_SIZE = 1024 * 1024;
     private static final int DEFAULT_BUFFER_COUNT = 3;
@@ -63,6 +64,7 @@ public class DorisExecutionOptions implements Serializable {
     private final boolean enableBatchMode;
     private final boolean ignoreUpdateBefore;
     private final WriteMode writeMode;
+    private final boolean ignoreCommitError;
 
     public DorisExecutionOptions(
             int checkInterval,
@@ -81,7 +83,8 @@ public class DorisExecutionOptions implements Serializable {
             long bufferFlushIntervalMs,
             boolean ignoreUpdateBefore,
             boolean force2PC,
-            WriteMode writeMode) {
+            WriteMode writeMode,
+            boolean ignoreCommitError) {
         Preconditions.checkArgument(maxRetries >= 0);
         this.checkInterval = checkInterval;
         this.maxRetries = maxRetries;
@@ -102,6 +105,7 @@ public class DorisExecutionOptions implements Serializable {
 
         this.ignoreUpdateBefore = ignoreUpdateBefore;
         this.writeMode = writeMode;
+        this.ignoreCommitError = ignoreCommitError;
     }
 
     public static Builder builder() {
@@ -205,6 +209,10 @@ public class DorisExecutionOptions implements Serializable {
         return writeMode;
     }
 
+    public boolean ignoreCommitError() {
+        return ignoreCommitError;
+    }
+
     /** Builder of {@link DorisExecutionOptions}. */
     public static class Builder {
         private int checkInterval = DEFAULT_CHECK_INTERVAL;
@@ -229,6 +237,7 @@ public class DorisExecutionOptions implements Serializable {
 
         private boolean ignoreUpdateBefore = true;
         private WriteMode writeMode = WriteMode.STREAM_LOAD;
+        private boolean ignoreCommitError = false;
 
         public Builder setCheckInterval(Integer checkInterval) {
             this.checkInterval = checkInterval;
@@ -284,6 +293,9 @@ public class DorisExecutionOptions implements Serializable {
 
         public Builder setBatchMode(Boolean enableBatchMode) {
             this.enableBatchMode = enableBatchMode;
+            if (enableBatchMode.equals(Boolean.TRUE)) {
+                this.writeMode = WriteMode.STREAM_LOAD_BATCH;
+            }
             return this;
         }
 
@@ -320,6 +332,11 @@ public class DorisExecutionOptions implements Serializable {
             return this;
         }
 
+        public Builder setIgnoreCommitError(boolean ignoreCommitError) {
+            this.ignoreCommitError = ignoreCommitError;
+            return this;
+        }
+
         public DorisExecutionOptions build() {
             // If format=json is set but read_json_by_line is not set, record may not be written.
             if (streamLoadProp != null
@@ -344,7 +361,8 @@ public class DorisExecutionOptions implements Serializable {
                     bufferFlushIntervalMs,
                     ignoreUpdateBefore,
                     force2PC,
-                    writeMode);
+                    writeMode,
+                    ignoreCommitError);
         }
     }
 }

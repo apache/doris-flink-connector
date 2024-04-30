@@ -26,6 +26,7 @@ import org.apache.flink.table.connector.source.SourceProvider;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
 
+import org.apache.doris.flink.cfg.DorisLookupOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.sink.OptionUtils;
 import org.apache.doris.flink.source.DorisSource;
@@ -48,7 +49,9 @@ public class DorisDynamicTableSourceTest {
                 new DorisDynamicTableSource(
                         OptionUtils.buildDorisOptions(),
                         builder.build(),
-                        TableSchema.fromResolvedSchema(FactoryMocks.SCHEMA));
+                        DorisLookupOptions.builder().build(),
+                        TableSchema.fromResolvedSchema(FactoryMocks.SCHEMA),
+                        FactoryMocks.PHYSICAL_DATA_TYPE);
         ScanTableSource.ScanRuntimeProvider provider =
                 actualDorisSource.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
         assertDorisSource(provider);
@@ -60,7 +63,9 @@ public class DorisDynamicTableSourceTest {
                 new DorisDynamicTableSource(
                         OptionUtils.buildDorisOptions(),
                         OptionUtils.buildDorisReadOptions(),
-                        TableSchema.fromResolvedSchema(FactoryMocks.SCHEMA));
+                        DorisLookupOptions.builder().build(),
+                        TableSchema.fromResolvedSchema(FactoryMocks.SCHEMA),
+                        FactoryMocks.PHYSICAL_DATA_TYPE);
         ScanTableSource.ScanRuntimeProvider provider =
                 actualDorisSource.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
         assertDorisSource(provider);

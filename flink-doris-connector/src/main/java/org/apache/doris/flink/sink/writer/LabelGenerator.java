@@ -69,4 +69,9 @@ public class LabelGenerator {
     public String generateCopyBatchLabel(String table, long chkId, int fileNum) {
         return String.format("%s_%s_%s_%s_%s", labelPrefix, table, subtaskId, chkId, fileNum);
     }
+
+    public String getConcatLabelPrefix() {
+        String concatPrefix = String.format("%s_%s_%s", labelPrefix, tableIdentifier, subtaskId);
+        return concatPrefix;
+    }
 }

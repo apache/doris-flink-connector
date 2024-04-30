@@ -15,31 +15,22 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.flink.tools.cdc.sqlserver;
+package org.apache.doris.flink.tools.cdc;
 
-import org.apache.doris.flink.tools.cdc.JdbcSourceSchema;
+public class MockSourceSchema extends SourceSchema {
 
-import java.sql.DatabaseMetaData;
-
-public class SqlServerSchema extends JdbcSourceSchema {
-
-    public SqlServerSchema(
-            DatabaseMetaData metaData,
-            String databaseName,
-            String schemaName,
-            String tableName,
-            String tableComment)
+    public MockSourceSchema(String databaseName, String schemaName, String tableName)
             throws Exception {
-        super(metaData, databaseName, schemaName, tableName, tableComment);
+        super(databaseName, schemaName, tableName, "");
     }
 
     @Override
     public String convertToDorisType(String fieldType, Integer precision, Integer scale) {
-        return SqlServerType.toDorisType(fieldType, precision, scale);
+        return null;
     }
 
     @Override
     public String getCdcTableName() {
-        return schemaName + "\\." + tableName;
+        return databaseName + "\\." + tableName;
     }
 }

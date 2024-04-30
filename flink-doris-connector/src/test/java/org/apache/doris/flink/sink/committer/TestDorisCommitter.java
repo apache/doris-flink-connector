@@ -17,6 +17,7 @@
 
 package org.apache.doris.flink.sink.committer;
 
+import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.exception.DorisRuntimeException;
@@ -59,6 +60,7 @@ public class TestDorisCommitter {
     public void setUp() throws Exception {
         DorisOptions dorisOptions = OptionUtils.buildDorisOptions();
         DorisReadOptions readOptions = OptionUtils.buildDorisReadOptions();
+        DorisExecutionOptions executionOptions = OptionUtils.buildExecutionOptional();
         dorisCommittable = new DorisCommittable("127.0.0.1:8710", "test", 0);
         CloseableHttpClient httpClient = mock(CloseableHttpClient.class);
         entityMock = new HttpEntityMock();
@@ -78,7 +80,8 @@ public class TestDorisCommitter {
                                 BackendV2.BackendRowV2.of("127.0.0.1", 8040, true)));
         backendUtilMockedStatic.when(() -> BackendUtil.tryHttpConnection(any())).thenReturn(true);
 
-        dorisCommitter = new DorisCommitter(dorisOptions, readOptions, 3, httpClient);
+        dorisCommitter =
+                new DorisCommitter(dorisOptions, readOptions, executionOptions, httpClient);
     }
 
     @Test

@@ -88,7 +88,7 @@ public class TestDorisStreamLoad {
         dorisStreamLoad.abortTransaction(anyLong());
     }
 
-    @Test
+    @Test(expected = Exception.class)
     public void testAbortTransactionFailed() throws Exception {
         CloseableHttpClient httpClient = mock(CloseableHttpClient.class);
         CloseableHttpResponse abortFailedResponse =

@@ -16,14 +16,14 @@
 # under the License.
 #
 ---
-name: Build Extensions
+name: Build Connector
 on:
   pull_request:
   push:
 
 jobs:
   build-extension:
-    name: "Build Extensions"
+    name: "Build Connector"
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -64,4 +64,11 @@ jobs:
         cd flink-doris-connector && mvn clean package \
           -Dflink.version=1.18.0 \
           -Dflink.minor.version=1.18 \
+          -Dflink.python.id=flink-python
+
+    - name: Build flink connector 1.19
+      run: |
+        cd flink-doris-connector && mvn clean package \
+          -Dflink.version=1.19.0 \
+          -Dflink.minor.version=1.19 \
           -Dflink.python.id=flink-python

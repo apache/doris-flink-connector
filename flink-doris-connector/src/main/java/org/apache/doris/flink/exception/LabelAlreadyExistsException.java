@@ -15,31 +15,30 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.flink.tools.cdc.sqlserver;
+package org.apache.doris.flink.exception;
 
-import org.apache.doris.flink.tools.cdc.JdbcSourceSchema;
-
-import java.sql.DatabaseMetaData;
-
-public class SqlServerSchema extends JdbcSourceSchema {
-
-    public SqlServerSchema(
-            DatabaseMetaData metaData,
-            String databaseName,
-            String schemaName,
-            String tableName,
-            String tableComment)
-            throws Exception {
-        super(metaData, databaseName, schemaName, tableName, tableComment);
+public class LabelAlreadyExistsException extends RuntimeException {
+    public LabelAlreadyExistsException() {
+        super();
     }
 
-    @Override
-    public String convertToDorisType(String fieldType, Integer precision, Integer scale) {
-        return SqlServerType.toDorisType(fieldType, precision, scale);
+    public LabelAlreadyExistsException(String message) {
+        super(message);
     }
 
-    @Override
-    public String getCdcTableName() {
-        return schemaName + "\\." + tableName;
+    public LabelAlreadyExistsException(String message, Throwable cause) {
+        super(message, cause);
+    }
+
+    public LabelAlreadyExistsException(Throwable cause) {
+        super(cause);
+    }
+
+    protected LabelAlreadyExistsException(
+            String message,
+            Throwable cause,
+            boolean enableSuppression,
+            boolean writableStackTrace) {
+        super(message, cause, enableSuppression, writableStackTrace);
     }
 }

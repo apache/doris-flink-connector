@@ -56,6 +56,7 @@ public class CdcOraclelSyncDatabaseCase {
         // sourceConfig.put("debezium.database.tablename.case.insensitive","false");
         sourceConfig.put("debezium.log.mining.strategy", "online_catalog");
         sourceConfig.put("debezium.log.mining.continuous.mine", "true");
+        sourceConfig.put("debezium.database.history.store.only.captured.tables.ddl", "true");
         Configuration config = Configuration.fromMap(sourceConfig);
 
         Map<String, String> sinkConfig = new HashMap<>();
