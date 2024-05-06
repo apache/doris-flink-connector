@@ -540,7 +540,7 @@ public abstract class DatabaseSync {
         private final boolean mergeSameSchema;
 
         TableNameConverter() {
-            this("", "", false);
+            this("", "", true);
         }
 
         TableNameConverter(String prefix, String suffix, boolean mergeSameSchema) {
