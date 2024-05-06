@@ -17,7 +17,6 @@
 
 package org.apache.doris.flink.table;
 
-import org.apache.doris.flink.lookup.LookupMetrics;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
@@ -32,6 +31,7 @@ import org.apache.doris.flink.cfg.DorisLookupOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.lookup.DorisJdbcLookupReader;
 import org.apache.doris.flink.lookup.DorisLookupReader;
+import org.apache.doris.flink.lookup.LookupMetrics;
 import org.apache.doris.flink.lookup.LookupSchema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
