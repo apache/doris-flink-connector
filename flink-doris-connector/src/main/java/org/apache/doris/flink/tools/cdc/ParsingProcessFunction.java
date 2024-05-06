@@ -47,13 +47,27 @@ public class ParsingProcessFunction extends ProcessFunction<String, Void> {
             String record, ProcessFunction<String, Void>.Context context, Collector<Void> collector)
             throws Exception {
         String tableName = getRecordTableName(record);
-        String dorisName = converter.convert(tableName);
+        String dorisName = getDorisName(record, tableName);
         context.output(getRecordOutputTag(dorisName), record);
+    }
+
+    private String getDorisName(String record, String tableName) throws Exception {
+        if (converter.isMergeSameSchema()) {
+            String databaseName = getRecordDatabaseName(record);
+            return converter.convert(databaseName + "_" + tableName);
+        } else {
+            return converter.convert(tableName);
+        }
     }
 
     protected String getRecordTableName(String record) throws Exception {
         JsonNode recordRoot = objectMapper.readValue(record, JsonNode.class);
         return extractJsonNode(recordRoot.get("source"), "table");
+    }
+
+    protected String getRecordDatabaseName(String record) throws Exception {
+        JsonNode recordRoot = objectMapper.readValue(record, JsonNode.class);
+        return extractJsonNode(recordRoot.get("source"), "db");
     }
 
     protected String extractJsonNode(JsonNode record, String key) {

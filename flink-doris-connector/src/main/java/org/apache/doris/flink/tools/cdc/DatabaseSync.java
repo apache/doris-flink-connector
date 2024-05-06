@@ -82,6 +82,7 @@ public abstract class DatabaseSync {
     protected String tablePrefix;
     protected String tableSuffix;
     protected boolean singleSink;
+    protected boolean mergeSameSchema;
     private final Map<String, String> tableMapping = new HashMap<>();
 
     public abstract void registerDriver() throws SQLException;
@@ -103,7 +104,9 @@ public abstract class DatabaseSync {
         this.includingPattern = includingTables == null ? null : Pattern.compile(includingTables);
         this.excludingPattern = excludingTables == null ? null : Pattern.compile(excludingTables);
         this.multiToOneRulesPattern = multiToOneRulesParser(multiToOneOrigin, multiToOneTarget);
-        this.converter = new TableNameConverter(tablePrefix, tableSuffix, multiToOneRulesPattern);
+        this.converter =
+                new TableNameConverter(
+                        tablePrefix, tableSuffix, multiToOneRulesPattern, mergeSameSchema);
         // default enable light schema change
         if (!this.tableConfig.containsKey(LIGHT_SCHEMA_CHANGE)) {
             this.tableConfig.put(LIGHT_SCHEMA_CHANGE, "true");
@@ -141,7 +144,14 @@ public abstract class DatabaseSync {
                 LOG.info("database {} not exist, created", targetDb);
                 dorisSystem.createDatabase(targetDb);
             }
-            String dorisTable = converter.convert(schema.getTableName());
+            String dorisTable;
+            if (mergeSameSchema) {
+                dorisTable =
+                        converter.convert(schema.getDatabaseName() + "_" + schema.getTableName());
+            } else {
+                dorisTable = converter.convert(schema.getTableName());
+            }
+
             // Calculate the mapping relationship between upstream and downstream tables
             tableMapping.put(
                     schema.getTableIdentifier(), String.format("%s.%s", targetDb, dorisTable));
@@ -507,6 +517,11 @@ public abstract class DatabaseSync {
         return this;
     }
 
+    public DatabaseSync setMergeSameSchema(boolean mergeSameSchema) {
+        this.mergeSameSchema = mergeSameSchema;
+        return this;
+    }
+
     public DatabaseSync setTablePrefix(String tablePrefix) {
         this.tablePrefix = tablePrefix;
         return this;
@@ -522,21 +537,27 @@ public abstract class DatabaseSync {
         private final String prefix;
         private final String suffix;
         private Map<Pattern, String> multiToOneRulesPattern;
+        private final boolean mergeSameSchema;
 
         TableNameConverter() {
-            this("", "");
+            this("", "", false);
         }
 
-        TableNameConverter(String prefix, String suffix) {
+        TableNameConverter(String prefix, String suffix, boolean mergeSameSchema) {
             this.prefix = prefix == null ? "" : prefix;
             this.suffix = suffix == null ? "" : suffix;
+            this.mergeSameSchema = mergeSameSchema;
         }
 
         TableNameConverter(
-                String prefix, String suffix, Map<Pattern, String> multiToOneRulesPattern) {
+                String prefix,
+                String suffix,
+                Map<Pattern, String> multiToOneRulesPattern,
+                boolean mergeSameSchema) {
             this.prefix = prefix == null ? "" : prefix;
             this.suffix = suffix == null ? "" : suffix;
             this.multiToOneRulesPattern = multiToOneRulesPattern;
+            this.mergeSameSchema = mergeSameSchema;
         }
 
         public String convert(String tableName) {
@@ -561,6 +582,10 @@ public abstract class DatabaseSync {
                 return prefix + tableName + suffix;
             }
             return target;
+        }
+
+        public boolean isMergeSameSchema() {
+            return mergeSameSchema;
         }
     }
 }
