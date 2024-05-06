@@ -1,3 +1,20 @@
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
+
 package org.apache.doris.flink.tools.cdc;
 
 import org.apache.flink.configuration.Configuration;
@@ -16,15 +33,7 @@ public class CdcMongoSyncDatabaseCase {
         //        conf.setString("rest.flamegraph.enabled", "true");
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         //        StreamExecutionEnvironment env =
-        // StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(conf);
-
-        //                env.setParallelism(4);
-        //        env.getCheckpointConfig().setCheckpointTimeout(10000);
-        //        env.getCheckpointConfig().setMinPauseBetweenCheckpoints(2000);
-        //        env.getCheckpointConfig().setCheckpointStorage(
-        //                new
-        // FileSystemCheckpointStorage("file:///Users/bingquanzhao/source_code/doris-flink-connector/flink-doris-connector/ck"));
-
+        //                StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(conf);
         Map<String, String> flinkMap = new HashMap<>();
         flinkMap.put("execution.checkpointing.interval", "10s");
         flinkMap.put("pipeline.operator-chaining", "false");
@@ -44,7 +53,7 @@ public class CdcMongoSyncDatabaseCase {
         mongoConfig.put("password", "flinkpwd");
         //                        mongoConfig.put("scan.startup.mode", "latest-offset");
         mongoConfig.put("scan.startup.mode", "initial");
-        mongoConfig.put("mongo-cdc.create-sample-percent", "1");
+        mongoConfig.put("mongo-cdc-schema-sample-percent", "1");
         Configuration config = Configuration.fromMap(mongoConfig);
 
         Map<String, String> sinkConfig = new HashMap<>();

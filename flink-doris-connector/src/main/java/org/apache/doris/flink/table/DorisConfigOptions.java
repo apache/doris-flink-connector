@@ -298,12 +298,6 @@ public class DorisConfigOptions {
                     .defaultValue(false)
                     .withDescription("Whether to use buffer cache for breakpoint resume");
 
-    public static final ConfigOption<Double> MONGO_CDC_CREATE_SAMPLE_PERCENT =
-            ConfigOptions.key("mongo-cdc.create-sample-percent")
-                    .doubleType()
-                    .defaultValue(0.2)
-                    .withDescription("mongo cdc sample percent");
-
     // Prefix for Doris StreamLoad specific properties.
     public static final String STREAM_LOAD_PROP_PREFIX = "sink.properties.";
 

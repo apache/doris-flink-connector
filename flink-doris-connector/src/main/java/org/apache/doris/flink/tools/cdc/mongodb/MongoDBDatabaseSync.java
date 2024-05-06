@@ -18,6 +18,8 @@
 package org.apache.doris.flink.tools.cdc.mongodb;
 
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
@@ -42,7 +44,6 @@ import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.sink.writer.serializer.DorisRecordSerializer;
 import org.apache.doris.flink.sink.writer.serializer.MongoDBJsonDebeziumSchemaSerializer;
-import org.apache.doris.flink.table.DorisConfigOptions;
 import org.apache.doris.flink.tools.cdc.DatabaseSync;
 import org.apache.doris.flink.tools.cdc.ParsingProcessFunction;
 import org.apache.doris.flink.tools.cdc.SourceSchema;
@@ -65,6 +66,11 @@ public class MongoDBDatabaseSync extends DatabaseSync {
     private static final String INITIAL_MODE = "initial";
     private static final String LATEST_OFFSET_MODE = "latest-offset";
     private static final String TIMESTAMP_MODE = "timestamp";
+    public static final ConfigOption<String> MONGO_CDC_CREATE_SAMPLE_PERCENT =
+            ConfigOptions.key("mongo-cdc-schema-sample-percent")
+                    .stringType()
+                    .defaultValue("0.2")
+                    .withDescription("mongo cdc sample percent");
 
     public MongoDBDatabaseSync() throws SQLException {}
 
@@ -92,7 +98,7 @@ public class MongoDBDatabaseSync extends DatabaseSync {
                                 config.get(MongoDBSourceOptions.CONNECTION_OPTIONS))));
 
         MongoClientSettings settings = settingsBuilder.build();
-        Double samplePercent = config.get(DorisConfigOptions.MONGO_CDC_CREATE_SAMPLE_PERCENT);
+        double samplePercent = Double.parseDouble(config.get(MONGO_CDC_CREATE_SAMPLE_PERCENT));
         try (MongoClient mongoClient = MongoClients.create(settings)) {
             MongoDatabase mongoDatabase = mongoClient.getDatabase(databaseName);
             MongoIterable<String> collectionNames = mongoDatabase.listCollectionNames();
