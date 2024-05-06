@@ -18,7 +18,6 @@
 package org.apache.doris.flink.table;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.metrics.Gauge;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.AsyncTableFunction;
@@ -104,7 +103,9 @@ public class DorisRowDataAsyncLookupFunction extends AsyncTableFunction<RowData>
             List<RowData> cachedRows = cache.getIfPresent(keyRow);
             if (cachedRows != null) {
                 lookupMetrics.incHitCount();
-                LOG.debug("lookup cache hit for key: {}", keyRow);
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("lookup cache hit for key: {}", keyRow);
+                }
                 future.complete(cachedRows);
                 return;
             } else {
@@ -138,7 +139,6 @@ public class DorisRowDataAsyncLookupFunction extends AsyncTableFunction<RowData>
                     }
                     return null;
                 });
-
     }
 
     @Override

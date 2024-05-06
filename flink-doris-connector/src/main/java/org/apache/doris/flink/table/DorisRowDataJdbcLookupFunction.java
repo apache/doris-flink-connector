@@ -99,7 +99,9 @@ public class DorisRowDataJdbcLookupFunction extends TableFunction<RowData> {
             List<RowData> cachedRows = cache.getIfPresent(keyRow);
             if (cachedRows != null) {
                 lookupMetrics.incHitCount();
-                LOG.debug("lookup cache hit for key: {}", keyRow);
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("lookup cache hit for key: {}", keyRow);
+                }
                 for (RowData cachedRow : cachedRows) {
                     collect(cachedRow);
                 }

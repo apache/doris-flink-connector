@@ -24,7 +24,6 @@ import java.io.Serializable;
 
 /** lookup join metrics. */
 public class LookupMetrics implements Serializable {
-
     public static final String HIT_COUNT = "hitCount";
     public static final String MISS_COUNT = "missCount";
     public static final String LOAD_COUNT = "loadCount";
