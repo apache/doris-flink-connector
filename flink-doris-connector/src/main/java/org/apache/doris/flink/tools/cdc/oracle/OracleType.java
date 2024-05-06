@@ -17,12 +17,9 @@
 
 package org.apache.doris.flink.tools.cdc.oracle;
 
-import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.doris.flink.catalog.doris.DorisType;
-
-import static org.apache.doris.flink.catalog.DorisTypeMapper.MAX_SUPPORTED_DATE_TIME_PRECISION;
 
 public class OracleType {
     private static final String VARCHAR2 = "VARCHAR2";
@@ -52,16 +49,7 @@ public class OracleType {
         if (oracleType.startsWith(INTERVAL)) {
             oracleType = oracleType.substring(0, 8);
         } else if (oracleType.startsWith(TIMESTAMP)) {
-            // In Debezium Json data,the length of timestamp range 0 to 9.
-            if (scale == 0 && precision <= TimestampType.MAX_PRECISION) {
-                return String.format(
-                        "%s(%s)",
-                        DorisType.DATETIME_V2,
-                        Math.min(precision, MAX_SUPPORTED_DATE_TIME_PRECISION));
-            }
-            return String.format(
-                    "%s(%s)",
-                    DorisType.DATETIME_V2, Math.min(scale, MAX_SUPPORTED_DATE_TIME_PRECISION));
+            return String.format("%s(%s)", DorisType.DATETIME_V2, Math.min(scale, 6));
         }
         switch (oracleType) {
             case NUMBER:
