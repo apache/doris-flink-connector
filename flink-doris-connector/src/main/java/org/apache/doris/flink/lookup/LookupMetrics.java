@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.flink.table;
+package org.apache.doris.flink.lookup;
 
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.MetricGroup;
