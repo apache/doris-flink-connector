@@ -47,7 +47,7 @@ public class CdcMongoSyncDatabaseCase {
         env.configure(configuration);
         Map<String, String> mongoConfig = new HashMap<>();
         mongoConfig.put("database", "test");
-        mongoConfig.put("hosts", "10.16.10.6:27018");
+        mongoConfig.put("hosts", "127.0.0.1:27017");
         mongoConfig.put("username", "flinkuser");
         // mysqlConfig.put("password","");
         mongoConfig.put("password", "flinkpwd");
@@ -57,11 +57,11 @@ public class CdcMongoSyncDatabaseCase {
         Configuration config = Configuration.fromMap(mongoConfig);
 
         Map<String, String> sinkConfig = new HashMap<>();
-        sinkConfig.put("fenodes", "10.16.10.6:8036");
+        sinkConfig.put("fenodes", "127.0.0.1:8030");
         // sinkConfig.put("benodes","10.20.30.1:8040, 10.20.30.2:8040, 10.20.30.3:8040");
         sinkConfig.put("username", "root");
         sinkConfig.put("password", "");
-        sinkConfig.put("jdbc-url", "jdbc:mysql://10.16.10.6:9036");
+        sinkConfig.put("jdbc-url", "jdbc:mysql://127.0.0.1:9030");
         sinkConfig.put("sink.label-prefix", UUID.randomUUID().toString());
         sinkConfig.put("auto-redirect", "false");
         //        sinkConfig.put("sink.enable.batch-mode","true");

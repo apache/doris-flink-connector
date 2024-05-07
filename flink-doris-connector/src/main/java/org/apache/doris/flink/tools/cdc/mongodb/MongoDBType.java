@@ -100,7 +100,7 @@ public class MongoDBType {
     }
 
     public static Tuple2<Integer, Integer> getDecimalPrecisionAndScale(String decimalString) {
-        // 简化的正则表达式，匹配括号中的两个数字
+        // Simplified regular expression to match two numbers in brackets
         String regex = "\\((\\d+),(\\d+)\\)";
         Pattern pattern = Pattern.compile(regex);
         Matcher matcher = pattern.matcher(decimalString);
