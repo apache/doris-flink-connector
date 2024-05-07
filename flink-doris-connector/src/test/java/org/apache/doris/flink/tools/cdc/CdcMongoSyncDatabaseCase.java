@@ -53,7 +53,7 @@ public class CdcMongoSyncDatabaseCase {
         mongoConfig.put("password", "flinkpwd");
         //                        mongoConfig.put("scan.startup.mode", "latest-offset");
         mongoConfig.put("scan.startup.mode", "initial");
-        mongoConfig.put("mongo-cdc-schema-sample-percent", "1");
+        mongoConfig.put("schema.sample-percent", "1");
         Configuration config = Configuration.fromMap(mongoConfig);
 
         Map<String, String> sinkConfig = new HashMap<>();

@@ -66,10 +66,10 @@ public class MongoDBDatabaseSync extends DatabaseSync {
     private static final String INITIAL_MODE = "initial";
     private static final String LATEST_OFFSET_MODE = "latest-offset";
     private static final String TIMESTAMP_MODE = "timestamp";
-    public static final ConfigOption<String> MONGO_CDC_CREATE_SAMPLE_PERCENT =
-            ConfigOptions.key("mongo-cdc-schema-sample-percent")
-                    .stringType()
-                    .defaultValue("0.2")
+    public static final ConfigOption<Double> MONGO_CDC_CREATE_SAMPLE_PERCENT =
+            ConfigOptions.key("schema.sample-percent")
+                    .doubleType()
+                    .defaultValue(0.2)
                     .withDescription("mongo cdc sample percent");
 
     public MongoDBDatabaseSync() throws SQLException {}
@@ -98,7 +98,7 @@ public class MongoDBDatabaseSync extends DatabaseSync {
                                 config.get(MongoDBSourceOptions.CONNECTION_OPTIONS))));
 
         MongoClientSettings settings = settingsBuilder.build();
-        double samplePercent = Double.parseDouble(config.get(MONGO_CDC_CREATE_SAMPLE_PERCENT));
+        Double samplePercent = config.get(MONGO_CDC_CREATE_SAMPLE_PERCENT);
         try (MongoClient mongoClient = MongoClients.create(settings)) {
             MongoDatabase mongoDatabase = mongoClient.getDatabase(databaseName);
             MongoIterable<String> collectionNames = mongoDatabase.listCollectionNames();
