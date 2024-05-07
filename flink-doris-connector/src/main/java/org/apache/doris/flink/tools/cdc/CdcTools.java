@@ -23,6 +23,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
+import org.apache.doris.flink.tools.cdc.mongodb.MongoDBDatabaseSync;
 import org.apache.doris.flink.tools.cdc.mysql.MysqlDatabaseSync;
 import org.apache.doris.flink.tools.cdc.oracle.OracleDatabaseSync;
 import org.apache.doris.flink.tools.cdc.postgres.PostgresDatabaseSync;
@@ -108,10 +109,10 @@ public class CdcTools {
     private static void createMongoDBSyncDatabase(String[] opArgs) throws Exception {
         MultipleParameterTool params = MultipleParameterTool.fromArgs(opArgs);
         Preconditions.checkArgument(params.has("mongodb-conf"));
-        Map<String, String> postgresMap = getConfigMap(params, "mongodb-conf");
-        Configuration postgresConfig = Configuration.fromMap(postgresMap);
-        DatabaseSync databaseSync = new SqlServerDatabaseSync();
-        syncDatabase(params, databaseSync, postgresConfig, "mongodb");
+        Map<String, String> mongoMap = getConfigMap(params, "mongodb-conf");
+        Configuration mongoConfig = Configuration.fromMap(mongoMap);
+        DatabaseSync databaseSync = new MongoDBDatabaseSync();
+        syncDatabase(params, databaseSync, mongoConfig, "mongodb");
     }
 
     private static void syncDatabase(

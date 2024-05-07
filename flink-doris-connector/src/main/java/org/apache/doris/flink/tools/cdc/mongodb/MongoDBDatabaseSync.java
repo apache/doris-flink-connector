@@ -35,7 +35,6 @@ import com.ververica.cdc.connectors.base.options.StartupOptions;
 import com.ververica.cdc.connectors.mongodb.source.MongoDBSource;
 import com.ververica.cdc.connectors.mongodb.source.MongoDBSourceBuilder;
 import com.ververica.cdc.connectors.mongodb.source.config.MongoDBSourceOptions;
-import com.ververica.cdc.connectors.mysql.source.config.MySqlSourceOptions;
 import com.ververica.cdc.connectors.shaded.org.apache.kafka.connect.json.JsonConverterConfig;
 import com.ververica.cdc.debezium.JsonDebeziumDeserializationSchema;
 import org.apache.commons.lang3.StringUtils;
@@ -71,6 +70,12 @@ public class MongoDBDatabaseSync extends DatabaseSync {
                     .doubleType()
                     .defaultValue(0.2)
                     .withDescription("mongo cdc sample percent");
+
+    public static final ConfigOption<String> TABLE_NAME =
+            ConfigOptions.key("table-name")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("Table name of the Mongo database to monitor.");
 
     public MongoDBDatabaseSync() throws SQLException {}
 
@@ -156,7 +161,7 @@ public class MongoDBDatabaseSync extends DatabaseSync {
         String database = config.get(MongoDBSourceOptions.DATABASE);
         String collection = config.get(MongoDBSourceOptions.COLLECTION);
         if (StringUtils.isBlank(collection)) {
-            collection = config.get(MySqlSourceOptions.TABLE_NAME);
+            collection = config.get(TABLE_NAME);
         }
         MongoDBSourceBuilder<String> mongoDBSourceBuilder = MongoDBSource.builder();
         Map<String, Object> customConverterConfigs = new HashMap<>();
