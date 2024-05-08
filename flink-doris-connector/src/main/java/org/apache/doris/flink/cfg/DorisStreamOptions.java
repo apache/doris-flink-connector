@@ -24,7 +24,7 @@ import java.util.Properties;
 public class DorisStreamOptions implements Serializable {
     private static final long serialVersionUID = 1L;
 
-    private Properties prop;
+    private final Properties prop;
     private DorisOptions options;
     private DorisReadOptions readOptions;
 
