@@ -285,6 +285,19 @@ under the License.
             </exclusions>
         </dependency>
         <dependency>
+            <groupId>com.ververica</groupId>
+            <artifactId>flink-sql-connector-mongodb-cdc</artifactId>
+            <!-- the dependency is available only for stable releases. -->
+            <version>${flink.sql.cdc.version}</version>
+            <scope>provided</scope>
+            <exclusions>
+                <exclusion>
+                    <artifactId>flink-shaded-guava</artifactId>
+                    <groupId>org.apache.flink</groupId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
             <groupId>org.apache.flink</groupId>
             <artifactId>flink-runtime-web</artifactId>
             <version>${flink.version}</version>
