@@ -36,6 +36,7 @@ public class Db2Type {
     private static final String TIMESTAMP = "TIMESTAMP";
     private static final String CHARACTER = "CHARACTER";
     private static final String CHAR = "CHAR";
+    private static final String LONG_VARCHAR = "LONG VARCHAR";
     private static final String VARCHAR = "VARCHAR";
     private static final String BINARY = "BINARY";
     private static final String VARBINARY = "VARBINARY";
@@ -74,9 +75,9 @@ public class Db2Type {
                     return DorisType.STRING;
                 }
             case CHARACTER:
-            case TIME:
             case CHAR:
             case VARCHAR:
+            case LONG_VARCHAR:
                 Preconditions.checkNotNull(precision);
                 return precision * 3 > 65533
                         ? DorisType.STRING
@@ -84,8 +85,9 @@ public class Db2Type {
             case TIMESTAMP:
                 return String.format(
                         "%s(%s)", DorisType.DATETIME_V2, Math.min(scale == null ? 0 : scale, 6));
+            case TIME:
+            case CLOB:
             case VARGRAPHIC:
-            case GRAPHIC:
                 return DorisType.STRING;
             default:
                 throw new UnsupportedOperationException("Unsupported DB2 Type: " + db2Type);

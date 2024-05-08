@@ -23,8 +23,8 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
-import org.apache.doris.flink.tools.cdc.mongodb.MongoDBDatabaseSync;
 import org.apache.doris.flink.tools.cdc.db2.Db2DatabaseSync;
+import org.apache.doris.flink.tools.cdc.mongodb.MongoDBDatabaseSync;
 import org.apache.doris.flink.tools.cdc.mysql.MysqlDatabaseSync;
 import org.apache.doris.flink.tools.cdc.oracle.OracleDatabaseSync;
 import org.apache.doris.flink.tools.cdc.postgres.PostgresDatabaseSync;
