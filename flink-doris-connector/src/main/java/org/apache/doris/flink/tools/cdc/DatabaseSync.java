@@ -182,8 +182,7 @@ public abstract class DatabaseSync {
                 String uidName;
                 // determine whether to proceed with multi-database
                 // synchronization; if yes, the UID is composed of `dbname_tablename`, otherwise it
-                // is
-                // composed of `tablename`.
+                // is composed of `tablename`.
                 if (targetDbSet.size() > 1) {
                     uidName = dbTbl.f0 + "_" + dbTbl.f1;
                 } else {
