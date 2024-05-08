@@ -237,13 +237,15 @@ public class DorisBatchStreamLoad implements Serializable {
             while (started.get()) {
                 BatchRecordBuffer buffer = null;
                 try {
-                    buffer = flushQueue.poll(2000L, TimeUnit.MILLISECONDS);
+                    buffer = flushQueue.peek();
                     if (buffer == null) {
                         continue;
                     }
                     if (buffer.getLabelName() != null) {
                         load(buffer.getLabelName(), buffer);
                     }
+                    //load end, remove from queue
+                    flushQueue.take();
                 } catch (Exception e) {
                     LOG.error("worker running error", e);
                     exception.set(e);
