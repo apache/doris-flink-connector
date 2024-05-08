@@ -95,13 +95,18 @@ public final class DorisDynamicTableSource
 
     @Override
     public ScanRuntimeProvider getScanRuntimeProvider(ScanContext runtimeProviderContext) {
-        String filterQuery = resolvedFilterQuery.stream().collect(Collectors.joining(" AND "));
-        readOptions.setFilterQuery(filterQuery);
-        String[] selectFields = DataType.getFieldNames(physicalRowDataType).toArray(new String[0]);
-        readOptions.setReadFields(
-                Arrays.stream(selectFields)
-                        .map(item -> String.format("`%s`", item.trim().replace("`", "")))
-                        .collect(Collectors.joining(", ")));
+        if (StringUtils.isNullOrWhitespaceOnly(readOptions.getFilterQuery())) {
+            String filterQuery = resolvedFilterQuery.stream().collect(Collectors.joining(" AND "));
+            readOptions.setFilterQuery(filterQuery);
+        }
+        if (StringUtils.isNullOrWhitespaceOnly(readOptions.getReadFields())) {
+            String[] selectFields =
+                    DataType.getFieldNames(physicalRowDataType).toArray(new String[0]);
+            readOptions.setReadFields(
+                    Arrays.stream(selectFields)
+                            .map(item -> String.format("`%s`", item.trim().replace("`", "")))
+                            .collect(Collectors.joining(", ")));
+        }
 
         if (readOptions.getUseOldApi()) {
             List<PartitionDefinition> dorisPartitions;
