@@ -129,12 +129,14 @@ public abstract class DatabaseSync {
             tableBucketsMap = getTableBuckets(tableConfig.get("table-buckets"));
         }
         Set<String> bucketsTable = new HashSet<>();
+        Set<String> targetDbSet = new HashSet<>();
         for (SourceSchema schema : schemaList) {
             syncTables.add(schema.getTableName());
             String targetDb = database;
             // Synchronize multiple databases using the src database name
             if (StringUtils.isNullOrWhitespaceOnly(targetDb)) {
                 targetDb = schema.getDatabaseName();
+                targetDbSet.add(targetDb);
             }
             if (StringUtils.isNullOrWhitespaceOnly(database)
                     && !dorisSystem.databaseExists(targetDb)) {
@@ -177,11 +179,21 @@ public abstract class DatabaseSync {
                 int sinkParallel =
                         sinkConfig.getInteger(
                                 DorisConfigOptions.SINK_PARALLELISM, sideOutput.getParallelism());
+                String uidName;
+                // determine whether to proceed with multi-database
+                // synchronization; if yes, the UID is composed of `dbname_tablename`, otherwise it
+                // is
+                // composed of `tablename`.
+                if (targetDbSet.size() > 1) {
+                    uidName = dbTbl.f0 + "_" + dbTbl.f1;
+                } else {
+                    uidName = dbTbl.f1;
+                }
                 sideOutput
                         .sinkTo(buildDorisSink(dbTbl.f0 + "." + dbTbl.f1))
                         .setParallelism(sinkParallel)
-                        .name(dbTbl.f0 + "_" + dbTbl.f1)
-                        .uid(dbTbl.f0 + "_" + dbTbl.f1);
+                        .name(uidName)
+                        .uid(uidName);
             }
         }
     }
