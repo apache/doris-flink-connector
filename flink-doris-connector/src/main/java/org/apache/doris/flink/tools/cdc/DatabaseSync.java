@@ -180,8 +180,8 @@ public abstract class DatabaseSync {
                 sideOutput
                         .sinkTo(buildDorisSink(dbTbl.f0 + "." + dbTbl.f1))
                         .setParallelism(sinkParallel)
-                        .name(dbTbl.f1)
-                        .uid(dbTbl.f1);
+                        .name(dbTbl.f0 + "_" + dbTbl.f1)
+                        .uid(dbTbl.f0 + "_" + dbTbl.f1);
             }
         }
     }
