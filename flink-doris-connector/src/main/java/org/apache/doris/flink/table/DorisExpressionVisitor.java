@@ -66,6 +66,10 @@ public class DorisExpressionVisitor implements ExpressionVisitor<String> {
         if (BuiltInFunctionDefinitions.IS_NOT_NULL.equals(call.getFunctionDefinition())) {
             return combineLeftExpression("IS NOT NULL", call.getResolvedChildren().get(0));
         }
+
+        if (BuiltInFunctionDefinitions.CAST.equals(call.getFunctionDefinition())) {
+            return call.getChildren().get(0).accept(this);
+        }
         return null;
     }
 
