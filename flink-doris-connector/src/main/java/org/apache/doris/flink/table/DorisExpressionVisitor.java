@@ -68,62 +68,6 @@ public class DorisExpressionVisitor implements ExpressionVisitor<String> {
             return combineLeftExpression("IS NOT NULL", call.getResolvedChildren().get(0));
         }
 
-        if (BuiltInFunctionDefinitions.PLUS.equals(call.getFunctionDefinition())) {
-            return combineExpression("+", call.getResolvedChildren());
-        }
-
-        if (BuiltInFunctionDefinitions.MINUS.equals(call.getFunctionDefinition())) {
-            return combineExpression("-", call.getResolvedChildren());
-        }
-
-        if (BuiltInFunctionDefinitions.DIVIDE.equals(call.getFunctionDefinition())) {
-            return combineExpression("/", call.getResolvedChildren());
-        }
-
-        if (BuiltInFunctionDefinitions.TIMES.equals(call.getFunctionDefinition())) {
-            return combineExpression("*", call.getResolvedChildren());
-        }
-
-        if (BuiltInFunctionDefinitions.MOD.equals(call.getFunctionDefinition())) {
-            return combineExpression("%", call.getResolvedChildren());
-        }
-
-        if (BuiltInFunctionDefinitions.BETWEEN.equals(call.getFunctionDefinition())) {
-            return combineExpression("BETWEEN", call.getResolvedChildren());
-        }
-
-        if (BuiltInFunctionDefinitions.ABS.equals(call.getFunctionDefinition())) {
-            return combineMathFunctionExpression("ABS", call.getResolvedChildren().get(0));
-        }
-
-        if (BuiltInFunctionDefinitions.CEIL.equals(call.getFunctionDefinition())) {
-            return combineMathFunctionExpression("CEIL", call.getResolvedChildren().get(0));
-        }
-
-        if (BuiltInFunctionDefinitions.FLOOR.equals(call.getFunctionDefinition())) {
-            return combineMathFunctionExpression("FLOOR", call.getResolvedChildren().get(0));
-        }
-
-        if (BuiltInFunctionDefinitions.LN.equals(call.getFunctionDefinition())) {
-            return combineMathFunctionExpression("LN", call.getResolvedChildren().get(0));
-        }
-
-        if (BuiltInFunctionDefinitions.EXP.equals(call.getFunctionDefinition())) {
-            return combineMathFunctionExpression("EXP", call.getResolvedChildren().get(0));
-        }
-
-        if (BuiltInFunctionDefinitions.CURRENT_TIMESTAMP.equals(call.getFunctionDefinition())) {
-            return noArgsFunctionExpression("CURRENT_TIMESTAMP()");
-        }
-
-        if (BuiltInFunctionDefinitions.CURRENT_DATE.equals(call.getFunctionDefinition())) {
-            return noArgsFunctionExpression("CURRENT_DATE()");
-        }
-
-        if (BuiltInFunctionDefinitions.LOCAL_TIMESTAMP.equals(call.getFunctionDefinition())) {
-            return noArgsFunctionExpression("LOCALTIMESTAMP()");
-        }
-
         if (BuiltInFunctionDefinitions.CAST.equals(call.getFunctionDefinition())) {
             return call.getChildren().get(0).accept(this);
         }
@@ -145,15 +89,6 @@ public class DorisExpressionVisitor implements ExpressionVisitor<String> {
     private String combineLeftExpression(String operator, ResolvedExpression operand) {
         String left = operand.accept(this);
         return String.format("(%s %s)", left, operator);
-    }
-
-    private String combineMathFunctionExpression(String operator, ResolvedExpression operand) {
-        String column = operand.accept(this);
-        return String.format("%s(%s)", operator, column);
-    }
-
-    private String noArgsFunctionExpression(String operator) {
-        return String.format("%s", operator);
     }
 
     @Override
