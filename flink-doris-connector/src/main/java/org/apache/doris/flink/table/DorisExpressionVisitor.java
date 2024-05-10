@@ -26,6 +26,7 @@ import org.apache.flink.table.expressions.TypeLiteralExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.util.StringUtils;
 
 import java.util.List;
 
@@ -95,6 +96,34 @@ public class DorisExpressionVisitor implements ExpressionVisitor<String> {
             return combineMathFunctionExpression("ABS", call.getResolvedChildren().get(0));
         }
 
+        if (BuiltInFunctionDefinitions.CEIL.equals(call.getFunctionDefinition())) {
+            return combineMathFunctionExpression("CEIL", call.getResolvedChildren().get(0));
+        }
+
+        if (BuiltInFunctionDefinitions.FLOOR.equals(call.getFunctionDefinition())) {
+            return combineMathFunctionExpression("FLOOR", call.getResolvedChildren().get(0));
+        }
+
+        if (BuiltInFunctionDefinitions.LN.equals(call.getFunctionDefinition())) {
+            return combineMathFunctionExpression("LN", call.getResolvedChildren().get(0));
+        }
+
+        if (BuiltInFunctionDefinitions.EXP.equals(call.getFunctionDefinition())) {
+            return combineMathFunctionExpression("EXP", call.getResolvedChildren().get(0));
+        }
+
+        if (BuiltInFunctionDefinitions.CURRENT_TIMESTAMP.equals(call.getFunctionDefinition())) {
+            return noArgsFunctionExpression("CURRENT_TIMESTAMP()");
+        }
+
+        if (BuiltInFunctionDefinitions.CURRENT_DATE.equals(call.getFunctionDefinition())) {
+            return noArgsFunctionExpression("CURRENT_DATE()");
+        }
+
+        if (BuiltInFunctionDefinitions.LOCAL_TIMESTAMP.equals(call.getFunctionDefinition())) {
+            return noArgsFunctionExpression("LOCALTIMESTAMP()");
+        }
+
         if (BuiltInFunctionDefinitions.CAST.equals(call.getFunctionDefinition())) {
             return call.getChildren().get(0).accept(this);
         }
@@ -103,7 +132,13 @@ public class DorisExpressionVisitor implements ExpressionVisitor<String> {
 
     private String combineExpression(String operator, List<ResolvedExpression> operand) {
         String left = operand.get(0).accept(this);
+        if (StringUtils.isNullOrWhitespaceOnly(left)) {
+            return null;
+        }
         String right = operand.get(1).accept(this);
+        if (StringUtils.isNullOrWhitespaceOnly(right)) {
+            return null;
+        }
         return String.format("(%s %s %s)", left, operator, right);
     }
 
@@ -115,6 +150,10 @@ public class DorisExpressionVisitor implements ExpressionVisitor<String> {
     private String combineMathFunctionExpression(String operator, ResolvedExpression operand) {
         String column = operand.accept(this);
         return String.format("%s(%s)", operator, column);
+    }
+
+    private String noArgsFunctionExpression(String operator) {
+        return String.format("%s", operator);
     }
 
     @Override
