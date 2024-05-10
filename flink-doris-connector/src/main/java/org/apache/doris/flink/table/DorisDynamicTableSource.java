@@ -47,6 +47,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -202,14 +203,13 @@ public final class DorisDynamicTableSource
     @Override
     public void applyProjection(int[][] projectedFields, DataType producedDataType) {
         this.physicalRowDataType = Projection.of(projectedFields).project(physicalRowDataType);
-        //        if (StringUtils.isNullOrWhitespaceOnly(readOptions.getReadFields())) {
-        //            String[] selectFields =
-        //                    DataType.getFieldNames(physicalRowDataType).toArray(new String[0]);
-        //            this.readOptions.setReadFields(
-        //                    Arrays.stream(selectFields)
-        //                            .map(item -> String.format("`%s`", item.trim().replace("`",
-        // "")))
-        //                            .collect(Collectors.joining(", ")));
-        //        }
+        if (StringUtils.isNullOrWhitespaceOnly(readOptions.getReadFields())) {
+            String[] selectFields =
+                    DataType.getFieldNames(physicalRowDataType).toArray(new String[0]);
+            this.readOptions.setReadFields(
+                    Arrays.stream(selectFields)
+                            .map(item -> String.format("`%s`", item.trim().replace("`", "")))
+                            .collect(Collectors.joining(", ")));
+        }
     }
 }
