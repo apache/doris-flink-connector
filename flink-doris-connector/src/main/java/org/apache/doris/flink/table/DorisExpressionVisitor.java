@@ -71,12 +71,28 @@ public class DorisExpressionVisitor implements ExpressionVisitor<String> {
             return combineExpression("+", call.getResolvedChildren());
         }
 
+        if (BuiltInFunctionDefinitions.MINUS.equals(call.getFunctionDefinition())) {
+            return combineExpression("-", call.getResolvedChildren());
+        }
+
         if (BuiltInFunctionDefinitions.DIVIDE.equals(call.getFunctionDefinition())) {
             return combineExpression("/", call.getResolvedChildren());
         }
 
+        if (BuiltInFunctionDefinitions.TIMES.equals(call.getFunctionDefinition())) {
+            return combineExpression("*", call.getResolvedChildren());
+        }
+
+        if (BuiltInFunctionDefinitions.MOD.equals(call.getFunctionDefinition())) {
+            return combineExpression("%", call.getResolvedChildren());
+        }
+
         if (BuiltInFunctionDefinitions.BETWEEN.equals(call.getFunctionDefinition())) {
-            return combineExpression("between", call.getResolvedChildren());
+            return combineExpression("BETWEEN", call.getResolvedChildren());
+        }
+
+        if (BuiltInFunctionDefinitions.ABS.equals(call.getFunctionDefinition())) {
+            return combineMathFunctionExpression("ABS", call.getResolvedChildren().get(0));
         }
 
         if (BuiltInFunctionDefinitions.CAST.equals(call.getFunctionDefinition())) {
@@ -94,6 +110,11 @@ public class DorisExpressionVisitor implements ExpressionVisitor<String> {
     private String combineLeftExpression(String operator, ResolvedExpression operand) {
         String left = operand.accept(this);
         return String.format("(%s %s)", left, operator);
+    }
+
+    private String combineMathFunctionExpression(String operator, ResolvedExpression operand) {
+        String column = operand.accept(this);
+        return String.format("%s(%s)", operator, column);
     }
 
     @Override

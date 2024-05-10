@@ -189,6 +189,10 @@ public final class DorisDynamicTableSource
                 remainingFilters.add(filter);
             }
         }
+        if (StringUtils.isNullOrWhitespaceOnly(readOptions.getFilterQuery())) {
+            String filterQuery = resolvedFilterQuery.stream().collect(Collectors.joining(" AND "));
+            this.readOptions.setFilterQuery(filterQuery);
+        }
         return Result.of(acceptedFilters, remainingFilters);
     }
 
@@ -200,10 +204,7 @@ public final class DorisDynamicTableSource
     @Override
     public void applyProjection(int[][] projectedFields, DataType producedDataType) {
         this.physicalRowDataType = Projection.of(projectedFields).project(physicalRowDataType);
-        if (StringUtils.isNullOrWhitespaceOnly(readOptions.getFilterQuery())) {
-            String filterQuery = resolvedFilterQuery.stream().collect(Collectors.joining(" AND "));
-            this.readOptions.setFilterQuery(filterQuery);
-        }
+
         if (StringUtils.isNullOrWhitespaceOnly(readOptions.getReadFields())) {
             String[] selectFields =
                     DataType.getFieldNames(physicalRowDataType).toArray(new String[0]);
