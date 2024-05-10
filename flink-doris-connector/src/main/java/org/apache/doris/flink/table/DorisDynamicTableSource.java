@@ -95,18 +95,6 @@ public final class DorisDynamicTableSource
 
     @Override
     public ScanRuntimeProvider getScanRuntimeProvider(ScanContext runtimeProviderContext) {
-        if (StringUtils.isNullOrWhitespaceOnly(readOptions.getFilterQuery())) {
-            String filterQuery = resolvedFilterQuery.stream().collect(Collectors.joining(" AND "));
-            readOptions.setFilterQuery(filterQuery);
-        }
-        if (StringUtils.isNullOrWhitespaceOnly(readOptions.getReadFields())) {
-            String[] selectFields =
-                    DataType.getFieldNames(physicalRowDataType).toArray(new String[0]);
-            readOptions.setReadFields(
-                    Arrays.stream(selectFields)
-                            .map(item -> String.format("`%s`", item.trim().replace("`", "")))
-                            .collect(Collectors.joining(", ")));
-        }
 
         if (readOptions.getUseOldApi()) {
             List<PartitionDefinition> dorisPartitions;
@@ -212,5 +200,17 @@ public final class DorisDynamicTableSource
     @Override
     public void applyProjection(int[][] projectedFields, DataType producedDataType) {
         this.physicalRowDataType = Projection.of(projectedFields).project(physicalRowDataType);
+        if (StringUtils.isNullOrWhitespaceOnly(readOptions.getFilterQuery())) {
+            String filterQuery = resolvedFilterQuery.stream().collect(Collectors.joining(" AND "));
+            this.readOptions.setFilterQuery(filterQuery);
+        }
+        if (StringUtils.isNullOrWhitespaceOnly(readOptions.getReadFields())) {
+            String[] selectFields =
+                    DataType.getFieldNames(physicalRowDataType).toArray(new String[0]);
+            this.readOptions.setReadFields(
+                    Arrays.stream(selectFields)
+                            .map(item -> String.format("`%s`", item.trim().replace("`", "")))
+                            .collect(Collectors.joining(", ")));
+        }
     }
 }
