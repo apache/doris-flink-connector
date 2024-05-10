@@ -95,7 +95,10 @@ public final class DorisDynamicTableSource
 
     @Override
     public ScanRuntimeProvider getScanRuntimeProvider(ScanContext runtimeProviderContext) {
-
+        if (StringUtils.isNullOrWhitespaceOnly(readOptions.getFilterQuery())) {
+            String filterQuery = resolvedFilterQuery.stream().collect(Collectors.joining(" AND "));
+            this.readOptions.setFilterQuery(filterQuery);
+        }
         if (readOptions.getUseOldApi()) {
             List<PartitionDefinition> dorisPartitions;
             try {
@@ -188,10 +191,6 @@ public final class DorisDynamicTableSource
             } else {
                 remainingFilters.add(filter);
             }
-        }
-        if (StringUtils.isNullOrWhitespaceOnly(readOptions.getFilterQuery())) {
-            String filterQuery = resolvedFilterQuery.stream().collect(Collectors.joining(" AND "));
-            this.readOptions.setFilterQuery(filterQuery);
         }
         return Result.of(acceptedFilters, remainingFilters);
     }
