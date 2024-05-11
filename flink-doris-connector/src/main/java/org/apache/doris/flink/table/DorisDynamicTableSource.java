@@ -185,7 +185,7 @@ public final class DorisDynamicTableSource
         DorisExpressionVisitor expressionVisitor = new DorisExpressionVisitor();
         for (ResolvedExpression filter : filters) {
             String filterQuery = filter.accept(expressionVisitor);
-            if (StringUtils.isNullOrWhitespaceOnly(filterQuery)
+            if (StringUtils.isNullOrWhitespaceOnly(readOptions.getFilterQuery())
                     && !StringUtils.isNullOrWhitespaceOnly(filterQuery)) {
                 acceptedFilters.add(filter);
                 this.resolvedFilterQuery.add(filterQuery);
