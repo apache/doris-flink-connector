@@ -82,9 +82,8 @@ public abstract class DatabaseSync {
     protected String tablePrefix;
     protected String tableSuffix;
     protected boolean singleSink;
-    private final Map<String, String> tableMapping = new HashMap<>();
+    protected final Map<String, String> tableMapping = new HashMap<>();
     protected boolean mergeSameSchema = true;
-
 
     public abstract void registerDriver() throws SQLException;
 
