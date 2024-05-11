@@ -53,10 +53,10 @@ public class ParsingProcessFunction extends ProcessFunction<String, Void> {
 
     private String getDorisName(String record, String tableName) throws Exception {
         if (converter.isMergeSameSchema()) {
+            return converter.convert(tableName);
+        } else {
             String databaseName = getRecordDatabaseName(record);
             return converter.convert(databaseName + "_" + tableName);
-        } else {
-            return converter.convert(tableName);
         }
     }
 

@@ -144,14 +144,7 @@ public abstract class DatabaseSync {
                 LOG.info("database {} not exist, created", targetDb);
                 dorisSystem.createDatabase(targetDb);
             }
-            String dorisTable;
-            if (mergeSameSchema) {
-                dorisTable =
-                        converter.convert(schema.getDatabaseName() + "_" + schema.getTableName());
-            } else {
-                dorisTable = converter.convert(schema.getTableName());
-            }
-
+            String dorisTable = getDorisConvertedTableName(schema);
             // Calculate the mapping relationship between upstream and downstream tables
             tableMapping.put(
                     schema.getTableIdentifier(), String.format("%s.%s", targetDb, dorisTable));
@@ -448,6 +441,16 @@ public abstract class DatabaseSync {
                 }
             }
         }
+    }
+
+    public String getDorisConvertedTableName(SourceSchema schema) {
+        String dorisTable;
+        if (mergeSameSchema) {
+            dorisTable = converter.convert(schema.getTableName());
+        } else {
+            dorisTable = converter.convert(schema.getDatabaseName() + "_" + schema.getTableName());
+        }
+        return dorisTable;
     }
 
     public DatabaseSync setEnv(StreamExecutionEnvironment env) {
