@@ -117,6 +117,7 @@ public class CdcTools {
         String multiToOneTarget = params.get("multi-to-one-target");
         boolean createTableOnly = params.has("create-table-only");
         boolean ignoreDefaultValue = params.has("ignore-default-value");
+        boolean mergeSameSchema = params.getBoolean("merge-same-schema", true);
         boolean singleSink = params.has("single-sink");
 
         Preconditions.checkArgument(params.has("sink-conf"));
@@ -139,6 +140,7 @@ public class CdcTools {
                 .setSinkConfig(sinkConfig)
                 .setTableConfig(tableMap)
                 .setCreateTableOnly(createTableOnly)
+                .setMergeSameSchema(mergeSameSchema)
                 .setSingleSink(singleSink)
                 .create();
         databaseSync.build();
