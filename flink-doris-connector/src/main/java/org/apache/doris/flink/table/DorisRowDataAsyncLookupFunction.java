@@ -31,6 +31,7 @@ import org.apache.doris.flink.cfg.DorisLookupOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.lookup.DorisJdbcLookupReader;
 import org.apache.doris.flink.lookup.DorisLookupReader;
+import org.apache.doris.flink.lookup.LookupMetrics;
 import org.apache.doris.flink.lookup.LookupSchema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,6 +53,7 @@ public class DorisRowDataAsyncLookupFunction extends AsyncTableFunction<RowData>
     private transient Cache<RowData, List<RowData>> cache;
     private DorisLookupReader lookupReader;
     private LookupSchema lookupSchema;
+    private LookupMetrics lookupMetrics;
 
     public DorisRowDataAsyncLookupFunction(
             DorisOptions options,
@@ -91,6 +93,7 @@ public class DorisRowDataAsyncLookupFunction extends AsyncTableFunction<RowData>
                                 .maximumSize(cacheMaxSize)
                                 .build();
         this.lookupReader = new DorisJdbcLookupReader(options, lookupOptions, lookupSchema);
+        this.lookupMetrics = new LookupMetrics(context.getMetricGroup());
     }
 
     /** This is a lookup method which is called by Flink framework in runtime. */
@@ -100,10 +103,17 @@ public class DorisRowDataAsyncLookupFunction extends AsyncTableFunction<RowData>
         if (cache != null) {
             List<RowData> cachedRows = cache.getIfPresent(keyRow);
             if (cachedRows != null) {
+                lookupMetrics.incHitCount();
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("lookup cache hit for key: {}", keyRow);
+                }
                 future.complete(cachedRows);
                 return;
+            } else {
+                lookupMetrics.incMissCount();
             }
         }
+
         CompletableFuture<List<RowData>> resultFuture = lookupReader.asyncGet(keyRow);
         resultFuture.handleAsync(
                 (resultRows, throwable) -> {
@@ -114,11 +124,13 @@ public class DorisRowDataAsyncLookupFunction extends AsyncTableFunction<RowData>
                             if (resultRows == null || resultRows.isEmpty()) {
                                 if (cache != null) {
                                     cache.put(keyRow, Collections.emptyList());
+                                    lookupMetrics.incLoadCount();
                                 }
                                 future.complete(Collections.emptyList());
                             } else {
                                 if (cache != null) {
                                     cache.put(keyRow, resultRows);
+                                    lookupMetrics.incLoadCount();
                                 }
                                 future.complete(resultRows);
                             }
