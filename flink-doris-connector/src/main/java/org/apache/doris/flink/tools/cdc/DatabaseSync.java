@@ -179,15 +179,7 @@ public abstract class DatabaseSync {
                 int sinkParallel =
                         sinkConfig.getInteger(
                                 DorisConfigOptions.SINK_PARALLELISM, sideOutput.getParallelism());
-                String uidName;
-                // determine whether to proceed with multi-database
-                // synchronization; if yes, the UID is composed of `dbname_tablename`, otherwise it
-                // is composed of `tablename`.
-                if (targetDbSet.size() > 1) {
-                    uidName = dbTbl.f0 + "_" + dbTbl.f1;
-                } else {
-                    uidName = dbTbl.f1;
-                }
+                String uidName = getUidName(targetDbSet, dbTbl);
                 sideOutput
                         .sinkTo(buildDorisSink(dbTbl.f0 + "." + dbTbl.f1))
                         .setParallelism(sinkParallel)
@@ -195,6 +187,25 @@ public abstract class DatabaseSync {
                         .uid(uidName);
             }
         }
+    }
+
+    /**
+     * @param targetDbSet The set of target databases.
+     * @param dbTbl The database-table tuple.
+     * @return The UID of the DataStream.
+     */
+    public String getUidName(Set<String> targetDbSet, Tuple2<String, String> dbTbl) {
+        String uidName;
+        // Determine whether to proceed with multi-database synchronization.
+        // if yes, the UID is composed of `dbname_tablename`, otherwise it is composed of
+        // `tablename`.
+        if (targetDbSet.size() > 1) {
+            uidName = dbTbl.f0 + "_" + dbTbl.f1;
+        } else {
+            uidName = dbTbl.f1;
+        }
+
+        return uidName;
     }
 
     private DorisConnectionOptions getDorisConnectionOptions() {
