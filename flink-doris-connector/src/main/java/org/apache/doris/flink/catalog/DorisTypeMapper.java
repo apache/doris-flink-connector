@@ -125,7 +125,7 @@ public class DorisTypeMapper {
                 return DataTypes.DATE();
             case DATETIME:
             case DATETIME_V2:
-                return DataTypes.TIMESTAMP(0);
+                return DataTypes.TIMESTAMP(scale);
             default:
                 throw new UnsupportedOperationException(
                         String.format(

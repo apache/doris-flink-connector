@@ -85,6 +85,7 @@ public abstract class DatabaseSync {
     private final Map<String, String> tableMapping = new HashMap<>();
     protected boolean mergeSameSchema = true;
 
+
     public abstract void registerDriver() throws SQLException;
 
     public abstract Connection getConnection() throws SQLException;

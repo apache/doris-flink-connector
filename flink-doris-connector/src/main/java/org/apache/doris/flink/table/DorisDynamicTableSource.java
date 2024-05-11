@@ -95,14 +95,10 @@ public final class DorisDynamicTableSource
 
     @Override
     public ScanRuntimeProvider getScanRuntimeProvider(ScanContext runtimeProviderContext) {
-        String filterQuery = resolvedFilterQuery.stream().collect(Collectors.joining(" AND "));
-        readOptions.setFilterQuery(filterQuery);
-        String[] selectFields = DataType.getFieldNames(physicalRowDataType).toArray(new String[0]);
-        readOptions.setReadFields(
-                Arrays.stream(selectFields)
-                        .map(item -> String.format("`%s`", item.trim().replace("`", "")))
-                        .collect(Collectors.joining(", ")));
-
+        if (StringUtils.isNullOrWhitespaceOnly(readOptions.getFilterQuery())) {
+            String filterQuery = resolvedFilterQuery.stream().collect(Collectors.joining(" AND "));
+            readOptions.setFilterQuery(filterQuery);
+        }
         if (readOptions.getUseOldApi()) {
             List<PartitionDefinition> dorisPartitions;
             try {
@@ -189,7 +185,8 @@ public final class DorisDynamicTableSource
         DorisExpressionVisitor expressionVisitor = new DorisExpressionVisitor();
         for (ResolvedExpression filter : filters) {
             String filterQuery = filter.accept(expressionVisitor);
-            if (!StringUtils.isNullOrWhitespaceOnly(filterQuery)) {
+            if (StringUtils.isNullOrWhitespaceOnly(readOptions.getFilterQuery())
+                    && !StringUtils.isNullOrWhitespaceOnly(filterQuery)) {
                 acceptedFilters.add(filter);
                 this.resolvedFilterQuery.add(filterQuery);
             } else {
@@ -207,5 +204,13 @@ public final class DorisDynamicTableSource
     @Override
     public void applyProjection(int[][] projectedFields, DataType producedDataType) {
         this.physicalRowDataType = Projection.of(projectedFields).project(physicalRowDataType);
+        if (StringUtils.isNullOrWhitespaceOnly(readOptions.getReadFields())) {
+            String[] selectFields =
+                    DataType.getFieldNames(physicalRowDataType).toArray(new String[0]);
+            this.readOptions.setReadFields(
+                    Arrays.stream(selectFields)
+                            .map(item -> String.format("`%s`", item.trim().replace("`", "")))
+                            .collect(Collectors.joining(", ")));
+        }
     }
 }

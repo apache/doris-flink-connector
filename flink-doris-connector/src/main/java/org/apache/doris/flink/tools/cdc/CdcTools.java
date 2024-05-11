@@ -23,6 +23,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
+import org.apache.doris.flink.tools.cdc.mongodb.MongoDBDatabaseSync;
 import org.apache.doris.flink.tools.cdc.mysql.MysqlDatabaseSync;
 import org.apache.doris.flink.tools.cdc.oracle.OracleDatabaseSync;
 import org.apache.doris.flink.tools.cdc.postgres.PostgresDatabaseSync;
@@ -40,6 +41,7 @@ public class CdcTools {
     private static final String ORACLE_SYNC_DATABASE = "oracle-sync-database";
     private static final String POSTGRES_SYNC_DATABASE = "postgres-sync-database";
     private static final String SQLSERVER_SYNC_DATABASE = "sqlserver-sync-database";
+    private static final String MONGODB_SYNC_DATABASE = "mongodb-sync-database";
     private static final List<String> EMPTY_KEYS = Collections.singletonList("password");
 
     public static void main(String[] args) throws Exception {
@@ -58,6 +60,9 @@ public class CdcTools {
                 break;
             case SQLSERVER_SYNC_DATABASE:
                 createSqlServerSyncDatabase(opArgs);
+                break;
+            case MONGODB_SYNC_DATABASE:
+                createMongoDBSyncDatabase(opArgs);
                 break;
             default:
                 System.out.println("Unknown operation " + operation);
@@ -99,6 +104,15 @@ public class CdcTools {
         Configuration postgresConfig = Configuration.fromMap(postgresMap);
         DatabaseSync databaseSync = new SqlServerDatabaseSync();
         syncDatabase(params, databaseSync, postgresConfig, "SqlServer");
+    }
+
+    private static void createMongoDBSyncDatabase(String[] opArgs) throws Exception {
+        MultipleParameterTool params = MultipleParameterTool.fromArgs(opArgs);
+        Preconditions.checkArgument(params.has("mongodb-conf"));
+        Map<String, String> mongoMap = getConfigMap(params, "mongodb-conf");
+        Configuration mongoConfig = Configuration.fromMap(mongoMap);
+        DatabaseSync databaseSync = new MongoDBDatabaseSync();
+        syncDatabase(params, databaseSync, mongoConfig, "mongodb");
     }
 
     private static void syncDatabase(

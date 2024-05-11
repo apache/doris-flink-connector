@@ -45,6 +45,8 @@ import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_BATCH_SIZE;
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_DESERIALIZE_ARROW_ASYNC;
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_DESERIALIZE_QUEUE_SIZE;
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_EXEC_MEM_LIMIT;
+import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_FILTER_QUERY;
+import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_READ_FIELD;
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_REQUEST_CONNECT_TIMEOUT_MS;
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_REQUEST_QUERY_TIMEOUT_S;
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_REQUEST_READ_TIMEOUT_MS;
@@ -116,6 +118,8 @@ public final class DorisDynamicTableFactory
         options.add(JDBC_URL);
         options.add(AUTO_REDIRECT);
 
+        options.add(DORIS_READ_FIELD);
+        options.add(DORIS_FILTER_QUERY);
         options.add(DORIS_TABLET_SIZE);
         options.add(DORIS_REQUEST_CONNECT_TIMEOUT_MS);
         options.add(DORIS_REQUEST_READ_TIMEOUT_MS);
@@ -202,6 +206,8 @@ public final class DorisDynamicTableFactory
         builder.setDeserializeArrowAsync(readableConfig.get(DORIS_DESERIALIZE_ARROW_ASYNC))
                 .setDeserializeQueueSize(readableConfig.get(DORIS_DESERIALIZE_QUEUE_SIZE))
                 .setExecMemLimit(readableConfig.get(DORIS_EXEC_MEM_LIMIT).getBytes())
+                .setFilterQuery(readableConfig.get(DORIS_FILTER_QUERY))
+                .setReadFields(readableConfig.get(DORIS_READ_FIELD))
                 .setRequestQueryTimeoutS(
                         (int) readableConfig.get(DORIS_REQUEST_QUERY_TIMEOUT_S).getSeconds())
                 .setRequestBatchSize(readableConfig.get(DORIS_BATCH_SIZE))
