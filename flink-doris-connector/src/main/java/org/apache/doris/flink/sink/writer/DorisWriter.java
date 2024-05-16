@@ -312,7 +312,7 @@ public class DorisWriter<IN>
         List<DorisWriterState> writerStates = new ArrayList<>();
         for (DorisStreamLoad dorisStreamLoad : dorisStreamLoadMap.values()) {
             // Dynamic refresh backend
-            dorisStreamLoad.setHostPort(backendUtil.getAvailableBackend());
+            dorisStreamLoad.setHostPort(backendUtil.getAvailableBackend(subtaskId));
             DorisWriterState writerState =
                     new DorisWriterState(
                             labelPrefix,
@@ -340,7 +340,7 @@ public class DorisWriter<IN>
                 tableKey,
                 v ->
                         new DorisStreamLoad(
-                                backendUtil.getAvailableBackend(),
+                                backendUtil.getAvailableBackend(subtaskId),
                                 dorisOptions,
                                 executionOptions,
                                 labelGenerator,
@@ -373,7 +373,7 @@ public class DorisWriter<IN>
                 // use send cached data to new txn, then notify to restart the stream
                 if (executionOptions.isUseCache()) {
                     try {
-                        dorisStreamLoad.setHostPort(backendUtil.getAvailableBackend());
+                        dorisStreamLoad.setHostPort(backendUtil.getAvailableBackend(subtaskId));
                         if (executionOptions.enabled2PC()) {
                             dorisStreamLoad.abortPreCommit(labelPrefix, curCheckpointId);
                         }
