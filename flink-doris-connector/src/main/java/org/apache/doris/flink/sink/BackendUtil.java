@@ -84,9 +84,9 @@ public class BackendUtil {
         while (pos < tmp) {
             BackendV2.BackendRowV2 backend =
                     backends.get((int) ((pos + subtaskId) % backends.size()));
+            pos++;
             String res = backend.toBackendString();
             if (tryHttpConnection(res)) {
-                pos++;
                 return res;
             }
         }
