@@ -76,9 +76,15 @@ public class BackendUtil {
     }
 
     public String getAvailableBackend() {
+        return getAvailableBackend(0);
+    }
+
+    public String getAvailableBackend(int subtaskId) {
         long tmp = pos + backends.size();
         while (pos < tmp) {
-            BackendV2.BackendRowV2 backend = backends.get((int) (pos++ % backends.size()));
+            BackendV2.BackendRowV2 backend =
+                    backends.get((int) ((pos + subtaskId) % backends.size()));
+            pos++;
             String res = backend.toBackendString();
             if (tryHttpConnection(res)) {
                 return res;
