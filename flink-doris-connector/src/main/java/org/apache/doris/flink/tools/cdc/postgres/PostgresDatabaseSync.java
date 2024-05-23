@@ -104,7 +104,11 @@ public class PostgresDatabaseSync extends DatabaseSync {
         try (Connection conn = getConnection()) {
             DatabaseMetaData metaData = conn.getMetaData();
             try (ResultSet tables =
-                    metaData.getTables(databaseName, schemaName, "%", new String[] {"TABLE"})) {
+                    metaData.getTables(
+                            databaseName,
+                            schemaName,
+                            "%",
+                            new String[] {"TABLE", "PARTITIONED TABLE"})) {
                 while (tables.next()) {
                     String tableName = tables.getString("TABLE_NAME");
                     String tableComment = tables.getString("REMARKS");
