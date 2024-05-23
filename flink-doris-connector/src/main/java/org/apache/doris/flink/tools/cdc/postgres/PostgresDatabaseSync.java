@@ -119,7 +119,7 @@ public class PostgresDatabaseSync extends DatabaseSync {
                             new PostgresSchema(
                                     metaData, databaseName, schemaName, tableName, tableComment);
                     sourceSchema.setModel(
-                            sourceSchema.primaryKeys.size() > 0
+                            !sourceSchema.primaryKeys.isEmpty()
                                     ? DataModel.UNIQUE
                                     : DataModel.DUPLICATE);
                     schemaList.add(sourceSchema);
