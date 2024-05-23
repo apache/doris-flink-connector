@@ -376,7 +376,7 @@ public abstract class DatabaseSync {
             } else {
                 String excludingPattern =
                         String.format("?!(%s\\.(%s))$", getTableListPrefix(), excludingTables);
-                return String.format("(%s)(%s)", includingPattern, excludingPattern);
+                return String.format("(%s)(%s)", excludingPattern, includingPattern);
             }
         }
     }
