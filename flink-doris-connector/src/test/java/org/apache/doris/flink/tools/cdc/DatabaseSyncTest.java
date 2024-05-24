@@ -25,6 +25,7 @@ import org.jetbrains.annotations.NotNull;
 import org.junit.Test;
 
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -69,7 +70,7 @@ public class DatabaseSyncTest {
     public void getTableBucketsTest() throws SQLException {
         String tableBuckets = "tbl1:10,tbl2 : 20, a.* :30,b.*:40,.*:50";
         DatabaseSync databaseSync = new MysqlDatabaseSync();
-        Map<String, Integer> tableBucketsMap = databaseSync.getTableBuckets(tableBuckets);
+        Map<String, Integer> tableBucketsMap = DatabaseSync.getTableBuckets(tableBuckets);
         assertEquals(10, tableBucketsMap.get("tbl1").intValue());
         assertEquals(20, tableBucketsMap.get("tbl2").intValue());
         assertEquals(30, tableBucketsMap.get("a.*").intValue());
@@ -81,7 +82,7 @@ public class DatabaseSyncTest {
     public void setTableSchemaBucketsTest() throws SQLException {
         DatabaseSync databaseSync = new MysqlDatabaseSync();
         String tableSchemaBuckets = "tbl1:10,tbl2:20,a11.*:30,a1.*:40,b.*:50,b1.*:60,.*:70";
-        Map<String, Integer> tableBucketsMap = databaseSync.getTableBuckets(tableSchemaBuckets);
+        Map<String, Integer> tableBucketsMap = DatabaseSync.getTableBuckets(tableSchemaBuckets);
         List<String> tableList =
                 Arrays.asList(
                         "tbl1", "tbl2", "tbl3", "a11", "a111", "a12", "a13", "b1", "b11", "b2",
@@ -103,7 +104,7 @@ public class DatabaseSyncTest {
     public void setTableSchemaBucketsTest1() throws SQLException {
         DatabaseSync databaseSync = new MysqlDatabaseSync();
         String tableSchemaBuckets = ".*:10,a.*:20,tbl:30,b.*:40";
-        Map<String, Integer> tableBucketsMap = databaseSync.getTableBuckets(tableSchemaBuckets);
+        Map<String, Integer> tableBucketsMap = DatabaseSync.getTableBuckets(tableSchemaBuckets);
         List<String> tableList = Arrays.asList("a1", "a2", "a3", "b1", "a");
         HashMap<String, Integer> matchedTableBucketsMap = mockTableBuckets1();
         Set<String> tableSet = new HashSet<>();
@@ -146,5 +147,32 @@ public class DatabaseSyncTest {
         matchedTableBucketsMap.put("b1", 10);
         matchedTableBucketsMap.put("tbl1", 10);
         return matchedTableBucketsMap;
+    }
+
+    @Test
+    public void singleSinkTablePatternTest() throws SQLException {
+        DatabaseSync databaseSync = new MysqlDatabaseSync();
+        databaseSync.setSingleSink(true);
+        databaseSync.setIncludingTables(".*");
+        databaseSync.setExcludingTables("customer|dates|lineorder|dates");
+        Configuration config = new Configuration();
+        config.setString("database-name", "ssb_test");
+        databaseSync.setConfig(config);
+        List<String> tableList =
+                Arrays.asList("test1", "test2", "test3", "customer", "dates", "lineorder");
+        String syncTableListPattern = databaseSync.getSyncTableList(tableList);
+        List<String> tablesToSyncList = new ArrayList<>();
+        tablesToSyncList.add("ssb_test.test1");
+        tablesToSyncList.add("ssb_test.test2");
+        tablesToSyncList.add("ssb_test.test3");
+        int size = 0;
+
+        for (String tableName : tableList) {
+            String matchTable = "ssb_test." + tableName;
+            if (matchTable.matches(syncTableListPattern)) {
+                assertEquals(matchTable, tablesToSyncList.get(size++));
+            }
+        }
+        assertEquals(3, size);
     }
 }
