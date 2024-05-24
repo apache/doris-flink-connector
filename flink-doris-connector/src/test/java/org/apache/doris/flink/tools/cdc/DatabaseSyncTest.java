@@ -25,7 +25,6 @@ import org.jetbrains.annotations.NotNull;
 import org.junit.Test;
 
 import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -34,6 +33,8 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 /** Unit tests for the {@link DatabaseSync}. */
 public class DatabaseSyncTest {
@@ -154,25 +155,18 @@ public class DatabaseSyncTest {
         DatabaseSync databaseSync = new MysqlDatabaseSync();
         databaseSync.setSingleSink(true);
         databaseSync.setIncludingTables(".*");
-        databaseSync.setExcludingTables("customer|dates|lineorder|dates");
+        databaseSync.setExcludingTables("customer|dates|lineorder");
         Configuration config = new Configuration();
         config.setString("database-name", "ssb_test");
         databaseSync.setConfig(config);
         List<String> tableList =
-                Arrays.asList("test1", "test2", "test3", "customer", "dates", "lineorder");
+                Arrays.asList("customer", "dates", "lineorder", "test1", "test2", "test3");
         String syncTableListPattern = databaseSync.getSyncTableList(tableList);
-        List<String> tablesToSyncList = new ArrayList<>();
-        tablesToSyncList.add("ssb_test.test1");
-        tablesToSyncList.add("ssb_test.test2");
-        tablesToSyncList.add("ssb_test.test3");
-        int size = 0;
-
-        for (String tableName : tableList) {
-            String matchTable = "ssb_test." + tableName;
-            if (matchTable.matches(syncTableListPattern)) {
-                assertEquals(matchTable, tablesToSyncList.get(size++));
-            }
-        }
-        assertEquals(3, size);
+        assertTrue("ssb_test.test1".matches(syncTableListPattern));
+        assertTrue("ssb_test.test2".matches(syncTableListPattern));
+        assertTrue("ssb_test.test3".matches(syncTableListPattern));
+        assertFalse("ssb_test.customer".matches(syncTableListPattern));
+        assertFalse("ssb_test.dates".matches(syncTableListPattern));
+        assertFalse("ssb_test.lineorder".matches(syncTableListPattern));
     }
 }
