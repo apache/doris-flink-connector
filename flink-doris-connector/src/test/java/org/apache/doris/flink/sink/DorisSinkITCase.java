@@ -28,22 +28,16 @@ import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.sink.writer.serializer.SimpleStringSerializer;
 import org.junit.Test;
-import org.junit.jupiter.api.Assertions;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
-import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 /** DorisSink ITCase with csv and arrow format. */
 public class DorisSinkITCase extends DorisTestBase {
@@ -62,25 +56,9 @@ public class DorisSinkITCase extends DorisTestBase {
         submitJob(TABLE_CSV, properties, new String[] {"doris,1"});
 
         Thread.sleep(10000);
-        Set<List<Object>> actual = new HashSet<>();
-
-        try (Connection connection =
-                        DriverManager.getConnection(
-                                String.format(URL, DORIS_CONTAINER.getHost()), USERNAME, PASSWORD);
-                Statement statement = connection.createStatement()) {
-            ResultSet sinkResultSet =
-                    statement.executeQuery(
-                            String.format(
-                                    "select name,age from %s.%s order by 1", DATABASE, TABLE_CSV));
-            while (sinkResultSet.next()) {
-                List<Object> row =
-                        Arrays.asList(sinkResultSet.getString("name"), sinkResultSet.getInt("age"));
-                actual.add(row);
-            }
-        }
-        Set<List<Object>> expected =
-                Stream.<List<Object>>of(Arrays.asList("doris", 1)).collect(Collectors.toSet());
-        Assertions.assertIterableEquals(expected, actual);
+        List<String> expected = Arrays.asList("doris,1");
+        String query = String.format("select name,age from %s.%s order by 1", DATABASE, TABLE_CSV);
+        checkResult(expected, query, 2);
     }
 
     @Test
@@ -107,25 +85,9 @@ public class DorisSinkITCase extends DorisTestBase {
                 });
 
         Thread.sleep(10000);
-        Set<List<Object>> actual = new HashSet<>();
-        try (Connection connection =
-                        DriverManager.getConnection(
-                                String.format(URL, DORIS_CONTAINER.getHost()), USERNAME, PASSWORD);
-                Statement statement = connection.createStatement()) {
-            ResultSet sinkResultSet =
-                    statement.executeQuery(
-                            String.format(
-                                    "select name,age from %s.%s order by 1", DATABASE, TABLE_JSON));
-            while (sinkResultSet.next()) {
-                List<Object> row =
-                        Arrays.asList(sinkResultSet.getString("name"), sinkResultSet.getInt("age"));
-                actual.add(row);
-            }
-        }
-        Set<List<Object>> expected =
-                Stream.<List<Object>>of(Arrays.asList("doris1", 1), Arrays.asList("doris2", 2))
-                        .collect(Collectors.toSet());
-        Assertions.assertIterableEquals(expected, actual);
+        List<String> expected = Arrays.asList("doris1,1", "doris2,2");
+        String query = String.format("select name,age from %s.%s order by 1", DATABASE, TABLE_JSON);
+        checkResult(expected, query, 2);
     }
 
     public void submitJob(String table, Properties properties, String[] records) throws Exception {
@@ -180,26 +142,10 @@ public class DorisSinkITCase extends DorisTestBase {
         tEnv.executeSql("INSERT INTO doris_sink SELECT 'doris',1 union all SELECT 'flink',2");
 
         Thread.sleep(10000);
-        Set<List<Object>> actual = new HashSet<>();
-        try (Connection connection =
-                        DriverManager.getConnection(
-                                String.format(URL, DORIS_CONTAINER.getHost()), USERNAME, PASSWORD);
-                Statement statement = connection.createStatement()) {
-            ResultSet sinkResultSet =
-                    statement.executeQuery(
-                            String.format(
-                                    "select name,age from %s.%s order by 1",
-                                    DATABASE, TABLE_JSON_TBL));
-            while (sinkResultSet.next()) {
-                List<Object> row =
-                        Arrays.asList(sinkResultSet.getString("name"), sinkResultSet.getInt("age"));
-                actual.add(row);
-            }
-        }
-        Set<List<Object>> expected =
-                Stream.<List<Object>>of(Arrays.asList("doris", 1), Arrays.asList("flink", 2))
-                        .collect(Collectors.toSet());
-        Assertions.assertIterableEquals(expected, actual);
+        List<String> expected = Arrays.asList("doris,1", "flink,2");
+        String query =
+                String.format("select name,age from %s.%s order by 1", DATABASE, TABLE_JSON_TBL);
+        checkResult(expected, query, 2);
     }
 
     private void initializeTable(String table) throws Exception {
