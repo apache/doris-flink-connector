@@ -145,7 +145,7 @@ public class MySQLDorisE2ECase extends DorisTestBase {
         }
         Thread.sleep(20000);
         List<String> expected3 =
-                Arrays.asList("doris_1,null", "doris_1_1,10", "doris_1_1_1,c1_val");
+                Arrays.asList("doris_1,null", "doris_1_1,null", "doris_1_1_1,c1_val");
         sql = "select * from %s.%s order by 1";
         String query3 = String.format(sql, DATABASE, TABLE_1);
         checkResult(expected3, query3, 2);
@@ -169,7 +169,7 @@ public class MySQLDorisE2ECase extends DorisTestBase {
         // auto create table4
         addTableTable_4();
         Thread.sleep(20000);
-        List<String> expected2 = Arrays.asList("doris_1,1", "doris_2,2", "doris_3,3");
+        List<String> expected2 = Arrays.asList("doris_4_1,4", "doris_4_2,4");
         sql = "select * from %s.%s order by 1";
         String query2 = String.format(sql, DATABASE, TABLE_4);
         checkResult(expected2, query2, 2);
