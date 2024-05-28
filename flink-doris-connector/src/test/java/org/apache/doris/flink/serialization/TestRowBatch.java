@@ -1196,4 +1196,27 @@ public class TestRowBatch {
         thrown.expectMessage(startsWith("Get row offset:"));
         rowBatch.next();
     }
+
+    @Test
+    public void testCompleteMilliseconds() {
+        String dt = RowBatch.completeMilliseconds("2021-01-01 10:01:02.123456");
+        Assert.assertEquals(dt, "2021-01-01 10:01:02.123456");
+        dt = RowBatch.completeMilliseconds("2021-01-01 10:01:02");
+        Assert.assertEquals(dt, "2021-01-01 10:01:02.000000");
+        dt = RowBatch.completeMilliseconds("2021-01-01 10:01:02.1");
+        Assert.assertEquals(dt, "2021-01-01 10:01:02.100000");
+        dt = RowBatch.completeMilliseconds("2021-01-01 10:01:02.12");
+        Assert.assertEquals(dt, "2021-01-01 10:01:02.120000");
+        dt = RowBatch.completeMilliseconds("2021-01-01 10:01:02.123");
+        Assert.assertEquals(dt, "2021-01-01 10:01:02.123000");
+        dt = RowBatch.completeMilliseconds("2021-01-01 10:01:02.1234");
+        Assert.assertEquals(dt, "2021-01-01 10:01:02.123400");
+        dt = RowBatch.completeMilliseconds("2021-01-01 10:01:02.12345");
+        Assert.assertEquals(dt, "2021-01-01 10:01:02.123450");
+        dt = RowBatch.completeMilliseconds("2021-01-01 10:01:02.123456");
+        Assert.assertEquals(dt, "2021-01-01 10:01:02.123456");
+
+        dt = RowBatch.completeMilliseconds("2021-01-01");
+        Assert.assertEquals(dt, "2021-01-01");
+    }
 }

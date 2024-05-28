@@ -99,6 +99,10 @@ public class DorisRowConverterTest implements Serializable {
                         timestamp1,
                         timestamp2);
         GenericRowData rowData = converter.convertInternal(record);
+        DorisRowConverter converterWithDataType =
+                new DorisRowConverter(schema.getColumnDataTypes().toArray(new DataType[0]));
+        GenericRowData genericRowData = converterWithDataType.convertInternal(record);
+        Assert.assertEquals(rowData, genericRowData);
 
         RowDataSerializer serializer =
                 new Builder()

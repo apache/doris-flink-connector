@@ -17,10 +17,6 @@
 
 package org.apache.doris.flink.cfg;
 
-import org.apache.doris.flink.util.IOUtils;
-
-import java.util.Properties;
-
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Options for the Doris connector. */
@@ -63,11 +59,6 @@ public class DorisOptions extends DorisConnectionOptions {
 
     public void setTableIdentifier(String tableIdentifier) {
         this.tableIdentifier = tableIdentifier;
-    }
-
-    public String save() throws IllegalArgumentException {
-        Properties copy = new Properties();
-        return IOUtils.propsToString(copy);
     }
 
     public static Builder builder() {

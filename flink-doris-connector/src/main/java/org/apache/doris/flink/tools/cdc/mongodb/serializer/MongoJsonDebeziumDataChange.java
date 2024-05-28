@@ -15,8 +15,10 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.flink.sink.writer.serializer.jsondebezium;
+package org.apache.doris.flink.tools.cdc.mongodb.serializer;
 
+import org.apache.doris.flink.sink.writer.serializer.jsondebezium.CdcDataChange;
+import org.apache.doris.flink.sink.writer.serializer.jsondebezium.JsonDebeziumChangeContext;
 import org.apache.flink.util.StringUtils;
 
 import com.fasterxml.jackson.core.JsonProcessingException;

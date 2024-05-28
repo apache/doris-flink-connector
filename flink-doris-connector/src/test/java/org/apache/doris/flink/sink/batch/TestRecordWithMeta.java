@@ -15,15 +15,19 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.flink.exception;
+package org.apache.doris.flink.sink.batch;
 
-/** Create Table exception. */
-public class CreateTableException extends RuntimeException {
-    public CreateTableException() {
-        super();
-    }
+import org.junit.Assert;
+import org.junit.Test;
 
-    public CreateTableException(String message) {
-        super(message);
+public class TestRecordWithMeta {
+
+    @Test
+    public void testRecordWithMeta() {
+        RecordWithMeta recordWithMeta = new RecordWithMeta("db", "tbl", "doris,1");
+        Assert.assertEquals(recordWithMeta.getRecord(), "doris,1");
+        Assert.assertEquals(recordWithMeta.getDatabase(), "db");
+        Assert.assertEquals(recordWithMeta.getTable(), "tbl");
+        Assert.assertEquals(recordWithMeta.getTableIdentifier(), "db.tbl");
     }
 }

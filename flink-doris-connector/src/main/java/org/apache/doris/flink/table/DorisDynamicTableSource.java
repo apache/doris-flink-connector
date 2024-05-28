@@ -17,6 +17,7 @@
 
 package org.apache.doris.flink.table;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.Projection;
@@ -77,13 +78,6 @@ public final class DorisDynamicTableSource
         this.readOptions = readOptions;
         this.physicalSchema = physicalSchema;
         this.physicalRowDataType = physicalRowDataType;
-    }
-
-    public DorisDynamicTableSource(
-            DorisOptions options, DorisReadOptions readOptions, TableSchema physicalSchema) {
-        this.options = options;
-        this.readOptions = readOptions;
-        this.physicalSchema = physicalSchema;
     }
 
     @Override
@@ -212,5 +206,10 @@ public final class DorisDynamicTableSource
                             .map(item -> String.format("`%s`", item.trim().replace("`", "")))
                             .collect(Collectors.joining(", ")));
         }
+    }
+
+    @VisibleForTesting
+    public List<String> getResolvedFilterQuery() {
+        return resolvedFilterQuery;
     }
 }

@@ -65,6 +65,14 @@ public abstract class DorisTestBase {
         return DORIS_CONTAINER.getHost() + ":8030";
     }
 
+    protected static String getJdbcUrl() {
+        return String.format(URL, DORIS_CONTAINER.getHost());
+    }
+
+    protected static String getHost() {
+        return DORIS_CONTAINER.getHost();
+    }
+
     static {
         startContainers();
     }

@@ -17,6 +17,13 @@
 
 package org.apache.doris.flink.catalog;
 
+import org.apache.commons.compress.utils.Lists;
+import org.apache.doris.flink.catalog.doris.DataModel;
+import org.apache.doris.flink.catalog.doris.DorisSystem;
+import org.apache.doris.flink.catalog.doris.FieldSchema;
+import org.apache.doris.flink.catalog.doris.TableSchema;
+import org.apache.doris.flink.cfg.DorisConnectionOptions;
+import org.apache.doris.flink.table.DorisDynamicTableFactory;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.catalog.AbstractCatalog;
@@ -48,14 +55,6 @@ import org.apache.flink.table.factories.Factory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
-
-import org.apache.commons.compress.utils.Lists;
-import org.apache.doris.flink.catalog.doris.DataModel;
-import org.apache.doris.flink.catalog.doris.DorisSystem;
-import org.apache.doris.flink.catalog.doris.FieldSchema;
-import org.apache.doris.flink.catalog.doris.TableSchema;
-import org.apache.doris.flink.cfg.DorisConnectionOptions;
-import org.apache.doris.flink.table.DorisDynamicTableFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -558,5 +557,15 @@ public class DorisCatalog extends AbstractCatalog {
             boolean ignoreIfNotExists)
             throws PartitionNotExistException, CatalogException {
         throw new UnsupportedOperationException();
+    }
+
+    @VisibleForTesting
+    public DorisConnectionOptions getConnectionOptions() {
+        return connectionOptions;
+    }
+
+    @VisibleForTesting
+    public Map<String, String> getProperties() {
+        return properties;
     }
 }

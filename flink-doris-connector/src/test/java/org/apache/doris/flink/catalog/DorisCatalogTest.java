@@ -28,6 +28,7 @@ import org.apache.flink.table.catalog.CatalogDatabaseImpl;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
@@ -38,6 +39,7 @@ import org.apache.flink.types.RowKind;
 import org.apache.flink.util.CollectionUtil;
 
 import com.google.common.collect.Lists;
+import org.apache.doris.flink.DorisTestBase;
 import org.apache.doris.flink.cfg.DorisConnectionOptions;
 import org.junit.Before;
 import org.junit.Ignore;
@@ -58,14 +60,17 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 /** Class for unit tests to run on catalogs. */
-@Ignore
-public class CatalogTest {
+public class DorisCatalogTest extends DorisTestBase {
     private static final String TEST_CATALOG_NAME = "doris_catalog";
-    private static final String TEST_FENODES = "127.0.0.1:8030";
-    private static final String TEST_JDBCURL = "jdbc:mysql://127.0.0.1:9030";
-    private static final String TEST_USERNAME = "root";
-    private static final String TEST_PWD = "";
-    private static final String TEST_DB = "db1";
+    private static final String TEST_FENODES = getFenodes();
+    private static final String TEST_JDBCURL = getJdbcUrl();
+    private static final String TEST_USERNAME = USERNAME;
+    private static final String TEST_PWD = PASSWORD;
+    //    private static final String TEST_FENODES = "127.0.0.1:8030";
+    //    private static final String TEST_JDBCURL = "jdbc:mysql://127.0.0.1:9030";
+    //    private static final String TEST_USERNAME = "root";
+    //    private static final String TEST_PWD = "";
+    private static final String TEST_DB = "catalog_db";
     private static final String TEST_TABLE = "t_all_types";
     private static final String TEST_TABLE_SINK = "t_all_types_sink";
     private static final String TEST_TABLE_SINK_GROUPBY = "t_all_types_sink_groupby";
@@ -146,7 +151,9 @@ public class CatalogTest {
     private TableEnvironment tEnv;
 
     @Before
-    public void setup() {
+    public void setup()
+            throws DatabaseAlreadyExistException, TableAlreadyExistException,
+                    TableNotExistException, DatabaseNotExistException {
         DorisConnectionOptions connectionOptions =
                 new DorisConnectionOptions.DorisConnectionOptionsBuilder()
                         .withFenodes(TEST_FENODES)
@@ -163,43 +170,45 @@ public class CatalogTest {
         // Use doris catalog.
         tEnv.registerCatalog(TEST_CATALOG_NAME, catalog);
         tEnv.useCatalog(TEST_CATALOG_NAME);
+
+        catalog.createDatabase(TEST_DB, createDb(), true);
+        catalog.createTable(new ObjectPath(TEST_DB, TEST_TABLE), createTable(), true);
+        catalog.createTable(new ObjectPath(TEST_DB, TEST_TABLE_SINK), createTable(), true);
+        catalog.createTable(new ObjectPath(TEST_DB, TEST_TABLE_SINK_GROUPBY), createTable(), true);
     }
 
     @Test
+    @Ignore
     public void testQueryFenodes() {
         String actual = catalog.queryFenodes();
-        assertEquals("127.0.0.1:8030", actual);
+        assertEquals(getFenodes(), actual);
     }
 
     @Test
     public void testListDatabases() {
         List<String> actual = catalog.listDatabases();
-        assertEquals(Collections.singletonList(TEST_DB), actual);
-    }
-
-    @Test
-    public void testDbExists() throws Exception {
-        String databaseNotExist = "nonexistent";
-        assertFalse(catalog.databaseExists(databaseNotExist));
-        assertTrue(catalog.databaseExists(TEST_DB));
+        assertTrue(actual.contains(TEST_DB));
     }
 
     @Test
     public void testCreateDb() throws Exception {
-        catalog.createDatabase("db1", createDb(), true);
-        assertTrue(catalog.databaseExists("db1"));
-    }
+        catalog.createDatabase("test_create", createDb(), true);
+        assertTrue(catalog.databaseExists("test_create"));
 
-    @Test
-    public void testDropDb() throws Exception {
-        catalog.dropDatabase("db1", false);
-        assertFalse(catalog.databaseExists("db1"));
+        String databaseNotExist = "nonexistent";
+        assertFalse(catalog.databaseExists(databaseNotExist));
+
+        catalog.dropDatabase("test_create", false);
+        assertFalse(catalog.databaseExists("test_create"));
     }
 
     @Test
     public void testListTables() throws DatabaseNotExistException {
         List<String> actual = catalog.listTables(TEST_DB);
-        assertEquals(Arrays.asList(TEST_TABLE, TEST_TABLE_SINK, TEST_TABLE_SINK_GROUPBY), actual);
+        Collections.sort(actual);
+        List<String> excepted = Arrays.asList(TEST_TABLE, TEST_TABLE_SINK, TEST_TABLE_SINK_GROUPBY);
+        Collections.sort(excepted);
+        assertEquals(excepted, actual);
     }
 
     @Test
@@ -209,26 +218,14 @@ public class CatalogTest {
     }
 
     @Test
-    @Ignore
     public void testGetTable() throws TableNotExistException {
         // todo: string varchar mapping
         CatalogBaseTable table = catalog.getTable(new ObjectPath(TEST_DB, TEST_TABLE));
-        System.out.println(table);
-        assertEquals(TABLE_SCHEMA, table.getUnresolvedSchema());
-    }
-
-    @Test
-    @Ignore
-    public void testCreateTable()
-            throws TableNotExistException, TableAlreadyExistException, DatabaseNotExistException {
-        // todo: Record primary key not null information
-        ObjectPath tablePath = new ObjectPath(TEST_DB, TEST_TABLE);
-        catalog.dropTable(tablePath, true);
-        catalog.createTable(tablePath, createTable(), true);
-        CatalogBaseTable tableGet = catalog.getTable(tablePath);
-        System.out.println(tableGet.getUnresolvedSchema());
+        Schema actual = table.getUnresolvedSchema();
         System.out.println(TABLE_SCHEMA_1);
-        assertEquals(TABLE_SCHEMA_1, tableGet.getUnresolvedSchema());
+        assertEquals(
+                TABLE_SCHEMA_1.getFieldNames(),
+                actual.getColumns().stream().map(Schema.UnresolvedColumn::getName).toArray());
     }
 
     @Test
@@ -240,6 +237,7 @@ public class CatalogTest {
     // ------ test select query. ------
 
     @Test
+    @Ignore
     public void testSelectField() {
         List<Row> results =
                 CollectionUtil.iteratorToList(
@@ -253,6 +251,7 @@ public class CatalogTest {
     }
 
     @Test
+    @Ignore
     public void testWithoutCatalogDB() {
         List<Row> results =
                 CollectionUtil.iteratorToList(
@@ -263,6 +262,7 @@ public class CatalogTest {
     }
 
     @Test
+    @Ignore
     public void testWithoutCatalog() {
         List<Row> results =
                 CollectionUtil.iteratorToList(
@@ -273,6 +273,7 @@ public class CatalogTest {
     }
 
     @Test
+    @Ignore
     public void testFullPath() {
         List<Row> results =
                 CollectionUtil.iteratorToList(
@@ -288,6 +289,7 @@ public class CatalogTest {
     }
 
     @Test
+    @Ignore
     public void testSelectToInsert() throws Exception {
 
         String sql =
@@ -303,6 +305,7 @@ public class CatalogTest {
     }
 
     @Test
+    @Ignore
     public void testGroupByInsert() throws Exception {
         // Changes primary key for the next record.
         tEnv.executeSql(

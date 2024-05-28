@@ -17,6 +17,7 @@
 
 package org.apache.doris.flink.serialization;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.arrow.memory.RootAllocator;
@@ -488,10 +489,16 @@ public class RowBatch {
         return dateTime;
     }
 
-    private String completeMilliseconds(String stringValue) {
+    @VisibleForTesting
+    public static String completeMilliseconds(String stringValue) {
         if (stringValue.length() == DATETIMEV2_PATTERN.length()) {
             return stringValue;
         }
+
+        if (stringValue.length() < DATETIME_PATTERN.length()) {
+            return stringValue;
+        }
+
         StringBuilder sb = new StringBuilder(stringValue);
         if (stringValue.length() == DATETIME_PATTERN.length()) {
             sb.append(".");

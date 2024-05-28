@@ -20,7 +20,7 @@ package org.apache.doris.flink.tools.cdc;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
-import org.apache.doris.flink.tools.cdc.mongodb.MongoDBDatabaseSync;
+import org.apache.doris.flink.tools.cdc.mongodb.serializer.MongoDBDatabaseSync;
 
 import java.util.HashMap;
 import java.util.Map;

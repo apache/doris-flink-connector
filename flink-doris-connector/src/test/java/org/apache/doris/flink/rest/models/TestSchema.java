@@ -15,15 +15,25 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.flink.exception;
+package org.apache.doris.flink.rest.models;
 
-/** Create Table exception. */
-public class CreateTableException extends RuntimeException {
-    public CreateTableException() {
-        super();
-    }
+import org.junit.Assert;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
-    public CreateTableException(String message) {
-        super(message);
+public class TestSchema {
+    @Rule public ExpectedException thrown = ExpectedException.none();
+
+    @Test
+    public void testPutGet() {
+        Schema ts = new Schema(1);
+        Field f = new Field();
+        ts.put(f);
+        Assert.assertEquals(f, ts.get(0));
+
+        thrown.expect(IndexOutOfBoundsException.class);
+        thrown.expectMessage("Index: 1, Fields size：1");
+        ts.get(1);
     }
 }
