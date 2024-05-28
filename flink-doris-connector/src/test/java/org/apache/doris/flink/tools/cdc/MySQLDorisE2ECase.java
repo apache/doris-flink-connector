@@ -30,7 +30,6 @@ import org.apache.doris.flink.tools.cdc.mysql.MysqlDatabaseSync;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.junit.jupiter.api.Assertions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.MySQLContainer;
@@ -38,21 +37,16 @@ import org.testcontainers.lifecycle.Startables;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeoutException;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.apache.flink.api.common.JobStatus.RUNNING;
@@ -99,12 +93,7 @@ public class MySQLDorisE2ECase extends DorisTestBase {
         JobClient jobClient = submitJob();
         // wait 2 times checkpoint
         Thread.sleep(20000);
-        Set<List<Object>> expected =
-                Stream.<List<Object>>of(
-                                Arrays.asList("doris_1", 1),
-                                Arrays.asList("doris_2", 2),
-                                Arrays.asList("doris_3", 3))
-                        .collect(Collectors.toSet());
+        List<String> expected = Arrays.asList("doris_1,1", "doris_2,2", "doris_3,3");
         String sql =
                 "select * from ( select * from %s.%s union all select * from %s.%s union all select * from %s.%s ) res order by 1";
         String query1 = String.format(sql, DATABASE, TABLE_1, DATABASE, TABLE_2, DATABASE, TABLE_3);
@@ -130,14 +119,9 @@ public class MySQLDorisE2ECase extends DorisTestBase {
         }
 
         Thread.sleep(20000);
-        Set<List<Object>> expected2 =
-                Stream.<List<Object>>of(
-                                Arrays.asList("doris_1", 18),
-                                Arrays.asList("doris_1_1", 10),
-                                Arrays.asList("doris_2_1", 11),
-                                Arrays.asList("doris_3", 3),
-                                Arrays.asList("doris_3_1", 12))
-                        .collect(Collectors.toSet());
+        List<String> expected2 =
+                Arrays.asList(
+                        "doris_1,18", "doris_1_1,10", "doris_2_1,11", "doris_3,3", "doris_3_1,12");
         sql =
                 "select * from ( select * from %s.%s union all select * from %s.%s union all select * from %s.%s ) res order by 1";
         String query2 = String.format(sql, DATABASE, TABLE_1, DATABASE, TABLE_2, DATABASE, TABLE_3);
@@ -160,12 +144,8 @@ public class MySQLDorisE2ECase extends DorisTestBase {
                             DATABASE, TABLE_1));
         }
         Thread.sleep(20000);
-        Set<List<Object>> expected3 =
-                Stream.<List<Object>>of(
-                                Arrays.asList("doris_1", null),
-                                Arrays.asList("doris_1_1", null),
-                                Arrays.asList("doris_1_1_1", "c1_val"))
-                        .collect(Collectors.toSet());
+        List<String> expected3 =
+                Arrays.asList("doris_1,null", "doris_1_1,null", "doris_1_1_1,c1_val");
         sql = "select * from %s.%s order by 1";
         String query3 = String.format(sql, DATABASE, TABLE_1);
         checkResult(expected3, query3, 2);
@@ -180,12 +160,7 @@ public class MySQLDorisE2ECase extends DorisTestBase {
         JobClient jobClient = submitJob();
         // wait 2 times checkpoint
         Thread.sleep(20000);
-        Set<List<Object>> expected =
-                Stream.<List<Object>>of(
-                                Arrays.asList("doris_1", 1),
-                                Arrays.asList("doris_2", 2),
-                                Arrays.asList("doris_3", 3))
-                        .collect(Collectors.toSet());
+        List<String> expected = Arrays.asList("doris_1,1", "doris_2,2", "doris_3,3");
         String sql =
                 "select * from ( select * from %s.%s union all select * from %s.%s union all select * from %s.%s ) res order by 1";
         String query1 = String.format(sql, DATABASE, TABLE_1, DATABASE, TABLE_2, DATABASE, TABLE_3);
@@ -194,10 +169,7 @@ public class MySQLDorisE2ECase extends DorisTestBase {
         // auto create table4
         addTableTable_4();
         Thread.sleep(20000);
-        Set<List<Object>> expected2 =
-                Stream.<List<Object>>of(
-                                Arrays.asList("doris_4_1", 4), Arrays.asList("doris_4_2", 4))
-                        .collect(Collectors.toSet());
+        List<String> expected2 = Arrays.asList("doris_4_1,4", "doris_4_2,4");
         sql = "select * from %s.%s order by 1";
         String query2 = String.format(sql, DATABASE, TABLE_4);
         checkResult(expected2, query2, 2);
@@ -229,16 +201,15 @@ public class MySQLDorisE2ECase extends DorisTestBase {
         }
 
         Thread.sleep(20000);
-        Set<List<Object>> expected3 =
-                Stream.<List<Object>>of(
-                                Arrays.asList("doris_1", 18),
-                                Arrays.asList("doris_1_1", 10),
-                                Arrays.asList("doris_2_1", 11),
-                                Arrays.asList("doris_3", 3),
-                                Arrays.asList("doris_3_1", 12),
-                                Arrays.asList("doris_4_1", 41),
-                                Arrays.asList("doris_4_3", 43))
-                        .collect(Collectors.toSet());
+        List<String> expected3 =
+                Arrays.asList(
+                        "doris_1,18",
+                        "doris_1_1,10",
+                        "doris_2_1,11",
+                        "doris_3,3",
+                        "doris_3_1,12",
+                        "doris_4_1,41",
+                        "doris_4_3,43");
         sql =
                 "select * from ( select * from %s.%s union all select * from %s.%s union all select * from %s.%s union all select * from %s.%s ) res order by 1";
         String query3 =
@@ -263,12 +234,8 @@ public class MySQLDorisE2ECase extends DorisTestBase {
                             "insert into %s.%s  values ('doris_4_4','c1_val')", DATABASE, TABLE_4));
         }
         Thread.sleep(20000);
-        Set<List<Object>> expected4 =
-                Stream.<List<Object>>of(
-                                Arrays.asList("doris_4_1", null),
-                                Arrays.asList("doris_4_3", null),
-                                Arrays.asList("doris_4_4", "c1_val"))
-                        .collect(Collectors.toSet());
+        List<String> expected4 =
+                Arrays.asList("doris_4_1,null", "doris_4_3,null", "doris_4_4,c1_val");
         sql = "select * from %s.%s order by 1";
         String query4 = String.format(sql, DATABASE, TABLE_4);
         checkResult(expected4, query4, 2);
@@ -286,25 +253,6 @@ public class MySQLDorisE2ECase extends DorisTestBase {
             statement.execute(String.format("DROP TABLE IF EXISTS %s.%s", DATABASE, TABLE_3));
             statement.execute(String.format("DROP TABLE IF EXISTS %s.%s", DATABASE, TABLE_4));
         }
-    }
-
-    public void checkResult(Set<List<Object>> expected, String query, int columnSize)
-            throws Exception {
-        Set<List<Object>> actual = new HashSet<>();
-        try (Connection connection =
-                        DriverManager.getConnection(
-                                String.format(URL, DORIS_CONTAINER.getHost()), USERNAME, PASSWORD);
-                Statement statement = connection.createStatement()) {
-            ResultSet sinkResultSet = statement.executeQuery(query);
-            while (sinkResultSet.next()) {
-                List<Object> row = new ArrayList<>();
-                for (int i = 1; i <= columnSize; i++) {
-                    row.add(sinkResultSet.getObject(i));
-                }
-                actual.add(row);
-            }
-        }
-        Assertions.assertIterableEquals(expected, actual);
     }
 
     public JobClient submitJob() throws Exception {

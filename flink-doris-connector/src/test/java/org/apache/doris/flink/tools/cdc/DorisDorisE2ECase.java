@@ -25,14 +25,13 @@ import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
 
 import org.apache.doris.flink.DorisTestBase;
+import org.junit.Assert;
 import org.junit.Test;
-import org.junit.jupiter.api.Assertions;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.Statement;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 /** DorisDorisE2ECase. */
@@ -90,7 +89,7 @@ public class DorisDorisE2ECase extends DorisTestBase {
             }
         }
         String[] expected = new String[] {"+I[doris, 18]", "+I[flink, 10]"};
-        Assertions.assertIterableEquals(Arrays.asList(expected), actual);
+        Assert.assertArrayEquals(expected, actual.toArray(new String[0]));
     }
 
     private void initializeDorisTable(String table) throws Exception {
