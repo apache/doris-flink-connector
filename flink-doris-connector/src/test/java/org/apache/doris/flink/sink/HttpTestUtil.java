@@ -131,7 +131,8 @@ public class HttpTestUtil {
             new BasicStatusLine(new ProtocolVersion("http", 1, 0), 200, "");
     public static StatusLine abnormalLine =
             new BasicStatusLine(new ProtocolVersion("http", 1, 0), 404, "");
-    public static StatusLine redirectLine = new BasicStatusLine(new ProtocolVersion("http", 1, 0), 307, "");
+    public static StatusLine redirectLine =
+            new BasicStatusLine(new ProtocolVersion("http", 1, 0), 307, "");
 
     public static CloseableHttpResponse getResponse(String response, boolean ok) {
         HttpEntityMock httpEntityMock = new HttpEntityMock();
@@ -146,15 +147,17 @@ public class HttpTestUtil {
         return httpResponse;
     }
 
-    public static CloseableHttpResponse getResponse(String response, boolean ok, boolean isRedirect) {
+    public static CloseableHttpResponse getResponse(
+            String response, boolean ok, boolean isRedirect) {
         HttpEntityMock httpEntityMock = new HttpEntityMock();
         httpEntityMock.setValue(response);
         CloseableHttpResponse httpResponse = mock(CloseableHttpResponse.class);
         if (isRedirect) {
             when(httpResponse.getStatusLine()).thenReturn(redirectLine);
-            when(httpResponse.getFirstHeader("location")).thenReturn(new BasicHeader("location","http://aliyun.com/xx"));
+            when(httpResponse.getFirstHeader("location"))
+                    .thenReturn(new BasicHeader("location", "http://aliyun.com/xx"));
 
-        }else if(ok) {
+        } else if (ok) {
             when(httpResponse.getStatusLine()).thenReturn(normalLine);
         } else {
             when(httpResponse.getStatusLine()).thenReturn(abnormalLine);

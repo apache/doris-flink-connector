@@ -19,6 +19,7 @@ package org.apache.doris.flink.catalog;
 
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.factories.FactoryUtil;
+
 import org.junit.Test;
 
 import java.util.HashMap;
@@ -44,17 +45,18 @@ public class DorisCatalogFactoryTest {
         options.put("sink.properties.read_json_by_line", "true");
         options.put("table.properties.replication_num", "1");
 
-        Catalog catalog = FactoryUtil.createCatalog(
-                "test_catalog",
-                options,
-                null,
-                Thread.currentThread().getContextClassLoader()
-        );
+        Catalog catalog =
+                FactoryUtil.createCatalog(
+                        "test_catalog",
+                        options,
+                        null,
+                        Thread.currentThread().getContextClassLoader());
         assertTrue(catalog instanceof DorisCatalog);
         DorisCatalog dorisCatalog = (DorisCatalog) catalog;
         assertEquals("test_catalog", dorisCatalog.getName());
         assertEquals("doris_db", dorisCatalog.getDefaultDatabase());
-        assertEquals("jdbc:mysql://127.0.0.1:9030", dorisCatalog.getConnectionOptions().getJdbcUrl());
+        assertEquals(
+                "jdbc:mysql://127.0.0.1:9030", dorisCatalog.getConnectionOptions().getJdbcUrl());
         assertEquals("127.0.0.1:8030", dorisCatalog.getConnectionOptions().getFenodes());
         assertEquals("root", dorisCatalog.getConnectionOptions().getUsername());
         assertEquals("", dorisCatalog.getConnectionOptions().getPassword());

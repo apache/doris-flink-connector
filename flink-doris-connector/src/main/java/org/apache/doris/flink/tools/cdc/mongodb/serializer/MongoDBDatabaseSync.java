@@ -17,6 +17,12 @@
 
 package org.apache.doris.flink.tools.cdc.mongodb.serializer;
 
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
+import org.apache.flink.streaming.api.datastream.DataStreamSource;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+
 import com.mongodb.ConnectionString;
 import com.mongodb.MongoClientSettings;
 import com.mongodb.client.MongoClient;
@@ -41,12 +47,9 @@ import org.apache.doris.flink.tools.cdc.ParsingProcessFunction;
 import org.apache.doris.flink.tools.cdc.SourceSchema;
 import org.apache.doris.flink.tools.cdc.mongodb.MongoDBSchema;
 import org.apache.doris.flink.tools.cdc.mongodb.MongoParsingProcessFunction;
-import org.apache.flink.api.common.eventtime.WatermarkStrategy;
-import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.configuration.ConfigOptions;
-import org.apache.flink.streaming.api.datastream.DataStreamSource;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.bson.Document;
+
+import javax.annotation.Nullable;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -54,7 +57,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.Nullable;
 
 import static com.ververica.cdc.connectors.mongodb.internal.MongoDBEnvelope.encodeValue;
 import static org.apache.flink.util.Preconditions.checkNotNull;

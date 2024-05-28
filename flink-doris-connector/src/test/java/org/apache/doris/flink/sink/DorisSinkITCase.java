@@ -17,7 +17,6 @@
 
 package org.apache.doris.flink.sink;
 
-import org.apache.doris.flink.sink.batch.DorisBatchSink;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
@@ -27,6 +26,7 @@ import org.apache.doris.flink.DorisTestBase;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
+import org.apache.doris.flink.sink.batch.DorisBatchSink;
 import org.apache.doris.flink.sink.writer.serializer.SimpleStringSerializer;
 import org.junit.Test;
 
@@ -179,7 +179,8 @@ public class DorisSinkITCase extends DorisTestBase {
         Thread.sleep(10000);
         List<String> expected = Arrays.asList("doris,1", "flink,2");
         String query =
-                String.format("select name,age from %s.%s order by 1", DATABASE, TABLE_CSV_BATCH_TBL);
+                String.format(
+                        "select name,age from %s.%s order by 1", DATABASE, TABLE_CSV_BATCH_TBL);
         checkResult(expected, query, 2);
     }
 
@@ -209,13 +210,14 @@ public class DorisSinkITCase extends DorisTestBase {
                 .setSerializer(new SimpleStringSerializer())
                 .setDorisOptions(dorisBuilder.build());
 
-        env.fromElements("doris,1","flink,2").sinkTo(builder.build());
+        env.fromElements("doris,1", "flink,2").sinkTo(builder.build());
         env.execute();
 
         Thread.sleep(10000);
         List<String> expected = Arrays.asList("doris,1", "flink,2");
         String query =
-                String.format("select name,age from %s.%s order by 1", DATABASE, TABLE_CSV_BATCH_DS);
+                String.format(
+                        "select name,age from %s.%s order by 1", DATABASE, TABLE_CSV_BATCH_DS);
         checkResult(expected, query, 2);
     }
 
