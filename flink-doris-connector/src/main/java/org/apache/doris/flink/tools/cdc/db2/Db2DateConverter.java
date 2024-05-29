@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.flink.tools.cdc.sqlserver;
+package org.apache.doris.flink.tools.cdc.db2;
 
 import org.apache.flink.cdc.connectors.shaded.org.apache.kafka.connect.data.SchemaBuilder;
 
@@ -25,23 +25,29 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.sql.Date;
+import java.sql.Time;
 import java.sql.Timestamp;
 import java.time.DateTimeException;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.Properties;
 import java.util.function.Consumer;
 
-public class SqlServerDateConverter implements CustomConverter<SchemaBuilder, RelationalColumn> {
-    private static final Logger log = LoggerFactory.getLogger(SqlServerDateConverter.class);
+public class Db2DateConverter implements CustomConverter<SchemaBuilder, RelationalColumn> {
+    private static final Logger LOGGER = LoggerFactory.getLogger(Db2DateConverter.class);
     private DateTimeFormatter dateFormatter = DateTimeFormatter.ISO_DATE;
     private DateTimeFormatter timestampFormatter = DateTimeFormatter.ISO_DATE_TIME;
+    private final DateTimeFormatter timeFormatter = DateTimeFormatter.ISO_TIME;
 
-    public static final Properties DEFAULT_PROPS = new Properties();
+    protected static final Properties DEFAULT_PROPS = new Properties();
 
     static {
         DEFAULT_PROPS.setProperty("converters", "date");
         DEFAULT_PROPS.setProperty(
-                "date.type", "org.apache.doris.flink.tools.cdc.sqlserver.SqlServerDateConverter");
+                "date.type", "org.apache.doris.flink.tools.cdc.db2.Db2DateConverter");
         DEFAULT_PROPS.setProperty("date.format.date", "yyyy-MM-dd");
         DEFAULT_PROPS.setProperty("date.format.timestamp", "yyyy-MM-dd HH:mm:ss.SSSSSS");
     }
@@ -57,13 +63,13 @@ public class SqlServerDateConverter implements CustomConverter<SchemaBuilder, Re
 
     private void readProps(Properties properties, String settingKey, Consumer<String> callback) {
         String settingValue = (String) properties.get(settingKey);
-        if (settingValue == null || settingValue.length() == 0) {
+        if (settingValue == null || settingValue.isEmpty()) {
             return;
         }
         try {
             callback.accept(settingValue.trim());
         } catch (IllegalArgumentException | DateTimeException e) {
-            log.error("setting {} is illegal:{}", settingKey, settingValue);
+            LOGGER.error("setting {} is illegal:{}", settingKey, settingValue);
             throw e;
         }
     }
@@ -79,27 +85,44 @@ public class SqlServerDateConverter implements CustomConverter<SchemaBuilder, Re
             schemaBuilder = SchemaBuilder.string().optional();
             converter = this::convertDate;
         }
-        if ("SMALLDATETIME".equals(sqlType)
-                || "DATETIME".equals(sqlType)
-                || "DATETIME2".equals(sqlType)) {
+        if ("TIME".equals(sqlType)) {
             schemaBuilder = SchemaBuilder.string().optional();
-            converter = this::convertDateTime;
+            converter = this::convertTime;
+        }
+        if ("TIMESTAMP".equals(sqlType)) {
+            schemaBuilder = SchemaBuilder.string().optional();
+            converter = this::convertTimestamp;
         }
         if (schemaBuilder != null) {
             registration.register(schemaBuilder, converter);
         }
     }
 
-    private Object convertDateTime(Object input) {
-        if (input instanceof Timestamp) {
-            return timestampFormatter.format(((Timestamp) input).toLocalDateTime());
+    private String convertDate(Object input) {
+        if (input instanceof LocalDate) {
+            return dateFormatter.format((LocalDate) input);
+        } else if (input instanceof Integer) {
+            LocalDate date = LocalDate.ofEpochDay((Integer) input);
+            return dateFormatter.format(date);
+        } else if (input instanceof Date) {
+            return dateFormatter.format(((Date) input).toLocalDate());
         }
         return null;
     }
 
-    private String convertDate(Object input) {
-        if (input instanceof Date) {
-            return dateFormatter.format(((Date) input).toLocalDate());
+    private String convertTime(Object input) {
+        if (input instanceof Time) {
+            return timeFormatter.format(((Time) input).toLocalTime());
+        }
+        return null;
+    }
+
+    private String convertTimestamp(Object input) {
+        if (input instanceof Timestamp) {
+            return timestampFormatter.format(((Timestamp) input).toLocalDateTime());
+        } else if (input instanceof Instant) {
+            LocalDateTime ldt = LocalDateTime.ofInstant(((Instant) input), ZoneOffset.UTC);
+            return timestampFormatter.format(ldt);
         }
         return null;
     }

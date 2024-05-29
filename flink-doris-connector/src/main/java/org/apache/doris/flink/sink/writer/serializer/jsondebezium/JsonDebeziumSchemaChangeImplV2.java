@@ -40,6 +40,7 @@ import org.apache.doris.flink.sink.schema.SchemaChangeManager;
 import org.apache.doris.flink.sink.writer.EventType;
 import org.apache.doris.flink.tools.cdc.DatabaseSync;
 import org.apache.doris.flink.tools.cdc.SourceConnector;
+import org.apache.doris.flink.tools.cdc.db2.Db2Type;
 import org.apache.doris.flink.tools.cdc.mysql.MysqlType;
 import org.apache.doris.flink.tools.cdc.oracle.OracleType;
 import org.apache.doris.flink.tools.cdc.postgres.PostgresType;
@@ -415,6 +416,8 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
                 break;
             case SQLSERVER:
                 dorisTypeName = SqlServerType.toDorisType(sourceTypeName, length, scale);
+            case DB2:
+                dorisTypeName = Db2Type.toDorisType(sourceTypeName, length, scale);
                 break;
             default:
                 String errMsg = "Not support " + sourceTypeName + " schema change.";
