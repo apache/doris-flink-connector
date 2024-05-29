@@ -99,7 +99,7 @@ public class DorisRowDataJdbcLookupFunctionTest extends DorisTestBase {
         ListOutputCollector collector = new ListOutputCollector();
         lookupFunction.setCollector(collector);
 
-        FunctionContext context = new FunctionContext(null, null, null);
+        FunctionContext context = new FunctionContext(null);
         lookupFunction.open(context);
 
         lookupFunction.eval(1, StringData.fromString("A"));
@@ -137,7 +137,7 @@ public class DorisRowDataJdbcLookupFunctionTest extends DorisTestBase {
         ListOutputCollector collector = new ListOutputCollector();
         lookupFunction.setCollector(collector);
 
-        FunctionContext context = new FunctionContext(null, null, null);
+        FunctionContext context = new FunctionContext(null);
         lookupFunction.open(context);
 
         lookupFunction.eval(4, StringData.fromString("D"));
