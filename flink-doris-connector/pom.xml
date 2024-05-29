@@ -70,7 +70,7 @@ under the License.
         <revision>1.6.1-SNAPSHOT</revision>
         <flink.version>1.18.0</flink.version>
         <flink.major.version>1.18</flink.major.version>
-        <flink.sql.cdc.version>3.0.1</flink.sql.cdc.version>
+        <flink.sql.cdc.version>3.1.0</flink.sql.cdc.version>
         <flink.python.id>flink-python</flink.python.id>
         <libthrift.version>0.16.0</libthrift.version>
         <arrow.version>13.0.0</arrow.version>
@@ -236,7 +236,7 @@ under the License.
         </dependency>
         <!-- use cdc bundled jar for kafka connect class-->
         <dependency>
-            <groupId>com.ververica</groupId>
+            <groupId>org.apache.flink</groupId>
             <artifactId>flink-sql-connector-mysql-cdc</artifactId>
             <version>${flink.sql.cdc.version}</version>
             <scope>provided</scope>
@@ -248,7 +248,7 @@ under the License.
             </exclusions>
         </dependency>
         <dependency>
-            <groupId>com.ververica</groupId>
+            <groupId>org.apache.flink</groupId>
             <artifactId>flink-sql-connector-oracle-cdc</artifactId>
             <version>${flink.sql.cdc.version}</version>
             <scope>provided</scope>
@@ -260,7 +260,7 @@ under the License.
             </exclusions>
         </dependency>
         <dependency>
-            <groupId>com.ververica</groupId>
+            <groupId>org.apache.flink</groupId>
             <artifactId>flink-sql-connector-postgres-cdc</artifactId>
             <version>${flink.sql.cdc.version}</version>
             <scope>provided</scope>
@@ -272,7 +272,7 @@ under the License.
             </exclusions>
         </dependency>
         <dependency>
-            <groupId>com.ververica</groupId>
+            <groupId>org.apache.flink</groupId>
             <artifactId>flink-sql-connector-sqlserver-cdc</artifactId>
             <version>${flink.sql.cdc.version}</version>
             <scope>provided</scope>
@@ -284,9 +284,9 @@ under the License.
             </exclusions>
         </dependency>
         <dependency>
-            <groupId>com.ververica</groupId>
+            <groupId>org.apache.flink</groupId>
             <artifactId>flink-sql-connector-db2-cdc</artifactId>
-            <version>3.0.1</version>
+            <version>${flink.sql.cdc.version}</version>
             <scope>provided</scope>
             <exclusions>
                 <exclusion>
@@ -296,7 +296,7 @@ under the License.
             </exclusions>
         </dependency>
         <dependency>
-            <groupId>com.ververica</groupId>
+            <groupId>org.apache.flink</groupId>
             <artifactId>flink-sql-connector-mongodb-cdc</artifactId>
             <!-- the dependency is available only for stable releases. -->
             <version>${flink.sql.cdc.version}</version>
