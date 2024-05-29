@@ -92,10 +92,22 @@ public class MysqlType {
     private static final String JSON = "JSON";
     private static final String ENUM = "ENUM";
     private static final String SET = "SET";
+    private static final String GEOMETRY = "GEOMETRY";
+    private static final String POINT = "POINT";
+    private static final String LINESTRING = "LINESTRING";
+    private static final String POLYGON = "POLYGON";
+    private static final String MULTIPOINT = "MULTIPOINT";
+    private static final String MULTILINESTRING = "MULTILINESTRING";
+    private static final String MULTIPOLYGON = "MULTIPOLYGON";
+    private static final String GEOMETRYCOLLECTION = "GEOMETRYCOLLECTION";
 
     public static String toDorisType(String type, Integer length, Integer scale) {
         switch (type.toUpperCase()) {
             case BIT:
+                if (length > 1) {
+                    return DorisType.STRING;
+                }
+                return DorisType.BOOLEAN;
             case BOOLEAN:
             case BOOL:
                 return DorisType.BOOLEAN;
@@ -202,6 +214,16 @@ public class MysqlType {
             case BINARY:
             case VARBINARY:
             case SET:
+                // The spatial data types in MySQL will be converted into STRING with a fixed Json
+                // format.
+            case GEOMETRY:
+            case GEOMETRYCOLLECTION:
+            case LINESTRING:
+            case POLYGON:
+            case POINT:
+            case MULTIPOINT:
+            case MULTILINESTRING:
+            case MULTIPOLYGON:
                 return DorisType.STRING;
             case JSON:
                 return DorisType.JSONB;
