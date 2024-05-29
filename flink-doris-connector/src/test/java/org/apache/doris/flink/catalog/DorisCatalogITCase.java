@@ -60,7 +60,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 /** Class for unit tests to run on catalogs. */
-public class DorisCatalogTest extends DorisTestBase {
+public class DorisCatalogITCase extends DorisTestBase {
     private static final String TEST_CATALOG_NAME = "doris_catalog";
     private static final String TEST_FENODES = getFenodes();
     private static final String TEST_JDBCURL = getJdbcUrl();

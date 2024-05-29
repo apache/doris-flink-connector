@@ -43,7 +43,7 @@ import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertEquals;
 
-public class DorisRowDataJdbcLookupFunctionTest extends DorisTestBase {
+public class DorisRowDataJdbcLookupFunctionITCase extends DorisTestBase {
 
     private static final String LOOKUP_TABLE = "test.t_lookup_table";
 
