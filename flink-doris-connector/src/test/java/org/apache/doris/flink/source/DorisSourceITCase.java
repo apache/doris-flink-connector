@@ -49,6 +49,7 @@ public class DorisSourceITCase extends DorisTestBase {
     static final String TABLE_READ_OLD_API = "tbl_read_old_api";
     static final String TABLE_READ_TBL = "tbl_read_tbl";
     static final String TABLE_READ_TBL_OLD_API = "tbl_read_tbl_old_api";
+    static final String TABLE_READ_TBL_ALL_OPTIONS = "tbl_read_tbl_all_options";
 
     @Test
     public void testSource() throws Exception {
@@ -162,6 +163,52 @@ public class DorisSourceITCase extends DorisTestBase {
                                 + " 'password' = '%s'"
                                 + ")",
                         getFenodes(), DATABASE + "." + TABLE_READ_TBL_OLD_API, USERNAME, PASSWORD);
+        tEnv.executeSql(sourceDDL);
+        TableResult tableResult = tEnv.executeSql("SELECT * FROM doris_source");
+
+        List<String> actual = new ArrayList<>();
+        try (CloseableIterator<Row> iterator = tableResult.collect()) {
+            while (iterator.hasNext()) {
+                actual.add(iterator.next().toString());
+            }
+        }
+        String[] expected = new String[] {"+I[doris, 18]", "+I[flink, 10]"};
+        Assert.assertArrayEquals(expected, actual.toArray());
+    }
+
+    @Test
+    public void testTableSourceAllOptions() throws Exception {
+        initializeTable(TABLE_READ_TBL_ALL_OPTIONS);
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(1);
+        final StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
+
+        String sourceDDL =
+                String.format(
+                        "CREATE TABLE doris_source ("
+                                + " name STRING,"
+                                + " age INT"
+                                + ") WITH ("
+                                + " 'connector' = 'doris',"
+                                + " 'fenodes' = '%s',"
+                                + " 'table.identifier' = '%s',"
+                                + " 'source.use-old-api' = 'true',"
+                                + " 'username' = '%s',"
+                                + " 'password' = '%s',"
+                                + " 'doris.request.retries' = '3',"
+                                + " 'doris.request.connect.timeout' = '60s',"
+                                + " 'doris.request.read.timeout' = '60s',"
+                                + " 'doris.request.query.timeout' = '3600s',"
+                                + " 'doris.request.tablet.size' = '2',"
+                                + " 'doris.batch.size' = '1024',"
+                                + " 'doris.exec.mem.limit' = '2048mb',"
+                                + " 'doris.deserialize.arrow.async' = 'true',"
+                                + " 'doris.deserialize.queue.size' = '32'"
+                                + ")",
+                        getFenodes(),
+                        DATABASE + "." + TABLE_READ_TBL_ALL_OPTIONS,
+                        USERNAME,
+                        PASSWORD);
         tEnv.executeSql(sourceDDL);
         TableResult tableResult = tEnv.executeSql("SELECT * FROM doris_source");
 

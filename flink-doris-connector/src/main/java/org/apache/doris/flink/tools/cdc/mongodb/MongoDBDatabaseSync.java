@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.flink.tools.cdc.mongodb.serializer;
+package org.apache.doris.flink.tools.cdc.mongodb;
 
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.configuration.ConfigOption;
@@ -45,8 +45,7 @@ import org.apache.doris.flink.sink.writer.serializer.DorisRecordSerializer;
 import org.apache.doris.flink.tools.cdc.DatabaseSync;
 import org.apache.doris.flink.tools.cdc.ParsingProcessFunction;
 import org.apache.doris.flink.tools.cdc.SourceSchema;
-import org.apache.doris.flink.tools.cdc.mongodb.MongoDBSchema;
-import org.apache.doris.flink.tools.cdc.mongodb.MongoParsingProcessFunction;
+import org.apache.doris.flink.tools.cdc.mongodb.serializer.MongoDBJsonDebeziumSchemaSerializer;
 import org.bson.Document;
 
 import javax.annotation.Nullable;

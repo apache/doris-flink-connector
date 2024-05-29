@@ -136,11 +136,23 @@ public class DorisSinkITCase extends DorisTestBase {
                                 + " 'table.identifier' = '%s',"
                                 + " 'username' = '%s',"
                                 + " 'password' = '%s',"
+                                + " 'sink.buffer-size' = '1MB',"
+                                + " 'sink.buffer-count' = '3',"
+                                + " 'sink.max-retries' = '1',"
+                                + " 'sink.enable-2pc' = 'true',"
+                                + " 'sink.use-cache' = 'false',"
+                                + " 'sink.enable-delete' = 'true',"
+                                + " 'sink.ignore.update-before' = 'true',"
                                 + " 'sink.properties.format' = 'json',"
                                 + " 'sink.properties.read_json_by_line' = 'true',"
-                                + " 'sink.label-prefix' = 'doris_sink'"
+                                + " 'sink.label-prefix' = 'doris_sink"
+                                + UUID.randomUUID()
+                                + "'"
                                 + ")",
-                        getFenodes(), DATABASE + "." + TABLE_JSON_TBL, USERNAME, PASSWORD);
+                        getFenodes(),
+                        DATABASE + "." + TABLE_JSON_TBL,
+                        USERNAME,
+                        PASSWORD);
         tEnv.executeSql(sinkDDL);
         tEnv.executeSql("INSERT INTO doris_sink SELECT 'doris',1 union all SELECT 'flink',2");
 
@@ -170,9 +182,19 @@ public class DorisSinkITCase extends DorisTestBase {
                                 + " 'table.identifier' = '%s',"
                                 + " 'username' = '%s',"
                                 + " 'password' = '%s',"
-                                + " 'sink.enable.batch-mode' = 'true'"
+                                + " 'sink.label-prefix' = '"
+                                + UUID.randomUUID()
+                                + "',"
+                                + " 'sink.enable.batch-mode' = 'true',"
+                                + " 'sink.flush.queue-size' = '2',"
+                                + " 'sink.buffer-flush.max-rows' = '1000',"
+                                + " 'sink.buffer-flush.max-bytes' = '10MB',"
+                                + " 'sink.buffer-flush.interval' = '10s'"
                                 + ")",
-                        getFenodes(), DATABASE + "." + TABLE_CSV_BATCH_TBL, USERNAME, PASSWORD);
+                        getFenodes(),
+                        DATABASE + "." + TABLE_CSV_BATCH_TBL,
+                        USERNAME,
+                        PASSWORD);
         tEnv.executeSql(sinkDDL);
         tEnv.executeSql("INSERT INTO doris_sink SELECT 'doris',1 union all SELECT 'flink',2");
 

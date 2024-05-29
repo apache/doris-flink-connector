@@ -33,6 +33,7 @@ import java.sql.DriverManager;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 /** DorisDorisE2ECase. */
 public class DorisDorisE2ECase extends DorisTestBase {
@@ -58,10 +59,16 @@ public class DorisDorisE2ECase extends DorisTestBase {
                                 + " 'connector' = 'doris',"
                                 + " 'fenodes' = '%s',"
                                 + " 'table.identifier' = '%s',"
+                                + " 'sink.label-prefix' = '"
+                                + UUID.randomUUID()
+                                + "',"
                                 + " 'username' = '%s',"
                                 + " 'password' = '%s'"
                                 + ")",
-                        getFenodes(), DATABASE_SOURCE + "." + TABLE, USERNAME, PASSWORD);
+                        getFenodes(),
+                        DATABASE_SOURCE + "." + TABLE,
+                        USERNAME,
+                        PASSWORD);
         tEnv.executeSql(sourceDDL);
 
         String sinkDDL =
@@ -72,11 +79,17 @@ public class DorisDorisE2ECase extends DorisTestBase {
                                 + ") WITH ("
                                 + " 'connector' = 'doris',"
                                 + " 'fenodes' = '%s',"
+                                + " 'sink.label-prefix' = '"
+                                + UUID.randomUUID()
+                                + "',"
                                 + " 'table.identifier' = '%s',"
                                 + " 'username' = '%s',"
                                 + " 'password' = '%s'"
                                 + ")",
-                        getFenodes(), DATABASE_SINK + "." + TABLE, USERNAME, PASSWORD);
+                        getFenodes(),
+                        DATABASE_SINK + "." + TABLE,
+                        USERNAME,
+                        PASSWORD);
         tEnv.executeSql(sinkDDL);
 
         tEnv.executeSql("INSERT INTO doris_sink SELECT * FROM doris_source").await();

@@ -51,6 +51,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 
+import static org.apache.doris.flink.utils.FactoryMocks.SCHEMA;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -70,7 +71,7 @@ public class DorisDynamicTableSourceTest {
                         OptionUtils.buildDorisOptions(),
                         builder.build(),
                         DorisLookupOptions.builder().build(),
-                        TableSchema.fromResolvedSchema(FactoryMocks.SCHEMA),
+                        TableSchema.fromResolvedSchema(SCHEMA),
                         FactoryMocks.PHYSICAL_DATA_TYPE);
         ScanTableSource.ScanRuntimeProvider provider =
                 actualDorisSource.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
@@ -84,7 +85,7 @@ public class DorisDynamicTableSourceTest {
                         OptionUtils.buildDorisOptions(),
                         OptionUtils.buildDorisReadOptions(),
                         DorisLookupOptions.builder().build(),
-                        TableSchema.fromResolvedSchema(FactoryMocks.SCHEMA),
+                        TableSchema.fromResolvedSchema(SCHEMA),
                         FactoryMocks.PHYSICAL_DATA_TYPE);
         ScanTableSource.ScanRuntimeProvider provider =
                 actualDorisSource.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
@@ -106,7 +107,7 @@ public class DorisDynamicTableSourceTest {
                         OptionUtils.buildDorisOptions(),
                         builder.build(),
                         DorisLookupOptions.builder().build(),
-                        TableSchema.fromResolvedSchema(FactoryMocks.SCHEMA),
+                        TableSchema.fromResolvedSchema(SCHEMA),
                         FactoryMocks.PHYSICAL_DATA_TYPE);
         ScanTableSource.ScanRuntimeProvider provider =
                 actualDorisSource.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
@@ -150,7 +151,7 @@ public class DorisDynamicTableSourceTest {
                         OptionUtils.buildDorisOptions(),
                         readOptions,
                         DorisLookupOptions.builder().build(),
-                        TableSchema.fromResolvedSchema(FactoryMocks.SCHEMA),
+                        TableSchema.fromResolvedSchema(SCHEMA),
                         FactoryMocks.PHYSICAL_DATA_TYPE);
         actualDorisSource.applyProjection(projectionArray, projectionDataType);
         Assert.assertEquals(readOptions.getReadFields(), "`a`, `c`");
@@ -164,7 +165,7 @@ public class DorisDynamicTableSourceTest {
                         OptionUtils.buildDorisOptions(),
                         readOptions,
                         DorisLookupOptions.builder().build(),
-                        TableSchema.fromResolvedSchema(FactoryMocks.SCHEMA),
+                        TableSchema.fromResolvedSchema(SCHEMA),
                         FactoryMocks.PHYSICAL_DATA_TYPE);
         ResolvedExpression aRef = new FieldReferenceExpression("a", DataTypes.STRING(), 0, 2);
         ResolvedExpression aRefCharLength =

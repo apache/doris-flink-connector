@@ -100,6 +100,7 @@ public class TestDorisCopyWriter {
                 committable
                         .getCopySQL()
                         .startsWith("COPY INTO `db`.`table` FROM @~('{label_table_0_1_0}')"));
+        copyWriter.close();
     }
 
     @Test
@@ -124,5 +125,6 @@ public class TestDorisCopyWriter {
         copyWriter.setBatchStageLoad(stageLoad);
         List<DorisWriterState> writerStates = copyWriter.snapshotState(1);
         Assert.assertTrue(writerStates.isEmpty());
+        copyWriter.close();
     }
 }

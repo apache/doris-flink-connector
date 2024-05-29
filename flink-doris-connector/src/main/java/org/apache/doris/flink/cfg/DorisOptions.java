@@ -17,6 +17,8 @@
 
 package org.apache.doris.flink.cfg;
 
+import java.util.Objects;
+
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Options for the Doris connector. */
@@ -63,6 +65,30 @@ public class DorisOptions extends DorisConnectionOptions {
 
     public static Builder builder() {
         return new Builder();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        DorisOptions that = (DorisOptions) o;
+        return Objects.equals(tableIdentifier, that.tableIdentifier)
+                && autoRedirect == that.autoRedirect
+                && Objects.equals(fenodes, that.fenodes)
+                && Objects.equals(username, that.username)
+                && Objects.equals(password, that.password)
+                && Objects.equals(jdbcUrl, that.jdbcUrl)
+                && Objects.equals(benodes, that.benodes);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(
+                fenodes, username, password, jdbcUrl, benodes, autoRedirect, tableIdentifier);
     }
 
     /** Builder of {@link DorisOptions}. */
