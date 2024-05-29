@@ -29,8 +29,8 @@ import org.apache.doris.flink.DorisTestBase;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.deserialization.SimpleListDeserializationSchema;
+import org.junit.Assert;
 import org.junit.Test;
-import org.junit.jupiter.api.Assertions;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -65,17 +65,16 @@ public class DorisSourceITCase extends DorisTestBase {
                         .setDorisOptions(dorisBuilder.build())
                         .setDeserializer(new SimpleListDeserializationSchema())
                         .build();
-        List<Object> actual = new ArrayList<>();
+        List<String> actual = new ArrayList<>();
         try (CloseableIterator<List<?>> iterator =
                 env.fromSource(source, WatermarkStrategy.noWatermarks(), "Doris Source")
                         .executeAndCollect()) {
             while (iterator.hasNext()) {
-                actual.add(iterator.next());
+                actual.add(iterator.next().toString());
             }
         }
-        List<Object> expected =
-                Arrays.asList(Arrays.asList("doris", 18), Arrays.asList("flink", 10));
-        Assertions.assertIterableEquals(expected, actual);
+        List<String> expected = Arrays.asList("[doris, 18]", "[flink, 10]");
+        Assert.assertArrayEquals(actual.toArray(), expected.toArray());
     }
 
     @Test
@@ -102,14 +101,14 @@ public class DorisSourceITCase extends DorisTestBase {
         tEnv.executeSql(sourceDDL);
         TableResult tableResult = tEnv.executeSql("SELECT * FROM doris_source");
 
-        List<Object> actual = new ArrayList<>();
+        List<String> actual = new ArrayList<>();
         try (CloseableIterator<Row> iterator = tableResult.collect()) {
             while (iterator.hasNext()) {
                 actual.add(iterator.next().toString());
             }
         }
         String[] expected = new String[] {"+I[doris, 18]", "+I[flink, 10]"};
-        Assertions.assertIterableEquals(Arrays.asList(expected), actual);
+        Assert.assertArrayEquals(expected, actual.toArray());
     }
 
     private void initializeTable(String table) throws Exception {

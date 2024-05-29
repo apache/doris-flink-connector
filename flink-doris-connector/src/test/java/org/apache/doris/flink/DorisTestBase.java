@@ -18,6 +18,8 @@
 package org.apache.doris.flink;
 
 import com.google.common.collect.Lists;
+import org.apache.commons.lang3.StringUtils;
+import org.junit.Assert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.GenericContainer;
@@ -176,5 +178,28 @@ public abstract class DorisTestBase {
             list.add(rowData);
         }
         return list;
+    }
+
+    public void checkResult(List<String> expected, String query, int columnSize) throws Exception {
+        List<String> actual = new ArrayList<>();
+        try (Connection connection =
+                        DriverManager.getConnection(
+                                String.format(URL, DORIS_CONTAINER.getHost()), USERNAME, PASSWORD);
+                Statement statement = connection.createStatement()) {
+            ResultSet sinkResultSet = statement.executeQuery(query);
+            while (sinkResultSet.next()) {
+                List<String> row = new ArrayList<>();
+                for (int i = 1; i <= columnSize; i++) {
+                    Object value = sinkResultSet.getObject(i);
+                    if (value == null) {
+                        row.add("null");
+                    } else {
+                        row.add(value.toString());
+                    }
+                }
+                actual.add(StringUtils.join(row, ","));
+            }
+        }
+        Assert.assertArrayEquals(expected.toArray(), actual.toArray());
     }
 }

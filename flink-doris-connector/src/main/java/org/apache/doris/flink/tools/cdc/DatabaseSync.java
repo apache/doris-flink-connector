@@ -129,12 +129,14 @@ public abstract class DatabaseSync {
             tableBucketsMap = getTableBuckets(tableConfig.get("table-buckets"));
         }
         Set<String> bucketsTable = new HashSet<>();
+        Set<String> targetDbSet = new HashSet<>();
         for (SourceSchema schema : schemaList) {
             syncTables.add(schema.getTableName());
             String targetDb = database;
             // Synchronize multiple databases using the src database name
             if (StringUtils.isNullOrWhitespaceOnly(targetDb)) {
                 targetDb = schema.getDatabaseName();
+                targetDbSet.add(targetDb);
             }
             if (StringUtils.isNullOrWhitespaceOnly(database)
                     && !dorisSystem.databaseExists(targetDb)) {
@@ -177,13 +179,33 @@ public abstract class DatabaseSync {
                 int sinkParallel =
                         sinkConfig.getInteger(
                                 DorisConfigOptions.SINK_PARALLELISM, sideOutput.getParallelism());
+                String uidName = getUidName(targetDbSet, dbTbl);
                 sideOutput
                         .sinkTo(buildDorisSink(dbTbl.f0 + "." + dbTbl.f1))
                         .setParallelism(sinkParallel)
-                        .name(dbTbl.f1)
-                        .uid(dbTbl.f1);
+                        .name(uidName)
+                        .uid(uidName);
             }
         }
+    }
+
+    /**
+     * @param targetDbSet The set of target databases.
+     * @param dbTbl The database-table tuple.
+     * @return The UID of the DataStream.
+     */
+    public String getUidName(Set<String> targetDbSet, Tuple2<String, String> dbTbl) {
+        String uidName;
+        // Determine whether to proceed with multi-database synchronization.
+        // if yes, the UID is composed of `dbname_tablename`, otherwise it is composed of
+        // `tablename`.
+        if (targetDbSet.size() > 1) {
+            uidName = dbTbl.f0 + "_" + dbTbl.f1;
+        } else {
+            uidName = dbTbl.f1;
+        }
+
+        return uidName;
     }
 
     private DorisConnectionOptions getDorisConnectionOptions() {

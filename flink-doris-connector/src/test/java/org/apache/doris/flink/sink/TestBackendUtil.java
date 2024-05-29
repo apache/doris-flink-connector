@@ -22,7 +22,6 @@ import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -45,8 +44,7 @@ public class TestBackendUtil {
 
     @Test
     public void testTryHttpConnection() {
-        BackendUtil backendUtil = new BackendUtil(new ArrayList<>());
-        boolean flag = backendUtil.tryHttpConnection("127.0.0.1:8040");
+        boolean flag = BackendUtil.tryHttpConnection("127.0.0.1:8040");
         Assert.assertFalse(flag);
     }
 
