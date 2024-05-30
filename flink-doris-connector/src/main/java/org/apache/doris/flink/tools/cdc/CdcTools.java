@@ -17,6 +17,7 @@
 
 package org.apache.doris.flink.tools.cdc;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.utils.MultipleParameterTool;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -165,7 +166,8 @@ public class CdcTools {
         env.execute(jobName);
     }
 
-    private static Map<String, String> getConfigMap(MultipleParameterTool params, String key) {
+    @VisibleForTesting
+    public static Map<String, String> getConfigMap(MultipleParameterTool params, String key) {
         if (!params.has(key)) {
             System.out.println(
                     "Can not find key ["

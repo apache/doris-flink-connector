@@ -29,6 +29,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 import static org.apache.doris.flink.catalog.DorisCatalogOptions.DEFAULT_DATABASE;
+import static org.apache.doris.flink.catalog.DorisCatalogOptions.TABLE_PROPERTIES_PREFIX;
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_BATCH_SIZE;
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_DESERIALIZE_ARROW_ASYNC;
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_DESERIALIZE_QUEUE_SIZE;
@@ -112,7 +113,7 @@ public class DorisCatalogFactory implements CatalogFactory {
     public Catalog createCatalog(Context context) {
         final FactoryUtil.CatalogFactoryHelper helper =
                 FactoryUtil.createCatalogFactoryHelper(this, context);
-        helper.validateExcept(STREAM_LOAD_PROP_PREFIX);
+        helper.validateExcept(STREAM_LOAD_PROP_PREFIX, TABLE_PROPERTIES_PREFIX);
 
         DorisConnectionOptions connectionOptions =
                 new DorisConnectionOptions.DorisConnectionOptionsBuilder()

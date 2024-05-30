@@ -42,10 +42,10 @@ import org.apache.doris.flink.catalog.doris.DataModel;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.sink.writer.serializer.DorisRecordSerializer;
-import org.apache.doris.flink.sink.writer.serializer.MongoDBJsonDebeziumSchemaSerializer;
 import org.apache.doris.flink.tools.cdc.DatabaseSync;
 import org.apache.doris.flink.tools.cdc.ParsingProcessFunction;
 import org.apache.doris.flink.tools.cdc.SourceSchema;
+import org.apache.doris.flink.tools.cdc.mongodb.serializer.MongoDBJsonDebeziumSchemaSerializer;
 import org.bson.Document;
 
 import javax.annotation.Nullable;

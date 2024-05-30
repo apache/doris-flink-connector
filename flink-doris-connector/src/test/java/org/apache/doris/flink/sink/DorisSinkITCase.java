@@ -26,6 +26,7 @@ import org.apache.doris.flink.DorisTestBase;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
+import org.apache.doris.flink.sink.batch.DorisBatchSink;
 import org.apache.doris.flink.sink.writer.serializer.SimpleStringSerializer;
 import org.junit.Test;
 
@@ -45,6 +46,8 @@ public class DorisSinkITCase extends DorisTestBase {
     static final String TABLE_CSV = "tbl_csv";
     static final String TABLE_JSON = "tbl_json";
     static final String TABLE_JSON_TBL = "tbl_json_tbl";
+    static final String TABLE_CSV_BATCH_TBL = "tbl_csv_batch_tbl";
+    static final String TABLE_CSV_BATCH_DS = "tbl_csv_batch_DS";
 
     @Test
     public void testSinkCsvFormat() throws Exception {
@@ -133,11 +136,23 @@ public class DorisSinkITCase extends DorisTestBase {
                                 + " 'table.identifier' = '%s',"
                                 + " 'username' = '%s',"
                                 + " 'password' = '%s',"
+                                + " 'sink.buffer-size' = '1MB',"
+                                + " 'sink.buffer-count' = '3',"
+                                + " 'sink.max-retries' = '1',"
+                                + " 'sink.enable-2pc' = 'true',"
+                                + " 'sink.use-cache' = 'false',"
+                                + " 'sink.enable-delete' = 'true',"
+                                + " 'sink.ignore.update-before' = 'true',"
                                 + " 'sink.properties.format' = 'json',"
                                 + " 'sink.properties.read_json_by_line' = 'true',"
-                                + " 'sink.label-prefix' = 'doris_sink'"
+                                + " 'sink.label-prefix' = 'doris_sink"
+                                + UUID.randomUUID()
+                                + "'"
                                 + ")",
-                        getFenodes(), DATABASE + "." + TABLE_JSON_TBL, USERNAME, PASSWORD);
+                        getFenodes(),
+                        DATABASE + "." + TABLE_JSON_TBL,
+                        USERNAME,
+                        PASSWORD);
         tEnv.executeSql(sinkDDL);
         tEnv.executeSql("INSERT INTO doris_sink SELECT 'doris',1 union all SELECT 'flink',2");
 
@@ -145,6 +160,86 @@ public class DorisSinkITCase extends DorisTestBase {
         List<String> expected = Arrays.asList("doris,1", "flink,2");
         String query =
                 String.format("select name,age from %s.%s order by 1", DATABASE, TABLE_JSON_TBL);
+        checkResult(expected, query, 2);
+    }
+
+    @Test
+    public void testTableBatch() throws Exception {
+        initializeTable(TABLE_CSV_BATCH_TBL);
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(1);
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+        final StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
+
+        String sinkDDL =
+                String.format(
+                        "CREATE TABLE doris_sink ("
+                                + " name STRING,"
+                                + " age INT"
+                                + ") WITH ("
+                                + " 'connector' = 'doris',"
+                                + " 'fenodes' = '%s',"
+                                + " 'table.identifier' = '%s',"
+                                + " 'username' = '%s',"
+                                + " 'password' = '%s',"
+                                + " 'sink.label-prefix' = '"
+                                + UUID.randomUUID()
+                                + "',"
+                                + " 'sink.enable.batch-mode' = 'true',"
+                                + " 'sink.flush.queue-size' = '2',"
+                                + " 'sink.buffer-flush.max-rows' = '1000',"
+                                + " 'sink.buffer-flush.max-bytes' = '10MB',"
+                                + " 'sink.buffer-flush.interval' = '10s'"
+                                + ")",
+                        getFenodes(),
+                        DATABASE + "." + TABLE_CSV_BATCH_TBL,
+                        USERNAME,
+                        PASSWORD);
+        tEnv.executeSql(sinkDDL);
+        tEnv.executeSql("INSERT INTO doris_sink SELECT 'doris',1 union all SELECT 'flink',2");
+
+        Thread.sleep(10000);
+        List<String> expected = Arrays.asList("doris,1", "flink,2");
+        String query =
+                String.format(
+                        "select name,age from %s.%s order by 1", DATABASE, TABLE_CSV_BATCH_TBL);
+        checkResult(expected, query, 2);
+    }
+
+    @Test
+    public void testDataStreamBatch() throws Exception {
+        initializeTable(TABLE_CSV_BATCH_DS);
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+        DorisBatchSink.Builder<String> builder = DorisBatchSink.builder();
+        final DorisReadOptions.Builder readOptionBuilder = DorisReadOptions.builder();
+
+        DorisOptions.Builder dorisBuilder = DorisOptions.builder();
+        dorisBuilder
+                .setFenodes(getFenodes())
+                .setTableIdentifier(DATABASE + "." + TABLE_CSV_BATCH_DS)
+                .setUsername(USERNAME)
+                .setPassword(PASSWORD);
+        Properties properties = new Properties();
+        properties.setProperty("column_separator", ",");
+        properties.setProperty("line_delimiter", "\n");
+        properties.setProperty("format", "csv");
+        DorisExecutionOptions.Builder executionBuilder = DorisExecutionOptions.builder();
+        executionBuilder.setLabelPrefix(UUID.randomUUID().toString()).setStreamLoadProp(properties);
+
+        builder.setDorisReadOptions(readOptionBuilder.build())
+                .setDorisExecutionOptions(executionBuilder.build())
+                .setSerializer(new SimpleStringSerializer())
+                .setDorisOptions(dorisBuilder.build());
+
+        env.fromElements("doris,1", "flink,2").sinkTo(builder.build());
+        env.execute();
+
+        Thread.sleep(10000);
+        List<String> expected = Arrays.asList("doris,1", "flink,2");
+        String query =
+                String.format(
+                        "select name,age from %s.%s order by 1", DATABASE, TABLE_CSV_BATCH_DS);
         checkResult(expected, query, 2);
     }
 

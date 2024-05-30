@@ -17,6 +17,7 @@
 
 package org.apache.doris.flink.table;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.Projection;
@@ -49,6 +50,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 /** The {@link DorisDynamicTableSource} is used during planning. */
@@ -77,13 +79,6 @@ public final class DorisDynamicTableSource
         this.readOptions = readOptions;
         this.physicalSchema = physicalSchema;
         this.physicalRowDataType = physicalRowDataType;
-    }
-
-    public DorisDynamicTableSource(
-            DorisOptions options, DorisReadOptions readOptions, TableSchema physicalSchema) {
-        this.options = options;
-        this.readOptions = readOptions;
-        this.physicalSchema = physicalSchema;
     }
 
     @Override
@@ -212,5 +207,38 @@ public final class DorisDynamicTableSource
                             .map(item -> String.format("`%s`", item.trim().replace("`", "")))
                             .collect(Collectors.joining(", ")));
         }
+    }
+
+    @VisibleForTesting
+    public List<String> getResolvedFilterQuery() {
+        return resolvedFilterQuery;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        DorisDynamicTableSource that = (DorisDynamicTableSource) o;
+        return Objects.equals(options, that.options)
+                && Objects.equals(readOptions, that.readOptions)
+                && Objects.equals(lookupOptions, that.lookupOptions)
+                && Objects.equals(physicalSchema, that.physicalSchema)
+                && Objects.equals(resolvedFilterQuery, that.resolvedFilterQuery)
+                && Objects.equals(physicalRowDataType, that.physicalRowDataType);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(
+                options,
+                readOptions,
+                lookupOptions,
+                physicalSchema,
+                resolvedFilterQuery,
+                physicalRowDataType);
     }
 }

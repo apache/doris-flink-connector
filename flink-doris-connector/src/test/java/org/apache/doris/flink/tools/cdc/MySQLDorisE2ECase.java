@@ -90,6 +90,7 @@ public class MySQLDorisE2ECase extends DorisTestBase {
     public void testMySQL2Doris() throws Exception {
         printClusterStatus();
         initializeMySQLTable();
+        initializeDorisTable();
         JobClient jobClient = submitJob();
         // wait 2 times checkpoint
         Thread.sleep(20000);
@@ -242,6 +243,104 @@ public class MySQLDorisE2ECase extends DorisTestBase {
         jobClient.cancel().get();
     }
 
+    @Test
+    public void testMySQL2DorisByDefault() throws Exception {
+        printClusterStatus();
+        initializeMySQLTable();
+        initializeDorisTable();
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setRestartStrategy(RestartStrategies.noRestart());
+        Map<String, String> flinkMap = new HashMap<>();
+        flinkMap.put("execution.checkpointing.interval", "10s");
+        flinkMap.put("pipeline.operator-chaining", "false");
+        flinkMap.put("parallelism.default", "1");
+
+        Configuration configuration = Configuration.fromMap(flinkMap);
+        env.configure(configuration);
+
+        String database = DATABASE;
+        Map<String, String> mysqlConfig = new HashMap<>();
+        mysqlConfig.put("database-name", DATABASE);
+        mysqlConfig.put("hostname", MYSQL_CONTAINER.getHost());
+        mysqlConfig.put("port", MYSQL_CONTAINER.getMappedPort(3306) + "");
+        mysqlConfig.put("username", MYSQL_USER);
+        mysqlConfig.put("password", MYSQL_PASSWD);
+        mysqlConfig.put("server-time-zone", "Asia/Shanghai");
+        Configuration config = Configuration.fromMap(mysqlConfig);
+
+        Map<String, String> sinkConfig = new HashMap<>();
+        sinkConfig.put("fenodes", getFenodes());
+        sinkConfig.put("username", USERNAME);
+        sinkConfig.put("password", PASSWORD);
+        sinkConfig.put("jdbc-url", String.format(DorisTestBase.URL, DORIS_CONTAINER.getHost()));
+        sinkConfig.put("sink.label-prefix", UUID.randomUUID().toString());
+        Configuration sinkConf = Configuration.fromMap(sinkConfig);
+
+        Map<String, String> tableConfig = new HashMap<>();
+        tableConfig.put("replication_num", "1");
+
+        String includingTables = "tbl1|tbl2|tbl3";
+        String excludingTables = "";
+        DatabaseSync databaseSync = new MysqlDatabaseSync();
+        databaseSync
+                .setEnv(env)
+                .setDatabase(database)
+                .setConfig(config)
+                .setIncludingTables(includingTables)
+                .setExcludingTables(excludingTables)
+                .setIgnoreDefaultValue(false)
+                .setSinkConfig(sinkConf)
+                .setTableConfig(tableConfig)
+                .setCreateTableOnly(false)
+                .setNewSchemaChange(true)
+                // no single sink
+                .setSingleSink(false)
+                .create();
+        databaseSync.build();
+        JobClient jobClient = env.executeAsync();
+        waitForJobStatus(
+                jobClient,
+                Collections.singletonList(RUNNING),
+                Deadline.fromNow(Duration.ofSeconds(10)));
+
+        // wait 2 times checkpoint
+        Thread.sleep(20000);
+        List<String> expected = Arrays.asList("doris_1,1", "doris_2,2", "doris_3,3");
+        String sql =
+                "select * from ( select * from %s.%s union all select * from %s.%s union all select * from %s.%s ) res order by 1";
+        String query1 = String.format(sql, DATABASE, TABLE_1, DATABASE, TABLE_2, DATABASE, TABLE_3);
+        checkResult(expected, query1, 2);
+
+        // add incremental data
+        try (Connection connection =
+                        DriverManager.getConnection(
+                                MYSQL_CONTAINER.getJdbcUrl(), MYSQL_USER, MYSQL_PASSWD);
+                Statement statement = connection.createStatement()) {
+            statement.execute(
+                    String.format("insert into %s.%s  values ('doris_1_1',10)", DATABASE, TABLE_1));
+            statement.execute(
+                    String.format("insert into %s.%s  values ('doris_2_1',11)", DATABASE, TABLE_2));
+            statement.execute(
+                    String.format("insert into %s.%s  values ('doris_3_1',12)", DATABASE, TABLE_3));
+
+            statement.execute(
+                    String.format(
+                            "update %s.%s set age=18 where name='doris_1'", DATABASE, TABLE_1));
+            statement.execute(
+                    String.format("delete from %s.%s where name='doris_2'", DATABASE, TABLE_2));
+        }
+
+        Thread.sleep(20000);
+        List<String> expected2 =
+                Arrays.asList(
+                        "doris_1,18", "doris_1_1,10", "doris_2_1,11", "doris_3,3", "doris_3_1,12");
+        sql =
+                "select * from ( select * from %s.%s union all select * from %s.%s union all select * from %s.%s ) res order by 1";
+        String query2 = String.format(sql, DATABASE, TABLE_1, DATABASE, TABLE_2, DATABASE, TABLE_3);
+        checkResult(expected2, query2, 2);
+        jobClient.cancel().get();
+    }
+
     private void initializeDorisTable() throws Exception {
         try (Connection connection =
                         DriverManager.getConnection(
@@ -302,6 +401,7 @@ public class MySQLDorisE2ECase extends DorisTestBase {
                 .setCreateTableOnly(false)
                 .setNewSchemaChange(true)
                 .setSingleSink(true)
+                .setIgnoreDefaultValue(true)
                 .create();
         databaseSync.build();
         JobClient jobClient = env.executeAsync();
@@ -343,6 +443,7 @@ public class MySQLDorisE2ECase extends DorisTestBase {
             statement.execute(String.format("DROP TABLE IF EXISTS %s.%s", DATABASE, TABLE_1));
             statement.execute(String.format("DROP TABLE IF EXISTS %s.%s", DATABASE, TABLE_2));
             statement.execute(String.format("DROP TABLE IF EXISTS %s.%s", DATABASE, TABLE_3));
+            statement.execute(String.format("DROP TABLE IF EXISTS %s.%s", DATABASE, TABLE_4));
             statement.execute(
                     String.format(
                             "CREATE TABLE %s.%s ( \n"

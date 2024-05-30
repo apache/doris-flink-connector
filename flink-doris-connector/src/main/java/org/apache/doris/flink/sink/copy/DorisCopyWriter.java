@@ -17,6 +17,7 @@
 
 package org.apache.doris.flink.sink.copy;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.util.Preconditions;
@@ -193,5 +194,10 @@ public class DorisCopyWriter<IN>
         if (flushException != null) {
             throw new RuntimeException("Writing records to streamload failed.", flushException);
         }
+    }
+
+    @VisibleForTesting
+    public void setBatchStageLoad(BatchStageLoad batchStageLoad) {
+        this.batchStageLoad = batchStageLoad;
     }
 }

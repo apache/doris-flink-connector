@@ -559,4 +559,14 @@ public class DorisCatalog extends AbstractCatalog {
             throws PartitionNotExistException, CatalogException {
         throw new UnsupportedOperationException();
     }
+
+    @VisibleForTesting
+    public DorisConnectionOptions getConnectionOptions() {
+        return connectionOptions;
+    }
+
+    @VisibleForTesting
+    public Map<String, String> getProperties() {
+        return properties;
+    }
 }

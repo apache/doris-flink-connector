@@ -347,6 +347,31 @@ public class TestJsonDebeziumSchemaChangeImplV2 extends TestJsonDebeziumChangeBa
         JsonNode columns = objectMapper.readTree(columnInfo);
         String dorisTypeName = schemaChange.buildDorisTypeName(columns);
         Assert.assertEquals(dorisTypeName, "VARCHAR(384)");
+        columnInfo =
+                "{\"name\":\"NAME\",\"jdbcType\":12,\"nativeType\":null,\"typeName\":\"FLOAT\",\"typeExpression\":\"FLOAT\",\"charsetName\":null,\"length\":0,\"scale\":null,\"position\":2,\"optional\":false,\"autoIncremented\":false,\"generated\":false,\"comment\":null}";
+        columns = objectMapper.readTree(columnInfo);
+        dorisTypeName = schemaChange.buildDorisTypeName(columns);
+        Assert.assertEquals(dorisTypeName, "DOUBLE");
+    }
+
+    @Test
+    public void testBuildPostgres2DorisTypeName() throws IOException {
+        String columnInfo =
+                "{\"name\":\"NAME\",\"jdbcType\":12,\"nativeType\":null,\"typeName\":\"VARCHAR\",\"typeExpression\":\"VARCHAR\",\"charsetName\":null,\"length\":128,\"scale\":null,\"position\":2,\"optional\":false,\"autoIncremented\":false,\"generated\":false,\"comment\":null}";
+        schemaChange.setSourceConnector("postgres");
+        JsonNode columns = objectMapper.readTree(columnInfo);
+        String dorisTypeName = schemaChange.buildDorisTypeName(columns);
+        Assert.assertEquals(dorisTypeName, "VARCHAR(384)");
+    }
+
+    @Test
+    public void testBuildSqlserver2DorisTypeName() throws IOException {
+        String columnInfo =
+                "{\"name\":\"NAME\",\"jdbcType\":12,\"nativeType\":null,\"typeName\":\"VARCHAR\",\"typeExpression\":\"VARCHAR\",\"charsetName\":null,\"length\":128,\"scale\":null,\"position\":2,\"optional\":false,\"autoIncremented\":false,\"generated\":false,\"comment\":null}";
+        schemaChange.setSourceConnector("sqlserver");
+        JsonNode columns = objectMapper.readTree(columnInfo);
+        String dorisTypeName = schemaChange.buildDorisTypeName(columns);
+        Assert.assertEquals(dorisTypeName, "VARCHAR(384)");
     }
 
     @Test

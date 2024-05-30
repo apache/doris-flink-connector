@@ -30,16 +30,4 @@ public class DorisSystemException extends RuntimeException {
     public DorisSystemException(String message, Throwable cause) {
         super(message, cause);
     }
-
-    public DorisSystemException(Throwable cause) {
-        super(cause);
-    }
-
-    protected DorisSystemException(
-            String message,
-            Throwable cause,
-            boolean enableSuppression,
-            boolean writableStackTrace) {
-        super(message, cause, enableSuppression, writableStackTrace);
-    }
 }
