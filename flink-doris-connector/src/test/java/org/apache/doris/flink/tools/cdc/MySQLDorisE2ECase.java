@@ -17,13 +17,11 @@
 
 package org.apache.doris.flink.tools.cdc;
 
-import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.util.function.SupplierWithException;
 
 import org.apache.doris.flink.DorisTestBase;
 import org.apache.doris.flink.tools.cdc.mysql.MysqlDatabaseSync;
@@ -46,7 +44,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.TimeoutException;
 import java.util.stream.Stream;
 
 import static org.apache.flink.api.common.JobStatus.RUNNING;
@@ -472,53 +469,6 @@ public class MySQLDorisE2ECase extends DorisTestBase {
                     String.format("insert into %s.%s  values ('doris_2',2)", DATABASE, TABLE_2));
             statement.execute(
                     String.format("insert into %s.%s  values ('doris_3',3)", DATABASE, TABLE_3));
-        }
-    }
-
-    public static void waitForJobStatus(
-            JobClient client, List<JobStatus> expectedStatus, Deadline deadline) throws Exception {
-        waitUntilCondition(
-                () -> {
-                    JobStatus currentStatus = (JobStatus) client.getJobStatus().get();
-                    if (expectedStatus.contains(currentStatus)) {
-                        return true;
-                    } else if (currentStatus.isTerminalState()) {
-                        try {
-                            client.getJobExecutionResult().get();
-                        } catch (Exception var4) {
-                            throw new IllegalStateException(
-                                    String.format(
-                                            "Job has entered %s state, but expecting %s",
-                                            currentStatus, expectedStatus),
-                                    var4);
-                        }
-
-                        throw new IllegalStateException(
-                                String.format(
-                                        "Job has entered a terminal state %s, but expecting %s",
-                                        currentStatus, expectedStatus));
-                    } else {
-                        return false;
-                    }
-                },
-                deadline,
-                100L,
-                "Condition was not met in given timeout.");
-    }
-
-    public static void waitUntilCondition(
-            SupplierWithException<Boolean, Exception> condition,
-            Deadline timeout,
-            long retryIntervalMillis,
-            String errorMsg)
-            throws Exception {
-        while (timeout.hasTimeLeft() && !(Boolean) condition.get()) {
-            long timeLeft = Math.max(0L, timeout.timeLeft().toMillis());
-            Thread.sleep(Math.min(retryIntervalMillis, timeLeft));
-        }
-
-        if (!timeout.hasTimeLeft()) {
-            throw new TimeoutException(errorMsg);
         }
     }
 }

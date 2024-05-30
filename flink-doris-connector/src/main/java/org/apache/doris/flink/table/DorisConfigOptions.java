@@ -17,6 +17,7 @@
 
 package org.apache.doris.flink.table;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.MemorySize;
@@ -38,6 +39,8 @@ import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_REQUEST_READ
 import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_REQUEST_RETRIES_DEFAULT;
 import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_TABLET_SIZE_DEFAULT;
 
+/** Options for the Doris connector. */
+@PublicEvolving
 public class DorisConfigOptions {
 
     public static final String IDENTIFIER = "doris";

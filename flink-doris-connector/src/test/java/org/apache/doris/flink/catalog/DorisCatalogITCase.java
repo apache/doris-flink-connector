@@ -222,7 +222,6 @@ public class DorisCatalogITCase extends DorisTestBase {
         // todo: string varchar mapping
         CatalogBaseTable table = catalog.getTable(new ObjectPath(TEST_DB, TEST_TABLE));
         Schema actual = table.getUnresolvedSchema();
-        System.out.println(TABLE_SCHEMA_1);
         assertEquals(
                 TABLE_SCHEMA_1.getFieldNames(),
                 actual.getColumns().stream().map(Schema.UnresolvedColumn::getName).toArray());

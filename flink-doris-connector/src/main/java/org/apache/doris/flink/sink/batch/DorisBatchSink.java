@@ -17,6 +17,7 @@
 
 package org.apache.doris.flink.sink.batch;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.util.Preconditions;
@@ -28,6 +29,8 @@ import org.apache.doris.flink.sink.writer.serializer.DorisRecordSerializer;
 
 import java.io.IOException;
 
+@Deprecated
+@PublicEvolving
 public class DorisBatchSink<IN> implements Sink<IN> {
     private final DorisOptions dorisOptions;
     private final DorisReadOptions dorisReadOptions;

@@ -17,9 +17,21 @@
 
 package org.apache.doris.flink;
 
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.api.common.time.Deadline;
+import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.runtime.highavailability.nonha.embedded.HaLeadershipControl;
+import org.apache.flink.runtime.minicluster.MiniCluster;
+import org.apache.flink.runtime.minicluster.RpcServiceSharing;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.util.function.SupplierWithException;
+
 import com.google.common.collect.Lists;
 import org.apache.commons.lang3.StringUtils;
 import org.junit.Assert;
+import org.junit.Rule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.GenericContainer;
@@ -44,6 +56,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.LockSupport;
 
 public abstract class DorisTestBase {
@@ -63,6 +76,10 @@ public abstract class DorisTestBase {
 
     protected static String getFenodes() {
         return DORIS_CONTAINER.getHost() + ":8030";
+    }
+
+    protected static String getBenodes() {
+        return DORIS_CONTAINER.getHost() + ":8040";
     }
 
     protected static String getJdbcUrl() {
@@ -209,5 +226,101 @@ public abstract class DorisTestBase {
             }
         }
         Assert.assertArrayEquals(expected.toArray(), actual.toArray());
+    }
+
+    @Rule
+    public final MiniClusterWithClientResource miniClusterResource =
+            new MiniClusterWithClientResource(
+                    new MiniClusterResourceConfiguration.Builder()
+                            .setNumberTaskManagers(1)
+                            .setNumberSlotsPerTaskManager(2)
+                            .setRpcServiceSharing(RpcServiceSharing.DEDICATED)
+                            .withHaLeadershipControl()
+                            .build());
+
+    /** The type of failover. */
+    protected enum FailoverType {
+        TM,
+        JM,
+        NONE
+    }
+
+    protected static void triggerFailover(
+            FailoverType type, JobID jobId, MiniCluster miniCluster, Runnable afterFailAction)
+            throws Exception {
+        switch (type) {
+            case TM:
+                restartTaskManager(miniCluster, afterFailAction);
+                break;
+            case JM:
+                triggerJobManagerFailover(jobId, miniCluster, afterFailAction);
+                break;
+            case NONE:
+                break;
+            default:
+                throw new IllegalStateException("Unexpected value: " + type);
+        }
+    }
+
+    protected static void triggerJobManagerFailover(
+            JobID jobId, MiniCluster miniCluster, Runnable afterFailAction) throws Exception {
+        final HaLeadershipControl haLeadershipControl = miniCluster.getHaLeadershipControl().get();
+        haLeadershipControl.revokeJobMasterLeadership(jobId).get();
+        afterFailAction.run();
+        haLeadershipControl.grantJobMasterLeadership(jobId).get();
+    }
+
+    protected static void restartTaskManager(MiniCluster miniCluster, Runnable afterFailAction)
+            throws Exception {
+        miniCluster.terminateTaskManager(0).get();
+        afterFailAction.run();
+        miniCluster.startTaskManager();
+    }
+
+    public static void waitForJobStatus(
+            JobClient client, List<JobStatus> expectedStatus, Deadline deadline) throws Exception {
+        waitUntilCondition(
+                () -> {
+                    JobStatus currentStatus = (JobStatus) client.getJobStatus().get();
+                    if (expectedStatus.contains(currentStatus)) {
+                        return true;
+                    } else if (currentStatus.isTerminalState()) {
+                        try {
+                            client.getJobExecutionResult().get();
+                        } catch (Exception var4) {
+                            throw new IllegalStateException(
+                                    String.format(
+                                            "Job has entered %s state, but expecting %s",
+                                            currentStatus, expectedStatus),
+                                    var4);
+                        }
+
+                        throw new IllegalStateException(
+                                String.format(
+                                        "Job has entered a terminal state %s, but expecting %s",
+                                        currentStatus, expectedStatus));
+                    } else {
+                        return false;
+                    }
+                },
+                deadline,
+                100L,
+                "Condition was not met in given timeout.");
+    }
+
+    public static void waitUntilCondition(
+            SupplierWithException<Boolean, Exception> condition,
+            Deadline timeout,
+            long retryIntervalMillis,
+            String errorMsg)
+            throws Exception {
+        while (timeout.hasTimeLeft() && !(Boolean) condition.get()) {
+            long timeLeft = Math.max(0L, timeout.timeLeft().toMillis());
+            Thread.sleep(Math.min(retryIntervalMillis, timeLeft));
+        }
+
+        if (!timeout.hasTimeLeft()) {
+            throw new TimeoutException(errorMsg);
+        }
     }
 }

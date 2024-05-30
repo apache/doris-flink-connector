@@ -17,6 +17,7 @@
 
 package org.apache.doris.flink.deserialization;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.util.Collector;
 
@@ -27,6 +28,7 @@ import java.util.List;
  * The deserialization schema describes how to turn the doris list record into data types
  * (Java/Scala objects) that are processed by Flink.
  */
+@PublicEvolving
 public interface DorisDeserializationSchema<T> extends Serializable, ResultTypeQueryable<T> {
 
     void deserialize(List<?> record, Collector<T> out) throws Exception;
