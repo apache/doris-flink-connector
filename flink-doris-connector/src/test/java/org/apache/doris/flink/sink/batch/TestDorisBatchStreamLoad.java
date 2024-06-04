@@ -106,6 +106,8 @@ public class TestDorisBatchStreamLoad {
         loader.flush("db.tbl", true);
 
         AtomicReference<Throwable> exception = loader.getException();
+        System.out.println("====" + exception.get().getClass());
+        System.out.println("====" + exception.get().getMessage());
         Assert.assertEquals(exception.get().getClass(), DorisBatchLoadException.class);
         Assert.assertTrue(exception.get().getMessage().contains("stream load error"));
     }
