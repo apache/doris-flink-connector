@@ -30,9 +30,11 @@ import org.apache.http.impl.client.HttpClientBuilder;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.FixMethodOrder;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.junit.runners.MethodSorters;
 import org.mockito.MockedStatic;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,6 +47,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
+@FixMethodOrder(MethodSorters.NAME_ASCENDING)
 public class TestDorisBatchStreamLoad {
 
     private static final Logger LOG = LoggerFactory.getLogger(TestDorisBatchStreamLoad.class);
@@ -106,8 +109,6 @@ public class TestDorisBatchStreamLoad {
         loader.flush("db.tbl", true);
 
         AtomicReference<Throwable> exception = loader.getException();
-        System.out.println("====" + exception.get().getClass());
-        System.out.println("====" + exception.get().getMessage());
         Assert.assertEquals(exception.get().getClass(), DorisBatchLoadException.class);
         Assert.assertTrue(exception.get().getMessage().contains("stream load error"));
     }
