@@ -207,7 +207,7 @@ public class DorisSinkITCase extends DorisTestBase {
                                 + " 'sink.enable-delete' = 'true',"
                                 + " 'sink.flush.queue-size' = '2',"
                                 + " 'sink.buffer-flush.max-rows' = '1',"
-                                + " 'sink.buffer-flush.max-bytes' = '10MB',"
+                                + " 'sink.buffer-flush.max-bytes' = '5',"
                                 + " 'sink.buffer-flush.interval' = '10s'"
                                 + ")",
                         getFenodes(),
