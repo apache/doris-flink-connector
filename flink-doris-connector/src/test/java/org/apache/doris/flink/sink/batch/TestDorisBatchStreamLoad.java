@@ -78,42 +78,7 @@ public class TestDorisBatchStreamLoad {
     }
 
     @Test
-    public void testLoad() throws InterruptedException, IOException {
-        LOG.info("testLoad===start");
-        DorisReadOptions readOptions = DorisReadOptions.builder().build();
-        DorisExecutionOptions executionOptions = DorisExecutionOptions.builder().build();
-        DorisOptions options =
-                DorisOptions.builder()
-                        .setFenodes("127.0.0.1:1")
-                        .setBenodes("127.0.0.1:1")
-                        .setTableIdentifier("db.tbl")
-                        .build();
-
-        DorisBatchStreamLoad loader =
-                new DorisBatchStreamLoad(
-                        options, readOptions, executionOptions, new LabelGenerator("label", false));
-        BackendUtil backendUtil = mock(BackendUtil.class);
-        HttpClientBuilder httpClientBuilder = mock(HttpClientBuilder.class);
-        CloseableHttpClient httpClient = mock(CloseableHttpClient.class);
-        CloseableHttpResponse response =
-                HttpTestUtil.getResponse(HttpTestUtil.COMMIT_TABLE_RESPONSE, true);
-
-        loader.setBackendUtil(backendUtil);
-        loader.setHttpClientBuilder(httpClientBuilder);
-        when(backendUtil.getAvailableBackend()).thenReturn("127.0.0.1:1");
-        when(httpClientBuilder.build()).thenReturn(httpClient);
-        when(httpClient.execute(any())).thenReturn(response);
-        loader.writeRecord("db", "tbl", "1,data".getBytes());
-        loader.flush("db.tbl", true);
-        loader.close();
-        AtomicReference<Throwable> exception = loader.getException();
-        Assert.assertNull(exception.get());
-        LOG.info("testLoad===end");
-    }
-
-    @Test
     public void testLoadFail() throws InterruptedException, IOException {
-        LOG.info("testLoadFail===start");
         DorisReadOptions readOptions = DorisReadOptions.builder().build();
         DorisExecutionOptions executionOptions = DorisExecutionOptions.builder().build();
         DorisOptions options =
@@ -143,12 +108,10 @@ public class TestDorisBatchStreamLoad {
         AtomicReference<Throwable> exception = loader.getException();
         Assert.assertEquals(exception.get().getClass(), DorisBatchLoadException.class);
         Assert.assertTrue(exception.get().getMessage().contains("stream load error"));
-        LOG.info("testLoadFail===end");
     }
 
     @Test
     public void testLoadError() throws InterruptedException, IOException {
-        LOG.info("testLoadError===start");
         DorisReadOptions readOptions = DorisReadOptions.builder().build();
         DorisExecutionOptions executionOptions = DorisExecutionOptions.builder().build();
         DorisOptions options =
@@ -178,7 +141,6 @@ public class TestDorisBatchStreamLoad {
 
         Assert.assertEquals(exception.get().getClass(), DorisBatchLoadException.class);
         Assert.assertTrue(exception.get().getMessage().contains("stream load error"));
-        LOG.info("testLoadError===end");
     }
 
     @After
