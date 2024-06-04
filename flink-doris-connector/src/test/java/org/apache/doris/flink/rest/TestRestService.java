@@ -172,7 +172,7 @@ public class TestRestService {
 
     @Test
     public void testChoiceFeNo() throws Exception {
-        String failFenodes = "127.0.0.1:12345";
+        String failFenodes = "127.0.0.1:1";
         BackendUtil.tryHttpConnection(any());
         backendUtilMockedStatic.when(() -> BackendUtil.tryHttpConnection(any())).thenReturn(false);
         thrown.expect(DorisRuntimeException.class);
@@ -416,7 +416,7 @@ public class TestRestService {
     public void testGetBackendsV2() {
         DorisOptions options =
                 DorisOptions.builder()
-                        .setFenodes("127.0.0.1:12345,127.0.0.1:2345")
+                        .setFenodes("127.0.0.1:1,127.0.0.1:2")
                         .setAutoRedirect(false)
                         .build();
         DorisReadOptions readOptions = DorisReadOptions.defaults();
@@ -445,7 +445,7 @@ public class TestRestService {
     public void testUniqueKeyType() throws IOException {
         DorisOptions options =
                 DorisOptions.builder()
-                        .setFenodes("127.0.0.1:12345,127.0.0.1:2345")
+                        .setFenodes("127.0.0.1:1,127.0.0.1:2")
                         .setTableIdentifier("db.tbl")
                         .setAutoRedirect(false)
                         .build();

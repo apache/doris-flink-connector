@@ -27,6 +27,6 @@ public class BackendClientTest {
 
     @Test(expected = ConnectedFailedException.class)
     public void testBackendClient() throws IllegalArgumentException {
-        new BackendClient(new Routing("127.0.0.1:12345"), DorisReadOptions.builder().build());
+        new BackendClient(new Routing("127.0.0.1:1"), DorisReadOptions.builder().build());
     }
 }

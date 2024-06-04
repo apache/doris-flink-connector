@@ -79,8 +79,8 @@ public class TestDorisBatchStreamLoad {
         DorisExecutionOptions executionOptions = DorisExecutionOptions.builder().build();
         DorisOptions options =
                 DorisOptions.builder()
-                        .setFenodes("127.0.0.1:12345")
-                        .setBenodes("127.0.0.1:12345")
+                        .setFenodes("127.0.0.1:1")
+                        .setBenodes("127.0.0.1:1")
                         .setTableIdentifier("db.tbl")
                         .build();
 
@@ -95,7 +95,7 @@ public class TestDorisBatchStreamLoad {
 
         loader.setBackendUtil(backendUtil);
         loader.setHttpClientBuilder(httpClientBuilder);
-        when(backendUtil.getAvailableBackend()).thenReturn("127.0.0.1:12345");
+        when(backendUtil.getAvailableBackend()).thenReturn("127.0.0.1:1");
         when(httpClientBuilder.build()).thenReturn(httpClient);
         when(httpClient.execute(any())).thenReturn(response);
         loader.writeRecord("db", "tbl", "1,data".getBytes());
@@ -108,8 +108,8 @@ public class TestDorisBatchStreamLoad {
         DorisExecutionOptions executionOptions = DorisExecutionOptions.builder().build();
         DorisOptions options =
                 DorisOptions.builder()
-                        .setFenodes("127.0.0.1:12345")
-                        .setBenodes("127.0.0.1:12345")
+                        .setFenodes("127.0.0.1:1")
+                        .setBenodes("127.0.0.1:1")
                         .setTableIdentifier("db.tbl")
                         .build();
 
@@ -124,7 +124,7 @@ public class TestDorisBatchStreamLoad {
 
         loader.setBackendUtil(backendUtil);
         loader.setHttpClientBuilder(httpClientBuilder);
-        when(backendUtil.getAvailableBackend()).thenReturn("127.0.0.1:12345");
+        when(backendUtil.getAvailableBackend()).thenReturn("127.0.0.1:1");
         when(httpClientBuilder.build()).thenReturn(httpClient);
         when(httpClient.execute(any())).thenReturn(response);
         loader.writeRecord("db", "tbl", "1,data".getBytes());
@@ -141,8 +141,8 @@ public class TestDorisBatchStreamLoad {
         DorisExecutionOptions executionOptions = DorisExecutionOptions.builder().build();
         DorisOptions options =
                 DorisOptions.builder()
-                        .setFenodes("127.0.0.1:12345")
-                        .setBenodes("127.0.0.1:12345")
+                        .setFenodes("127.0.0.1:1")
+                        .setBenodes("127.0.0.1:1")
                         .setTableIdentifier("db.tbl")
                         .build();
 
@@ -156,7 +156,7 @@ public class TestDorisBatchStreamLoad {
 
         loader.setBackendUtil(backendUtil);
         loader.setHttpClientBuilder(httpClientBuilder);
-        when(backendUtil.getAvailableBackend()).thenReturn("127.0.0.1:12345");
+        when(backendUtil.getAvailableBackend()).thenReturn("127.0.0.1:1");
         when(httpClientBuilder.build()).thenReturn(httpClient);
         when(httpClient.execute(any())).thenReturn(response);
         loader.writeRecord("db", "tbl", "1,data".getBytes());
