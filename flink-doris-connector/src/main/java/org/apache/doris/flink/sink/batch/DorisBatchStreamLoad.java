@@ -361,4 +361,9 @@ public class DorisBatchStreamLoad implements Serializable {
     public AtomicReference<Throwable> getException() {
         return exception;
     }
+
+    @VisibleForTesting
+    public boolean isLoadThreadAlive() {
+        return loadThreadAlive;
+    }
 }

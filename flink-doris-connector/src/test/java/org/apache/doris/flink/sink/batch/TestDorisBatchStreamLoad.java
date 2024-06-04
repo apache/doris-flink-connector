@@ -17,6 +17,9 @@
 
 package org.apache.doris.flink.sink.batch;
 
+import org.apache.flink.api.common.time.Deadline;
+import org.apache.flink.util.function.SupplierWithException;
+
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
@@ -39,7 +42,8 @@ import org.mockito.MockedStatic;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
+import java.time.Duration;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -81,7 +85,7 @@ public class TestDorisBatchStreamLoad {
     }
 
     @Test
-    public void testLoadFail() throws InterruptedException, IOException {
+    public void testLoadFail() throws Exception {
         DorisReadOptions readOptions = DorisReadOptions.builder().build();
         DorisExecutionOptions executionOptions = DorisExecutionOptions.builder().build();
         DorisOptions options =
@@ -94,6 +98,12 @@ public class TestDorisBatchStreamLoad {
         DorisBatchStreamLoad loader =
                 new DorisBatchStreamLoad(
                         options, readOptions, executionOptions, new LabelGenerator("label", false));
+        waitUntilCondition(
+                () -> loader.isLoadThreadAlive(),
+                Deadline.fromNow(Duration.ofSeconds(10)),
+                100L,
+                "Condition was not met in given timeout.");
+        Assert.assertTrue(loader.isLoadThreadAlive());
         BackendUtil backendUtil = mock(BackendUtil.class);
         HttpClientBuilder httpClientBuilder = mock(HttpClientBuilder.class);
         CloseableHttpClient httpClient = mock(CloseableHttpClient.class);
@@ -114,7 +124,7 @@ public class TestDorisBatchStreamLoad {
     }
 
     @Test
-    public void testLoadError() throws InterruptedException, IOException {
+    public void testLoadError() throws Exception {
         DorisReadOptions readOptions = DorisReadOptions.builder().build();
         DorisExecutionOptions executionOptions = DorisExecutionOptions.builder().build();
         DorisOptions options =
@@ -127,6 +137,13 @@ public class TestDorisBatchStreamLoad {
         DorisBatchStreamLoad loader =
                 new DorisBatchStreamLoad(
                         options, readOptions, executionOptions, new LabelGenerator("label", false));
+
+        waitUntilCondition(
+                () -> loader.isLoadThreadAlive(),
+                Deadline.fromNow(Duration.ofSeconds(10)),
+                100L,
+                "Condition was not met in given timeout.");
+        Assert.assertTrue(loader.isLoadThreadAlive());
         BackendUtil backendUtil = mock(BackendUtil.class);
         HttpClientBuilder httpClientBuilder = mock(HttpClientBuilder.class);
         CloseableHttpClient httpClient = mock(CloseableHttpClient.class);
@@ -150,6 +167,22 @@ public class TestDorisBatchStreamLoad {
     public void after() {
         if (backendUtilMockedStatic != null) {
             backendUtilMockedStatic.close();
+        }
+    }
+
+    public static void waitUntilCondition(
+            SupplierWithException<Boolean, Exception> condition,
+            Deadline timeout,
+            long retryIntervalMillis,
+            String errorMsg)
+            throws Exception {
+        while (timeout.hasTimeLeft() && !(Boolean) condition.get()) {
+            long timeLeft = Math.max(0L, timeout.timeLeft().toMillis());
+            Thread.sleep(Math.min(retryIntervalMillis, timeLeft));
+        }
+
+        if (!timeout.hasTimeLeft()) {
+            throw new TimeoutException(errorMsg);
         }
     }
 }
