@@ -100,6 +100,9 @@ public class TestDorisBatchStreamLoad {
         when(httpClient.execute(any())).thenReturn(response);
         loader.writeRecord("db", "tbl", "1,data".getBytes());
         loader.flush("db.tbl", true);
+        loader.close();
+        AtomicReference<Throwable> exception = loader.getException();
+        Assert.assertNull(exception.get());
     }
 
     @Test
