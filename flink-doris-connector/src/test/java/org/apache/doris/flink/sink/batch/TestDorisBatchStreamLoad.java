@@ -34,6 +34,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.mockito.MockedStatic;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicReference;
@@ -44,6 +46,8 @@ import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
 public class TestDorisBatchStreamLoad {
+
+    private static final Logger LOG = LoggerFactory.getLogger(TestDorisBatchStreamLoad.class);
 
     private MockedStatic<BackendUtil> backendUtilMockedStatic;
 
@@ -75,6 +79,7 @@ public class TestDorisBatchStreamLoad {
 
     @Test
     public void testLoad() throws InterruptedException, IOException {
+        LOG.info("testLoad===start");
         DorisReadOptions readOptions = DorisReadOptions.builder().build();
         DorisExecutionOptions executionOptions = DorisExecutionOptions.builder().build();
         DorisOptions options =
@@ -103,10 +108,12 @@ public class TestDorisBatchStreamLoad {
         loader.close();
         AtomicReference<Throwable> exception = loader.getException();
         Assert.assertNull(exception.get());
+        LOG.info("testLoad===end");
     }
 
     @Test
     public void testLoadFail() throws InterruptedException, IOException {
+        LOG.info("testLoadFail===start");
         DorisReadOptions readOptions = DorisReadOptions.builder().build();
         DorisExecutionOptions executionOptions = DorisExecutionOptions.builder().build();
         DorisOptions options =
@@ -136,10 +143,12 @@ public class TestDorisBatchStreamLoad {
         AtomicReference<Throwable> exception = loader.getException();
         Assert.assertEquals(exception.get().getClass(), DorisBatchLoadException.class);
         Assert.assertTrue(exception.get().getMessage().contains("stream load error"));
+        LOG.info("testLoadFail===end");
     }
 
     @Test
     public void testLoadError() throws InterruptedException, IOException {
+        LOG.info("testLoadError===start");
         DorisReadOptions readOptions = DorisReadOptions.builder().build();
         DorisExecutionOptions executionOptions = DorisExecutionOptions.builder().build();
         DorisOptions options =
@@ -169,6 +178,7 @@ public class TestDorisBatchStreamLoad {
 
         Assert.assertEquals(exception.get().getClass(), DorisBatchLoadException.class);
         Assert.assertTrue(exception.get().getMessage().contains("stream load error"));
+        LOG.info("testLoadError===end");
     }
 
     @After
