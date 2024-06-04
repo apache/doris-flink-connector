@@ -158,7 +158,8 @@ public class RowBatch {
         return offsetInRowBatch < readRowCount;
     }
 
-    private void addValueToRow(int rowIndex, Object obj) {
+    @VisibleForTesting
+    public void addValueToRow(int rowIndex, Object obj) {
         if (rowIndex > rowCountInOneBatch) {
             String errMsg =
                     "Get row offset: " + rowIndex + " larger than row size: " + rowCountInOneBatch;
@@ -186,7 +187,8 @@ public class RowBatch {
         }
     }
 
-    private boolean doConvert(
+    @VisibleForTesting
+    public boolean doConvert(
             int col,
             int rowIndex,
             Types.MinorType minorType,
@@ -471,7 +473,8 @@ public class RowBatch {
         return true;
     }
 
-    private LocalDateTime getDateTime(int rowIndex, FieldVector fieldVector) {
+    @VisibleForTesting
+    public LocalDateTime getDateTime(int rowIndex, FieldVector fieldVector) {
         TimeStampMicroVector vector = (TimeStampMicroVector) fieldVector;
         if (vector.isNull(rowIndex)) {
             return null;

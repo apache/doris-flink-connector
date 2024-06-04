@@ -44,6 +44,7 @@ import static org.apache.doris.flink.utils.FactoryMocks.SCHEMA;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSink;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSource;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 
 public class DorisDynamicTableFactoryTest {
 
@@ -190,7 +191,45 @@ public class DorisDynamicTableFactoryTest {
                         TableSchema.fromResolvedSchema(SCHEMA),
                         1);
 
+        assertEquals(expected, expected);
+        assertNotEquals(expected, null);
         assertEquals(actual, expected);
+
+        options.setTableIdentifier("xxxxx");
+        DorisDynamicTableSink expected2 =
+                new DorisDynamicTableSink(
+                        options,
+                        readOptionBuilder.build(),
+                        executionOptions,
+                        TableSchema.fromResolvedSchema(SCHEMA),
+                        1);
+        assertNotEquals(actual, expected2);
+        options.setTableIdentifier("db.tbl");
+
+        readOptionBuilder.setExecMemLimit(1L);
+        DorisDynamicTableSink expected3 =
+                new DorisDynamicTableSink(
+                        options,
+                        readOptionBuilder.build(),
+                        executionOptions,
+                        TableSchema.fromResolvedSchema(SCHEMA),
+                        1);
+        assertNotEquals(actual, expected3);
+        readOptionBuilder.setExecMemLimit(DORIS_EXEC_MEM_LIMIT_DEFAULT);
+
+        executionOptions.setEnable2PC(false);
+        DorisDynamicTableSink expected4 =
+                new DorisDynamicTableSink(
+                        options,
+                        readOptionBuilder.build(),
+                        executionOptions,
+                        TableSchema.fromResolvedSchema(SCHEMA),
+                        1);
+        assertNotEquals(actual, expected4);
+        executionOptions.setEnable2PC(true);
+
+        DynamicTableSink actual2 = createTableSink(SCHEMA, new HashMap<>());
+        assertNotEquals(actual2, expected);
     }
 
     private Map<String, String> getAllOptions() {

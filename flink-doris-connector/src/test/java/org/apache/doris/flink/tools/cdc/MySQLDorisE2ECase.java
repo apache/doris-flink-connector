@@ -271,6 +271,7 @@ public class MySQLDorisE2ECase extends DorisTestBase {
         sinkConfig.put("password", PASSWORD);
         sinkConfig.put("jdbc-url", String.format(DorisTestBase.URL, DORIS_CONTAINER.getHost()));
         sinkConfig.put("sink.label-prefix", UUID.randomUUID().toString());
+        sinkConfig.put("sink.check-interval", "5000");
         Configuration sinkConf = Configuration.fromMap(sinkConfig);
 
         Map<String, String> tableConfig = new HashMap<>();

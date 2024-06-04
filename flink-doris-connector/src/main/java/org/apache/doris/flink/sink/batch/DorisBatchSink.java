@@ -18,6 +18,7 @@
 package org.apache.doris.flink.sink.batch;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.util.Preconditions;
@@ -106,5 +107,10 @@ public class DorisBatchSink<IN> implements Sink<IN> {
             return new DorisBatchSink<>(
                     dorisOptions, dorisReadOptions, dorisExecutionOptions, serializer);
         }
+    }
+
+    @VisibleForTesting
+    public DorisReadOptions getDorisReadOptions() {
+        return dorisReadOptions;
     }
 }

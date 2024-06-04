@@ -154,8 +154,8 @@ public class DorisSinkITCase extends DorisTestBase {
                                 + " 'sink.buffer-count' = '3',"
                                 + " 'sink.max-retries' = '1',"
                                 + " 'sink.enable-2pc' = 'true',"
-                                + " 'sink.use-cache' = 'false',"
-                                + " 'sink.enable-delete' = 'true',"
+                                + " 'sink.use-cache' = 'true',"
+                                + " 'sink.enable-delete' = 'false',"
                                 + " 'sink.ignore.update-before' = 'true',"
                                 + " 'sink.properties.format' = 'json',"
                                 + " 'sink.properties.read_json_by_line' = 'true',"
@@ -200,9 +200,13 @@ public class DorisSinkITCase extends DorisTestBase {
                                 + " 'sink.label-prefix' = '"
                                 + UUID.randomUUID()
                                 + "',"
+                                + " 'sink.properties.column_separator' = '\\x01',"
+                                + " 'sink.properties.line_delimiter' = '\\x02',"
+                                + " 'sink.ignore.update-before' = 'false',"
                                 + " 'sink.enable.batch-mode' = 'true',"
+                                + " 'sink.enable-delete' = 'true',"
                                 + " 'sink.flush.queue-size' = '2',"
-                                + " 'sink.buffer-flush.max-rows' = '1000',"
+                                + " 'sink.buffer-flush.max-rows' = '1',"
                                 + " 'sink.buffer-flush.max-bytes' = '10MB',"
                                 + " 'sink.buffer-flush.interval' = '10s'"
                                 + ")",
@@ -227,7 +231,6 @@ public class DorisSinkITCase extends DorisTestBase {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
         DorisBatchSink.Builder<String> builder = DorisBatchSink.builder();
-        final DorisReadOptions.Builder readOptionBuilder = DorisReadOptions.builder();
 
         DorisOptions.Builder dorisBuilder = DorisOptions.builder();
         dorisBuilder
@@ -240,10 +243,13 @@ public class DorisSinkITCase extends DorisTestBase {
         properties.setProperty("line_delimiter", "\n");
         properties.setProperty("format", "csv");
         DorisExecutionOptions.Builder executionBuilder = DorisExecutionOptions.builder();
-        executionBuilder.setLabelPrefix(UUID.randomUUID().toString()).setStreamLoadProp(properties);
+        executionBuilder
+                .setLabelPrefix(UUID.randomUUID().toString())
+                .setStreamLoadProp(properties)
+                .setBufferFlushMaxBytes(1)
+                .setBufferFlushMaxRows(10);
 
-        builder.setDorisReadOptions(readOptionBuilder.build())
-                .setDorisExecutionOptions(executionBuilder.build())
+        builder.setDorisExecutionOptions(executionBuilder.build())
                 .setSerializer(new SimpleStringSerializer())
                 .setDorisOptions(dorisBuilder.build());
 
@@ -280,7 +286,10 @@ public class DorisSinkITCase extends DorisTestBase {
         properties.setProperty("column_separator", ",");
         properties.setProperty("line_delimiter", "\n");
         properties.setProperty("format", "csv");
-        executionBuilder.setLabelPrefix(UUID.randomUUID().toString()).setStreamLoadProp(properties);
+        executionBuilder
+                .setLabelPrefix(UUID.randomUUID().toString())
+                .setStreamLoadProp(properties)
+                .setUseCache(true);
 
         builder.setDorisReadOptions(readOptionBuilder.build())
                 .setDorisExecutionOptions(executionBuilder.build())

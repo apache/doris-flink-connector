@@ -15,32 +15,18 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.flink.serialization;
+package org.apache.doris.flink.backend;
 
+import org.apache.doris.flink.cfg.DorisReadOptions;
+import org.apache.doris.flink.exception.ConnectedFailedException;
 import org.apache.doris.flink.exception.IllegalArgumentException;
-import org.junit.Assert;
-import org.junit.Rule;
+import org.apache.doris.flink.serialization.Routing;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
-import static org.hamcrest.core.StringStartsWith.startsWith;
+public class BackendClientTest {
 
-public class TestRouting {
-    @Rule public ExpectedException thrown = ExpectedException.none();
-
-    @Test
-    public void testRouting() throws Exception {
-        Routing r1 = new Routing("10.11.12.13:1234");
-        Assert.assertEquals("10.11.12.13", r1.getHost());
-        Assert.assertEquals(1234, r1.getPort());
-
-        thrown.expect(IllegalArgumentException.class);
-        thrown.expectMessage(startsWith("argument "));
-        new Routing("10.11.12.13:wxyz");
-    }
-
-    @Test(expected = IllegalArgumentException.class)
-    public void testRoutingErr() throws IllegalArgumentException {
-        new Routing("10.11.12.13");
+    @Test(expected = ConnectedFailedException.class)
+    public void testBackendClient() throws IllegalArgumentException {
+        new BackendClient(new Routing("127.0.0.1:12345"), DorisReadOptions.builder().build());
     }
 }

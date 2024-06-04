@@ -33,29 +33,21 @@ public class DorisSourceExample {
         // register a table in the catalog
         tEnv.executeSql(
                 "CREATE TABLE doris_source ("
-                        + "bigint_1 BIGINT,"
-                        + "char_1 STRING,"
-                        + "date_1 STRING,"
-                        + "datetime_1 STRING,"
-                        + "decimal_1 DECIMAL(5,2),"
-                        + "double_1 DOUBLE,"
-                        + "float_1 FLOAT ,"
-                        + "int_1 INT ,"
-                        + "largeint_1 STRING, "
-                        + "smallint_1 SMALLINT, "
-                        + "tinyint_1 TINYINT, "
-                        + "varchar_1 STRING "
+                        + "name string,"
+                        + "age int,"
+                        + "c1 int"
                         + ") "
                         + "WITH (\n"
                         + "  'connector' = 'doris',\n"
-                        + "  'fenodes' = 'FE_IP:8030',\n"
-                        + "  'table.identifier' = 'db.table',\n"
+                        + "  'fenodes' = '10.16.10.6:28737',\n"
+                        + "  'table.identifier' = 'test.test_flink_h1',\n"
                         + "  'username' = 'root',\n"
                         + "  'password' = ''\n"
                         + ")");
 
         // define a dynamic aggregating query
-        final Table result = tEnv.sqlQuery("SELECT * from doris_source  ");
+        final Table result =
+                tEnv.sqlQuery("SELECT name,age from doris_source where name=1 or age=1 ");
 
         // print the result to the console
         tEnv.toDataStream(result).print();

@@ -131,8 +131,8 @@ public class DorisCommitter implements Committer<DorisCommittable>, Closeable {
                         } else {
                             LOG.info("load result {}", loadResult);
                         }
+                        return;
                     }
-                    return;
                 }
                 String reasonPhrase = statusLine.getReasonPhrase();
                 LOG.error("commit failed with {}, reason {}", hostPort, reasonPhrase);

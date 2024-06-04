@@ -144,6 +144,11 @@ public class DorisStreamLoad implements Serializable {
         return hostPort;
     }
 
+    @VisibleForTesting
+    public byte[] getLineDelimiter() {
+        return lineDelimiter;
+    }
+
     public void setHostPort(String hostPort) {
         this.hostPort = hostPort;
         this.loadUrlStr = String.format(LOAD_URL_PATTERN, hostPort, this.db, this.table);
@@ -326,6 +331,7 @@ public class DorisStreamLoad implements Serializable {
                 mapper.readValue(loadResult, new TypeReference<HashMap<String, String>>() {});
         if (!SUCCESS.equals(res.get("status"))) {
             String msg = res.get("msg");
+            // transaction already aborted
             if (msg != null && ResponseUtil.isAborted(msg)) {
                 LOG.warn("Failed to abort transaction, {}", msg);
                 return;

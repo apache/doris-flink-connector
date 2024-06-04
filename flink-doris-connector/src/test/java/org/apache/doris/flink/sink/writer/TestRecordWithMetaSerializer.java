@@ -43,5 +43,8 @@ public class TestRecordWithMetaSerializer {
         Assert.assertEquals(expected.getTable(), serialize.getTable());
         Assert.assertEquals(new String(expected.getRow()), new String(serialize.getRow()));
         Assert.assertEquals(expected.getTableIdentifier(), serialize.getTableIdentifier());
+
+        Assert.assertNull(serializer.serialize(new RecordWithMeta(null, "table", "doris,1")));
+        Assert.assertNull(serializer.serialize(new RecordWithMeta("database", "table", null)));
     }
 }

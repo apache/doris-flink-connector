@@ -20,7 +20,6 @@ package org.apache.doris.flink.rest.models;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.Map;
-import java.util.Objects;
 
 public class QueryPlan {
     @JsonProperty(value = "status")
@@ -54,24 +53,5 @@ public class QueryPlan {
 
     public void setPartitions(Map<String, Tablet> partitions) {
         this.partitions = partitions;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-        if (o == null || getClass() != o.getClass()) {
-            return false;
-        }
-        QueryPlan queryPlan = (QueryPlan) o;
-        return status == queryPlan.status
-                && Objects.equals(opaquedQueryPlan, queryPlan.opaquedQueryPlan)
-                && Objects.equals(partitions, queryPlan.partitions);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(status, opaquedQueryPlan, partitions);
     }
 }

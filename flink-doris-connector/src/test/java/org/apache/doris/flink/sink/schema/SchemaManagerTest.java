@@ -72,8 +72,8 @@ public class SchemaManagerTest {
 
     HttpEntityMock entityMock;
     SchemaChangeManager schemaChangeManager;
-    static MockedStatic<HttpClients> httpClientMockedStatic;
-    static MockedStatic<BackendUtil> backendUtilMockedStatic;
+    private MockedStatic<HttpClients> httpClientMockedStatic;
+    private MockedStatic<BackendUtil> backendUtilMockedStatic;
 
     @Before
     public void setUp() throws IOException {
@@ -150,7 +150,11 @@ public class SchemaManagerTest {
 
     @After
     public void after() {
-        httpClientMockedStatic.close();
-        backendUtilMockedStatic.close();
+        if (httpClientMockedStatic != null) {
+            httpClientMockedStatic.close();
+        }
+        if (backendUtilMockedStatic != null) {
+            backendUtilMockedStatic.close();
+        }
     }
 }

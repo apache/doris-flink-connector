@@ -20,7 +20,6 @@ package org.apache.doris.flink.cfg;
 import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
-import java.util.Objects;
 
 /** Doris connection options. */
 public class DorisConnectionOptions implements Serializable {
@@ -85,28 +84,6 @@ public class DorisConnectionOptions implements Serializable {
 
     public boolean isAutoRedirect() {
         return autoRedirect;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-        if (o == null || getClass() != o.getClass()) {
-            return false;
-        }
-        DorisConnectionOptions that = (DorisConnectionOptions) o;
-        return autoRedirect == that.autoRedirect
-                && Objects.equals(fenodes, that.fenodes)
-                && Objects.equals(username, that.username)
-                && Objects.equals(password, that.password)
-                && Objects.equals(jdbcUrl, that.jdbcUrl)
-                && Objects.equals(benodes, that.benodes);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(fenodes, username, password, jdbcUrl, benodes, autoRedirect);
     }
 
     /** Builder for {@link DorisConnectionOptions}. */

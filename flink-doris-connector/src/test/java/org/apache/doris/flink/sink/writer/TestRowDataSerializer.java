@@ -169,4 +169,25 @@ public class TestRowDataSerializer {
         Assert.assertEquals("test", data.getString(1).toString());
         Assert.assertEquals(60.2, data.getDouble(2), 0.001);
     }
+
+    @Test(expected = IllegalStateException.class)
+    public void testBuild() {
+        RowDataSerializer serializer =
+                RowDataSerializer.builder()
+                        .setFieldNames(fieldNames)
+                        .setFieldType(dataTypes)
+                        .setType("csv")
+                        .build();
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testBuildArrow() {
+        RowDataSerializer serializer =
+                RowDataSerializer.builder()
+                        .setFieldNames(fieldNames)
+                        .setFieldType(dataTypes)
+                        .setType("arrow")
+                        .enableDelete(true)
+                        .build();
+    }
 }
