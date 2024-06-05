@@ -215,7 +215,8 @@ public class RestService implements Serializable {
         return parseResponse(connection, logger);
     }
 
-    private static String parseResponse(HttpURLConnection connection, Logger logger)
+    @VisibleForTesting
+    public static String parseResponse(HttpURLConnection connection, Logger logger)
             throws IOException {
         if (connection.getResponseCode() != HttpStatus.SC_OK) {
             logger.warn(
@@ -313,6 +314,7 @@ public class RestService implements Serializable {
      * @return the chosen one Doris BE node
      * @throws IllegalArgumentException BE nodes is illegal
      */
+    @VisibleForTesting
     public static List<BackendRowV2> getBackendsV2(
             DorisOptions options, DorisReadOptions readOptions, Logger logger) {
         String feNodes = options.getFenodes();
@@ -363,14 +365,6 @@ public class RestService implements Serializable {
         BackendV2 backend;
         try {
             backend = mapper.readValue(response, BackendV2.class);
-        } catch (JsonParseException e) {
-            String errMsg = "Doris BE's response is not a json. res: " + response;
-            logger.error(errMsg, e);
-            throw new DorisRuntimeException(errMsg, e);
-        } catch (JsonMappingException e) {
-            String errMsg = "Doris BE's response cannot map to schema. res: " + response;
-            logger.error(errMsg, e);
-            throw new DorisRuntimeException(errMsg, e);
         } catch (IOException e) {
             String errMsg = "Parse Doris BE's response to json failed. res: " + response;
             logger.error(errMsg, e);
@@ -593,14 +587,6 @@ public class RestService implements Serializable {
         QueryPlan queryPlan;
         try {
             queryPlan = mapper.readValue(response, QueryPlan.class);
-        } catch (JsonParseException e) {
-            String errMsg = "Doris FE's response is not a json. res: " + response;
-            logger.error(errMsg, e);
-            throw new DorisException(errMsg, e);
-        } catch (JsonMappingException e) {
-            String errMsg = "Doris FE's response cannot map to schema. res: " + response;
-            logger.error(errMsg, e);
-            throw new DorisException(errMsg, e);
         } catch (IOException e) {
             String errMsg = "Parse Doris FE's response to json failed. res: " + response;
             logger.error(errMsg, e);

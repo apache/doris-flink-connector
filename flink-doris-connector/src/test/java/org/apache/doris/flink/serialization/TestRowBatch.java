@@ -39,6 +39,7 @@ import org.apache.arrow.vector.UInt4Vector;
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
+import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.complex.MapVector;
 import org.apache.arrow.vector.complex.StructVector;
 import org.apache.arrow.vector.complex.impl.NullableStructWriter;
@@ -48,6 +49,7 @@ import org.apache.arrow.vector.ipc.ArrowStreamWriter;
 import org.apache.arrow.vector.types.DateUnit;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.TimeUnit;
+import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
@@ -1218,5 +1220,413 @@ public class TestRowBatch {
 
         dt = RowBatch.completeMilliseconds("2021-01-01");
         Assert.assertEquals(dt, "2021-01-01");
+    }
+
+    @Test
+    public void testDoConvert() throws Exception {
+        ImmutableList.Builder<Field> childrenBuilder = ImmutableList.builder();
+        childrenBuilder.add(
+                new Field("k1", FieldType.nullable(new ArrowType.Int(32, false)), null),
+                new Field("k2", FieldType.nullable(new ArrowType.Int(32, true)), null));
+
+        VectorSchemaRoot root =
+                VectorSchemaRoot.create(
+                        new org.apache.arrow.vector.types.pojo.Schema(
+                                childrenBuilder.build(), null),
+                        new RootAllocator(Integer.MAX_VALUE));
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        ArrowStreamWriter arrowStreamWriter =
+                new ArrowStreamWriter(
+                        root, new DictionaryProvider.MapDictionaryProvider(), outputStream);
+
+        arrowStreamWriter.start();
+        root.setRowCount(5);
+
+        FieldVector vector = root.getVector("k1");
+        UInt4Vector uInt4Vector = (UInt4Vector) vector;
+        uInt4Vector.setInitialCapacity(5);
+        uInt4Vector.allocateNew(4);
+        uInt4Vector.setIndexDefined(0);
+        uInt4Vector.setSafe(0, 0);
+        uInt4Vector.setIndexDefined(1);
+        uInt4Vector.setSafe(1, 255);
+        uInt4Vector.setIndexDefined(2);
+        uInt4Vector.setSafe(2, 65535);
+        uInt4Vector.setIndexDefined(3);
+        uInt4Vector.setSafe(3, 16777215);
+        uInt4Vector.setIndexDefined(4);
+        uInt4Vector.setWithPossibleTruncate(4, 4294967295L);
+
+        FieldVector vector1 = root.getVector("k2");
+        IntVector intVector = (IntVector) vector1;
+        intVector.setInitialCapacity(5);
+        intVector.allocateNew(4);
+        intVector.setIndexDefined(0);
+        intVector.setSafe(0, 0);
+        intVector.setIndexDefined(1);
+        intVector.setSafe(1, 255);
+        intVector.setIndexDefined(2);
+        intVector.setSafe(2, 65535);
+        intVector.setIndexDefined(3);
+        intVector.setSafe(3, 16777215);
+        intVector.setIndexDefined(4);
+        intVector.setWithPossibleTruncate(4, 4294967295L);
+        vector.setValueCount(5);
+        vector1.setValueCount(5);
+        arrowStreamWriter.writeBatch();
+
+        arrowStreamWriter.end();
+        arrowStreamWriter.close();
+
+        TStatus status = new TStatus();
+        status.setStatusCode(TStatusCode.OK);
+        TScanBatchResult scanBatchResult = new TScanBatchResult();
+        scanBatchResult.setStatus(status);
+        scanBatchResult.setEos(false);
+        scanBatchResult.setRows(outputStream.toByteArray());
+
+        String schemaStr =
+                "{\"properties\":["
+                        + "{\"type\":\"IPV4\",\"name\":\"k1\",\"comment\":\"\"},"
+                        + "{\"type\":\"IPV4\",\"name\":\"k2\",\"comment\":\"\"}"
+                        + "], \"status\":200}";
+
+        Schema schema = RestService.parseSchema(schemaStr, logger);
+
+        RowBatch rowBatch = new RowBatch(scanBatchResult, schema).readArrow();
+        boolean flag = rowBatch.doConvert(1, 1, Types.MinorType.TINYINT, "BOOLEAN", null);
+        Assert.assertFalse(flag);
+
+        flag = rowBatch.doConvert(1, 1, Types.MinorType.SMALLINT, "TINYINT", null);
+        Assert.assertFalse(flag);
+
+        flag = rowBatch.doConvert(1, 1, Types.MinorType.INT, "SMALLINT", null);
+        Assert.assertFalse(flag);
+
+        flag = rowBatch.doConvert(1, 1, Types.MinorType.VARCHAR, "INT", null);
+        Assert.assertFalse(flag);
+
+        flag = rowBatch.doConvert(1, 1, Types.MinorType.VARCHAR, "IPV4", null);
+        Assert.assertFalse(flag);
+
+        flag = rowBatch.doConvert(1, 1, Types.MinorType.INT, "BIGINT", null);
+        Assert.assertFalse(flag);
+
+        flag = rowBatch.doConvert(1, 1, Types.MinorType.INT, "FLOAT", null);
+        Assert.assertFalse(flag);
+
+        flag = rowBatch.doConvert(1, 1, Types.MinorType.INT, "DOUBLE", null);
+        Assert.assertFalse(flag);
+
+        flag = rowBatch.doConvert(1, 1, Types.MinorType.INT, "BINARY", null);
+        Assert.assertFalse(flag);
+
+        flag = rowBatch.doConvert(1, 1, Types.MinorType.INT, "DECIMAL", null);
+        Assert.assertFalse(flag);
+
+        flag = rowBatch.doConvert(1, 1, Types.MinorType.INT, "DATE", null);
+        Assert.assertFalse(flag);
+
+        flag = rowBatch.doConvert(1, 1, Types.MinorType.INT, "DATETIME", null);
+        Assert.assertFalse(flag);
+
+        flag = rowBatch.doConvert(1, 1, Types.MinorType.INT, "DATETIMEV2", null);
+        Assert.assertFalse(flag);
+
+        flag = rowBatch.doConvert(1, 1, Types.MinorType.INT, "LARGEINT", null);
+        Assert.assertFalse(flag);
+
+        flag = rowBatch.doConvert(1, 1, Types.MinorType.INT, "JSONB", null);
+        Assert.assertFalse(flag);
+
+        flag = rowBatch.doConvert(1, 1, Types.MinorType.INT, "IPV6", null);
+        Assert.assertFalse(flag);
+
+        flag = rowBatch.doConvert(1, 1, Types.MinorType.INT, "ARRAY", null);
+        Assert.assertFalse(flag);
+
+        flag = rowBatch.doConvert(1, 1, Types.MinorType.INT, "MAP", null);
+        Assert.assertFalse(flag);
+
+        flag = rowBatch.doConvert(1, 1, Types.MinorType.INT, "STRUCT", null);
+        Assert.assertFalse(flag);
+
+        thrown.expect(DorisException.class);
+        thrown.expectMessage(startsWith("Unsupported type"));
+        rowBatch.doConvert(1, 1, Types.MinorType.TINYINT, "UnsupportType", null);
+    }
+
+    @Test
+    public void testDoConvertNull() throws Exception {
+        ImmutableList.Builder<Field> childrenBuilder = ImmutableList.builder();
+        childrenBuilder.add(
+                new Field("k1", FieldType.nullable(new ArrowType.Int(32, false)), null),
+                new Field("k2", FieldType.nullable(new ArrowType.Int(32, true)), null));
+
+        VectorSchemaRoot root =
+                VectorSchemaRoot.create(
+                        new org.apache.arrow.vector.types.pojo.Schema(
+                                childrenBuilder.build(), null),
+                        new RootAllocator(Integer.MAX_VALUE));
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        ArrowStreamWriter arrowStreamWriter =
+                new ArrowStreamWriter(
+                        root, new DictionaryProvider.MapDictionaryProvider(), outputStream);
+
+        arrowStreamWriter.start();
+        root.setRowCount(5);
+
+        FieldVector vector = root.getVector("k1");
+        UInt4Vector uInt4Vector = (UInt4Vector) vector;
+        uInt4Vector.setInitialCapacity(5);
+        uInt4Vector.allocateNew(4);
+        uInt4Vector.setIndexDefined(0);
+        uInt4Vector.setSafe(0, 0);
+        uInt4Vector.setIndexDefined(1);
+        uInt4Vector.setSafe(1, 255);
+        uInt4Vector.setIndexDefined(2);
+        uInt4Vector.setSafe(2, 65535);
+        uInt4Vector.setIndexDefined(3);
+        uInt4Vector.setSafe(3, 16777215);
+        uInt4Vector.setIndexDefined(4);
+        uInt4Vector.setWithPossibleTruncate(4, 4294967295L);
+
+        FieldVector vector1 = root.getVector("k2");
+        IntVector intVector = (IntVector) vector1;
+        intVector.setInitialCapacity(5);
+        intVector.allocateNew(4);
+        intVector.setIndexDefined(0);
+        intVector.setSafe(0, 0);
+        intVector.setIndexDefined(1);
+        intVector.setSafe(1, 255);
+        intVector.setIndexDefined(2);
+        intVector.setSafe(2, 65535);
+        intVector.setIndexDefined(3);
+        intVector.setSafe(3, 16777215);
+        intVector.setIndexDefined(4);
+        intVector.setWithPossibleTruncate(4, 4294967295L);
+        vector.setValueCount(5);
+        vector1.setValueCount(5);
+        arrowStreamWriter.writeBatch();
+
+        arrowStreamWriter.end();
+        arrowStreamWriter.close();
+
+        TStatus status = new TStatus();
+        status.setStatusCode(TStatusCode.OK);
+        TScanBatchResult scanBatchResult = new TScanBatchResult();
+        scanBatchResult.setStatus(status);
+        scanBatchResult.setEos(false);
+        scanBatchResult.setRows(outputStream.toByteArray());
+
+        String schemaStr =
+                "{\"properties\":["
+                        + "{\"type\":\"IPV4\",\"name\":\"k1\",\"comment\":\"\"},"
+                        + "{\"type\":\"IPV4\",\"name\":\"k2\",\"comment\":\"\"}"
+                        + "], \"status\":200}";
+
+        Schema schema = RestService.parseSchema(schemaStr, logger);
+
+        RowBatch rowBatch = new RowBatch(scanBatchResult, schema); // .readArrow();
+        for (int i = 0; i < 1; ++i) {
+            rowBatch.getRowBatch().add(new RowBatch.Row(1));
+        }
+        RootAllocator allocator = new RootAllocator(Integer.MAX_VALUE);
+        BitVector vectorbit = new BitVector("test", allocator);
+        vectorbit.setNull(0);
+        boolean flag = rowBatch.doConvert(0, 0, Types.MinorType.BIT, "BOOLEAN", vectorbit);
+        Assert.assertTrue(flag);
+
+        SmallIntVector vectorSmallint = new SmallIntVector("test", allocator);
+        vectorSmallint.setNull(0);
+        flag = rowBatch.doConvert(0, 0, Types.MinorType.SMALLINT, "SMALLINT", vectorSmallint);
+        Assert.assertTrue(flag);
+
+        IntVector vectorint = new IntVector("test", allocator);
+        vectorint.setNull(0);
+        flag = rowBatch.doConvert(0, 0, Types.MinorType.INT, "INT", vectorint);
+        Assert.assertTrue(flag);
+
+        // IPV4 Vector
+        IntVector ipv4Vector = new IntVector("testIpv4", allocator);
+        ipv4Vector.setNull(0);
+        flag = rowBatch.doConvert(0, 0, Types.MinorType.INT, "IPV4", ipv4Vector);
+        Assert.assertTrue(flag);
+
+        // BIGINT Vector
+        BigIntVector bigintVector = new BigIntVector("testBigint", allocator);
+        bigintVector.setNull(0);
+        flag = rowBatch.doConvert(0, 0, Types.MinorType.BIGINT, "BIGINT", bigintVector);
+        Assert.assertTrue(flag);
+
+        // FLOAT4 Vector
+        Float4Vector float4Vector = new Float4Vector("testFloat", allocator);
+        float4Vector.setNull(0);
+        flag = rowBatch.doConvert(0, 0, Types.MinorType.FLOAT4, "FLOAT", float4Vector);
+        Assert.assertTrue(flag);
+
+        // FLOAT8 (DOUBLE) Vector
+        Float8Vector float8Vector = new Float8Vector("testDouble", allocator);
+        float8Vector.setNull(0);
+        flag = rowBatch.doConvert(0, 0, Types.MinorType.FLOAT8, "DOUBLE", float8Vector);
+        Assert.assertTrue(flag);
+
+        // VARBINARY Vector
+        VarBinaryVector varbinaryVector = new VarBinaryVector("testBinary", allocator);
+        varbinaryVector.setNull(0);
+        flag = rowBatch.doConvert(0, 0, Types.MinorType.VARBINARY, "BINARY", varbinaryVector);
+        Assert.assertTrue(flag);
+
+        // DECIMAL Vector
+        DecimalVector decimalVector = new DecimalVector("testDecimal", allocator, 38, 18);
+        decimalVector.setNull(0);
+        flag = rowBatch.doConvert(0, 0, Types.MinorType.DECIMAL, "DECIMAL", decimalVector);
+        Assert.assertTrue(flag);
+
+        // DATEDAY Vector
+        DateDayVector dateDayVector = new DateDayVector("testDate", allocator);
+        dateDayVector.setNull(0);
+        flag = rowBatch.doConvert(0, 0, Types.MinorType.DATEDAY, "DATE", dateDayVector);
+        Assert.assertTrue(flag);
+
+        // TIMESTAMPMICRO Vector
+        TimeStampMicroVector timeStampMicroVector =
+                new TimeStampMicroVector("testDatetime", allocator);
+        timeStampMicroVector.setNull(0);
+        flag =
+                rowBatch.doConvert(
+                        0, 0, Types.MinorType.TIMESTAMPMICRO, "DATETIME", timeStampMicroVector);
+        Assert.assertTrue(flag);
+
+        // TIMESTAMPMICRO for DATETIMEV2
+        TimeStampMicroVector timeStampMicroVectorV2 =
+                new TimeStampMicroVector("testDatetimeV2", allocator);
+        timeStampMicroVectorV2.setNull(0);
+        flag =
+                rowBatch.doConvert(
+                        0, 0, Types.MinorType.TIMESTAMPMICRO, "DATETIMEV2", timeStampMicroVectorV2);
+        Assert.assertTrue(flag);
+
+        // FIXEDSIZEBINARY for LARGEINT
+        FixedSizeBinaryVector largeIntVector =
+                new FixedSizeBinaryVector("testLargeInt", allocator, 16);
+        largeIntVector.setNull(0);
+        flag =
+                rowBatch.doConvert(
+                        0, 0, Types.MinorType.FIXEDSIZEBINARY, "LARGEINT", largeIntVector);
+        Assert.assertTrue(flag);
+
+        // VARCHAR for JSONB
+        VarCharVector jsonbVector = new VarCharVector("testJsonb", allocator);
+        jsonbVector.setNull(0);
+        flag = rowBatch.doConvert(0, 0, Types.MinorType.VARCHAR, "JSONB", jsonbVector);
+        Assert.assertTrue(flag);
+
+        // VARCHAR for IPV6
+        VarCharVector ipv6Vector = new VarCharVector("testIpv6", allocator);
+        ipv6Vector.setNull(0);
+        flag = rowBatch.doConvert(0, 0, Types.MinorType.VARCHAR, "IPV6", ipv6Vector);
+        Assert.assertTrue(flag);
+
+        // LIST Vector
+        ListVector listVector = ListVector.empty("testArray", allocator);
+        listVector.setNull(0);
+        flag = rowBatch.doConvert(0, 0, Types.MinorType.LIST, "ARRAY", listVector);
+        Assert.assertTrue(flag);
+
+        // MAP Vector
+        MapVector mapVector = MapVector.empty("testMap", allocator, false);
+        mapVector.setNull(0);
+        flag = rowBatch.doConvert(0, 0, Types.MinorType.MAP, "MAP", mapVector);
+        Assert.assertTrue(flag);
+
+        // STRUCT Vector
+        StructVector structVector = StructVector.empty("testStruct", allocator);
+        structVector.setNull(0);
+        flag = rowBatch.doConvert(0, 0, Types.MinorType.STRUCT, "STRUCT", structVector);
+        Assert.assertTrue(flag);
+    }
+
+    @Test
+    public void getDateTimeNull() throws IOException, DorisException {
+        ImmutableList.Builder<Field> childrenBuilder = ImmutableList.builder();
+        childrenBuilder.add(
+                new Field("k1", FieldType.nullable(new ArrowType.Int(32, false)), null),
+                new Field("k2", FieldType.nullable(new ArrowType.Int(32, true)), null));
+
+        VectorSchemaRoot root =
+                VectorSchemaRoot.create(
+                        new org.apache.arrow.vector.types.pojo.Schema(
+                                childrenBuilder.build(), null),
+                        new RootAllocator(Integer.MAX_VALUE));
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        ArrowStreamWriter arrowStreamWriter =
+                new ArrowStreamWriter(
+                        root, new DictionaryProvider.MapDictionaryProvider(), outputStream);
+
+        arrowStreamWriter.start();
+        root.setRowCount(5);
+
+        FieldVector vector = root.getVector("k1");
+        UInt4Vector uInt4Vector = (UInt4Vector) vector;
+        uInt4Vector.setInitialCapacity(5);
+        uInt4Vector.allocateNew(4);
+        uInt4Vector.setIndexDefined(0);
+        uInt4Vector.setSafe(0, 0);
+        uInt4Vector.setIndexDefined(1);
+        uInt4Vector.setSafe(1, 255);
+        uInt4Vector.setIndexDefined(2);
+        uInt4Vector.setSafe(2, 65535);
+        uInt4Vector.setIndexDefined(3);
+        uInt4Vector.setSafe(3, 16777215);
+        uInt4Vector.setIndexDefined(4);
+        uInt4Vector.setWithPossibleTruncate(4, 4294967295L);
+
+        FieldVector vector1 = root.getVector("k2");
+        IntVector intVector = (IntVector) vector1;
+        intVector.setInitialCapacity(5);
+        intVector.allocateNew(4);
+        intVector.setIndexDefined(0);
+        intVector.setSafe(0, 0);
+        intVector.setIndexDefined(1);
+        intVector.setSafe(1, 255);
+        intVector.setIndexDefined(2);
+        intVector.setSafe(2, 65535);
+        intVector.setIndexDefined(3);
+        intVector.setSafe(3, 16777215);
+        intVector.setIndexDefined(4);
+        intVector.setWithPossibleTruncate(4, 4294967295L);
+        vector.setValueCount(5);
+        vector1.setValueCount(5);
+        arrowStreamWriter.writeBatch();
+
+        arrowStreamWriter.end();
+        arrowStreamWriter.close();
+
+        TStatus status = new TStatus();
+        status.setStatusCode(TStatusCode.OK);
+        TScanBatchResult scanBatchResult = new TScanBatchResult();
+        scanBatchResult.setStatus(status);
+        scanBatchResult.setEos(false);
+        scanBatchResult.setRows(outputStream.toByteArray());
+
+        String schemaStr =
+                "{\"properties\":["
+                        + "{\"type\":\"IPV4\",\"name\":\"k1\",\"comment\":\"\"},"
+                        + "{\"type\":\"IPV4\",\"name\":\"k2\",\"comment\":\"\"}"
+                        + "], \"status\":200}";
+
+        Schema schema = RestService.parseSchema(schemaStr, logger);
+
+        RowBatch rowBatch = new RowBatch(scanBatchResult, schema).readArrow();
+        TimeStampMicroVector timeStampMicroVectorV2 =
+                new TimeStampMicroVector("testDatetimeV2", new RootAllocator(Integer.MAX_VALUE));
+        timeStampMicroVectorV2.setNull(0);
+        LocalDateTime dateTime = rowBatch.getDateTime(0, timeStampMicroVectorV2);
+        Assert.assertNull(dateTime);
+
+        thrown.expect(NoSuchElementException.class);
+        thrown.expectMessage(startsWith("Get row offset"));
+        rowBatch.addValueToRow(10, null);
     }
 }

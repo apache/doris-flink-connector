@@ -541,6 +541,19 @@ public class TestJsonDebeziumSchemaChangeImplV2 extends TestJsonDebeziumChangeBa
         return filedSchemaMap;
     }
 
+    @Test
+    public void testGetTableSchemaBuckets() {
+        Assert.assertNull(schemaChange.getTableSchemaBuckets(null, null));
+        Map<String, Integer> map = new HashMap<>();
+        Assert.assertNull(schemaChange.getTableSchemaBuckets(map, null));
+        map.put("tbl1", 1);
+        Assert.assertEquals(schemaChange.getTableSchemaBuckets(map, "tbl1").intValue(), 1);
+        map = new HashMap<>();
+        map.put("tbl2.*", 1);
+        Assert.assertEquals(schemaChange.getTableSchemaBuckets(map, "tbl2").intValue(), 1);
+        Assert.assertEquals(schemaChange.getTableSchemaBuckets(map, "tbl21").intValue(), 1);
+    }
+
     @After
     public void after() {
         mockRestService.close();

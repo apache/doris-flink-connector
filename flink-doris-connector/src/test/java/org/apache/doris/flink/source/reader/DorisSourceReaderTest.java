@@ -20,7 +20,6 @@ package org.apache.doris.flink.source.reader;
 import org.apache.doris.flink.deserialization.SimpleListDeserializationSchema;
 import org.apache.doris.flink.sink.OptionUtils;
 import org.apache.doris.flink.source.split.DorisSourceSplit;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -29,7 +28,6 @@ import java.util.Collections;
 import static org.junit.Assert.assertEquals;
 
 /** Unit tests for the {@link DorisSourceReader}. */
-@Ignore
 public class DorisSourceReaderTest {
 
     private static DorisSourceReader createReader(TestingReaderContext context) {

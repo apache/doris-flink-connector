@@ -37,9 +37,10 @@ public class TestRouting {
         thrown.expect(IllegalArgumentException.class);
         thrown.expectMessage(startsWith("argument "));
         new Routing("10.11.12.13:wxyz");
+    }
 
-        thrown.expect(IllegalArgumentException.class);
-        thrown.expectMessage(startsWith("Parse "));
+    @Test(expected = IllegalArgumentException.class)
+    public void testRoutingErr() throws IllegalArgumentException {
         new Routing("10.11.12.13");
     }
 }

@@ -94,7 +94,7 @@ public class TestDorisCopyWriter {
         Assert.assertEquals(1, committableList.size());
         DorisCopyCommittable committable = committableList.toArray(new DorisCopyCommittable[0])[0];
         Assert.assertEquals("127.0.0.1:8030", committable.getHostPort());
-        System.out.println(committable.getCopySQL());
+
         // todo: compare properties
         Assert.assertTrue(
                 committable

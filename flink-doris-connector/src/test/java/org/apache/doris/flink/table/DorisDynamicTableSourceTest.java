@@ -47,6 +47,7 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.MockedStatic;
 
+import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
@@ -301,7 +302,7 @@ public class DorisDynamicTableSourceTest {
         ResolvedExpression dExp =
                 new CallExpression(
                         BuiltInFunctionDefinitions.EQUALS,
-                        Arrays.asList(dRef, valueLiteral("2021-01-01")),
+                        Arrays.asList(dRef, valueLiteral(LocalDate.of(2021, 1, 1))),
                         DataTypes.BOOLEAN());
         actualDorisSource.applyFilters(Arrays.asList(dExp));
         assertEquals(

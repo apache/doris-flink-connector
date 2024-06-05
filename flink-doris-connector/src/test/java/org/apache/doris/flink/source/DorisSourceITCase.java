@@ -27,7 +27,6 @@ import org.apache.flink.util.CloseableIterator;
 
 import org.apache.doris.flink.DorisTestBase;
 import org.apache.doris.flink.cfg.DorisOptions;
-import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.cfg.DorisStreamOptions;
 import org.apache.doris.flink.datastream.DorisSourceFunction;
 import org.apache.doris.flink.deserialization.SimpleListDeserializationSchema;
@@ -56,7 +55,6 @@ public class DorisSourceITCase extends DorisTestBase {
         initializeTable(TABLE_READ);
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
-        final DorisReadOptions.Builder readOptionBuilder = DorisReadOptions.builder();
 
         DorisOptions.Builder dorisBuilder = DorisOptions.builder();
         dorisBuilder
@@ -67,7 +65,6 @@ public class DorisSourceITCase extends DorisTestBase {
 
         DorisSource<List<?>> source =
                 DorisSource.<List<?>>builder()
-                        .setDorisReadOptions(readOptionBuilder.build())
                         .setDorisOptions(dorisBuilder.build())
                         .setDeserializer(new SimpleListDeserializationSchema())
                         .build();
@@ -140,6 +137,18 @@ public class DorisSourceITCase extends DorisTestBase {
         }
         String[] expected = new String[] {"+I[doris, 18]", "+I[flink, 10]"};
         Assert.assertArrayEquals(expected, actual.toArray());
+
+        // fitler query
+        List<String> actualFilter = new ArrayList<>();
+        TableResult tableResultFilter =
+                tEnv.executeSql("SELECT * FROM doris_source where name='doris'");
+        try (CloseableIterator<Row> iterator = tableResultFilter.collect()) {
+            while (iterator.hasNext()) {
+                actualFilter.add(iterator.next().toString());
+            }
+        }
+        String[] expectedFilter = new String[] {"+I[doris, 18]"};
+        Assert.assertArrayEquals(expectedFilter, actualFilter.toArray());
     }
 
     @Test

@@ -66,5 +66,16 @@ public class TestPartitionDefinition {
         Assert.assertTrue(pd1.compareTo(pd6) < 0);
         Assert.assertTrue(pd1.compareTo(pd7) < 0);
         Assert.assertTrue(pd1.compareTo(pd8) < 0);
+
+        Assert.assertNotEquals(pd1, pd3);
+        Assert.assertNotEquals(pd1, pd4);
+        Assert.assertNotEquals(pd1, pd5);
+        Assert.assertNotEquals(pd1, pd5);
+        Assert.assertNotEquals(pd1, pd6);
+        Assert.assertNotEquals(pd1, pd8);
+        PartitionDefinition pd9 =
+                new PartitionDefinition(DATABASE_1, TABLE_1, BE_1, tabletSet1, QUERY_PLAN_1);
+        Assert.assertEquals(pd1, pd9);
+        Assert.assertTrue(pd1.compareTo(pd9) == 0);
     }
 }

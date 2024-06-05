@@ -20,7 +20,9 @@ package org.apache.doris.flink.rest;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.exception.DorisException;
+import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.apache.doris.flink.exception.IllegalArgumentException;
+import org.apache.doris.flink.exception.ShouldNeverHappenException;
 import org.apache.doris.flink.rest.models.BackendV2;
 import org.apache.doris.flink.rest.models.Field;
 import org.apache.doris.flink.rest.models.QueryPlan;
@@ -37,6 +39,8 @@ import org.mockito.MockedStatic;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.net.HttpURLConnection;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -50,14 +54,16 @@ import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_TABLET_SIZE_
 import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_TABLET_SIZE_MIN;
 import static org.hamcrest.core.StringStartsWith.startsWith;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.when;
 
 public class TestRestService {
     private static final Logger logger = LoggerFactory.getLogger(TestRestService.class);
 
     @Rule public ExpectedException thrown = ExpectedException.none();
 
-    static MockedStatic<BackendUtil> backendUtilMockedStatic;
+    private MockedStatic<BackendUtil> backendUtilMockedStatic;
 
     @Before
     public void setUp() throws Exception {
@@ -67,7 +73,9 @@ public class TestRestService {
 
     @After
     public void after() {
-        backendUtilMockedStatic.close();
+        if (backendUtilMockedStatic != null) {
+            backendUtilMockedStatic.close();
+        }
     }
 
     @Test
@@ -83,24 +91,33 @@ public class TestRestService {
         thrown.expectMessage(
                 "argument 'table.identifier' is illegal, value is '" + invalidIdentifier1 + "'.");
         RestService.parseIdentifier(invalidIdentifier1, logger);
+    }
 
-        String invalidIdentifier3 = "a.b.c";
-        thrown.expect(IllegalArgumentException.class);
-        thrown.expectMessage(
-                "argument 'table.identifier' is illegal, value is '" + invalidIdentifier3 + "'.");
-        RestService.parseIdentifier(invalidIdentifier3, logger);
-
-        String emptyIdentifier = "";
-        thrown.expect(IllegalArgumentException.class);
-        thrown.expectMessage(
-                "argument 'table.identifier' is illegal, value is '" + emptyIdentifier + "'.");
-        RestService.parseIdentifier(emptyIdentifier, logger);
-
+    @Test
+    public void testParseIdentifierIllegalnull() throws IllegalArgumentException {
         String nullIdentifier = null;
         thrown.expect(IllegalArgumentException.class);
         thrown.expectMessage(
                 "argument 'table.identifier' is illegal, value is '" + nullIdentifier + "'.");
         RestService.parseIdentifier(nullIdentifier, logger);
+    }
+
+    @Test
+    public void testParseIdentifierIllegalEmpty() throws IllegalArgumentException {
+        String emptyIdentifier = "";
+        thrown.expect(IllegalArgumentException.class);
+        thrown.expectMessage(
+                "argument 'table.identifier' is illegal, value is '" + emptyIdentifier + "'.");
+        RestService.parseIdentifier(emptyIdentifier, logger);
+    }
+
+    @Test
+    public void testParseIdentifierIllegal() throws Exception {
+        String invalidIdentifier3 = "a.b.c";
+        thrown.expect(IllegalArgumentException.class);
+        thrown.expectMessage(
+                "argument 'table.identifier' is illegal, value is '" + invalidIdentifier3 + "'.");
+        RestService.parseIdentifier(invalidIdentifier3, logger);
     }
 
     @Test
@@ -117,7 +134,10 @@ public class TestRestService {
         thrown.expect(IllegalArgumentException.class);
         thrown.expectMessage("argument 'fenodes' is illegal, value is '" + emptyFes + "'.");
         RestService.randomEndpoint(emptyFes, logger);
+    }
 
+    @Test
+    public void testChoiceFeError() throws Exception {
         String nullFes = null;
         thrown.expect(IllegalArgumentException.class);
         thrown.expectMessage("argument 'fenodes' is illegal, value is '" + nullFes + "'.");
@@ -135,13 +155,33 @@ public class TestRestService {
         Field k5 = new Field("k5", "DECIMALV2", "", 9, 0, "");
         expected.put(k1);
         expected.put(k5);
-        Assert.assertEquals(expected, RestService.parseSchema(res, logger));
+        Schema actual = RestService.parseSchema(res, logger);
+        Assert.assertEquals(expected.getKeysType(), actual.getKeysType());
+        Assert.assertEquals(expected.getStatus(), actual.getStatus());
+        Assert.assertEquals(expected.getProperties().size(), actual.getProperties().size());
+        Assert.assertEquals(expected.get(0).getName(), actual.get(0).getName());
+        Assert.assertEquals(expected.get(0).getType(), actual.get(0).getType());
+        Assert.assertEquals(expected.get(1).getName(), actual.get(1).getName());
+        Assert.assertEquals(expected.get(1).getType(), actual.get(1).getType());
 
         String notJsonRes = "not json";
         thrown.expect(DorisException.class);
         thrown.expectMessage(startsWith("Doris FE's response is not a json. res:"));
         RestService.parseSchema(notJsonRes, logger);
+    }
 
+    @Test
+    public void testChoiceFeNo() throws Exception {
+        String failFenodes = "127.0.0.1:1";
+        BackendUtil.tryHttpConnection(any());
+        backendUtilMockedStatic.when(() -> BackendUtil.tryHttpConnection(any())).thenReturn(false);
+        thrown.expect(DorisRuntimeException.class);
+        thrown.expectMessage("No Doris FE is available");
+        RestService.randomEndpoint(failFenodes, logger);
+    }
+
+    @Test
+    public void testFeResponseToSchemaNotMap() throws Exception {
         String notSchemaRes =
                 "{\"property\":[{\"type\":\"TINYINT\",\"name\":\"k1\",\"comment\":\"\"},"
                         + "{\"name\":\"k5\",\"scale\":\"0\",\"comment\":\"\",\"type\":\"DECIMALV2\",\"precision\":\"9\"}],"
@@ -149,13 +189,23 @@ public class TestRestService {
         thrown.expect(DorisException.class);
         thrown.expectMessage(startsWith("Doris FE's response cannot map to schema. res: "));
         RestService.parseSchema(notSchemaRes, logger);
+    }
 
+    @Test
+    public void testFeResponseToSchemaNotOk() throws Exception {
         String notOkRes =
                 "{\"properties\":[{\"type\":\"TINYINT\",\"name\":\"k1\",\"comment\":\"\"},{\"name\":\"k5\","
                         + "\"scale\":\"0\",\"comment\":\"\",\"type\":\"DECIMALV2\",\"precision\":\"9\"}],\"status\":20}";
         thrown.expect(DorisException.class);
         thrown.expectMessage(startsWith("Doris FE's response is not OK, status is "));
         RestService.parseSchema(notOkRes, logger);
+    }
+
+    @Test
+    public void testFeResponseToSchemaShouldNotHappen() throws Exception {
+        String notHappenRes = "null";
+        thrown.expect(ShouldNeverHappenException.class);
+        RestService.parseSchema(notHappenRes, logger);
     }
 
     @Test
@@ -196,24 +246,32 @@ public class TestRestService {
         expected.setOpaquedQueryPlan("query_plan");
 
         QueryPlan actual = RestService.getQueryPlan(res, logger);
-        Assert.assertEquals(expected, actual);
+        Assert.assertEquals(expected.getOpaquedQueryPlan(), actual.getOpaquedQueryPlan());
+        Assert.assertEquals(expected.getStatus(), actual.getStatus());
+        Assert.assertEquals(expected.getPartitions().size(), actual.getPartitions().size());
 
-        String notJsonRes = "not json";
+        String notJsonRes = "{a=1}";
         thrown.expect(DorisException.class);
-        thrown.expectMessage(startsWith("Doris FE's response is not a json. res:"));
-        RestService.parseSchema(notJsonRes, logger);
+        thrown.expectMessage("Parse Doris FE's response to json failed");
+        RestService.getQueryPlan(notJsonRes, logger);
+    }
 
-        String notQueryPlanRes = "{\"hello\": \"world\"}";
-        thrown.expect(DorisException.class);
-        thrown.expectMessage(startsWith("Doris FE's response cannot map to schema. res: "));
-        RestService.parseSchema(notQueryPlanRes, logger);
+    @Test
+    public void testFeResponseToQueryPlanError() throws Exception {
+        String notJsonRes = "null";
+        thrown.expect(ShouldNeverHappenException.class);
+        RestService.getQueryPlan(notJsonRes, logger);
+    }
 
-        String notOkRes =
-                "{\"partitions\":{\"11017\":{\"routings\":[\"be1\",\"be2\"],\"version\":3,"
-                        + "\"versionHash\":1,\"schemaHash\":1}},\"opaqued_query_plan\":\"queryPlan\",\"status\":20}";
+    @Test
+    public void testFeResponseToQueryPlanNotOk() throws Exception {
+        String res =
+                "{\"partitions\":{"
+                        + "\"11017\":{\"routings\":[\"be1\",\"be2\"],\"version\":3,\"versionHash\":1,\"schemaHash\":1},"
+                        + "\"11019\":{\"routings\":[\"be3\",\"be4\"],\"version\":3,\"versionHash\":1,\"schemaHash\":1}},"
+                        + "\"opaqued_query_plan\":\"query_plan\",\"status\":400}";
         thrown.expect(DorisException.class);
-        thrown.expectMessage(startsWith("Doris FE's response is not OK, status is "));
-        RestService.parseSchema(notOkRes, logger);
+        RestService.getQueryPlan(res, logger);
     }
 
     @Test
@@ -245,14 +303,17 @@ public class TestRestService {
         thrown.expect(DorisException.class);
         thrown.expectMessage(startsWith("Cannot choice Doris BE for tablet"));
         RestService.selectBeForTablet(RestService.getQueryPlan(noBeRes, logger), logger);
+    }
 
+    @Test
+    public void testSelectTabletBeError() throws DorisException {
         String notNumberRes =
                 "{\"partitions\":{"
                         + "\"11021xxx\":{\"routings\":[\"be1\"],\"version\":3,\"versionHash\":1,\"schemaHash\":1}},"
                         + "\"opaqued_query_plan\":\"query_plan\",\"status\":200}";
         thrown.expect(DorisException.class);
         thrown.expectMessage(startsWith("Parse tablet id "));
-        RestService.selectBeForTablet(RestService.getQueryPlan(noBeRes, logger), logger);
+        RestService.selectBeForTablet(RestService.getQueryPlan(notNumberRes, logger), logger);
     }
 
     @Test
@@ -272,6 +333,11 @@ public class TestRestService {
                 10, RestService.tabletCountLimitForOnePartition(builder.build(), logger));
 
         builder.setRequestTabletSize(1);
+        Assert.assertEquals(
+                DORIS_TABLET_SIZE_MIN.intValue(),
+                RestService.tabletCountLimitForOnePartition(builder.build(), logger));
+
+        builder.setRequestTabletSize(-1);
         Assert.assertEquals(
                 DORIS_TABLET_SIZE_MIN.intValue(),
                 RestService.tabletCountLimitForOnePartition(builder.build(), logger));
@@ -332,5 +398,59 @@ public class TestRestService {
                 "{\"backends\":[{\"ip\":\"192.168.1.1\",\"http_port\":8042,\"is_alive\":true}, {\"ip\":\"192.168.1.2\",\"http_port\":8042,\"is_alive\":true}]}";
         List<BackendV2.BackendRowV2> backendRows = RestService.parseBackendV2(response, logger);
         Assert.assertEquals(2, backendRows.size());
+        thrown.expect(ShouldNeverHappenException.class);
+        response = "null";
+        RestService.parseBackendV2(response, logger);
+    }
+
+    @Test
+    public void testParseBackendV2Error() throws Exception {
+        String response =
+                "{\"backends\":[{\"ip1\":\"192.168.1.1\",\"http_port\":8042,\"is_alive\":true}, {\"ip\":\"192.168.1.2\",\"http_port\":8042,\"is_alive\":true}]}";
+        thrown.expect(DorisRuntimeException.class);
+        thrown.expectMessage(startsWith("Parse Doris BE's response to json failed"));
+        RestService.parseBackendV2(response, logger);
+    }
+
+    @Test
+    public void testGetBackendsV2() {
+        DorisOptions options =
+                DorisOptions.builder()
+                        .setFenodes("127.0.0.1:1,127.0.0.1:2")
+                        .setAutoRedirect(false)
+                        .build();
+        DorisReadOptions readOptions = DorisReadOptions.defaults();
+        thrown.expect(DorisRuntimeException.class);
+        thrown.expectMessage(startsWith("No Doris FE is available"));
+        RestService.getBackendsV2(options, readOptions, logger);
+    }
+
+    @Test
+    public void testAllEndpoints() {
+        thrown.expect(DorisRuntimeException.class);
+        thrown.expectMessage(startsWith("fenodes is empty"));
+        RestService.allEndpoints("", logger);
+    }
+
+    @Test
+    public void testParseResponse() throws IOException {
+        HttpURLConnection connection = mock(HttpURLConnection.class);
+        when(connection.getResponseCode()).thenReturn(100);
+        thrown.expect(IOException.class);
+        thrown.expectMessage(startsWith("Failed to get response from Doris"));
+        RestService.parseResponse(connection, logger);
+    }
+
+    @Test
+    public void testUniqueKeyType() throws IOException {
+        DorisOptions options =
+                DorisOptions.builder()
+                        .setFenodes("127.0.0.1:1,127.0.0.1:2")
+                        .setTableIdentifier("db.tbl")
+                        .setAutoRedirect(false)
+                        .build();
+        DorisReadOptions readOptions = DorisReadOptions.defaults();
+        thrown.expect(DorisRuntimeException.class);
+        RestService.isUniqueKeyType(options, readOptions, logger);
     }
 }

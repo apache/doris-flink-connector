@@ -17,6 +17,7 @@
 
 package org.apache.doris.flink.sink.writer.serializer;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.conversion.RowRowConverter;
@@ -34,6 +35,7 @@ import static org.apache.doris.flink.sink.writer.LoadConstants.JSON;
  *
  * <p>TODO: support original Doris to Row serializer
  */
+@PublicEvolving
 public class RowSerializer implements DorisRecordSerializer<Row> {
     /** converter {@link Row} to {@link RowData}. */
     private final RowRowConverter rowRowConverter;
