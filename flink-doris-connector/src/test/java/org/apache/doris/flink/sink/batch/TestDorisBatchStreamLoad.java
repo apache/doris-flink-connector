@@ -17,14 +17,15 @@
 
 package org.apache.doris.flink.sink.batch;
 
+import org.apache.flink.api.common.time.Deadline;
+import org.apache.flink.util.function.SupplierWithException;
+
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.sink.BackendUtil;
 import org.apache.doris.flink.sink.HttpTestUtil;
 import org.apache.doris.flink.sink.writer.LabelGenerator;
-import org.apache.flink.api.common.time.Deadline;
-import org.apache.flink.util.function.SupplierWithException;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
