@@ -176,4 +176,10 @@ public class DorisTypeMapperTest {
                         DataTypes.ROW(DataTypes.FIELD("field", DataTypes.INT())));
         assertEquals("STRING", dorisType);
     }
+
+    @Test
+    public void testBinaryType() {
+        String dorisType = DorisTypeMapper.toDorisType(DataTypes.BINARY(1));
+        assertEquals("STRING", dorisType);
+    }
 }
