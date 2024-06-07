@@ -21,6 +21,7 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
+import org.apache.flink.table.types.logical.BinaryType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.DateType;
@@ -237,6 +238,11 @@ public class DorisTypeMapper {
 
         @Override
         public String visit(RowType rowType) {
+            return STRING;
+        }
+
+        @Override
+        public String visit(BinaryType binaryType) {
             return STRING;
         }
 
