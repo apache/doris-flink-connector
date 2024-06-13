@@ -133,7 +133,10 @@ public class SchemaChangeManager implements Serializable {
                         table);
         HttpGetWithEntity httpGet = new HttpGetWithEntity(requestUrl);
         httpGet.setHeader(HttpHeaders.AUTHORIZATION, authHeader());
-        httpGet.setEntity(new StringEntity(objectMapper.writeValueAsString(params)));
+        httpGet.setEntity(
+                new StringEntity(
+                        objectMapper.writeValueAsString(params),
+                        dorisOptions.getCharsetEncoding()));
         String responseEntity = "";
         Map<String, Object> responseMap = handleResponse(httpGet, responseEntity);
         return handleSchemaChange(responseMap, responseEntity);
@@ -173,8 +176,12 @@ public class SchemaChangeManager implements Serializable {
                         database);
         HttpPost httpPost = new HttpPost(requestUrl);
         httpPost.setHeader(HttpHeaders.AUTHORIZATION, authHeader());
-        httpPost.setHeader(HttpHeaders.CONTENT_TYPE, "application/json");
-        httpPost.setEntity(new StringEntity(objectMapper.writeValueAsString(param)));
+        httpPost.setHeader(
+                HttpHeaders.CONTENT_TYPE,
+                String.format("application/json;charset=%s", dorisOptions.getCharsetEncoding()));
+        httpPost.setEntity(
+                new StringEntity(
+                        objectMapper.writeValueAsString(param), dorisOptions.getCharsetEncoding()));
         return httpPost;
     }
 
