@@ -27,7 +27,6 @@ public class DorisOptions extends DorisConnectionOptions {
     private static final long serialVersionUID = 1L;
 
     private String tableIdentifier;
-    private String charsetEncoding = "UTF-8";
 
     public DorisOptions(String fenodes, String username, String password, String tableIdentifier) {
         super(fenodes, username, password);
@@ -51,11 +50,9 @@ public class DorisOptions extends DorisConnectionOptions {
             String password,
             String tableIdentifier,
             String jdbcUrl,
-            boolean redirect,
-            String charsetEncoding) {
+            boolean redirect) {
         super(fenodes, beNodes, username, password, jdbcUrl, redirect);
         this.tableIdentifier = tableIdentifier;
-        this.charsetEncoding = charsetEncoding;
     }
 
     public String getTableIdentifier() {
@@ -64,14 +61,6 @@ public class DorisOptions extends DorisConnectionOptions {
 
     public void setTableIdentifier(String tableIdentifier) {
         this.tableIdentifier = tableIdentifier;
-    }
-
-    public String getCharsetEncoding() {
-        return charsetEncoding;
-    }
-
-    public void setCharsetEncoding(String charsetEncoding) {
-        this.charsetEncoding = charsetEncoding;
     }
 
     public static Builder builder() {
@@ -93,21 +82,13 @@ public class DorisOptions extends DorisConnectionOptions {
                 && Objects.equals(username, that.username)
                 && Objects.equals(password, that.password)
                 && Objects.equals(jdbcUrl, that.jdbcUrl)
-                && Objects.equals(benodes, that.benodes)
-                && Objects.equals(charsetEncoding, that.charsetEncoding);
+                && Objects.equals(benodes, that.benodes);
     }
 
     @Override
     public int hashCode() {
         return Objects.hash(
-                fenodes,
-                username,
-                password,
-                jdbcUrl,
-                benodes,
-                autoRedirect,
-                tableIdentifier,
-                charsetEncoding);
+                fenodes, username, password, jdbcUrl, benodes, autoRedirect, tableIdentifier);
     }
 
     /** Builder of {@link DorisOptions}. */
@@ -119,7 +100,6 @@ public class DorisOptions extends DorisConnectionOptions {
         private String password;
         private boolean autoRedirect = true;
         private String tableIdentifier;
-        private String charsetEncoding = "UTF-8";
 
         /** required, tableIdentifier. */
         public Builder setTableIdentifier(String tableIdentifier) {
@@ -162,25 +142,12 @@ public class DorisOptions extends DorisConnectionOptions {
             return this;
         }
 
-        /** optional, Charset encoding for Http client, default UTF-8. */
-        public Builder setCharsetEncoding(String charsetEncoding) {
-            this.charsetEncoding = charsetEncoding;
-            return this;
-        }
-
         public DorisOptions build() {
             checkNotNull(fenodes, "No fenodes supplied.");
             // multi table load, don't need check
             // checkNotNull(tableIdentifier, "No tableIdentifier supplied.");
             return new DorisOptions(
-                    fenodes,
-                    benodes,
-                    username,
-                    password,
-                    tableIdentifier,
-                    jdbcUrl,
-                    autoRedirect,
-                    charsetEncoding);
+                    fenodes, benodes, username, password, tableIdentifier, jdbcUrl, autoRedirect);
         }
     }
 }

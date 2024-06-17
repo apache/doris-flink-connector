@@ -97,7 +97,7 @@ public class SchemaManagerITCase extends DorisTestBase {
         addColumnWithChineseCommentAndAssert(addColumnTbls, addColumnName, chineseComment, true);
 
         // change charset encoding to US-ASCII would cause garbled of Chinese.
-        options.setCharsetEncoding("US-ASCII");
+        schemaChangeManager = new SchemaChangeManager(options, "US-ASCII");
         addColumnName = "col_with_comment2";
         chineseComment = "中文注释2";
         addColumnWithChineseCommentAndAssert(addColumnTbls, addColumnName, chineseComment, false);
