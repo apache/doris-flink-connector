@@ -177,8 +177,14 @@ public class RowBatch {
                 final String currentType = schema.get(col).getType();
                 for (int rowIndex = 0; rowIndex < rowCountInOneBatch; rowIndex++) {
                     boolean passed = doConvert(col, rowIndex, minorType, currentType, fieldVector);
-                    Preconditions.checkArgument(
-                            passed, typeMismatchMessage(currentType, minorType));
+                    if (!passed) {
+                        throw new java.lang.IllegalArgumentException(
+                                "FLINK type is "
+                                        + currentType
+                                        + ", but arrow type is "
+                                        + minorType.name()
+                                        + ".");
+                    }
                 }
             }
         } catch (Exception e) {
