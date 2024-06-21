@@ -18,10 +18,11 @@
 package org.apache.doris.flink.sink.schema;
 
 import org.apache.doris.flink.DorisTestBase;
+import org.apache.doris.flink.catalog.doris.DataModel;
 import org.apache.doris.flink.catalog.doris.FieldSchema;
+import org.apache.doris.flink.catalog.doris.TableSchema;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.exception.IllegalArgumentException;
-import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.rest.models.Field;
 import org.apache.doris.flink.rest.models.Schema;
 import org.junit.Assert;
@@ -33,7 +34,11 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Random;
 
 public class SchemaManagerITCase extends DorisTestBase {
 
@@ -126,7 +131,7 @@ public class SchemaManagerITCase extends DorisTestBase {
     }
 
     private String getColumnComment(String table, String columnName) {
-        Schema schema = getTableSchema(table);
+        Schema schema = schemaChangeManager.getTableSchema(DATABASE, table);
         Optional<Field> first =
                 schema.getProperties().stream()
                         .filter(col -> col.getName().equals(columnName))
@@ -135,16 +140,12 @@ public class SchemaManagerITCase extends DorisTestBase {
     }
 
     private String getColumnType(String table, String columnName) {
-        Schema schema = getTableSchema(table);
+        Schema schema = schemaChangeManager.getTableSchema(DATABASE, table);
         Optional<Field> first =
                 schema.getProperties().stream()
                         .filter(col -> col.getName().equals(columnName))
                         .findFirst();
         return first.map(Field::getType).orElse(null);
-    }
-
-    private Schema getTableSchema(String table) {
-        return RestService.getSchema(options, DATABASE, table, LOG);
     }
 
     @Test
@@ -217,5 +218,29 @@ public class SchemaManagerITCase extends DorisTestBase {
 
         String columnType = getColumnType(modifyColumnTbls, columnName);
         Assert.assertEquals(newColumnType, columnType.toLowerCase());
+    }
+
+    @Test
+    public void testCreateTableWhenDatabaseNotExists()
+            throws IOException, IllegalArgumentException, InterruptedException {
+        String databaseName = DATABASE + "_" + Integer.toUnsignedString(new Random().nextInt(), 36);
+        String tableName = "auto_create_database";
+
+        TableSchema tableSchema = new TableSchema();
+        tableSchema.setDatabase(databaseName);
+        tableSchema.setTable(tableName);
+        Map<String, FieldSchema> fields = new HashMap<>();
+        fields.put("id", new FieldSchema("id", "varchar(32)", ""));
+        fields.put("age", new FieldSchema("age", "int", ""));
+        tableSchema.setFields(fields);
+        tableSchema.setDistributeKeys(Collections.singletonList("id"));
+        tableSchema.setModel(DataModel.DUPLICATE);
+        Map<String, String> tableProperties = new HashMap<>();
+        tableProperties.put("replication_num", "1");
+        tableSchema.setProperties(tableProperties);
+        schemaChangeManager.createTable(tableSchema);
+
+        Thread.sleep(3_000);
+        Assert.assertNotNull(schemaChangeManager.getTableSchema(databaseName, tableName));
     }
 }
