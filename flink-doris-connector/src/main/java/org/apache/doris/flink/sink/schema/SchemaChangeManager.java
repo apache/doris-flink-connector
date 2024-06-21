@@ -56,9 +56,15 @@ public class SchemaChangeManager implements Serializable {
     private static final String SCHEMA_CHANGE_API = "http://%s/api/query/default_cluster/%s";
     private ObjectMapper objectMapper = new ObjectMapper();
     private DorisOptions dorisOptions;
+    private String charsetEncoding = "UTF-8";
 
     public SchemaChangeManager(DorisOptions dorisOptions) {
         this.dorisOptions = dorisOptions;
+    }
+
+    public SchemaChangeManager(DorisOptions dorisOptions, String charsetEncoding) {
+        this.dorisOptions = dorisOptions;
+        this.charsetEncoding = charsetEncoding;
     }
 
     public boolean createTable(TableSchema table) throws IOException, IllegalArgumentException {
@@ -133,7 +139,8 @@ public class SchemaChangeManager implements Serializable {
                         table);
         HttpGetWithEntity httpGet = new HttpGetWithEntity(requestUrl);
         httpGet.setHeader(HttpHeaders.AUTHORIZATION, authHeader());
-        httpGet.setEntity(new StringEntity(objectMapper.writeValueAsString(params)));
+        httpGet.setEntity(
+                new StringEntity(objectMapper.writeValueAsString(params), charsetEncoding));
         String responseEntity = "";
         Map<String, Object> responseMap = handleResponse(httpGet, responseEntity);
         return handleSchemaChange(responseMap, responseEntity);
@@ -173,8 +180,11 @@ public class SchemaChangeManager implements Serializable {
                         database);
         HttpPost httpPost = new HttpPost(requestUrl);
         httpPost.setHeader(HttpHeaders.AUTHORIZATION, authHeader());
-        httpPost.setHeader(HttpHeaders.CONTENT_TYPE, "application/json");
-        httpPost.setEntity(new StringEntity(objectMapper.writeValueAsString(param)));
+        httpPost.setHeader(
+                HttpHeaders.CONTENT_TYPE,
+                String.format("application/json;charset=%s", charsetEncoding));
+        httpPost.setEntity(
+                new StringEntity(objectMapper.writeValueAsString(param), charsetEncoding));
         return httpPost;
     }
 
