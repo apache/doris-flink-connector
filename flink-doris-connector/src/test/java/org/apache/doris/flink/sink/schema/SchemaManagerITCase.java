@@ -21,6 +21,9 @@ import org.apache.doris.flink.DorisTestBase;
 import org.apache.doris.flink.catalog.doris.FieldSchema;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.exception.IllegalArgumentException;
+import org.apache.doris.flink.rest.RestService;
+import org.apache.doris.flink.rest.models.Field;
+import org.apache.doris.flink.rest.models.Schema;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -28,11 +31,9 @@ import org.junit.Test;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.Optional;
 
 public class SchemaManagerITCase extends DorisTestBase {
 
@@ -87,7 +88,7 @@ public class SchemaManagerITCase extends DorisTestBase {
 
     @Test
     public void testAddColumnWithChineseComment()
-            throws SQLException, IOException, IllegalArgumentException {
+            throws SQLException, IOException, IllegalArgumentException, InterruptedException {
         String addColumnTbls = "add_column";
         initDorisSchemaChangeTable(addColumnTbls);
 
@@ -105,7 +106,7 @@ public class SchemaManagerITCase extends DorisTestBase {
 
     private void addColumnWithChineseCommentAndAssert(
             String tableName, String addColumnName, String chineseComment, boolean assertFlag)
-            throws SQLException, IOException, IllegalArgumentException {
+            throws IOException, IllegalArgumentException, InterruptedException {
         FieldSchema field = new FieldSchema(addColumnName, "string", chineseComment);
         schemaChangeManager.addColumn(DATABASE, tableName, field);
         boolean exists = schemaChangeManager.addColumn(DATABASE, tableName, field);
@@ -115,28 +116,35 @@ public class SchemaManagerITCase extends DorisTestBase {
         Assert.assertTrue(exists);
 
         // check Chinese comment
-        Map<String, String> columnComments = getColumnComments(tableName);
+        Thread.sleep(3_000);
+        String comment = getColumnComment(tableName, addColumnName);
         if (assertFlag) {
-            Assert.assertEquals(columnComments.get(addColumnName), chineseComment);
+            Assert.assertEquals(comment, chineseComment);
         } else {
-            Assert.assertNotEquals(columnComments.get(addColumnName), chineseComment);
+            Assert.assertNotEquals(comment, chineseComment);
         }
     }
 
-    private Map<String, String> getColumnComments(String table) throws SQLException {
-        Map<String, String> columnCommentsMap = new HashMap<>();
-        try (Connection connection =
-                DriverManager.getConnection(
-                        String.format(URL, DORIS_CONTAINER.getHost()), USERNAME, PASSWORD)) {
-            ResultSet columns = connection.getMetaData().getColumns(null, DATABASE, table, null);
+    private String getColumnComment(String table, String columnName) {
+        Schema schema = getTableSchema(table);
+        Optional<Field> first =
+                schema.getProperties().stream()
+                        .filter(col -> col.getName().equals(columnName))
+                        .findFirst();
+        return first.map(Field::getComment).orElse(null);
+    }
 
-            while (columns.next()) {
-                String columnName = columns.getString("COLUMN_NAME");
-                String comment = columns.getString("REMARKS");
-                columnCommentsMap.put(columnName, comment);
-            }
-        }
-        return columnCommentsMap;
+    private String getColumnType(String table, String columnName) {
+        Schema schema = getTableSchema(table);
+        Optional<Field> first =
+                schema.getProperties().stream()
+                        .filter(col -> col.getName().equals(columnName))
+                        .findFirst();
+        return first.map(Field::getType).orElse(null);
+    }
+
+    private Schema getTableSchema(String table) {
+        return RestService.getSchema(options, DATABASE, table, LOG);
     }
 
     @Test
@@ -161,5 +169,53 @@ public class SchemaManagerITCase extends DorisTestBase {
 
         exists = schemaChangeManager.checkColumnExists(DATABASE, renameColumnTbls, "age");
         Assert.assertFalse(exists);
+    }
+
+    @Test
+    public void testModifyColumnComment()
+            throws SQLException, IOException, IllegalArgumentException {
+        String modifyColumnCommentTbls = "modify_column_comment";
+        initDorisSchemaChangeTable(modifyColumnCommentTbls);
+        String columnName = "age";
+        String newComment = "new comment of age";
+        schemaChangeManager.modifyColumnComment(
+                DATABASE, modifyColumnCommentTbls, columnName, newComment);
+
+        String comment = getColumnComment(modifyColumnCommentTbls, columnName);
+        Assert.assertEquals(newComment, comment);
+    }
+
+    @Test
+    public void testOnlyModifyColumnType()
+            throws SQLException, IOException, IllegalArgumentException, InterruptedException {
+        String modifyColumnTbls = "modify_column_type";
+        String columnName = "age";
+        String newColumnType = "bigint";
+        initDorisSchemaChangeTable(modifyColumnTbls);
+        FieldSchema field = new FieldSchema(columnName, newColumnType, "");
+        schemaChangeManager.modifyColumnDataType(DATABASE, modifyColumnTbls, field);
+
+        Thread.sleep(3_000);
+        String columnType = getColumnType(modifyColumnTbls, columnName);
+        Assert.assertEquals(newColumnType, columnType.toLowerCase());
+    }
+
+    @Test
+    public void testModifyColumnTypeAndComment()
+            throws SQLException, IOException, IllegalArgumentException, InterruptedException {
+        String modifyColumnTbls = "modify_column_type_and_comment";
+        initDorisSchemaChangeTable(modifyColumnTbls);
+        String columnName = "age";
+        String newColumnType = "bigint";
+        String newComment = "new comment of age";
+        FieldSchema field = new FieldSchema(columnName, newColumnType, newComment);
+        schemaChangeManager.modifyColumnDataType(DATABASE, modifyColumnTbls, field);
+
+        Thread.sleep(3_000);
+        String comment = getColumnComment(modifyColumnTbls, columnName);
+        Assert.assertEquals(newComment, comment);
+
+        String columnType = getColumnType(modifyColumnTbls, columnName);
+        Assert.assertEquals(newColumnType, columnType.toLowerCase());
     }
 }
