@@ -76,12 +76,16 @@ public class DorisTypeMapperTest {
     public void testDecimalType() {
         DataType result = DorisTypeMapper.toFlinkType("col", "DECIMAL", 10, 2);
         assertEquals(DataTypes.DECIMAL(10, 2), result);
+        String dorisType = DorisTypeMapper.toDorisType(DataTypes.DECIMAL(10, 2));
+        assertEquals("DECIMALV3(10,2)", dorisType);
     }
 
     @Test
     public void testDecimalV3Type() {
         DataType result = DorisTypeMapper.toFlinkType("col", "DECIMALV3", 10, 2);
         assertEquals(DataTypes.DECIMAL(10, 2), result);
+        String dorisType = DorisTypeMapper.toDorisType(DataTypes.DECIMAL(10, 2));
+        assertEquals("DECIMALV3(10,2)", dorisType);
     }
 
     @Test
@@ -136,8 +140,42 @@ public class DorisTypeMapperTest {
     public void testDatetimeType() {
         DataType result = DorisTypeMapper.toFlinkType("col", "DATETIME", 0, 3);
         assertEquals(DataTypes.TIMESTAMP(3), result);
-        String dorisType = DorisTypeMapper.toDorisType(DataTypes.DECIMAL(10, 2));
-        assertEquals("DECIMALV3(10,2)", dorisType);
+        String dorisType = DorisTypeMapper.toDorisType(DataTypes.TIMESTAMP(3));
+        assertEquals("DATETIMEV2(3)", dorisType);
+    }
+
+    @Test
+    public void testDatetimeTypeWithTimezoneType() {
+        DataType result = DorisTypeMapper.toFlinkType("col", "DATETIME", 0, 3);
+        assertEquals(DataTypes.TIMESTAMP(3), result);
+        String dorisType = DorisTypeMapper.toDorisType(DataTypes.TIMESTAMP_WITH_TIME_ZONE(3));
+        assertEquals("DATETIMEV2(3)", dorisType);
+    }
+
+    @Test
+    public void testDatetimeTypeWithLocalTimezoneType() {
+        DataType result = DorisTypeMapper.toFlinkType("col", "DATETIME", 0, 3);
+        assertEquals(DataTypes.TIMESTAMP(3), result);
+        String dorisType = DorisTypeMapper.toDorisType(DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3));
+        assertEquals("DATETIMEV2(3)", dorisType);
+    }
+
+    @Test
+    public void testTimeTypeWithLocalTimezoneType() {
+        String dorisType = DorisTypeMapper.toDorisType(DataTypes.TIME());
+        assertEquals("STRING", dorisType);
+    }
+
+    @Test
+    public void testTimeType() {
+        String dorisType = DorisTypeMapper.toDorisType(DataTypes.TIME(3));
+        assertEquals("STRING", dorisType);
+    }
+
+    @Test
+    public void testMultisetType() {
+        String dorisType = DorisTypeMapper.toDorisType(DataTypes.MULTISET(DataTypes.INT()));
+        assertEquals("STRING", dorisType);
     }
 
     @Test(expected = UnsupportedOperationException.class)

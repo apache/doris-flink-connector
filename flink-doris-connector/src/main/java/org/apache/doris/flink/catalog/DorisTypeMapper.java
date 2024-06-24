@@ -29,14 +29,18 @@ import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MapType;
+import org.apache.flink.table.types.logical.MultisetType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.SmallIntType;
+import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.types.logical.ZonedTimestampType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeDefaultVisitor;
 
 import org.apache.doris.flink.catalog.doris.DorisType;
@@ -227,6 +231,25 @@ public class DorisTypeMapper {
         }
 
         @Override
+        public String visit(ZonedTimestampType timestampType) {
+            int precision = timestampType.getPrecision();
+            return String.format(
+                    "%s(%s)", DorisType.DATETIME_V2, Math.min(Math.max(precision, 0), 6));
+        }
+
+        @Override
+        public String visit(LocalZonedTimestampType localZonedTimestampType) {
+            int precision = localZonedTimestampType.getPrecision();
+            return String.format(
+                    "%s(%s)", DorisType.DATETIME_V2, Math.min(Math.max(precision, 0), 6));
+        }
+
+        @Override
+        public String visit(TimeType timeType) {
+            return STRING;
+        }
+
+        @Override
         public String visit(ArrayType arrayType) {
             return STRING;
         }
@@ -238,6 +261,11 @@ public class DorisTypeMapper {
 
         @Override
         public String visit(RowType rowType) {
+            return STRING;
+        }
+
+        @Override
+        public String visit(MultisetType multisetType) {
             return STRING;
         }
 
