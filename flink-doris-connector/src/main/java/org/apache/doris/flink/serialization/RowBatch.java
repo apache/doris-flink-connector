@@ -18,7 +18,6 @@
 package org.apache.doris.flink.serialization;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.util.Preconditions;
 
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.BaseIntVector;
