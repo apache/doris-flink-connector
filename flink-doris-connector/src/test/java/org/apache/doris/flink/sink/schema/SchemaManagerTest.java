@@ -132,6 +132,12 @@ public class SchemaManagerTest {
         Assert.assertEquals(
                 "ALTER TABLE `test`.`test_flink` ADD COLUMN `col` int DEFAULT current_timestamp COMMENT 'comment \"\\'sdf\\''",
                 addColumnDDL);
+
+        field = new FieldSchema("col", "int", "current_timestamp", "中文注释");
+        addColumnDDL = SchemaChangeHelper.buildAddColumnDDL("test.test_flink", field);
+        Assert.assertEquals(
+                "ALTER TABLE `test`.`test_flink` ADD COLUMN `col` int DEFAULT current_timestamp COMMENT '中文注释'",
+                addColumnDDL);
     }
 
     @Test

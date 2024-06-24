@@ -28,8 +28,11 @@ import org.junit.Test;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.HashMap;
+import java.util.Map;
 
 public class SchemaManagerITCase extends DorisTestBase {
 
@@ -80,6 +83,60 @@ public class SchemaManagerITCase extends DorisTestBase {
 
         exists = schemaChangeManager.checkColumnExists(DATABASE, addColumnTbls, "c1");
         Assert.assertTrue(exists);
+    }
+
+    @Test
+    public void testAddColumnWithChineseComment()
+            throws SQLException, IOException, IllegalArgumentException {
+        String addColumnTbls = "add_column";
+        initDorisSchemaChangeTable(addColumnTbls);
+
+        // add a column by UTF-8 encoding
+        String addColumnName = "col_with_comment1";
+        String chineseComment = "中文注释1";
+        addColumnWithChineseCommentAndAssert(addColumnTbls, addColumnName, chineseComment, true);
+
+        // change charset encoding to US-ASCII would cause garbled of Chinese.
+        schemaChangeManager = new SchemaChangeManager(options, "US-ASCII");
+        addColumnName = "col_with_comment2";
+        chineseComment = "中文注释2";
+        addColumnWithChineseCommentAndAssert(addColumnTbls, addColumnName, chineseComment, false);
+    }
+
+    private void addColumnWithChineseCommentAndAssert(
+            String tableName, String addColumnName, String chineseComment, boolean assertFlag)
+            throws SQLException, IOException, IllegalArgumentException {
+        FieldSchema field = new FieldSchema(addColumnName, "string", chineseComment);
+        schemaChangeManager.addColumn(DATABASE, tableName, field);
+        boolean exists = schemaChangeManager.addColumn(DATABASE, tableName, field);
+        Assert.assertTrue(exists);
+
+        exists = schemaChangeManager.checkColumnExists(DATABASE, tableName, addColumnName);
+        Assert.assertTrue(exists);
+
+        // check Chinese comment
+        Map<String, String> columnComments = getColumnComments(tableName);
+        if (assertFlag) {
+            Assert.assertEquals(columnComments.get(addColumnName), chineseComment);
+        } else {
+            Assert.assertNotEquals(columnComments.get(addColumnName), chineseComment);
+        }
+    }
+
+    private Map<String, String> getColumnComments(String table) throws SQLException {
+        Map<String, String> columnCommentsMap = new HashMap<>();
+        try (Connection connection =
+                DriverManager.getConnection(
+                        String.format(URL, DORIS_CONTAINER.getHost()), USERNAME, PASSWORD)) {
+            ResultSet columns = connection.getMetaData().getColumns(null, DATABASE, table, null);
+
+            while (columns.next()) {
+                String columnName = columns.getString("COLUMN_NAME");
+                String comment = columns.getString("REMARKS");
+                columnCommentsMap.put(columnName, comment);
+            }
+        }
+        return columnCommentsMap;
     }
 
     @Test
