@@ -160,6 +160,8 @@ public class MongoDBDatabaseSync extends DatabaseSync {
         String username = config.get(MongoDBSourceOptions.USERNAME);
         String password = config.get(MongoDBSourceOptions.PASSWORD);
         String database = config.get(MongoDBSourceOptions.DATABASE);
+        // note: just to unify job name, no other use.
+        config.setString("database-name", database);
         String collection = config.get(MongoDBSourceOptions.COLLECTION);
         if (StringUtils.isBlank(collection)) {
             collection = config.get(TABLE_NAME);
