@@ -263,7 +263,7 @@ public class DorisBatchStreamLoad implements Serializable {
 
         /** execute stream load. */
         public void load(String label, BatchRecordBuffer buffer) throws IOException {
-            if(enableGroupCommit){
+            if (enableGroupCommit) {
                 label = null;
             }
             refreshLoadUrl(buffer.getDatabase(), buffer.getTable());

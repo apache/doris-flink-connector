@@ -111,7 +111,7 @@ public class HttpPutBuilder {
     }
 
     public HttpPutBuilder setLabel(String label) {
-        if(label != null){
+        if (label != null) {
             header.put("label", label);
         }
         return this;

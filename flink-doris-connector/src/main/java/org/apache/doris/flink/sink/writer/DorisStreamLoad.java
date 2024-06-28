@@ -279,7 +279,7 @@ public class DorisStreamLoad implements Serializable {
      * @throws IOException
      */
     public void startLoad(String label, boolean isResume) throws IOException {
-        if(enableGroupCommit){
+        if (enableGroupCommit) {
             label = null;
         }
         loadBatchFirstRecord = !isResume;
@@ -304,7 +304,10 @@ public class DorisStreamLoad implements Serializable {
             pendingLoadFuture =
                     executorService.submit(
                             () -> {
-                                LOG.info("table {} start execute load for label {}", table, finalLabel);
+                                LOG.info(
+                                        "table {} start execute load for label {}",
+                                        table,
+                                        finalLabel);
                                 return httpClient.execute(putBuilder.build());
                             });
         } catch (Exception e) {
