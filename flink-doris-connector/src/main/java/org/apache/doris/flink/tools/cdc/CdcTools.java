@@ -161,7 +161,10 @@ public class CdcTools {
             jobName =
                     String.format(
                             "%s-Doris Sync Database: %s",
-                            type, config.getString("database-name", "db"));
+                            type,
+                            "mongodb".equals(type)
+                                    ? config.getString("database", "db")
+                                    : config.getString("database-name", "db"));
         }
         env.execute(jobName);
     }

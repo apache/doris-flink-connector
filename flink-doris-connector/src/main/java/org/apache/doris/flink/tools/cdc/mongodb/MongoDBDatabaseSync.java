@@ -133,7 +133,8 @@ public class MongoDBDatabaseSync extends DatabaseSync {
     private ArrayList<Document> sampleData(MongoCollection<Document> collection, Long sampleNum) {
         ArrayList<Document> query = new ArrayList<>();
         query.add(new Document("$sample", new Document("size", sampleNum)));
-        return collection.aggregate(query).into(new ArrayList<>());
+        // allowDiskUse to avoid mongo 'Sort exceeded memory limit' error
+        return collection.aggregate(query).allowDiskUse(true).into(new ArrayList<>());
     }
 
     private static String buildConnectionString(
