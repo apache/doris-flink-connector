@@ -17,11 +17,11 @@
 
 package org.apache.doris.flink.source.split;
 
+import java.util.HashSet;
+
 import org.apache.doris.flink.rest.PartitionDefinition;
 import org.junit.Assert;
 import org.junit.Test;
-
-import java.util.HashSet;
 
 public class DorisSourceSplitTest {
 
@@ -31,8 +31,8 @@ public class DorisSourceSplitTest {
                 new PartitionDefinition("db", "tbl", "be", new HashSet<>(), "queryplan1");
         PartitionDefinition pd2 =
                 new PartitionDefinition("db", "tbl", "be", new HashSet<>(), "queryplan1");
-        DorisSourceSplit split1 = new DorisSourceSplit(pd1);
-        DorisSourceSplit split2 = new DorisSourceSplit(pd2);
+        DorisSourceSplit split1 = new DorisSourceSplit("be_1", pd1);
+        DorisSourceSplit split2 = new DorisSourceSplit("be_2", pd2);
         Assert.assertEquals(split1, split2);
     }
 }

@@ -17,22 +17,19 @@
 
 package org.apache.doris.flink.source.enumerator;
 
-import org.apache.flink.api.connector.source.SplitEnumerator;
-import org.apache.flink.api.connector.source.SplitEnumeratorContext;
-
-import org.apache.doris.flink.source.DorisSource;
-import org.apache.doris.flink.source.assigners.DorisSplitAssigner;
-import org.apache.doris.flink.source.split.DorisSourceSplit;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javax.annotation.Nullable;
-
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 
+import org.apache.doris.flink.source.DorisSource;
+import org.apache.doris.flink.source.assigners.DorisSplitAssigner;
+import org.apache.doris.flink.source.split.DorisSourceSplit;
+import org.apache.flink.api.connector.source.SplitEnumerator;
+import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A SplitEnumerator implementation for bounded / batch {@link DorisSource} input.
@@ -79,7 +76,7 @@ public class DorisSourceEnumerator
 
     @Override
     public void addSplitsBack(List<DorisSourceSplit> splits, int subtaskId) {
-        LOG.debug("Doris Source Enumerator adds splits back: {}", splits);
+        LOG.info("Doris Source Enumerator adds splits back: {}", splits);
         splitAssigner.addSplits(splits);
     }
 

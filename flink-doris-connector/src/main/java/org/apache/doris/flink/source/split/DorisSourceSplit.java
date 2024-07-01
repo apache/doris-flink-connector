@@ -17,17 +17,15 @@
 
 package org.apache.doris.flink.source.split;
 
-import org.apache.flink.api.connector.source.SourceSplit;
+import javax.annotation.Nullable;
+import java.util.Objects;
 
 import org.apache.doris.flink.rest.PartitionDefinition;
-
-import javax.annotation.Nullable;
-
-import java.util.Objects;
+import org.apache.flink.api.connector.source.SourceSplit;
 
 /** A {@link SourceSplit} that represents a {@link PartitionDefinition}. */
 public class DorisSourceSplit implements SourceSplit {
-
+    private String id;
     private final PartitionDefinition partitionDefinition;
 
     /**
@@ -36,13 +34,14 @@ public class DorisSourceSplit implements SourceSplit {
      */
     @Nullable transient byte[] serializedFormCache;
 
-    public DorisSourceSplit(PartitionDefinition partitionDefinition) {
+    public DorisSourceSplit(String id, PartitionDefinition partitionDefinition) {
+        this.id = id;
         this.partitionDefinition = partitionDefinition;
     }
 
     @Override
     public String splitId() {
-        return partitionDefinition.getBeAddress();
+        return id;
     }
 
     public PartitionDefinition getPartitionDefinition() {
@@ -52,9 +51,10 @@ public class DorisSourceSplit implements SourceSplit {
     @Override
     public String toString() {
         return String.format(
-                "DorisSourceSplit: %s.%s,be=%s,tablets=%s",
+                "DorisSourceSplit: %s.%s,id=%s,be=%s,tablets=%s",
                 partitionDefinition.getDatabase(),
                 partitionDefinition.getTable(),
+                id,
                 partitionDefinition.getBeAddress(),
                 partitionDefinition.getTabletIds());
     }

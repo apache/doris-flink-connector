@@ -17,16 +17,9 @@
 
 package org.apache.doris.flink.source;
 
-import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.connector.source.Boundedness;
-import org.apache.flink.api.connector.source.Source;
-import org.apache.flink.api.connector.source.SourceReader;
-import org.apache.flink.api.connector.source.SourceReaderContext;
-import org.apache.flink.api.connector.source.SplitEnumerator;
-import org.apache.flink.api.connector.source.SplitEnumeratorContext;
-import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
-import org.apache.flink.core.io.SimpleVersionedSerializer;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
@@ -42,12 +35,18 @@ import org.apache.doris.flink.source.reader.DorisRecordEmitter;
 import org.apache.doris.flink.source.reader.DorisSourceReader;
 import org.apache.doris.flink.source.split.DorisSourceSplit;
 import org.apache.doris.flink.source.split.DorisSourceSplitSerializer;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.connector.source.Boundedness;
+import org.apache.flink.api.connector.source.Source;
+import org.apache.flink.api.connector.source.SourceReader;
+import org.apache.flink.api.connector.source.SourceReaderContext;
+import org.apache.flink.api.connector.source.SplitEnumerator;
+import org.apache.flink.api.connector.source.SplitEnumeratorContext;
+import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
+import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
 
 /** DorisSource based on FLIP-27 which is a BOUNDED stream. */
 @PublicEvolving
@@ -97,9 +96,12 @@ public class DorisSource<OUT>
         List<DorisSourceSplit> dorisSourceSplits = new ArrayList<>();
         List<PartitionDefinition> partitions =
                 RestService.findPartitions(options, readOptions, LOG);
-        partitions.forEach(m -> dorisSourceSplits.add(new DorisSourceSplit(m)));
+        for(int index = 0; index <partitions.size(); index++) {
+            PartitionDefinition partitionDef = partitions.get(index);
+            String splitId = partitionDef.getBeAddress() + "_" + index;
+            dorisSourceSplits.add(new DorisSourceSplit(splitId, partitionDef));
+        }
         DorisSplitAssigner splitAssigner = new SimpleSplitAssigner(dorisSourceSplits);
-
         return new DorisSourceEnumerator(context, splitAssigner);
     }
 

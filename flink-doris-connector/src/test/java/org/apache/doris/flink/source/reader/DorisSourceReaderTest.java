@@ -17,15 +17,14 @@
 
 package org.apache.doris.flink.source.reader;
 
-import org.apache.doris.flink.deserialization.SimpleListDeserializationSchema;
-import org.apache.doris.flink.sink.OptionUtils;
-import org.apache.doris.flink.source.split.DorisSourceSplit;
-import org.junit.Test;
-
 import java.io.IOException;
 import java.util.Collections;
 
+import org.apache.doris.flink.deserialization.SimpleListDeserializationSchema;
+import org.apache.doris.flink.sink.OptionUtils;
+import org.apache.doris.flink.source.split.DorisSourceSplit;
 import static org.junit.Assert.assertEquals;
+import org.junit.Test;
 
 /** Unit tests for the {@link DorisSourceReader}. */
 public class DorisSourceReaderTest {
@@ -40,7 +39,7 @@ public class DorisSourceReaderTest {
     }
 
     private static DorisSourceSplit createTestDorisSplit() throws IOException {
-        return new DorisSourceSplit(OptionUtils.buildPartitionDef());
+        return new DorisSourceSplit("splitId", OptionUtils.buildPartitionDef());
     }
 
     @Test

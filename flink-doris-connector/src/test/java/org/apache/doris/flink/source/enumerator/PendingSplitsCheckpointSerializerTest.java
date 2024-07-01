@@ -17,13 +17,13 @@
 
 package org.apache.doris.flink.source.enumerator;
 
+import java.util.Arrays;
+
 import org.apache.doris.flink.sink.OptionUtils;
 import org.apache.doris.flink.source.split.DorisSourceSplit;
 import org.apache.doris.flink.source.split.DorisSourceSplitSerializer;
 import org.junit.Assert;
 import org.junit.Test;
-
-import java.util.Arrays;
 
 /** Unit tests for the {@link PendingSplitsCheckpointSerializer}. */
 public class PendingSplitsCheckpointSerializerTest {
@@ -35,7 +35,7 @@ public class PendingSplitsCheckpointSerializerTest {
 
     @Test
     public void serializeSplit() throws Exception {
-        final DorisSourceSplit split = new DorisSourceSplit(OptionUtils.buildPartitionDef());
+        final DorisSourceSplit split = new DorisSourceSplit("splitId", OptionUtils.buildPartitionDef());
         PendingSplitsCheckpoint checkpoint = new PendingSplitsCheckpoint(Arrays.asList(split));
 
         final PendingSplitsCheckpointSerializer splitSerializer =
