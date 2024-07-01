@@ -318,18 +318,26 @@ public class DorisStreamLoad implements Serializable {
             if (enable2PC) {
                 putBuilder.enable2PC();
             }
-            String finalLabel = label;
+
+            String executeMessage;
+            if (enableGroupCommit) {
+                executeMessage = "table " + table + " start execute load with group commit";
+            } else {
+                executeMessage = "table " + table + " start execute load for label " + label;
+            }
             pendingLoadFuture =
                     executorService.submit(
                             () -> {
-                                LOG.info(
-                                        "table {} start execute load for label {}",
-                                        table,
-                                        finalLabel);
+                                LOG.info(executeMessage);
                                 return httpClient.execute(putBuilder.build());
                             });
         } catch (Exception e) {
-            String err = "failed to stream load data with label: " + label;
+            String err;
+            if (enableGroupCommit) {
+                err = "failed to stream load data with group commit";
+            } else {
+                err = "failed to stream load data with label: " + label;
+            }
             LOG.warn(err, e);
             throw e;
         }
