@@ -17,6 +17,8 @@
 
 package org.apache.doris.flink.rest.models;
 
+import org.apache.flink.annotation.VisibleForTesting;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -145,6 +147,11 @@ public class RespContent {
 
     public String getLabel() {
         return label;
+    }
+
+    @VisibleForTesting
+    public void setMessage(String message) {
+        this.message = message;
     }
 
     @Override

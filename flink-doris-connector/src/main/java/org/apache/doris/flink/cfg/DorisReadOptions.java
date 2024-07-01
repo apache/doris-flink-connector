@@ -18,6 +18,7 @@
 package org.apache.doris.flink.cfg;
 
 import java.io.Serializable;
+import java.util.Objects;
 
 /** Doris read Options. */
 public class DorisReadOptions implements Serializable {
@@ -126,6 +127,46 @@ public class DorisReadOptions implements Serializable {
 
     public static DorisReadOptions defaults() {
         return DorisReadOptions.builder().build();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        DorisReadOptions that = (DorisReadOptions) o;
+        return useOldApi == that.useOldApi
+                && Objects.equals(readFields, that.readFields)
+                && Objects.equals(filterQuery, that.filterQuery)
+                && Objects.equals(requestTabletSize, that.requestTabletSize)
+                && Objects.equals(requestConnectTimeoutMs, that.requestConnectTimeoutMs)
+                && Objects.equals(requestReadTimeoutMs, that.requestReadTimeoutMs)
+                && Objects.equals(requestQueryTimeoutS, that.requestQueryTimeoutS)
+                && Objects.equals(requestRetries, that.requestRetries)
+                && Objects.equals(requestBatchSize, that.requestBatchSize)
+                && Objects.equals(execMemLimit, that.execMemLimit)
+                && Objects.equals(deserializeQueueSize, that.deserializeQueueSize)
+                && Objects.equals(deserializeArrowAsync, that.deserializeArrowAsync);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(
+                readFields,
+                filterQuery,
+                requestTabletSize,
+                requestConnectTimeoutMs,
+                requestReadTimeoutMs,
+                requestQueryTimeoutS,
+                requestRetries,
+                requestBatchSize,
+                execMemLimit,
+                deserializeQueueSize,
+                deserializeArrowAsync,
+                useOldApi);
     }
 
     /** Builder of {@link DorisReadOptions}. */

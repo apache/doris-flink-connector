@@ -18,7 +18,6 @@
 package org.apache.doris.flink.rest.models;
 
 import java.util.List;
-import java.util.Objects;
 
 public class Tablet {
     private List<String> routings;
@@ -56,25 +55,5 @@ public class Tablet {
 
     public void setSchemaHash(long schemaHash) {
         this.schemaHash = schemaHash;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-        if (o == null || getClass() != o.getClass()) {
-            return false;
-        }
-        Tablet tablet = (Tablet) o;
-        return version == tablet.version
-                && versionHash == tablet.versionHash
-                && schemaHash == tablet.schemaHash
-                && Objects.equals(routings, tablet.routings);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(routings, version, versionHash, schemaHash);
     }
 }

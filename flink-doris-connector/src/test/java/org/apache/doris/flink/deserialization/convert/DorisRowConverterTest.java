@@ -99,6 +99,10 @@ public class DorisRowConverterTest implements Serializable {
                         timestamp1,
                         timestamp2);
         GenericRowData rowData = converter.convertInternal(record);
+        DorisRowConverter converterWithDataType =
+                new DorisRowConverter(schema.getColumnDataTypes().toArray(new DataType[0]));
+        GenericRowData genericRowData = converterWithDataType.convertInternal(record);
+        Assert.assertEquals(rowData, genericRowData);
 
         RowDataSerializer serializer =
                 new Builder()
@@ -171,7 +175,7 @@ public class DorisRowConverterTest implements Serializable {
         for (int i = 0; i < rowData.getArity(); i++) {
             row.add(converter.convertExternal(rowData, i));
         }
-        //        System.out.println(row.toString());
+
         Assert.assertEquals(
                 "[null, true, 1.2, 1.2345, 24, 10, 1, 32, 64, 128, 10.123, 2021-01-01 08:01:01.000001, 2021-01-01 08:01:01.000001, 2021-01-01, a, doris, 2021-01-01 08:01:01.000001, 2021-01-01 08:01:01.000001]",
                 row.toString());

@@ -17,6 +17,7 @@
 
 package org.apache.doris.flink.deserialization;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
@@ -31,6 +32,7 @@ import java.util.List;
  * A simple implementation of {@link DorisDeserializationSchema} which converts the received list
  * record into {@link GenericRowData}.
  */
+@PublicEvolving
 public class RowDataDeserializationSchema implements DorisDeserializationSchema<RowData> {
 
     private final DorisRowConverter rowConverter;

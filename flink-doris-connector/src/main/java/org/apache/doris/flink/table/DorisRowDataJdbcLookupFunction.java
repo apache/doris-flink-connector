@@ -31,6 +31,7 @@ import org.apache.doris.flink.cfg.DorisLookupOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.lookup.DorisJdbcLookupReader;
 import org.apache.doris.flink.lookup.DorisLookupReader;
+import org.apache.doris.flink.lookup.LookupMetrics;
 import org.apache.doris.flink.lookup.LookupSchema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,6 +51,7 @@ public class DorisRowDataJdbcLookupFunction extends TableFunction<RowData> {
     private transient Cache<RowData, List<RowData>> cache;
     private DorisLookupReader lookupReader;
     private LookupSchema lookupSchema;
+    private LookupMetrics lookupMetrics;
 
     public DorisRowDataJdbcLookupFunction(
             DorisOptions options,
@@ -84,6 +86,7 @@ public class DorisRowDataJdbcLookupFunction extends TableFunction<RowData> {
                                 .maximumSize(cacheMaxSize)
                                 .build();
         this.lookupReader = new DorisJdbcLookupReader(options, lookupOptions, lookupSchema);
+        this.lookupMetrics = new LookupMetrics(context.getMetricGroup());
     }
 
     /**
@@ -96,10 +99,16 @@ public class DorisRowDataJdbcLookupFunction extends TableFunction<RowData> {
         if (cache != null) {
             List<RowData> cachedRows = cache.getIfPresent(keyRow);
             if (cachedRows != null) {
+                lookupMetrics.incHitCount();
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("lookup cache hit for key: {}", keyRow);
+                }
                 for (RowData cachedRow : cachedRows) {
                     collect(cachedRow);
                 }
                 return;
+            } else {
+                lookupMetrics.incMissCount();
             }
         }
         queryRecord(keyRow);
@@ -112,6 +121,7 @@ public class DorisRowDataJdbcLookupFunction extends TableFunction<RowData> {
         }
         if (cache != null) {
             cache.put(keyRow, rowData);
+            lookupMetrics.incLoadCount();
         }
         rowData.forEach(this::collect);
     }

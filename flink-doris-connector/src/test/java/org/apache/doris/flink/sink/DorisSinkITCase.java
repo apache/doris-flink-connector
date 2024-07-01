@@ -17,7 +17,11 @@
 
 package org.apache.doris.flink.sink;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.RuntimeExecutionMode;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.api.common.time.Deadline;
+import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 
@@ -26,24 +30,25 @@ import org.apache.doris.flink.DorisTestBase;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
+import org.apache.doris.flink.sink.batch.DorisBatchSink;
 import org.apache.doris.flink.sink.writer.serializer.SimpleStringSerializer;
+import org.apache.doris.flink.utils.MockSource;
 import org.junit.Test;
-import org.junit.jupiter.api.Assertions;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
-import java.sql.ResultSet;
 import java.sql.Statement;
+import java.time.Duration;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
+
+import static org.apache.flink.api.common.JobStatus.FINISHED;
+import static org.apache.flink.api.common.JobStatus.RUNNING;
 
 /** DorisSink ITCase with csv and arrow format. */
 public class DorisSinkITCase extends DorisTestBase {
@@ -51,6 +56,10 @@ public class DorisSinkITCase extends DorisTestBase {
     static final String TABLE_CSV = "tbl_csv";
     static final String TABLE_JSON = "tbl_json";
     static final String TABLE_JSON_TBL = "tbl_json_tbl";
+    static final String TABLE_CSV_BATCH_TBL = "tbl_csv_batch_tbl";
+    static final String TABLE_CSV_BATCH_DS = "tbl_csv_batch_DS";
+    static final String TABLE_CSV_JM = "tbl_csv_jm";
+    static final String TABLE_CSV_TM = "tbl_csv_tm";
 
     @Test
     public void testSinkCsvFormat() throws Exception {
@@ -62,25 +71,9 @@ public class DorisSinkITCase extends DorisTestBase {
         submitJob(TABLE_CSV, properties, new String[] {"doris,1"});
 
         Thread.sleep(10000);
-        Set<List<Object>> actual = new HashSet<>();
-
-        try (Connection connection =
-                        DriverManager.getConnection(
-                                String.format(URL, DORIS_CONTAINER.getHost()), USERNAME, PASSWORD);
-                Statement statement = connection.createStatement()) {
-            ResultSet sinkResultSet =
-                    statement.executeQuery(
-                            String.format(
-                                    "select name,age from %s.%s order by 1", DATABASE, TABLE_CSV));
-            while (sinkResultSet.next()) {
-                List<Object> row =
-                        Arrays.asList(sinkResultSet.getString("name"), sinkResultSet.getInt("age"));
-                actual.add(row);
-            }
-        }
-        Set<List<Object>> expected =
-                Stream.<List<Object>>of(Arrays.asList("doris", 1)).collect(Collectors.toSet());
-        Assertions.assertIterableEquals(expected, actual);
+        List<String> expected = Arrays.asList("doris,1");
+        String query = String.format("select name,age from %s.%s order by 1", DATABASE, TABLE_CSV);
+        checkResult(expected, query, 2);
     }
 
     @Test
@@ -107,25 +100,9 @@ public class DorisSinkITCase extends DorisTestBase {
                 });
 
         Thread.sleep(10000);
-        Set<List<Object>> actual = new HashSet<>();
-        try (Connection connection =
-                        DriverManager.getConnection(
-                                String.format(URL, DORIS_CONTAINER.getHost()), USERNAME, PASSWORD);
-                Statement statement = connection.createStatement()) {
-            ResultSet sinkResultSet =
-                    statement.executeQuery(
-                            String.format(
-                                    "select name,age from %s.%s order by 1", DATABASE, TABLE_JSON));
-            while (sinkResultSet.next()) {
-                List<Object> row =
-                        Arrays.asList(sinkResultSet.getString("name"), sinkResultSet.getInt("age"));
-                actual.add(row);
-            }
-        }
-        Set<List<Object>> expected =
-                Stream.<List<Object>>of(Arrays.asList("doris1", 1), Arrays.asList("doris2", 2))
-                        .collect(Collectors.toSet());
-        Assertions.assertIterableEquals(expected, actual);
+        List<String> expected = Arrays.asList("doris1,1", "doris2,2");
+        String query = String.format("select name,age from %s.%s order by 1", DATABASE, TABLE_JSON);
+        checkResult(expected, query, 2);
     }
 
     public void submitJob(String table, Properties properties, String[] records) throws Exception {
@@ -168,38 +145,241 @@ public class DorisSinkITCase extends DorisTestBase {
                                 + ") WITH ("
                                 + " 'connector' = 'doris',"
                                 + " 'fenodes' = '%s',"
+                                + " 'benodes' = '%s',"
+                                + " 'auto-redirect' = 'false',"
                                 + " 'table.identifier' = '%s',"
                                 + " 'username' = '%s',"
                                 + " 'password' = '%s',"
+                                + " 'sink.buffer-size' = '1MB',"
+                                + " 'sink.buffer-count' = '3',"
+                                + " 'sink.max-retries' = '1',"
+                                + " 'sink.enable-2pc' = 'true',"
+                                + " 'sink.use-cache' = 'true',"
+                                + " 'sink.enable-delete' = 'false',"
+                                + " 'sink.ignore.update-before' = 'true',"
                                 + " 'sink.properties.format' = 'json',"
                                 + " 'sink.properties.read_json_by_line' = 'true',"
-                                + " 'sink.label-prefix' = 'doris_sink'"
+                                + " 'sink.label-prefix' = 'doris_sink"
+                                + UUID.randomUUID()
+                                + "'"
                                 + ")",
-                        getFenodes(), DATABASE + "." + TABLE_JSON_TBL, USERNAME, PASSWORD);
+                        getFenodes(),
+                        getBenodes(),
+                        DATABASE + "." + TABLE_JSON_TBL,
+                        USERNAME,
+                        PASSWORD);
         tEnv.executeSql(sinkDDL);
         tEnv.executeSql("INSERT INTO doris_sink SELECT 'doris',1 union all SELECT 'flink',2");
 
         Thread.sleep(10000);
-        Set<List<Object>> actual = new HashSet<>();
-        try (Connection connection =
-                        DriverManager.getConnection(
-                                String.format(URL, DORIS_CONTAINER.getHost()), USERNAME, PASSWORD);
-                Statement statement = connection.createStatement()) {
-            ResultSet sinkResultSet =
-                    statement.executeQuery(
-                            String.format(
-                                    "select name,age from %s.%s order by 1",
-                                    DATABASE, TABLE_JSON_TBL));
-            while (sinkResultSet.next()) {
-                List<Object> row =
-                        Arrays.asList(sinkResultSet.getString("name"), sinkResultSet.getInt("age"));
-                actual.add(row);
-            }
+        List<String> expected = Arrays.asList("doris,1", "flink,2");
+        String query =
+                String.format("select name,age from %s.%s order by 1", DATABASE, TABLE_JSON_TBL);
+        checkResult(expected, query, 2);
+    }
+
+    @Test
+    public void testTableBatch() throws Exception {
+        initializeTable(TABLE_CSV_BATCH_TBL);
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(1);
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+        final StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
+
+        String sinkDDL =
+                String.format(
+                        "CREATE TABLE doris_sink ("
+                                + " name STRING,"
+                                + " age INT"
+                                + ") WITH ("
+                                + " 'connector' = 'doris',"
+                                + " 'fenodes' = '%s',"
+                                + " 'table.identifier' = '%s',"
+                                + " 'username' = '%s',"
+                                + " 'password' = '%s',"
+                                + " 'sink.label-prefix' = '"
+                                + UUID.randomUUID()
+                                + "',"
+                                + " 'sink.properties.column_separator' = '\\x01',"
+                                + " 'sink.properties.line_delimiter' = '\\x02',"
+                                + " 'sink.ignore.update-before' = 'false',"
+                                + " 'sink.enable.batch-mode' = 'true',"
+                                + " 'sink.enable-delete' = 'true',"
+                                + " 'sink.flush.queue-size' = '2',"
+                                + " 'sink.buffer-flush.max-rows' = '1',"
+                                + " 'sink.buffer-flush.max-bytes' = '5',"
+                                + " 'sink.buffer-flush.interval' = '10s'"
+                                + ")",
+                        getFenodes(),
+                        DATABASE + "." + TABLE_CSV_BATCH_TBL,
+                        USERNAME,
+                        PASSWORD);
+        tEnv.executeSql(sinkDDL);
+        tEnv.executeSql("INSERT INTO doris_sink SELECT 'doris',1 union all SELECT 'flink',2");
+
+        Thread.sleep(10000);
+        List<String> expected = Arrays.asList("doris,1", "flink,2");
+        String query =
+                String.format(
+                        "select name,age from %s.%s order by 1", DATABASE, TABLE_CSV_BATCH_TBL);
+        checkResult(expected, query, 2);
+    }
+
+    @Test
+    public void testDataStreamBatch() throws Exception {
+        initializeTable(TABLE_CSV_BATCH_DS);
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+        DorisBatchSink.Builder<String> builder = DorisBatchSink.builder();
+
+        DorisOptions.Builder dorisBuilder = DorisOptions.builder();
+        dorisBuilder
+                .setFenodes(getFenodes())
+                .setTableIdentifier(DATABASE + "." + TABLE_CSV_BATCH_DS)
+                .setUsername(USERNAME)
+                .setPassword(PASSWORD);
+        Properties properties = new Properties();
+        properties.setProperty("column_separator", ",");
+        properties.setProperty("line_delimiter", "\n");
+        properties.setProperty("format", "csv");
+        DorisExecutionOptions.Builder executionBuilder = DorisExecutionOptions.builder();
+        executionBuilder
+                .setLabelPrefix(UUID.randomUUID().toString())
+                .setStreamLoadProp(properties)
+                .setBufferFlushMaxBytes(1)
+                .setBufferFlushMaxRows(10);
+
+        builder.setDorisExecutionOptions(executionBuilder.build())
+                .setSerializer(new SimpleStringSerializer())
+                .setDorisOptions(dorisBuilder.build());
+
+        env.fromElements("doris,1", "flink,2").sinkTo(builder.build());
+        env.execute();
+
+        Thread.sleep(10000);
+        List<String> expected = Arrays.asList("doris,1", "flink,2");
+        String query =
+                String.format(
+                        "select name,age from %s.%s order by 1", DATABASE, TABLE_CSV_BATCH_DS);
+        checkResult(expected, query, 2);
+    }
+
+    @Test
+    public void testJobManagerFailoverSink() throws Exception {
+        initializeFailoverTable(TABLE_CSV_JM);
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(2);
+        env.enableCheckpointing(10000);
+        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 0));
+
+        DorisSink.Builder<String> builder = DorisSink.builder();
+        final DorisReadOptions.Builder readOptionBuilder = DorisReadOptions.builder();
+
+        DorisOptions.Builder dorisBuilder = DorisOptions.builder();
+        dorisBuilder
+                .setFenodes(getFenodes())
+                .setTableIdentifier(DATABASE + "." + TABLE_CSV_JM)
+                .setUsername(USERNAME)
+                .setPassword(PASSWORD);
+        DorisExecutionOptions.Builder executionBuilder = DorisExecutionOptions.builder();
+        Properties properties = new Properties();
+        properties.setProperty("column_separator", ",");
+        properties.setProperty("line_delimiter", "\n");
+        properties.setProperty("format", "csv");
+        executionBuilder
+                .setLabelPrefix(UUID.randomUUID().toString())
+                .setStreamLoadProp(properties)
+                .setUseCache(true);
+
+        builder.setDorisReadOptions(readOptionBuilder.build())
+                .setDorisExecutionOptions(executionBuilder.build())
+                .setSerializer(new SimpleStringSerializer())
+                .setDorisOptions(dorisBuilder.build());
+
+        env.addSource(new MockSource(5)).sinkTo(builder.build());
+        JobClient jobClient = env.executeAsync();
+        waitForJobStatus(
+                jobClient,
+                Collections.singletonList(RUNNING),
+                Deadline.fromNow(Duration.ofSeconds(10)));
+        JobID jobID = jobClient.getJobID();
+        // wait checkpoint 2 times
+        Thread.sleep(20000);
+        LOG.info("trigger jobmanager failover...");
+        triggerFailover(
+                FailoverType.JM, jobID, miniClusterResource.getMiniCluster(), () -> sleepMs(100));
+
+        waitForJobStatus(
+                jobClient,
+                Collections.singletonList(FINISHED),
+                Deadline.fromNow(Duration.ofSeconds(120)));
+
+        List<String> expected =
+                Arrays.asList("1,0", "1,1", "2,0", "2,1", "3,0", "3,1", "4,0", "4,1", "5,0", "5,1");
+        String query =
+                String.format("select id,task_id from %s.%s order by 1,2", DATABASE, TABLE_CSV_JM);
+        checkResult(expected, query, 2);
+    }
+
+    @Test
+    public void testTaskManagerFailoverSink() throws Exception {
+        initializeFailoverTable(TABLE_CSV_TM);
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(2);
+        env.enableCheckpointing(10000);
+        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 0));
+
+        DorisSink.Builder<String> builder = DorisSink.builder();
+        final DorisReadOptions.Builder readOptionBuilder = DorisReadOptions.builder();
+
+        DorisOptions.Builder dorisBuilder = DorisOptions.builder();
+        dorisBuilder
+                .setFenodes(getFenodes())
+                .setTableIdentifier(DATABASE + "." + TABLE_CSV_TM)
+                .setUsername(USERNAME)
+                .setPassword(PASSWORD);
+        DorisExecutionOptions.Builder executionBuilder = DorisExecutionOptions.builder();
+        Properties properties = new Properties();
+        properties.setProperty("column_separator", ",");
+        properties.setProperty("line_delimiter", "\n");
+        properties.setProperty("format", "csv");
+        executionBuilder.setLabelPrefix(UUID.randomUUID().toString()).setStreamLoadProp(properties);
+
+        builder.setDorisReadOptions(readOptionBuilder.build())
+                .setDorisExecutionOptions(executionBuilder.build())
+                .setSerializer(new SimpleStringSerializer())
+                .setDorisOptions(dorisBuilder.build());
+
+        env.addSource(new MockSource(5)).sinkTo(builder.build());
+        JobClient jobClient = env.executeAsync();
+        waitForJobStatus(
+                jobClient,
+                Collections.singletonList(RUNNING),
+                Deadline.fromNow(Duration.ofSeconds(10)));
+        JobID jobID = jobClient.getJobID();
+        // wait checkpoint 2 times
+        Thread.sleep(20000);
+        LOG.info("trigger taskmanager failover...");
+        triggerFailover(
+                FailoverType.TM, jobID, miniClusterResource.getMiniCluster(), () -> sleepMs(100));
+
+        waitForJobStatus(
+                jobClient,
+                Collections.singletonList(FINISHED),
+                Deadline.fromNow(Duration.ofSeconds(120)));
+
+        List<String> expected =
+                Arrays.asList("1,0", "1,1", "2,0", "2,1", "3,0", "3,1", "4,0", "4,1", "5,0", "5,1");
+        String query =
+                String.format("select id,task_id from %s.%s order by 1,2", DATABASE, TABLE_CSV_TM);
+        checkResult(expected, query, 2);
+    }
+
+    private void sleepMs(long millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException ignored) {
         }
-        Set<List<Object>> expected =
-                Stream.<List<Object>>of(Arrays.asList("doris", 1), Arrays.asList("flink", 2))
-                        .collect(Collectors.toSet());
-        Assertions.assertIterableEquals(expected, actual);
     }
 
     private void initializeTable(String table) throws Exception {
@@ -215,6 +395,26 @@ public class DorisSinkITCase extends DorisTestBase {
                                     + "`name` varchar(256),\n"
                                     + "`age` int\n"
                                     + ") DISTRIBUTED BY HASH(`name`) BUCKETS 1\n"
+                                    + "PROPERTIES (\n"
+                                    + "\"replication_num\" = \"1\"\n"
+                                    + ")\n",
+                            DATABASE, table));
+        }
+    }
+
+    private void initializeFailoverTable(String table) throws Exception {
+        try (Connection connection =
+                        DriverManager.getConnection(
+                                String.format(URL, DORIS_CONTAINER.getHost()), USERNAME, PASSWORD);
+                Statement statement = connection.createStatement()) {
+            statement.execute(String.format("CREATE DATABASE IF NOT EXISTS %s", DATABASE));
+            statement.execute(String.format("DROP TABLE IF EXISTS %s.%s", DATABASE, table));
+            statement.execute(
+                    String.format(
+                            "CREATE TABLE %s.%s ( \n"
+                                    + "`id` int,\n"
+                                    + "`task_id` int\n"
+                                    + ") DISTRIBUTED BY HASH(`id`) BUCKETS 1\n"
                                     + "PROPERTIES (\n"
                                     + "\"replication_num\" = \"1\"\n"
                                     + ")\n",

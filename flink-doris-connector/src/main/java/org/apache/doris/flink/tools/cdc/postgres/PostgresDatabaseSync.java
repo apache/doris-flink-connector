@@ -33,9 +33,9 @@ import com.ververica.cdc.debezium.DebeziumSourceFunction;
 import com.ververica.cdc.debezium.JsonDebeziumDeserializationSchema;
 import com.ververica.cdc.debezium.table.DebeziumOptions;
 import org.apache.doris.flink.catalog.doris.DataModel;
-import org.apache.doris.flink.deserialization.DorisJsonDebeziumDeserializationSchema;
 import org.apache.doris.flink.tools.cdc.DatabaseSync;
 import org.apache.doris.flink.tools.cdc.SourceSchema;
+import org.apache.doris.flink.tools.cdc.deserialize.DorisJsonDebeziumDeserializationSchema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -104,7 +104,11 @@ public class PostgresDatabaseSync extends DatabaseSync {
         try (Connection conn = getConnection()) {
             DatabaseMetaData metaData = conn.getMetaData();
             try (ResultSet tables =
-                    metaData.getTables(databaseName, schemaName, "%", new String[] {"TABLE"})) {
+                    metaData.getTables(
+                            databaseName,
+                            schemaName,
+                            "%",
+                            new String[] {"TABLE", "PARTITIONED TABLE"})) {
                 while (tables.next()) {
                     String tableName = tables.getString("TABLE_NAME");
                     String tableComment = tables.getString("REMARKS");
@@ -115,7 +119,7 @@ public class PostgresDatabaseSync extends DatabaseSync {
                             new PostgresSchema(
                                     metaData, databaseName, schemaName, tableName, tableComment);
                     sourceSchema.setModel(
-                            sourceSchema.primaryKeys.size() > 0
+                            !sourceSchema.primaryKeys.isEmpty()
                                     ? DataModel.UNIQUE
                                     : DataModel.DUPLICATE);
                     schemaList.add(sourceSchema);

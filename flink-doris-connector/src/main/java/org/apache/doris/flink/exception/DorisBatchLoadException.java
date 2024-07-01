@@ -34,12 +34,4 @@ public class DorisBatchLoadException extends RuntimeException {
     public DorisBatchLoadException(Throwable cause) {
         super(cause);
     }
-
-    protected DorisBatchLoadException(
-            String message,
-            Throwable cause,
-            boolean enableSuppression,
-            boolean writableStackTrace) {
-        super(message, cause, enableSuppression, writableStackTrace);
-    }
 }

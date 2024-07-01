@@ -17,6 +17,7 @@
 
 package org.apache.doris.flink.table;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.Projection;
@@ -49,6 +50,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 /** The {@link DorisDynamicTableSource} is used during planning. */
@@ -79,13 +81,6 @@ public final class DorisDynamicTableSource
         this.physicalRowDataType = physicalRowDataType;
     }
 
-    public DorisDynamicTableSource(
-            DorisOptions options, DorisReadOptions readOptions, TableSchema physicalSchema) {
-        this.options = options;
-        this.readOptions = readOptions;
-        this.physicalSchema = physicalSchema;
-    }
-
     @Override
     public ChangelogMode getChangelogMode() {
         // in our example the format decides about the changelog mode
@@ -95,14 +90,10 @@ public final class DorisDynamicTableSource
 
     @Override
     public ScanRuntimeProvider getScanRuntimeProvider(ScanContext runtimeProviderContext) {
-        String filterQuery = resolvedFilterQuery.stream().collect(Collectors.joining(" AND "));
-        readOptions.setFilterQuery(filterQuery);
-        String[] selectFields = DataType.getFieldNames(physicalRowDataType).toArray(new String[0]);
-        readOptions.setReadFields(
-                Arrays.stream(selectFields)
-                        .map(item -> String.format("`%s`", item.trim().replace("`", "")))
-                        .collect(Collectors.joining(", ")));
-
+        if (StringUtils.isNullOrWhitespaceOnly(readOptions.getFilterQuery())) {
+            String filterQuery = resolvedFilterQuery.stream().collect(Collectors.joining(" AND "));
+            readOptions.setFilterQuery(filterQuery);
+        }
         if (readOptions.getUseOldApi()) {
             List<PartitionDefinition> dorisPartitions;
             try {
@@ -189,7 +180,8 @@ public final class DorisDynamicTableSource
         DorisExpressionVisitor expressionVisitor = new DorisExpressionVisitor();
         for (ResolvedExpression filter : filters) {
             String filterQuery = filter.accept(expressionVisitor);
-            if (!StringUtils.isNullOrWhitespaceOnly(filterQuery)) {
+            if (StringUtils.isNullOrWhitespaceOnly(readOptions.getFilterQuery())
+                    && !StringUtils.isNullOrWhitespaceOnly(filterQuery)) {
                 acceptedFilters.add(filter);
                 this.resolvedFilterQuery.add(filterQuery);
             } else {
@@ -207,5 +199,46 @@ public final class DorisDynamicTableSource
     @Override
     public void applyProjection(int[][] projectedFields, DataType producedDataType) {
         this.physicalRowDataType = Projection.of(projectedFields).project(physicalRowDataType);
+        if (StringUtils.isNullOrWhitespaceOnly(readOptions.getReadFields())) {
+            String[] selectFields =
+                    DataType.getFieldNames(physicalRowDataType).toArray(new String[0]);
+            this.readOptions.setReadFields(
+                    Arrays.stream(selectFields)
+                            .map(item -> String.format("`%s`", item.trim().replace("`", "")))
+                            .collect(Collectors.joining(", ")));
+        }
+    }
+
+    @VisibleForTesting
+    public List<String> getResolvedFilterQuery() {
+        return resolvedFilterQuery;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        DorisDynamicTableSource that = (DorisDynamicTableSource) o;
+        return Objects.equals(options, that.options)
+                && Objects.equals(readOptions, that.readOptions)
+                && Objects.equals(lookupOptions, that.lookupOptions)
+                && Objects.equals(physicalSchema, that.physicalSchema)
+                && Objects.equals(resolvedFilterQuery, that.resolvedFilterQuery)
+                && Objects.equals(physicalRowDataType, that.physicalRowDataType);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(
+                options,
+                readOptions,
+                lookupOptions,
+                physicalSchema,
+                resolvedFilterQuery,
+                physicalRowDataType);
     }
 }
