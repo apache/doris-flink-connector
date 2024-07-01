@@ -26,6 +26,7 @@ import org.apache.flink.table.expressions.TypeLiteralExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.util.StringUtils;
 
 import java.util.List;
 
@@ -66,12 +67,22 @@ public class DorisExpressionVisitor implements ExpressionVisitor<String> {
         if (BuiltInFunctionDefinitions.IS_NOT_NULL.equals(call.getFunctionDefinition())) {
             return combineLeftExpression("IS NOT NULL", call.getResolvedChildren().get(0));
         }
+
+        if (BuiltInFunctionDefinitions.CAST.equals(call.getFunctionDefinition())) {
+            return call.getChildren().get(0).accept(this);
+        }
         return null;
     }
 
     private String combineExpression(String operator, List<ResolvedExpression> operand) {
         String left = operand.get(0).accept(this);
+        if (StringUtils.isNullOrWhitespaceOnly(left)) {
+            return null;
+        }
         String right = operand.get(1).accept(this);
+        if (StringUtils.isNullOrWhitespaceOnly(right)) {
+            return null;
+        }
         return String.format("(%s %s %s)", left, operator, right);
     }
 

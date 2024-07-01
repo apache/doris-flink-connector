@@ -18,6 +18,7 @@
 package org.apache.doris.flink.cfg;
 
 import java.io.Serializable;
+import java.util.Objects;
 
 public class DorisLookupOptions implements Serializable {
 
@@ -73,6 +74,36 @@ public class DorisLookupOptions implements Serializable {
 
     public boolean isAsync() {
         return async;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        DorisLookupOptions that = (DorisLookupOptions) o;
+        return cacheMaxSize == that.cacheMaxSize
+                && cacheExpireMs == that.cacheExpireMs
+                && maxRetryTimes == that.maxRetryTimes
+                && jdbcReadBatchSize == that.jdbcReadBatchSize
+                && jdbcReadBatchQueueSize == that.jdbcReadBatchQueueSize
+                && jdbcReadThreadSize == that.jdbcReadThreadSize
+                && async == that.async;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(
+                cacheMaxSize,
+                cacheExpireMs,
+                maxRetryTimes,
+                jdbcReadBatchSize,
+                jdbcReadBatchQueueSize,
+                jdbcReadThreadSize,
+                async);
     }
 
     public static Builder builder() {

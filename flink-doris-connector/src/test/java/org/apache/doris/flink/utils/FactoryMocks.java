@@ -34,6 +34,14 @@ public final class FactoryMocks {
                     Column.physical("b", DataTypes.INT()),
                     Column.physical("c", DataTypes.BOOLEAN()));
 
+    public static final ResolvedSchema SCHEMA_DT =
+            ResolvedSchema.of(
+                    Column.physical("a", DataTypes.STRING()),
+                    Column.physical("b", DataTypes.INT()),
+                    Column.physical("c", DataTypes.BOOLEAN()),
+                    Column.physical("d", DataTypes.DATE()),
+                    Column.physical("e", DataTypes.TIMESTAMP()));
+
     public static final DataType PHYSICAL_DATA_TYPE = SCHEMA.toPhysicalRowDataType();
 
     public static final RowType PHYSICAL_TYPE = (RowType) PHYSICAL_DATA_TYPE.getLogicalType();

@@ -22,6 +22,7 @@ import org.apache.flink.util.Preconditions;
 import org.apache.doris.flink.sink.writer.WriteMode;
 
 import java.io.Serializable;
+import java.util.Objects;
 import java.util.Properties;
 
 import static org.apache.doris.flink.sink.writer.LoadConstants.FORMAT_KEY;
@@ -213,6 +214,58 @@ public class DorisExecutionOptions implements Serializable {
         return ignoreCommitError;
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        DorisExecutionOptions that = (DorisExecutionOptions) o;
+        return checkInterval == that.checkInterval
+                && maxRetries == that.maxRetries
+                && bufferSize == that.bufferSize
+                && bufferCount == that.bufferCount
+                && useCache == that.useCache
+                && force2PC == that.force2PC
+                && flushQueueSize == that.flushQueueSize
+                && bufferFlushMaxRows == that.bufferFlushMaxRows
+                && bufferFlushMaxBytes == that.bufferFlushMaxBytes
+                && bufferFlushIntervalMs == that.bufferFlushIntervalMs
+                && enableBatchMode == that.enableBatchMode
+                && ignoreUpdateBefore == that.ignoreUpdateBefore
+                && ignoreCommitError == that.ignoreCommitError
+                && Objects.equals(labelPrefix, that.labelPrefix)
+                && Objects.equals(streamLoadProp, that.streamLoadProp)
+                && Objects.equals(enableDelete, that.enableDelete)
+                && Objects.equals(enable2PC, that.enable2PC)
+                && writeMode == that.writeMode;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(
+                checkInterval,
+                maxRetries,
+                bufferSize,
+                bufferCount,
+                labelPrefix,
+                useCache,
+                streamLoadProp,
+                enableDelete,
+                enable2PC,
+                force2PC,
+                flushQueueSize,
+                bufferFlushMaxRows,
+                bufferFlushMaxBytes,
+                bufferFlushIntervalMs,
+                enableBatchMode,
+                ignoreUpdateBefore,
+                writeMode,
+                ignoreCommitError);
+    }
+
     /** Builder of {@link DorisExecutionOptions}. */
     public static class Builder {
         private int checkInterval = DEFAULT_CHECK_INTERVAL;
@@ -293,6 +346,9 @@ public class DorisExecutionOptions implements Serializable {
 
         public Builder setBatchMode(Boolean enableBatchMode) {
             this.enableBatchMode = enableBatchMode;
+            if (enableBatchMode.equals(Boolean.TRUE)) {
+                this.writeMode = WriteMode.STREAM_LOAD_BATCH;
+            }
             return this;
         }
 

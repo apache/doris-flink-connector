@@ -73,4 +73,14 @@ public class TestRecordBuffer {
         Assert.assertEquals(1, recordBuffer.getReadQueueSize());
         Assert.assertEquals(0, recordBuffer.getWriteQueueSize());
     }
+
+    @Test(expected = IllegalStateException.class)
+    public void testRecordBufferCapacity() throws Exception {
+        RecordBuffer recordBuffer = new RecordBuffer(0, 0);
+    }
+
+    @Test(expected = IllegalStateException.class)
+    public void testRecordBufferQueueSize() throws Exception {
+        RecordBuffer recordBuffer = new RecordBuffer(3, 0);
+    }
 }

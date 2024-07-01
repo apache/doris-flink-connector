@@ -34,6 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
@@ -126,5 +127,26 @@ public class DorisDynamicTableSink implements DynamicTableSink {
     @Override
     public String asSummaryString() {
         return "Doris Table Sink";
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        DorisDynamicTableSink that = (DorisDynamicTableSink) o;
+        return Objects.equals(options, that.options)
+                && Objects.equals(readOptions, that.readOptions)
+                && Objects.equals(executionOptions, that.executionOptions)
+                && Objects.equals(tableSchema, that.tableSchema)
+                && Objects.equals(sinkParallelism, that.sinkParallelism);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(options, readOptions, executionOptions, tableSchema, sinkParallelism);
     }
 }

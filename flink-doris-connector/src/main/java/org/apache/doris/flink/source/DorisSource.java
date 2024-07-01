@@ -17,6 +17,7 @@
 
 package org.apache.doris.flink.source;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
@@ -49,6 +50,7 @@ import java.util.Collection;
 import java.util.List;
 
 /** DorisSource based on FLIP-27 which is a BOUNDED stream. */
+@PublicEvolving
 public class DorisSource<OUT>
         implements Source<OUT, DorisSourceSplit, PendingSplitsCheckpoint>,
                 ResultTypeQueryable<OUT> {

@@ -17,6 +17,7 @@
 
 package org.apache.doris.flink.sink.writer.serializer;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.arrow.serializers.ArrowSerializer;
 import org.apache.flink.table.types.DataType;
@@ -47,6 +48,7 @@ import static org.apache.doris.flink.sink.writer.LoadConstants.JSON;
 import static org.apache.doris.flink.sink.writer.LoadConstants.NULL_VALUE;
 
 /** Serializer for RowData. */
+@PublicEvolving
 public class RowDataSerializer implements DorisRecordSerializer<RowData> {
     private static final Logger LOG = LoggerFactory.getLogger(RowDataSerializer.class);
     String[] fieldNames;

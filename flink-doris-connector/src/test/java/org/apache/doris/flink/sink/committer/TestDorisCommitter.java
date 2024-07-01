@@ -56,6 +56,11 @@ public class TestDorisCommitter {
     private MockedStatic<BackendUtil> backendUtilMockedStatic;
     @Rule public ExpectedException thrown = ExpectedException.none();
 
+    private StatusLine normalLine = new BasicStatusLine(new ProtocolVersion("http", 1, 0), 200, "");
+    private StatusLine abnormalLine =
+            new BasicStatusLine(new ProtocolVersion("http", 1, 0), 404, "");
+    CloseableHttpResponse httpResponse;
+
     @Before
     public void setUp() throws Exception {
         DorisOptions dorisOptions = OptionUtils.buildDorisOptions();
@@ -64,14 +69,11 @@ public class TestDorisCommitter {
         dorisCommittable = new DorisCommittable("127.0.0.1:8710", "test", 0);
         CloseableHttpClient httpClient = mock(CloseableHttpClient.class);
         entityMock = new HttpEntityMock();
-        CloseableHttpResponse httpResponse = mock(CloseableHttpResponse.class);
-        StatusLine normalLine = new BasicStatusLine(new ProtocolVersion("http", 1, 0), 200, "");
+        httpResponse = mock(CloseableHttpResponse.class);
         restServiceMockedStatic = mockStatic(RestService.class);
         backendUtilMockedStatic = mockStatic(BackendUtil.class);
 
         when(httpClient.execute(any())).thenReturn(httpResponse);
-        when(httpResponse.getStatusLine()).thenReturn(normalLine);
-        when(httpResponse.getEntity()).thenReturn(entityMock);
 
         restServiceMockedStatic
                 .when(() -> RestService.getBackendsV2(any(), any(), any()))
@@ -86,6 +88,8 @@ public class TestDorisCommitter {
 
     @Test
     public void testCommitted() throws Exception {
+        when(httpResponse.getStatusLine()).thenReturn(normalLine);
+        when(httpResponse.getEntity()).thenReturn(entityMock);
         String response =
                 "{\n"
                         + "\"status\": \"Fail\",\n"
@@ -99,6 +103,8 @@ public class TestDorisCommitter {
 
     @Test
     public void testCommitAbort() throws Exception {
+        when(httpResponse.getStatusLine()).thenReturn(normalLine);
+        when(httpResponse.getEntity()).thenReturn(entityMock);
         thrown.expect(DorisRuntimeException.class);
         thrown.expectMessage("commit transaction error");
 
@@ -111,6 +117,62 @@ public class TestDorisCommitter {
         final MockCommitRequest<DorisCommittable> request =
                 new MockCommitRequest<>(dorisCommittable);
         dorisCommitter.commit(Collections.singletonList(request));
+    }
+
+    @Test
+    public void testCommitError() throws Exception {
+        when(httpResponse.getStatusLine()).thenReturn(abnormalLine);
+        when(httpResponse.getEntity()).thenReturn(entityMock);
+        thrown.expect(DorisRuntimeException.class);
+        thrown.expectMessage("commit transaction error");
+
+        this.entityMock.setValue("404");
+        final MockCommitRequest<DorisCommittable> request =
+                new MockCommitRequest<>(dorisCommittable);
+        dorisCommitter.commit(Collections.singletonList(request));
+    }
+
+    @Test
+    public void testCommitNullEntity() throws Exception {
+        when(httpResponse.getStatusLine()).thenReturn(normalLine);
+        when(httpResponse.getEntity()).thenReturn(null);
+        thrown.expect(DorisRuntimeException.class);
+        thrown.expectMessage("commit transaction error");
+
+        final MockCommitRequest<DorisCommittable> request =
+                new MockCommitRequest<>(dorisCommittable);
+        dorisCommitter.commit(Collections.singletonList(request));
+    }
+
+    @Test
+    public void testCommittedRetry() throws Exception {
+        DorisOptions dorisOptions = OptionUtils.buildDorisOptions();
+        DorisReadOptions readOptions = OptionUtils.buildDorisReadOptions();
+        DorisExecutionOptions executionOptions =
+                DorisExecutionOptions.builder().setIgnoreCommitError(true).build();
+        CloseableHttpClient httpClient = mock(CloseableHttpClient.class);
+        HttpEntityMock entityMock = new HttpEntityMock();
+        CloseableHttpResponse httpResponse = mock(CloseableHttpResponse.class);
+        when(httpResponse.getStatusLine()).thenReturn(abnormalLine);
+        when(httpResponse.getEntity()).thenReturn(entityMock);
+        entityMock.setValue("404");
+        when(httpClient.execute(any())).thenReturn(httpResponse);
+        dorisCommitter =
+                new DorisCommitter(dorisOptions, readOptions, executionOptions, httpClient);
+        final MockCommitRequest<DorisCommittable> request =
+                new MockCommitRequest<>(dorisCommittable);
+        dorisCommitter.commit(Collections.singletonList(request));
+    }
+
+    @Test
+    public void testClose() {
+        DorisOptions dorisOptions = OptionUtils.buildDorisOptions();
+        DorisReadOptions readOptions = OptionUtils.buildDorisReadOptions();
+        DorisExecutionOptions executionOptions =
+                DorisExecutionOptions.builder().setMaxRetries(1).build();
+
+        dorisCommitter = new DorisCommitter(dorisOptions, readOptions, executionOptions, null);
+        dorisCommitter.close();
     }
 
     @After

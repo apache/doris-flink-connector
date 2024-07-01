@@ -36,6 +36,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -82,23 +83,6 @@ public class DorisSystem implements Serializable {
 
     public boolean tableExists(String database, String table) {
         return databaseExists(database) && listTables(database).contains(table);
-    }
-
-    public boolean columnExists(String database, String table, String columnName) {
-        if (tableExists(database, table)) {
-            List<String> columns =
-                    extractColumnValuesBySQL(
-                            "SELECT COLUMN_NAME FROM information_schema.`COLUMNS` WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = ?",
-                            1,
-                            null,
-                            database,
-                            table,
-                            columnName);
-            if (columns != null && !columns.isEmpty()) {
-                return true;
-            }
-        }
-        return false;
     }
 
     public List<String> listTables(String databaseName) {
@@ -239,6 +223,32 @@ public class DorisSystem implements Serializable {
             }
         }
         return sb.toString();
+    }
+
+    public Map<String, String> getTableFieldNames(String databaseName, String tableName) {
+        if (!databaseExists(databaseName)) {
+            throw new DorisRuntimeException("database" + databaseName + " is not exists");
+        }
+        String sql =
+                String.format(
+                        "SELECT COLUMN_NAME,DATA_TYPE "
+                                + "FROM `information_schema`.`COLUMNS` WHERE `TABLE_SCHEMA`= '%s' AND `TABLE_NAME`= '%s'",
+                        databaseName, tableName);
+
+        Map<String, String> columnValues = new HashMap<>();
+        try (PreparedStatement ps =
+                jdbcConnectionProvider.getOrEstablishConnection().prepareStatement(sql)) {
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                String filedName = rs.getString(1);
+                String datatype = rs.getString(2);
+                columnValues.put(filedName, datatype);
+            }
+            return columnValues;
+        } catch (Exception e) {
+            throw new DorisSystemException(
+                    String.format("The following SQL query could not be executed: %s", sql), e);
+        }
     }
 
     private static void buildColumn(StringBuilder sql, FieldSchema field, boolean isKey) {

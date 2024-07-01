@@ -55,7 +55,7 @@ public class DorisSourceExample {
                         + ")");
 
         // define a dynamic aggregating query
-        final Table result = tEnv.sqlQuery("SELECT * from doris_source  ");
+        final Table result = tEnv.sqlQuery("SELECT * from doris_source ");
 
         // print the result to the console
         tEnv.toDataStream(result).print();
