@@ -58,6 +58,7 @@ import static org.apache.doris.flink.sink.ResponseUtil.LABEL_EXIST_PATTERN;
 import static org.apache.doris.flink.sink.writer.LoadConstants.ARROW;
 import static org.apache.doris.flink.sink.writer.LoadConstants.CSV;
 import static org.apache.doris.flink.sink.writer.LoadConstants.FORMAT_KEY;
+import static org.apache.doris.flink.sink.writer.LoadConstants.GROUP_COMMIT;
 import static org.apache.doris.flink.sink.writer.LoadConstants.LINE_DELIMITER_DEFAULT;
 import static org.apache.doris.flink.sink.writer.LoadConstants.LINE_DELIMITER_KEY;
 
@@ -87,6 +88,7 @@ public class DorisStreamLoad implements Serializable {
     private final ExecutorService executorService;
     private boolean loadBatchFirstRecord;
     private volatile String currentLabel;
+    private boolean enableGroupCommit;
 
     public DorisStreamLoad(
             String hostPort,
@@ -129,6 +131,7 @@ public class DorisStreamLoad implements Serializable {
                                             LINE_DELIMITER_KEY, LINE_DELIMITER_DEFAULT))
                             .getBytes();
         }
+        enableGroupCommit = streamLoadProp.containsKey(GROUP_COMMIT);
         loadBatchFirstRecord = true;
     }
 
@@ -276,6 +279,9 @@ public class DorisStreamLoad implements Serializable {
      * @throws IOException
      */
     public void startLoad(String label, boolean isResume) throws IOException {
+        if (enableGroupCommit) {
+            label = null;
+        }
         loadBatchFirstRecord = !isResume;
         HttpPutBuilder putBuilder = new HttpPutBuilder();
         recordStream.startInput(isResume);
@@ -294,10 +300,14 @@ public class DorisStreamLoad implements Serializable {
             if (enable2PC) {
                 putBuilder.enable2PC();
             }
+            String finalLabel = label;
             pendingLoadFuture =
                     executorService.submit(
                             () -> {
-                                LOG.info("table {} start execute load for label {}", table, label);
+                                LOG.info(
+                                        "table {} start execute load for label {}",
+                                        table,
+                                        finalLabel);
                                 return httpClient.execute(putBuilder.build());
                             });
         } catch (Exception e) {

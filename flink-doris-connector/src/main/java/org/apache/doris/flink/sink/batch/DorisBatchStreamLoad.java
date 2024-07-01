@@ -67,6 +67,7 @@ import static org.apache.doris.flink.sink.LoadStatus.SUCCESS;
 import static org.apache.doris.flink.sink.writer.LoadConstants.ARROW;
 import static org.apache.doris.flink.sink.writer.LoadConstants.CSV;
 import static org.apache.doris.flink.sink.writer.LoadConstants.FORMAT_KEY;
+import static org.apache.doris.flink.sink.writer.LoadConstants.GROUP_COMMIT;
 import static org.apache.doris.flink.sink.writer.LoadConstants.LINE_DELIMITER_DEFAULT;
 import static org.apache.doris.flink.sink.writer.LoadConstants.LINE_DELIMITER_KEY;
 
@@ -95,6 +96,7 @@ public class DorisBatchStreamLoad implements Serializable {
     private AtomicReference<Throwable> exception = new AtomicReference<>(null);
     private HttpClientBuilder httpClientBuilder = new HttpUtil().getHttpClientBuilderForBatch();
     private BackendUtil backendUtil;
+    private boolean enableGroupCommit;
 
     public DorisBatchStreamLoad(
             DorisOptions dorisOptions,
@@ -120,6 +122,7 @@ public class DorisBatchStreamLoad implements Serializable {
                                             LINE_DELIMITER_KEY, LINE_DELIMITER_DEFAULT))
                             .getBytes();
         }
+        this.enableGroupCommit = loadProps.containsKey(GROUP_COMMIT);
         this.executionOptions = executionOptions;
         this.flushQueue = new LinkedBlockingDeque<>(executionOptions.getFlushQueueSize());
         if (StringUtils.isNotBlank(dorisOptions.getTableIdentifier())) {
@@ -260,6 +263,9 @@ public class DorisBatchStreamLoad implements Serializable {
 
         /** execute stream load. */
         public void load(String label, BatchRecordBuffer buffer) throws IOException {
+            if (enableGroupCommit) {
+                label = null;
+            }
             refreshLoadUrl(buffer.getDatabase(), buffer.getTable());
             ByteBuffer data = buffer.getData();
             ByteArrayEntity entity =
