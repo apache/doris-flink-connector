@@ -293,9 +293,6 @@ public class DorisStreamLoad implements Serializable {
      * @throws IOException
      */
     public void startLoad(String label, boolean isResume) throws IOException {
-        if (enableGroupCommit) {
-            label = null;
-        }
         loadBatchFirstRecord = !isResume;
         HttpPutBuilder putBuilder = new HttpPutBuilder();
         recordStream.startInput(isResume);
