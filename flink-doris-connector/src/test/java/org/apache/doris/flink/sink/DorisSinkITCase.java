@@ -294,8 +294,8 @@ public class DorisSinkITCase extends DorisTestBase {
                                 + " 'sink.enable.batch-mode' = 'true',"
                                 + " 'sink.enable-delete' = 'true',"
                                 + " 'sink.flush.queue-size' = '2',"
-                                + " 'sink.buffer-flush.max-rows' = '1',"
-                                + " 'sink.buffer-flush.max-bytes' = '5',"
+                                + " 'sink.buffer-flush.max-rows' = '3',"
+                                + " 'sink.buffer-flush.max-bytes' = '5000',"
                                 + " 'sink.buffer-flush.interval' = '10s'"
                                 + ")",
                         getFenodes(),
@@ -304,10 +304,10 @@ public class DorisSinkITCase extends DorisTestBase {
                         PASSWORD);
         tEnv.executeSql(sinkDDL);
         tEnv.executeSql(
-                "INSERT INTO doris_group_commit_sink SELECT 'doris',1 union all  SELECT 'group_commit',2");
+                "INSERT INTO doris_group_commit_sink SELECT 'doris',1 union all  SELECT 'group_commit',2 union all  SELECT 'flink',3");
 
         Thread.sleep(25000);
-        List<String> expected = Arrays.asList("doris,1", "group_commit,2");
+        List<String> expected = Arrays.asList("doris,1", "flink,3", "group_commit,2");
         String query =
                 String.format(
                         "select name,age from %s.%s order by 1", DATABASE, TABLE_GROUP_COMMIT);
