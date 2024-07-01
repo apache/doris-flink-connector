@@ -17,18 +17,19 @@
 
 package org.apache.doris.flink.source.split;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Set;
-
-import org.apache.doris.flink.rest.PartitionDefinition;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.core.memory.DataOutputView;
+
+import org.apache.doris.flink.rest.PartitionDefinition;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
 
 /** A serializer for the {@link DorisSourceSplit}. */
 public class DorisSourceSplitSerializer implements SimpleVersionedSerializer<DorisSourceSplit> {
@@ -71,7 +72,6 @@ public class DorisSourceSplitSerializer implements SimpleVersionedSerializer<Dor
 
         final DataOutputSerializer out = SERIALIZER_CACHE.get();
 
-
         PartitionDefinition partDef = split.getPartitionDefinition();
         out.writeUTF(partDef.getDatabase());
         out.writeUTF(partDef.getTable());
@@ -96,7 +96,7 @@ public class DorisSourceSplitSerializer implements SimpleVersionedSerializer<Dor
 
     @Override
     public DorisSourceSplit deserialize(int version, byte[] serialized) throws IOException {
-        switch (version){
+        switch (version) {
             case 1:
             case 2:
                 return deserializeSplit(version, serialized);
@@ -121,7 +121,7 @@ public class DorisSourceSplitSerializer implements SimpleVersionedSerializer<Dor
 
         // read split id
         String splitId = "splitId";
-        if(version >= 2){
+        if (version >= 2) {
             splitId = in.readUTF();
         }
         PartitionDefinition partDef =

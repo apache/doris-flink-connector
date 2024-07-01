@@ -17,11 +17,11 @@
 
 package org.apache.doris.flink.source.split;
 
-import java.util.HashSet;
-
 import org.apache.doris.flink.rest.PartitionDefinition;
 import org.junit.Assert;
 import org.junit.Test;
+
+import java.util.HashSet;
 
 public class DorisSourceSplitTest {
 

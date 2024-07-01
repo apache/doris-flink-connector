@@ -17,19 +17,22 @@
 
 package org.apache.doris.flink.source.enumerator;
 
-import javax.annotation.Nullable;
-import java.io.IOException;
-import java.util.List;
-import java.util.Optional;
+import org.apache.flink.api.connector.source.SplitEnumerator;
+import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 
 import org.apache.doris.flink.source.DorisSource;
 import org.apache.doris.flink.source.assigners.DorisSplitAssigner;
 import org.apache.doris.flink.source.split.DorisSourceSplit;
-import org.apache.flink.api.connector.source.SplitEnumerator;
-import org.apache.flink.api.connector.source.SplitEnumeratorContext;
-import static org.apache.flink.util.Preconditions.checkNotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
+
+import java.io.IOException;
+import java.util.List;
+import java.util.Optional;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A SplitEnumerator implementation for bounded / batch {@link DorisSource} input.

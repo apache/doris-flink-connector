@@ -17,15 +17,16 @@
 
 package org.apache.doris.flink.source.assigners;
 
-import javax.annotation.Nullable;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Optional;
-
 import org.apache.doris.flink.source.enumerator.PendingSplitsCheckpoint;
 import org.apache.doris.flink.source.split.DorisSourceSplit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Optional;
 
 /** The {@code SimpleSplitAssigner} hands out splits in a random order. */
 public class SimpleSplitAssigner implements DorisSplitAssigner {

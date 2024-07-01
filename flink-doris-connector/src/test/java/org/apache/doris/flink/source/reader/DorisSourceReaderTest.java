@@ -17,14 +17,15 @@
 
 package org.apache.doris.flink.source.reader;
 
-import java.io.IOException;
-import java.util.Collections;
-
 import org.apache.doris.flink.deserialization.SimpleListDeserializationSchema;
 import org.apache.doris.flink.sink.OptionUtils;
 import org.apache.doris.flink.source.split.DorisSourceSplit;
-import static org.junit.Assert.assertEquals;
 import org.junit.Test;
+
+import java.io.IOException;
+import java.util.Collections;
+
+import static org.junit.Assert.assertEquals;
 
 /** Unit tests for the {@link DorisSourceReader}. */
 public class DorisSourceReaderTest {

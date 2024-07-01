@@ -17,11 +17,13 @@
 
 package org.apache.doris.flink.source.split;
 
-import javax.annotation.Nullable;
-import java.util.Objects;
+import org.apache.flink.api.connector.source.SourceSplit;
 
 import org.apache.doris.flink.rest.PartitionDefinition;
-import org.apache.flink.api.connector.source.SourceSplit;
+
+import javax.annotation.Nullable;
+
+import java.util.Objects;
 
 /** A {@link SourceSplit} that represents a {@link PartitionDefinition}. */
 public class DorisSourceSplit implements SourceSplit {
