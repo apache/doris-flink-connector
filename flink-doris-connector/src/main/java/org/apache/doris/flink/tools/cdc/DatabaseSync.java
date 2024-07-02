@@ -131,10 +131,11 @@ public abstract class DatabaseSync {
         if (tableConfig.containsKey("table-buckets")) {
             tableBucketsMap = getTableBuckets(tableConfig.get("table-buckets"));
         }
-        Set<String> bucketsTable = new HashSet<>();
-        Set<String> targetDbSet = new HashSet<>();
+
         // Set of table names that have assigned bucket numbers.
         Set<String> tablesWithBucketsAssigned = new HashSet<>();
+        Set<String> bucketsTable = new HashSet<>();
+        Set<String> targetDbSet = new HashSet<>();
         for (SourceSchema schema : schemaList) {
             syncTables.add(schema.getTableName());
             String targetDb = database;
