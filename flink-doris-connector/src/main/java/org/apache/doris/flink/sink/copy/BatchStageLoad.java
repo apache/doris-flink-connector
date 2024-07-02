@@ -427,4 +427,9 @@ public class BatchStageLoad implements Serializable {
     public void setHttpClientBuilder(HttpClientBuilder httpClientBuilder) {
         this.httpClientBuilder = httpClientBuilder;
     }
+
+    @VisibleForTesting
+    public boolean isLoadThreadAlive() {
+        return loadThreadAlive;
+    }
 }

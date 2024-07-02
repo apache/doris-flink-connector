@@ -17,6 +17,7 @@
 
 package org.apache.doris.flink.sink.copy;
 
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.connector.sink2.Sink;
 
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
@@ -24,8 +25,8 @@ import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.sink.HttpTestUtil;
 import org.apache.doris.flink.sink.OptionUtils;
+import org.apache.doris.flink.sink.TestUtil;
 import org.apache.doris.flink.sink.writer.DorisWriterState;
-import org.apache.doris.flink.sink.writer.LabelGenerator;
 import org.apache.doris.flink.sink.writer.serializer.SimpleStringSerializer;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -36,8 +37,10 @@ import org.junit.FixMethodOrder;
 import org.junit.Test;
 import org.junit.runners.MethodSorters;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.List;
+import java.util.regex.Pattern;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -62,18 +65,9 @@ public class TestDorisCopyWriter {
         HttpClientBuilder httpClientBuilder = mock(HttpClientBuilder.class);
         CloseableHttpClient httpClient = mock(CloseableHttpClient.class);
         when(httpClientBuilder.build()).thenReturn(httpClient);
-        BatchStageLoad stageLoad =
-                new BatchStageLoad(
-                        dorisOptions,
-                        readOptions,
-                        executionOptions,
-                        new LabelGenerator("label", true));
-        stageLoad.setHttpClientBuilder(httpClientBuilder);
-
         CloseableHttpResponse uploadResponse = HttpTestUtil.getResponse("", false, true);
         CloseableHttpResponse preCommitResponse = HttpTestUtil.getResponse("", true, false);
         when(httpClient.execute(any())).thenReturn(uploadResponse).thenReturn(preCommitResponse);
-
         Sink.InitContext initContext = mock(Sink.InitContext.class);
         // when(initContext.getRestoredCheckpointId()).thenReturn(OptionalLong.of(1));
         DorisCopyWriter<String> copyWriter =
@@ -83,8 +77,15 @@ public class TestDorisCopyWriter {
                         dorisOptions,
                         readOptions,
                         executionOptions);
-        copyWriter.setBatchStageLoad(stageLoad);
-        stageLoad.setCurrentCheckpointID(1);
+        copyWriter.getBatchStageLoad().setHttpClientBuilder(httpClientBuilder);
+        copyWriter.getBatchStageLoad().setCurrentCheckpointID(1);
+
+        TestUtil.waitUntilCondition(
+                () -> copyWriter.getBatchStageLoad().isLoadThreadAlive(),
+                Deadline.fromNow(Duration.ofSeconds(10)),
+                100L,
+                "Condition was not met in given timeout.");
+        Assert.assertTrue(copyWriter.getBatchStageLoad().isLoadThreadAlive());
         // no data
         Collection<DorisCopyCommittable> committableList = copyWriter.prepareCommit();
         Assert.assertEquals(0, committableList.size());
@@ -98,18 +99,16 @@ public class TestDorisCopyWriter {
         DorisCopyCommittable committable = committableList.toArray(new DorisCopyCommittable[0])[0];
         Assert.assertEquals("127.0.0.1:8030", committable.getHostPort());
 
+        Pattern copySql =
+                Pattern.compile(
+                        "COPY INTO `db`.`table` FROM @~\\('.doris_[0-9a-f]{32}_table_0_1_0}'\\)");
         // todo: compare properties
-        Assert.assertTrue(
-                committable
-                        .getCopySQL()
-                        .startsWith("COPY INTO `db`.`table` FROM @~('{label_table_0_1_0}')"));
+        Assert.assertTrue(copySql.matcher(committable.getCopySQL()).find());
         copyWriter.close();
     }
 
     @Test
     public void testSnapshot() throws Exception {
-        CloseableHttpClient httpClient = mock(CloseableHttpClient.class);
-
         Sink.InitContext initContext = mock(Sink.InitContext.class);
         // when(initContext.getRestoredCheckpointId()).thenReturn(OptionalLong.of(1));
         DorisCopyWriter<String> copyWriter =
@@ -119,13 +118,12 @@ public class TestDorisCopyWriter {
                         dorisOptions,
                         readOptions,
                         executionOptions);
-        BatchStageLoad stageLoad =
-                new BatchStageLoad(
-                        dorisOptions,
-                        readOptions,
-                        executionOptions,
-                        new LabelGenerator("label", true));
-        copyWriter.setBatchStageLoad(stageLoad);
+        TestUtil.waitUntilCondition(
+                () -> copyWriter.getBatchStageLoad().isLoadThreadAlive(),
+                Deadline.fromNow(Duration.ofSeconds(10)),
+                100L,
+                "Condition was not met in given timeout.");
+        Assert.assertTrue(copyWriter.getBatchStageLoad().isLoadThreadAlive());
         List<DorisWriterState> writerStates = copyWriter.snapshotState(1);
         Assert.assertTrue(writerStates.isEmpty());
         copyWriter.close();

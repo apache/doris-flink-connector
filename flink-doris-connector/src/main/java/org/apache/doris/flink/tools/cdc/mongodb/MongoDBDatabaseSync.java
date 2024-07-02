@@ -133,7 +133,8 @@ public class MongoDBDatabaseSync extends DatabaseSync {
     private ArrayList<Document> sampleData(MongoCollection<Document> collection, Long sampleNum) {
         ArrayList<Document> query = new ArrayList<>();
         query.add(new Document("$sample", new Document("size", sampleNum)));
-        return collection.aggregate(query).into(new ArrayList<>());
+        // allowDiskUse to avoid mongo 'Sort exceeded memory limit' error
+        return collection.aggregate(query).allowDiskUse(true).into(new ArrayList<>());
     }
 
     private static String buildConnectionString(
@@ -159,6 +160,8 @@ public class MongoDBDatabaseSync extends DatabaseSync {
         String username = config.get(MongoDBSourceOptions.USERNAME);
         String password = config.get(MongoDBSourceOptions.PASSWORD);
         String database = config.get(MongoDBSourceOptions.DATABASE);
+        // note: just to unify job name, no other use.
+        config.setString("database-name", database);
         String collection = config.get(MongoDBSourceOptions.COLLECTION);
         if (StringUtils.isBlank(collection)) {
             collection = config.get(TABLE_NAME);

@@ -197,7 +197,7 @@ public class DorisCopyWriter<IN>
     }
 
     @VisibleForTesting
-    public void setBatchStageLoad(BatchStageLoad batchStageLoad) {
-        this.batchStageLoad = batchStageLoad;
+    public BatchStageLoad getBatchStageLoad() {
+        return batchStageLoad;
     }
 }
