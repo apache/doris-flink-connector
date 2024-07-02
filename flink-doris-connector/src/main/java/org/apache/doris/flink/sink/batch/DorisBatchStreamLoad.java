@@ -68,6 +68,7 @@ import static org.apache.doris.flink.sink.writer.LoadConstants.ARROW;
 import static org.apache.doris.flink.sink.writer.LoadConstants.CSV;
 import static org.apache.doris.flink.sink.writer.LoadConstants.FORMAT_KEY;
 import static org.apache.doris.flink.sink.writer.LoadConstants.GROUP_COMMIT;
+import static org.apache.doris.flink.sink.writer.LoadConstants.GROUP_COMMIT_OFF_MODE;
 import static org.apache.doris.flink.sink.writer.LoadConstants.LINE_DELIMITER_DEFAULT;
 import static org.apache.doris.flink.sink.writer.LoadConstants.LINE_DELIMITER_KEY;
 
@@ -122,7 +123,11 @@ public class DorisBatchStreamLoad implements Serializable {
                                             LINE_DELIMITER_KEY, LINE_DELIMITER_DEFAULT))
                             .getBytes();
         }
-        this.enableGroupCommit = loadProps.containsKey(GROUP_COMMIT);
+        this.enableGroupCommit =
+                loadProps.containsKey(GROUP_COMMIT)
+                        && !loadProps
+                                .getProperty(GROUP_COMMIT)
+                                .equalsIgnoreCase(GROUP_COMMIT_OFF_MODE);
         this.executionOptions = executionOptions;
         this.flushQueue = new LinkedBlockingDeque<>(executionOptions.getFlushQueueSize());
         if (StringUtils.isNotBlank(dorisOptions.getTableIdentifier())) {
@@ -283,7 +288,12 @@ public class DorisBatchStreamLoad implements Serializable {
             Throwable resEx = new Throwable();
             int retry = 0;
             while (retry <= executionOptions.getMaxRetries()) {
-                LOG.info("stream load started for {} on host {}", label, hostPort);
+                if (enableGroupCommit) {
+                    LOG.info("stream load started with group commit on host {}", hostPort);
+                } else {
+                    LOG.info("stream load started for {} on host {}", label, hostPort);
+                }
+
                 try (CloseableHttpClient httpClient = httpClientBuilder.build()) {
                     try (CloseableHttpResponse response = httpClient.execute(putBuilder.build())) {
                         int statusCode = response.getStatusLine().getStatusCode();
