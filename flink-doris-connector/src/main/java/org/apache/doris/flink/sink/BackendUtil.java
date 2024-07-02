@@ -17,6 +17,8 @@
 
 package org.apache.doris.flink.sink;
 
+import org.apache.flink.annotation.VisibleForTesting;
+
 import org.apache.commons.lang3.StringUtils;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
@@ -76,9 +78,15 @@ public class BackendUtil {
     }
 
     public String getAvailableBackend() {
+        return getAvailableBackend(0);
+    }
+
+    public String getAvailableBackend(int subtaskId) {
         long tmp = pos + backends.size();
         while (pos < tmp) {
-            BackendV2.BackendRowV2 backend = backends.get((int) (pos++ % backends.size()));
+            BackendV2.BackendRowV2 backend =
+                    backends.get((int) ((pos + subtaskId) % backends.size()));
+            pos++;
             String res = backend.toBackendString();
             if (tryHttpConnection(res)) {
                 return res;
@@ -89,9 +97,7 @@ public class BackendUtil {
 
     public static boolean tryHttpConnection(String host) {
         try {
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("try to connect host {}", host);
-            }
+            LOG.debug("try to connect host {}", host);
             host = "http://" + host;
             URL url = new URL(host);
             HttpURLConnection co = (HttpURLConnection) url.openConnection();
@@ -103,5 +109,10 @@ public class BackendUtil {
             LOG.warn("Failed to connect to host:{}", host, ex);
             return false;
         }
+    }
+
+    @VisibleForTesting
+    public List<BackendRowV2> getBackends() {
+        return backends;
     }
 }

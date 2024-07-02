@@ -17,6 +17,7 @@
 
 package org.apache.doris.flink.sink.copy;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
@@ -420,5 +421,15 @@ public class BatchStageLoad implements Serializable {
             t.setDaemon(false);
             return t;
         }
+    }
+
+    @VisibleForTesting
+    public void setHttpClientBuilder(HttpClientBuilder httpClientBuilder) {
+        this.httpClientBuilder = httpClientBuilder;
+    }
+
+    @VisibleForTesting
+    public boolean isLoadThreadAlive() {
+        return loadThreadAlive;
     }
 }

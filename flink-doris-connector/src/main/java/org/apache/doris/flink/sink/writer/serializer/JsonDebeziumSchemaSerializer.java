@@ -17,6 +17,7 @@
 
 package org.apache.doris.flink.sink.writer.serializer;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.StringUtils;
 
@@ -55,6 +56,7 @@ import static org.apache.doris.flink.sink.writer.LoadConstants.LINE_DELIMITER_KE
  * 1. data change{@link JsonDebeziumDataChange} record. <br>
  * 2. schema change{@link JsonDebeziumSchemaChange} records.
  */
+@PublicEvolving
 public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<String> {
     private static final Logger LOG = LoggerFactory.getLogger(JsonDebeziumSchemaSerializer.class);
     private final Pattern pattern;

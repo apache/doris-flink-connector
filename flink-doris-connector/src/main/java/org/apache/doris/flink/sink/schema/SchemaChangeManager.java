@@ -30,6 +30,8 @@ import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.exception.DorisSchemaChangeException;
 import org.apache.doris.flink.exception.IllegalArgumentException;
 import org.apache.doris.flink.rest.RestService;
+import org.apache.doris.flink.rest.models.Field;
+import org.apache.doris.flink.rest.models.Schema;
 import org.apache.doris.flink.sink.HttpGetWithEntity;
 import org.apache.http.HttpHeaders;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -47,6 +49,7 @@ import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 public class SchemaChangeManager implements Serializable {
     private static final long serialVersionUID = 1L;
@@ -56,12 +59,24 @@ public class SchemaChangeManager implements Serializable {
     private static final String SCHEMA_CHANGE_API = "http://%s/api/query/default_cluster/%s";
     private ObjectMapper objectMapper = new ObjectMapper();
     private DorisOptions dorisOptions;
+    private String charsetEncoding = "UTF-8";
 
     public SchemaChangeManager(DorisOptions dorisOptions) {
         this.dorisOptions = dorisOptions;
     }
 
+    public SchemaChangeManager(DorisOptions dorisOptions, String charsetEncoding) {
+        this.dorisOptions = dorisOptions;
+        this.charsetEncoding = charsetEncoding;
+    }
+
     public boolean createTable(TableSchema table) throws IOException, IllegalArgumentException {
+        // auto create database if not exists
+        if (!checkDatabaseExists(table.getDatabase())) {
+            execute(
+                    SchemaChangeHelper.buildCreateDatabaseDDL(table.getDatabase()),
+                    SchemaChangeHelper.DEFAULT_DATABASE);
+        }
         String createTableDDL = DorisSystem.buildCreateTableDDL(table);
         return execute(createTableDDL, table.getDatabase());
     }
@@ -103,6 +118,54 @@ public class SchemaChangeManager implements Serializable {
                 database, table, buildRequestParam(true, oldColumnName), renameColumnDDL);
     }
 
+    public boolean modifyColumnDataType(String database, String table, FieldSchema field)
+            throws IOException, IllegalArgumentException {
+        if (!checkColumnExists(database, table, field.getName())) {
+            LOG.warn(
+                    "The column {} is not exists in table {}, can not modify it type",
+                    field.getName(),
+                    table);
+            return false;
+        }
+        // If user does not give a comment, need fill it from
+        // original table schema to avoid miss comment
+        if (StringUtils.isNullOrWhitespaceOnly(field.getComment())) {
+            Schema tableSchema = getTableSchema(database, table);
+            Optional<Field> originalField =
+                    tableSchema.getProperties().stream()
+                            .filter(column -> column.getName().equals(field.getName()))
+                            .findAny();
+            originalField.ifPresent(oldField -> field.setComment(oldField.getComment()));
+        }
+        String tableIdentifier = getTableIdentifier(database, table);
+        String modifyColumnDDL =
+                SchemaChangeHelper.buildModifyColumnDataTypeDDL(tableIdentifier, field);
+        return schemaChange(
+                database, table, buildRequestParam(false, field.getName()), modifyColumnDDL);
+    }
+
+    public boolean modifyColumnComment(
+            String database, String table, String columnName, String newComment)
+            throws IOException, IllegalArgumentException {
+        if (!checkColumnExists(database, table, columnName)) {
+            LOG.warn(
+                    "The column {} is not exists in table {}, can not modify it's comment",
+                    columnName,
+                    table);
+            return false;
+        }
+        String tableIdentifier = getTableIdentifier(database, table);
+        String modifyColumnCommentDDL =
+                SchemaChangeHelper.buildModifyColumnCommentDDL(
+                        tableIdentifier, columnName, newComment);
+        return schemaChange(
+                database, table, buildRequestParam(false, columnName), modifyColumnCommentDDL);
+    }
+
+    public Schema getTableSchema(String database, String table) {
+        return RestService.getSchema(dorisOptions, database, table, LOG);
+    }
+
     public boolean schemaChange(
             String database, String table, Map<String, Object> params, String sql)
             throws IOException, IllegalArgumentException {
@@ -133,7 +196,8 @@ public class SchemaChangeManager implements Serializable {
                         table);
         HttpGetWithEntity httpGet = new HttpGetWithEntity(requestUrl);
         httpGet.setHeader(HttpHeaders.AUTHORIZATION, authHeader());
-        httpGet.setEntity(new StringEntity(objectMapper.writeValueAsString(params)));
+        httpGet.setEntity(
+                new StringEntity(objectMapper.writeValueAsString(params), charsetEncoding));
         String responseEntity = "";
         Map<String, Object> responseMap = handleResponse(httpGet, responseEntity);
         return handleSchemaChange(responseMap, responseEntity);
@@ -173,8 +237,11 @@ public class SchemaChangeManager implements Serializable {
                         database);
         HttpPost httpPost = new HttpPost(requestUrl);
         httpPost.setHeader(HttpHeaders.AUTHORIZATION, authHeader());
-        httpPost.setHeader(HttpHeaders.CONTENT_TYPE, "application/json");
-        httpPost.setEntity(new StringEntity(objectMapper.writeValueAsString(param)));
+        httpPost.setHeader(
+                HttpHeaders.CONTENT_TYPE,
+                String.format("application/json;charset=%s", charsetEncoding));
+        httpPost.setEntity(
+                new StringEntity(objectMapper.writeValueAsString(param), charsetEncoding));
         return httpPost;
     }
 
@@ -205,7 +272,18 @@ public class SchemaChangeManager implements Serializable {
     public boolean checkColumnExists(String database, String table, String columnName)
             throws IllegalArgumentException, IOException {
         String existsQuery = SchemaChangeHelper.buildColumnExistsQuery(database, table, columnName);
-        HttpPost httpPost = buildHttpPost(existsQuery, database);
+        return sendHttpPostRequest(existsQuery, database);
+    }
+
+    private boolean checkDatabaseExists(String database)
+            throws IllegalArgumentException, IOException {
+        String existsQuery = SchemaChangeHelper.buildDatabaseExistsQuery(database);
+        return sendHttpPostRequest(existsQuery, SchemaChangeHelper.DEFAULT_DATABASE);
+    }
+
+    private boolean sendHttpPostRequest(String sql, String database)
+            throws IOException, IllegalArgumentException {
+        HttpPost httpPost = buildHttpPost(sql, database);
         try (CloseableHttpClient httpclient = HttpClients.createDefault()) {
             CloseableHttpResponse response = httpclient.execute(httpPost);
             final int statusCode = response.getStatusLine().getStatusCode();
@@ -221,7 +299,10 @@ public class SchemaChangeManager implements Serializable {
                 }
             }
         } catch (Exception e) {
-            LOG.error("check column exist request error {}, default return false", e.getMessage());
+            LOG.error(
+                    "send http post request error {}, default return false, SQL:{}",
+                    e.getMessage(),
+                    sql);
         }
         return false;
     }

@@ -143,7 +143,8 @@ public class DorisWriter<IN>
         }
     }
 
-    private void abortLingeringTransactions(Collection<DorisWriterState> recoveredStates)
+    @VisibleForTesting
+    public void abortLingeringTransactions(Collection<DorisWriterState> recoveredStates)
             throws Exception {
         List<String> alreadyAborts = new ArrayList<>();
         // abort label in state
@@ -312,7 +313,7 @@ public class DorisWriter<IN>
         List<DorisWriterState> writerStates = new ArrayList<>();
         for (DorisStreamLoad dorisStreamLoad : dorisStreamLoadMap.values()) {
             // Dynamic refresh backend
-            dorisStreamLoad.setHostPort(backendUtil.getAvailableBackend());
+            dorisStreamLoad.setHostPort(backendUtil.getAvailableBackend(subtaskId));
             DorisWriterState writerState =
                     new DorisWriterState(
                             labelPrefix,
@@ -333,14 +334,15 @@ public class DorisWriter<IN>
                                 labelPrefix, executionOptions.enabled2PC(), tableKey, subtaskId));
     }
 
-    private DorisStreamLoad getStreamLoader(String tableKey) {
+    @VisibleForTesting
+    public DorisStreamLoad getStreamLoader(String tableKey) {
         LabelGenerator labelGenerator = getLabelGenerator(tableKey);
         dorisOptions.setTableIdentifier(tableKey);
         return dorisStreamLoadMap.computeIfAbsent(
                 tableKey,
                 v ->
                         new DorisStreamLoad(
-                                backendUtil.getAvailableBackend(),
+                                backendUtil.getAvailableBackend(subtaskId),
                                 dorisOptions,
                                 executionOptions,
                                 labelGenerator,
@@ -373,7 +375,7 @@ public class DorisWriter<IN>
                 // use send cached data to new txn, then notify to restart the stream
                 if (executionOptions.isUseCache()) {
                     try {
-                        dorisStreamLoad.setHostPort(backendUtil.getAvailableBackend());
+                        dorisStreamLoad.setHostPort(backendUtil.getAvailableBackend(subtaskId));
                         if (executionOptions.enabled2PC()) {
                             dorisStreamLoad.abortPreCommit(labelPrefix, curCheckpointId);
                         }
@@ -443,6 +445,11 @@ public class DorisWriter<IN>
     @VisibleForTesting
     public void setDorisMetricsMap(Map<String, DorisWriteMetrics> metricsMap) {
         this.sinkMetricsMap = metricsMap;
+    }
+
+    @VisibleForTesting
+    public void setBackendUtil(BackendUtil backendUtil) {
+        this.backendUtil = backendUtil;
     }
 
     @Override

@@ -29,6 +29,8 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 public class SchemaChangeHelper {
+    public static final String DEFAULT_DATABASE = "information_schema";
+
     private static final List<String> dropFieldSchemas = Lists.newArrayList();
     private static final List<FieldSchema> addFieldSchemas = Lists.newArrayList();
     // Used to determine whether the doris table supports ddl
@@ -38,6 +40,11 @@ public class SchemaChangeHelper {
     private static final String RENAME_DDL = "ALTER TABLE %s RENAME COLUMN %s %s";
     private static final String CHECK_COLUMN_EXISTS =
             "SELECT COLUMN_NAME FROM information_schema.`COLUMNS` WHERE TABLE_SCHEMA = '%s' AND TABLE_NAME = '%s' AND COLUMN_NAME = '%s'";
+    private static final String CHECK_DATABASE_EXISTS =
+            "SELECT `SCHEMA_NAME` FROM `INFORMATION_SCHEMA`.`SCHEMATA` WHERE SCHEMA_NAME = '%s'";
+    private static final String CREATE_DATABASE_DDL = "CREATE DATABASE IF NOT EXISTS %s";
+    private static final String MODIFY_TYPE_DDL = "ALTER TABLE %s MODIFY COLUMN %s %s";
+    private static final String MODIFY_COMMENT_DDL = "ALTER TABLE %s MODIFY COLUMN %s COMMENT '%s'";
 
     public static void compareSchema(
             Map<String, FieldSchema> updateFiledSchemaMap,
@@ -104,19 +111,18 @@ public class SchemaChangeHelper {
         String type = fieldSchema.getTypeString();
         String defaultValue = fieldSchema.getDefaultValue();
         String comment = fieldSchema.getComment();
-        String addDDL =
-                String.format(
-                        ADD_DDL,
-                        DorisSystem.quoteTableIdentifier(tableIdentifier),
-                        DorisSystem.identifier(name),
-                        type);
+        StringBuilder addDDL =
+                new StringBuilder(
+                        String.format(
+                                ADD_DDL,
+                                DorisSystem.quoteTableIdentifier(tableIdentifier),
+                                DorisSystem.identifier(name),
+                                type));
         if (defaultValue != null) {
-            addDDL = addDDL + " DEFAULT " + DorisSystem.quoteDefaultValue(defaultValue);
+            addDDL.append(" DEFAULT ").append(DorisSystem.quoteDefaultValue(defaultValue));
         }
-        if (!StringUtils.isNullOrWhitespaceOnly(comment)) {
-            addDDL = addDDL + " COMMENT '" + DorisSystem.quoteComment(comment) + "'";
-        }
-        return addDDL;
+        commentColumn(addDDL, comment);
+        return addDDL.toString();
     }
 
     public static String buildDropColumnDDL(String tableIdentifier, String columName) {
@@ -137,6 +143,45 @@ public class SchemaChangeHelper {
 
     public static String buildColumnExistsQuery(String database, String table, String column) {
         return String.format(CHECK_COLUMN_EXISTS, database, table, column);
+    }
+
+    public static String buildDatabaseExistsQuery(String database) {
+        return String.format(CHECK_DATABASE_EXISTS, database);
+    }
+
+    public static String buildCreateDatabaseDDL(String database) {
+        return String.format(CREATE_DATABASE_DDL, database);
+    }
+
+    public static String buildModifyColumnCommentDDL(
+            String tableIdentifier, String columnName, String newComment) {
+        return String.format(
+                MODIFY_COMMENT_DDL,
+                DorisSystem.quoteTableIdentifier(tableIdentifier),
+                DorisSystem.identifier(columnName),
+                DorisSystem.quoteComment(newComment));
+    }
+
+    public static String buildModifyColumnDataTypeDDL(
+            String tableIdentifier, FieldSchema fieldSchema) {
+        String columnName = fieldSchema.getName();
+        String dataType = fieldSchema.getTypeString();
+        String comment = fieldSchema.getComment();
+        StringBuilder modifyDDL =
+                new StringBuilder(
+                        String.format(
+                                MODIFY_TYPE_DDL,
+                                DorisSystem.quoteTableIdentifier(tableIdentifier),
+                                DorisSystem.identifier(columnName),
+                                dataType));
+        commentColumn(modifyDDL, comment);
+        return modifyDDL.toString();
+    }
+
+    private static void commentColumn(StringBuilder ddl, String comment) {
+        if (!StringUtils.isNullOrWhitespaceOnly(comment)) {
+            ddl.append(" COMMENT '").append(DorisSystem.quoteComment(comment)).append("'");
+        }
     }
 
     public static List<DDLSchema> getDdlSchemas() {

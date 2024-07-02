@@ -17,6 +17,7 @@
 
 package org.apache.doris.flink.sink.copy;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.util.Preconditions;
@@ -82,7 +83,7 @@ public class DorisCopyWriter<IN>
                         .getRestoredCheckpointId()
                         .orElse(CheckpointIDCounter.INITIAL_CHECKPOINT_ID - 1);
         LOG.info("restore checkpointId {}", lastCheckpointId);
-        LOG.info("labelPrefix " + executionOptions.getLabelPrefix());
+        LOG.info("labelPrefix {}", executionOptions.getLabelPrefix());
         this.labelPrefix =
                 executionOptions.getLabelPrefix()
                         + "_"
@@ -193,5 +194,10 @@ public class DorisCopyWriter<IN>
         if (flushException != null) {
             throw new RuntimeException("Writing records to streamload failed.", flushException);
         }
+    }
+
+    @VisibleForTesting
+    public BatchStageLoad getBatchStageLoad() {
+        return batchStageLoad;
     }
 }

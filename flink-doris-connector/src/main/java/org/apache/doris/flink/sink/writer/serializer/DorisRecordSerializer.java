@@ -17,6 +17,8 @@
 
 package org.apache.doris.flink.sink.writer.serializer;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import java.io.IOException;
 import java.io.Serializable;
 
@@ -25,6 +27,7 @@ import java.io.Serializable;
  *
  * @param <T>
  */
+@PublicEvolving
 public interface DorisRecordSerializer<T> extends Serializable {
 
     /**

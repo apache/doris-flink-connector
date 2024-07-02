@@ -17,6 +17,7 @@
 
 package org.apache.doris.flink.sink.batch;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.Preconditions;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -25,6 +26,7 @@ import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.exception.DorisBatchLoadException;
+import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.rest.models.RespContent;
 import org.apache.doris.flink.sink.BackendUtil;
@@ -65,6 +67,7 @@ import static org.apache.doris.flink.sink.LoadStatus.SUCCESS;
 import static org.apache.doris.flink.sink.writer.LoadConstants.ARROW;
 import static org.apache.doris.flink.sink.writer.LoadConstants.CSV;
 import static org.apache.doris.flink.sink.writer.LoadConstants.FORMAT_KEY;
+import static org.apache.doris.flink.sink.writer.LoadConstants.GROUP_COMMIT;
 import static org.apache.doris.flink.sink.writer.LoadConstants.LINE_DELIMITER_DEFAULT;
 import static org.apache.doris.flink.sink.writer.LoadConstants.LINE_DELIMITER_KEY;
 
@@ -93,6 +96,7 @@ public class DorisBatchStreamLoad implements Serializable {
     private AtomicReference<Throwable> exception = new AtomicReference<>(null);
     private HttpClientBuilder httpClientBuilder = new HttpUtil().getHttpClientBuilderForBatch();
     private BackendUtil backendUtil;
+    private boolean enableGroupCommit;
 
     public DorisBatchStreamLoad(
             DorisOptions dorisOptions,
@@ -118,6 +122,7 @@ public class DorisBatchStreamLoad implements Serializable {
                                             LINE_DELIMITER_KEY, LINE_DELIMITER_DEFAULT))
                             .getBytes();
         }
+        this.enableGroupCommit = loadProps.containsKey(GROUP_COMMIT);
         this.executionOptions = executionOptions;
         this.flushQueue = new LinkedBlockingDeque<>(executionOptions.getFlushQueueSize());
         if (StringUtils.isNotBlank(dorisOptions.getTableIdentifier())) {
@@ -258,6 +263,9 @@ public class DorisBatchStreamLoad implements Serializable {
 
         /** execute stream load. */
         public void load(String label, BatchRecordBuffer buffer) throws IOException {
+            if (enableGroupCommit) {
+                label = null;
+            }
             refreshLoadUrl(buffer.getDatabase(), buffer.getTable());
             ByteBuffer data = buffer.getData();
             ByteArrayEntity entity =
@@ -272,6 +280,7 @@ public class DorisBatchStreamLoad implements Serializable {
                     .addHiddenColumns(executionOptions.getDeletable())
                     .addProperties(executionOptions.getStreamLoadProp());
 
+            Throwable resEx = new Throwable();
             int retry = 0;
             while (retry <= executionOptions.getMaxRetries()) {
                 LOG.info("stream load started for {} on host {}", label, hostPort);
@@ -298,10 +307,13 @@ public class DorisBatchStreamLoad implements Serializable {
                                 "stream load failed with {}, reason {}, to retry",
                                 hostPort,
                                 response.getStatusLine().toString());
-                    } catch (Exception ex) {
                         if (retry == executionOptions.getMaxRetries()) {
-                            throw new DorisBatchLoadException("stream load error: ", ex);
+                            resEx =
+                                    new DorisRuntimeException(
+                                            "stream load failed with: " + response.getStatusLine());
                         }
+                    } catch (Exception ex) {
+                        resEx = ex;
                         LOG.error("stream load error with {}, to retry, cause by", hostPort, ex);
                     }
                 }
@@ -312,6 +324,11 @@ public class DorisBatchStreamLoad implements Serializable {
             }
             buffer.clear();
             buffer = null;
+
+            if (retry >= executionOptions.getMaxRetries()) {
+                throw new DorisBatchLoadException(
+                        "stream load error: " + resEx.getMessage(), resEx);
+            }
         }
 
         private void refreshLoadUrl(String database, String table) {
@@ -334,5 +351,25 @@ public class DorisBatchStreamLoad implements Serializable {
             t.setDaemon(false);
             return t;
         }
+    }
+
+    @VisibleForTesting
+    public void setBackendUtil(BackendUtil backendUtil) {
+        this.backendUtil = backendUtil;
+    }
+
+    @VisibleForTesting
+    public void setHttpClientBuilder(HttpClientBuilder httpClientBuilder) {
+        this.httpClientBuilder = httpClientBuilder;
+    }
+
+    @VisibleForTesting
+    public AtomicReference<Throwable> getException() {
+        return exception;
+    }
+
+    @VisibleForTesting
+    public boolean isLoadThreadAlive() {
+        return loadThreadAlive;
     }
 }

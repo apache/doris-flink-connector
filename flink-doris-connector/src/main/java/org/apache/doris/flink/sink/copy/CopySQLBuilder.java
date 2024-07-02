@@ -17,6 +17,7 @@
 
 package org.apache.doris.flink.sink.copy;
 
+import org.apache.doris.flink.catalog.doris.DorisSystem;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 
 import java.util.Arrays;
@@ -52,7 +53,7 @@ public class CopySQLBuilder {
     public String buildCopySQL() {
         StringBuilder sb = new StringBuilder();
         sb.append("COPY INTO ")
-                .append(tableIdentifier)
+                .append(DorisSystem.quoteTableIdentifier(tableIdentifier))
                 .append(" FROM @~('{")
                 .append(String.join(",", fileList))
                 .append("}') ")

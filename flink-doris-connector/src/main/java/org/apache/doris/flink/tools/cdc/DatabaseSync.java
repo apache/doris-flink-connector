@@ -85,7 +85,7 @@ public abstract class DatabaseSync {
     protected String tablePrefix;
     protected String tableSuffix;
     protected boolean singleSink;
-    private final Map<String, String> tableMapping = new HashMap<>();
+    protected final Map<String, String> tableMapping = new HashMap<>();
 
     public abstract void registerDriver() throws SQLException;
 
@@ -131,6 +131,8 @@ public abstract class DatabaseSync {
         if (tableConfig.containsKey("table-buckets")) {
             tableBucketsMap = getTableBuckets(tableConfig.get("table-buckets"));
         }
+        Set<String> bucketsTable = new HashSet<>();
+        Set<String> targetDbSet = new HashSet<>();
         // Set of table names that have assigned bucket numbers.
         Set<String> tablesWithBucketsAssigned = new HashSet<>();
         for (SourceSchema schema : schemaList) {
@@ -139,6 +141,7 @@ public abstract class DatabaseSync {
             // Synchronize multiple databases using the src database name
             if (StringUtils.isNullOrWhitespaceOnly(targetDb)) {
                 targetDb = schema.getDatabaseName();
+                targetDbSet.add(targetDb);
             }
             if (StringUtils.isNullOrWhitespaceOnly(database)
                     && !dorisSystem.databaseExists(targetDb)) {
@@ -177,13 +180,33 @@ public abstract class DatabaseSync {
                 int sinkParallel =
                         sinkConfig.getInteger(
                                 DorisConfigOptions.SINK_PARALLELISM, sideOutput.getParallelism());
+                String uidName = getUidName(targetDbSet, dbTbl);
                 sideOutput
                         .sinkTo(buildDorisSink(dbTbl.f0 + "." + dbTbl.f1))
                         .setParallelism(sinkParallel)
-                        .name(dbTbl.f1)
-                        .uid(dbTbl.f1);
+                        .name(uidName)
+                        .uid(uidName);
             }
         }
+    }
+
+    /**
+     * @param targetDbSet The set of target databases.
+     * @param dbTbl The database-table tuple.
+     * @return The UID of the DataStream.
+     */
+    public String getUidName(Set<String> targetDbSet, Tuple2<String, String> dbTbl) {
+        String uidName;
+        // Determine whether to proceed with multi-database synchronization.
+        // if yes, the UID is composed of `dbname_tablename`, otherwise it is composed of
+        // `tablename`.
+        if (targetDbSet.size() > 1) {
+            uidName = dbTbl.f0 + "_" + dbTbl.f1;
+        } else {
+            uidName = dbTbl.f1;
+        }
+
+        return uidName;
     }
 
     private DorisConnectionOptions getDorisConnectionOptions() {
@@ -354,7 +377,7 @@ public abstract class DatabaseSync {
             } else {
                 String excludingPattern =
                         String.format("?!(%s\\.(%s))$", getTableListPrefix(), excludingTables);
-                return String.format("(%s)(%s)", includingPattern, excludingPattern);
+                return String.format("(%s)(%s)", excludingPattern, includingPattern);
             }
         }
     }

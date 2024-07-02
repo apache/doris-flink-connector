@@ -17,6 +17,8 @@
 
 package org.apache.doris.flink.sink.writer.serializer;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import org.apache.commons.lang3.StringUtils;
 import org.apache.doris.flink.sink.batch.RecordWithMeta;
 import org.slf4j.Logger;
@@ -25,6 +27,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
+@PublicEvolving
 public class RecordWithMetaSerializer implements DorisRecordSerializer<RecordWithMeta> {
     private static final Logger LOG = LoggerFactory.getLogger(RecordWithMetaSerializer.class);
 

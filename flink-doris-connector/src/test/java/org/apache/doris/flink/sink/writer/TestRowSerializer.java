@@ -116,4 +116,14 @@ public class TestRowSerializer {
         Assert.assertEquals("60.2", valueMap.get("weight"));
         Assert.assertEquals("0", valueMap.get("__DORIS_DELETE_SIGN__"));
     }
+
+    @Test(expected = IllegalStateException.class)
+    public void testBuild() {
+        RowSerializer serializer =
+                RowSerializer.builder()
+                        .setFieldNames(fieldNames)
+                        .setFieldType(dataTypes)
+                        .setType("csv")
+                        .build();
+    }
 }

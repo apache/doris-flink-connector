@@ -17,9 +17,10 @@
 
 package org.apache.doris.flink.serialization;
 
-import org.apache.flink.util.Preconditions;
+import org.apache.flink.annotation.VisibleForTesting;
 
 import org.apache.arrow.memory.RootAllocator;
+import org.apache.arrow.vector.BaseIntVector;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;
 import org.apache.arrow.vector.DateDayVector;
@@ -156,7 +157,8 @@ public class RowBatch {
         return offsetInRowBatch < readRowCount;
     }
 
-    private void addValueToRow(int rowIndex, Object obj) {
+    @VisibleForTesting
+    public void addValueToRow(int rowIndex, Object obj) {
         if (rowIndex > rowCountInOneBatch) {
             String errMsg =
                     "Get row offset: " + rowIndex + " larger than row size: " + rowCountInOneBatch;
@@ -174,8 +176,14 @@ public class RowBatch {
                 final String currentType = schema.get(col).getType();
                 for (int rowIndex = 0; rowIndex < rowCountInOneBatch; rowIndex++) {
                     boolean passed = doConvert(col, rowIndex, minorType, currentType, fieldVector);
-                    Preconditions.checkArgument(
-                            passed, typeMismatchMessage(currentType, minorType));
+                    if (!passed) {
+                        throw new java.lang.IllegalArgumentException(
+                                "FLINK type is "
+                                        + currentType
+                                        + ", but arrow type is "
+                                        + minorType.name()
+                                        + ".");
+                    }
                 }
             }
         } catch (Exception e) {
@@ -184,7 +192,8 @@ public class RowBatch {
         }
     }
 
-    private boolean doConvert(
+    @VisibleForTesting
+    public boolean doConvert(
             int col,
             int rowIndex,
             Types.MinorType minorType,
@@ -228,10 +237,17 @@ public class RowBatch {
                 addValueToRow(rowIndex, fieldValue);
                 break;
             case "IPV4":
-                if (!minorType.equals(Types.MinorType.UINT4)) {
+                if (!minorType.equals(Types.MinorType.UINT4)
+                        && !minorType.equals(Types.MinorType.INT)) {
                     return false;
                 }
-                UInt4Vector ipv4Vector = (UInt4Vector) fieldVector;
+                BaseIntVector ipv4Vector;
+                if (minorType.equals(Types.MinorType.INT)) {
+                    ipv4Vector = (IntVector) fieldVector;
+
+                } else {
+                    ipv4Vector = (UInt4Vector) fieldVector;
+                }
                 fieldValue =
                         ipv4Vector.isNull(rowIndex)
                                 ? null
@@ -462,7 +478,8 @@ public class RowBatch {
         return true;
     }
 
-    private LocalDateTime getDateTime(int rowIndex, FieldVector fieldVector) {
+    @VisibleForTesting
+    public LocalDateTime getDateTime(int rowIndex, FieldVector fieldVector) {
         TimeStampMicroVector vector = (TimeStampMicroVector) fieldVector;
         if (vector.isNull(rowIndex)) {
             return null;
@@ -480,10 +497,16 @@ public class RowBatch {
         return dateTime;
     }
 
-    private String completeMilliseconds(String stringValue) {
+    @VisibleForTesting
+    public static String completeMilliseconds(String stringValue) {
         if (stringValue.length() == DATETIMEV2_PATTERN.length()) {
             return stringValue;
         }
+
+        if (stringValue.length() < DATETIME_PATTERN.length()) {
+            return stringValue;
+        }
+
         StringBuilder sb = new StringBuilder(stringValue);
         if (stringValue.length() == DATETIME_PATTERN.length()) {
             sb.append(".");
