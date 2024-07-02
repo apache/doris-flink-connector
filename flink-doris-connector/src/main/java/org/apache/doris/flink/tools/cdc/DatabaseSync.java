@@ -134,7 +134,6 @@ public abstract class DatabaseSync {
 
         // Set of table names that have assigned bucket numbers.
         Set<String> tablesWithBucketsAssigned = new HashSet<>();
-        Set<String> bucketsTable = new HashSet<>();
         Set<String> targetDbSet = new HashSet<>();
         for (SourceSchema schema : schemaList) {
             syncTables.add(schema.getTableName());
