@@ -18,13 +18,13 @@
 package org.apache.doris.flink.sink.batch;
 
 import org.apache.flink.api.common.time.Deadline;
-import org.apache.flink.util.function.SupplierWithException;
 
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.sink.BackendUtil;
 import org.apache.doris.flink.sink.HttpTestUtil;
+import org.apache.doris.flink.sink.TestUtil;
 import org.apache.doris.flink.sink.writer.LabelGenerator;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -42,7 +42,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -97,7 +96,7 @@ public class TestDorisBatchStreamLoad {
         DorisBatchStreamLoad loader =
                 new DorisBatchStreamLoad(
                         options, readOptions, executionOptions, new LabelGenerator("label", false));
-        waitUntilCondition(
+        TestUtil.waitUntilCondition(
                 () -> loader.isLoadThreadAlive(),
                 Deadline.fromNow(Duration.ofSeconds(10)),
                 100L,
@@ -137,7 +136,7 @@ public class TestDorisBatchStreamLoad {
                 new DorisBatchStreamLoad(
                         options, readOptions, executionOptions, new LabelGenerator("label", false));
 
-        waitUntilCondition(
+        TestUtil.waitUntilCondition(
                 () -> loader.isLoadThreadAlive(),
                 Deadline.fromNow(Duration.ofSeconds(10)),
                 100L,
@@ -166,22 +165,6 @@ public class TestDorisBatchStreamLoad {
     public void after() {
         if (backendUtilMockedStatic != null) {
             backendUtilMockedStatic.close();
-        }
-    }
-
-    public static void waitUntilCondition(
-            SupplierWithException<Boolean, Exception> condition,
-            Deadline timeout,
-            long retryIntervalMillis,
-            String errorMsg)
-            throws Exception {
-        while (timeout.hasTimeLeft() && !(Boolean) condition.get()) {
-            long timeLeft = Math.max(0L, timeout.timeLeft().toMillis());
-            Thread.sleep(Math.min(retryIntervalMillis, timeLeft));
-        }
-
-        if (!timeout.hasTimeLeft()) {
-            throw new TimeoutException(errorMsg);
         }
     }
 }
