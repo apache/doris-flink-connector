@@ -277,8 +277,9 @@ public class RestService implements Serializable {
         List<String> nodes = Arrays.asList(feNodes.split(","));
         Collections.shuffle(nodes);
         for (String feNode : nodes) {
-            if (BackendUtil.tryHttpConnection(feNode)) {
-                return feNode;
+            String host = feNode.trim();
+            if (BackendUtil.tryHttpConnection(host)) {
+                return host;
             }
         }
         throw new DorisRuntimeException(
@@ -548,7 +549,7 @@ public class RestService implements Serializable {
         String queryPlanUri =
                 String.format(
                         QUERY_PLAN_API,
-                        options.getFenodes(),
+                        randomEndpoint(options.getFenodes(), logger),
                         tableIdentifier[0],
                         tableIdentifier[1]);
         HttpPost httpPost = new HttpPost(queryPlanUri);
