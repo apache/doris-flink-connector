@@ -19,6 +19,8 @@ package org.apache.doris.flink.source.assigners;
 
 import org.apache.doris.flink.source.enumerator.PendingSplitsCheckpoint;
 import org.apache.doris.flink.source.split.DorisSourceSplit;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
@@ -29,6 +31,7 @@ import java.util.Optional;
 /** The {@code SimpleSplitAssigner} hands out splits in a random order. */
 public class SimpleSplitAssigner implements DorisSplitAssigner {
 
+    private static final Logger LOG = LoggerFactory.getLogger(SimpleSplitAssigner.class);
     private final ArrayList<DorisSourceSplit> splits;
 
     public SimpleSplitAssigner(Collection<DorisSourceSplit> splits) {
@@ -43,6 +46,7 @@ public class SimpleSplitAssigner implements DorisSplitAssigner {
 
     @Override
     public void addSplits(Collection<DorisSourceSplit> splits) {
+        LOG.info("Adding splits: {}", splits);
         splits.addAll(splits);
     }
 

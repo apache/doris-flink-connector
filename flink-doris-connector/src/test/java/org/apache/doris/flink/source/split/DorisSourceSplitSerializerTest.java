@@ -27,7 +27,8 @@ public class DorisSourceSplitSerializerTest {
 
     @Test
     public void serializeSplit() throws Exception {
-        final DorisSourceSplit split = new DorisSourceSplit(OptionUtils.buildPartitionDef());
+        final DorisSourceSplit split =
+                new DorisSourceSplit("splitId", OptionUtils.buildPartitionDef());
 
         DorisSourceSplit deSerialized = serializeAndDeserializeSplit(split);
         assertEquals(split, deSerialized);
