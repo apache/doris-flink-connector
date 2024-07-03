@@ -97,9 +97,12 @@ public class DorisSource<OUT>
         List<DorisSourceSplit> dorisSourceSplits = new ArrayList<>();
         List<PartitionDefinition> partitions =
                 RestService.findPartitions(options, readOptions, LOG);
-        partitions.forEach(m -> dorisSourceSplits.add(new DorisSourceSplit(m)));
+        for (int index = 0; index < partitions.size(); index++) {
+            PartitionDefinition partitionDef = partitions.get(index);
+            String splitId = partitionDef.getBeAddress() + "_" + index;
+            dorisSourceSplits.add(new DorisSourceSplit(splitId, partitionDef));
+        }
         DorisSplitAssigner splitAssigner = new SimpleSplitAssigner(dorisSourceSplits);
-
         return new DorisSourceEnumerator(context, splitAssigner);
     }
 

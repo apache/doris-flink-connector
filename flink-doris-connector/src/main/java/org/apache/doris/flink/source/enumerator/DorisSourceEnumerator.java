@@ -79,7 +79,7 @@ public class DorisSourceEnumerator
 
     @Override
     public void addSplitsBack(List<DorisSourceSplit> splits, int subtaskId) {
-        LOG.debug("Doris Source Enumerator adds splits back: {}", splits);
+        LOG.info("Doris Source Enumerator adds splits back: {}", splits);
         splitAssigner.addSplits(splits);
     }
 

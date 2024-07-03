@@ -40,7 +40,7 @@ public class DorisSourceReaderTest {
     }
 
     private static DorisSourceSplit createTestDorisSplit() throws IOException {
-        return new DorisSourceSplit(OptionUtils.buildPartitionDef());
+        return new DorisSourceSplit("splitId", OptionUtils.buildPartitionDef());
     }
 
     @Test
