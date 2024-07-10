@@ -49,12 +49,16 @@ public class LabelGenerator {
 
     public String generateTableLabel(long chkId) {
         Preconditions.checkState(tableIdentifier != null);
+        // The label of stream load can not contain `-` , replace all "-" by "_"
         String label = String.format("%s_%s_%s_%s", labelPrefix, tableIdentifier, subtaskId, chkId);
-        return enable2PC ? label : label + "_" + UUID.randomUUID();
+        String uuid = UUID.randomUUID().toString().replace("-", "_");
+        return enable2PC ? label : label + "_" + uuid;
     }
 
     public String generateBatchLabel(String table) {
-        return String.format("%s_%s_%s", labelPrefix, table, UUID.randomUUID());
+        // The label of stream load can not contain `-` , replace all "-" by "_"
+        String uuid = UUID.randomUUID().toString().replace("-", "_");
+        return String.format("%s_%s_%s", labelPrefix, table, uuid);
     }
 
     public String generateCopyBatchLabel(String table, long chkId, int fileNum) {
