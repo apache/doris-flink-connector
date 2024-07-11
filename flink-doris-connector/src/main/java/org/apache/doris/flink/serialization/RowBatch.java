@@ -509,7 +509,7 @@ public class RowBatch {
     @VisibleForTesting
     public static LocalDateTime longToLocalDateTime(long time) {
         Instant instant;
-        // 判断时间戳精度并处理
+        // Determine the timestamp accuracy and process it
         if (time < 10_000_000_000L) { // Second timestamp
             instant = Instant.ofEpochSecond(time);
         } else if (time < 10_000_000_000_000L) { // milli second

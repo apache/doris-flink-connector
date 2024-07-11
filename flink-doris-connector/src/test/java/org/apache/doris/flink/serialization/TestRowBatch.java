@@ -76,6 +76,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -1628,5 +1629,33 @@ public class TestRowBatch {
         thrown.expect(NoSuchElementException.class);
         thrown.expectMessage(startsWith("Get row offset"));
         rowBatch.addValueToRow(10, null);
+    }
+
+    @Test
+    public void longToLocalDateTimeTest() {
+        ZoneId defaultZoneId = ZoneId.systemDefault();
+        LocalDateTime now = LocalDateTime.now(defaultZoneId).truncatedTo(ChronoUnit.MICROS);
+
+        long secondTimestamp = now.toEpochSecond(defaultZoneId.getRules().getOffset(now));
+        long milliTimestamp = now.atZone(defaultZoneId).toInstant().toEpochMilli();
+        long microTimestamp =
+                now.toInstant(defaultZoneId.getRules().getOffset(now)).getEpochSecond() * 1_000_000
+                        + now.getNano() / 1_000;
+
+        LocalDateTime dateTime1 = RowBatch.longToLocalDateTime(secondTimestamp);
+        LocalDateTime dateTime2 = RowBatch.longToLocalDateTime(milliTimestamp);
+        LocalDateTime dateTime3 = RowBatch.longToLocalDateTime(microTimestamp);
+
+        long result1 = dateTime1.atZone(defaultZoneId).toInstant().getEpochSecond();
+        long result2 = dateTime2.atZone(defaultZoneId).toInstant().toEpochMilli();
+        long result3 =
+                dateTime3.toInstant(defaultZoneId.getRules().getOffset(dateTime3)).getEpochSecond()
+                                * 1_000_000
+                        + dateTime3.getNano() / 1_000;
+
+        long[] expectArray = {secondTimestamp, milliTimestamp, microTimestamp};
+        long[] resultArray = {result1, result2, result3};
+
+        Assert.assertArrayEquals(expectArray, resultArray);
     }
 }
