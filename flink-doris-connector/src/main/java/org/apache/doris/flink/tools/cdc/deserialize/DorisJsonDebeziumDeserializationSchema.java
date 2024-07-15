@@ -21,6 +21,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.util.Collector;
 
+import com.esri.core.geometry.ogc.OGCGeometry;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -32,13 +33,17 @@ import com.ververica.cdc.connectors.shaded.org.apache.kafka.connect.data.Schema;
 import com.ververica.cdc.connectors.shaded.org.apache.kafka.connect.data.Struct;
 import com.ververica.cdc.connectors.shaded.org.apache.kafka.connect.source.SourceRecord;
 import com.ververica.cdc.debezium.DebeziumDeserializationSchema;
+import io.debezium.data.geometry.Geometry;
+import io.debezium.data.geometry.Point;
 import org.apache.doris.flink.exception.DorisException;
 
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 /** Currently just use for synchronous mysql non-default. */
 public class DorisJsonDebeziumDeserializationSchema
@@ -172,6 +177,12 @@ public class DorisJsonDebeziumDeserializationSchema
                         if (!struct.schema().equals(schema)) {
                             throw new DorisException("Mismatching schema.");
                         }
+                        // handle mysql geometry data type
+                        if (schema.name() != null && (schema.name().equals(Point.LOGICAL_NAME))
+                                || schema.name().equals(Geometry.LOGICAL_NAME)) {
+                            return convertMySQLGeometryToJson(struct);
+                        }
+
                         ObjectNode obj = JSON_NODE_FACTORY.objectNode();
                         for (Field field : schema.fields()) {
                             obj.set(
@@ -187,6 +198,28 @@ public class DorisJsonDebeziumDeserializationSchema
         } catch (ClassCastException e) {
             String schemaTypeStr = (schema != null) ? schema.type().toString() : "unknown schema";
             throw new DorisException("Invalid type for " + schemaTypeStr + ": " + value.getClass());
+        }
+    }
+
+    protected JsonNode convertMySQLGeometryToJson(Struct geometryStruct) {
+        try {
+            byte[] wkb = geometryStruct.getBytes("wkb");
+            String geoJson = OGCGeometry.fromBinary(ByteBuffer.wrap(wkb)).asGeoJson();
+            JsonNode originGeoNode = objectMapper.readTree(geoJson);
+            Optional<Integer> srid = Optional.ofNullable(geometryStruct.getInt32("srid"));
+            Map<String, Object> geometryInfo = new HashMap<>();
+            String geometryType = originGeoNode.get("type").asText();
+            geometryInfo.put("type", geometryType);
+            if (geometryType.equals("GeometryCollection")) {
+                geometryInfo.put("geometries", originGeoNode.get("geometries"));
+            } else {
+                geometryInfo.put("coordinates", originGeoNode.get("coordinates"));
+            }
+            geometryInfo.put("srid", srid.orElse(0));
+            return objectMapper.valueToTree(geometryInfo);
+        } catch (Exception e) {
+            throw new IllegalArgumentException(
+                    String.format("Failed to convert %s to geometry JSON.", geometryStruct), e);
         }
     }
 
