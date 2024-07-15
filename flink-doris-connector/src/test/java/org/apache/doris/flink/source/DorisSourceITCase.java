@@ -49,6 +49,7 @@ public class DorisSourceITCase extends DorisTestBase {
     static final String TABLE_READ_TBL = "tbl_read_tbl";
     static final String TABLE_READ_TBL_OLD_API = "tbl_read_tbl_old_api";
     static final String TABLE_READ_TBL_ALL_OPTIONS = "tbl_read_tbl_all_options";
+    static final String TABLE_READ_TBL_PUSH_DOWN = "tbl_read_tbl_push_down";
 
     @Test
     public void testSource() throws Exception {
@@ -228,6 +229,41 @@ public class DorisSourceITCase extends DorisTestBase {
             }
         }
         String[] expected = new String[] {"+I[doris, 18]", "+I[flink, 10]"};
+        Assert.assertArrayEquals(expected, actual.toArray());
+    }
+
+    @Test
+    public void testTableSourceFilterAndProjectionPushDown() throws Exception {
+        initializeTable(TABLE_READ_TBL_PUSH_DOWN);
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(1);
+        final StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
+
+        String sourceDDL =
+                String.format(
+                        "CREATE TABLE doris_source ("
+                                + " age INT"
+                                + ") WITH ("
+                                + " 'connector' = 'doris',"
+                                + " 'fenodes' = '%s',"
+                                + " 'table.identifier' = '%s',"
+                                + " 'username' = '%s',"
+                                + " 'password' = '%s'"
+                                + ")",
+                        getFenodes(),
+                        DATABASE + "." + TABLE_READ_TBL_PUSH_DOWN,
+                        USERNAME,
+                        PASSWORD);
+        tEnv.executeSql(sourceDDL);
+        TableResult tableResult = tEnv.executeSql("SELECT age FROM doris_source where age = '18'");
+
+        List<String> actual = new ArrayList<>();
+        try (CloseableIterator<Row> iterator = tableResult.collect()) {
+            while (iterator.hasNext()) {
+                actual.add(iterator.next().toString());
+            }
+        }
+        String[] expected = new String[] {"+I[18]"};
         Assert.assertArrayEquals(expected, actual.toArray());
     }
 
