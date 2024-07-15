@@ -4,8 +4,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
- * idea for this util is from https://bugs.openjdk.org/browse/JDK-8144808 991ms :
- * LocalDateTime.parse(...) 246ms : LocalDateTime.of(...)
+ * idea for this util is from https://bugs.openjdk.org/browse/JDK-8144808 991ms.
+ * LocalDateTime.parse(...) 246ms : LocalDateTime.of(...).
  */
 public final class FastDateUtil {
 

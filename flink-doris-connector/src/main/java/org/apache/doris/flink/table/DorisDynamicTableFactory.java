@@ -223,7 +223,6 @@ public final class DorisDynamicTableFactory
                 .setUseOldApi(readableConfig.get(SOURCE_USE_OLD_API))
                 .setUseFlightSql(readableConfig.get(USE_FLIGHT_SQL))
                 .setFlightSqlPort(readableConfig.get(FLIGHT_SQL_PORT));
-        ;
         return builder.build();
     }
 

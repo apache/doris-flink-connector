@@ -185,9 +185,9 @@ public class RowFlightBatch {
                     return false;
                 }
                 TinyIntVector tinyIntVector = (TinyIntVector) fieldVector;
-                Object fieldValue_tiny =
+                Object fieldValueTiny =
                         tinyIntVector.isNull(rowIndex) ? null : tinyIntVector.get(rowIndex);
-                addValueToRow(rowIndex, fieldValue_tiny);
+                addValueToRow(rowIndex, fieldValueTiny);
                 break;
             case "SMALLINT":
                 if (!minorType.equals(Types.MinorType.SMALLINT)) {
@@ -203,9 +203,9 @@ public class RowFlightBatch {
                     return false;
                 }
                 IntVector intVector = (IntVector) fieldVector;
-                Object fieldValue_intVector =
+                Object fieldValueIntVector =
                         intVector.isNull(rowIndex) ? null : intVector.get(rowIndex);
-                addValueToRow(rowIndex, fieldValue_intVector);
+                addValueToRow(rowIndex, fieldValueIntVector);
                 break;
             case "IPV4":
                 if (!minorType.equals(Types.MinorType.UINT4)
@@ -230,18 +230,18 @@ public class RowFlightBatch {
                     return false;
                 }
                 BigIntVector bigIntVector = (BigIntVector) fieldVector;
-                Object fieldValue_bigIntVector =
+                Object fieldValueBigIntVector =
                         bigIntVector.isNull(rowIndex) ? null : bigIntVector.get(rowIndex);
-                addValueToRow(rowIndex, fieldValue_bigIntVector);
+                addValueToRow(rowIndex, fieldValueBigIntVector);
                 break;
             case "FLOAT":
                 if (!minorType.equals(Types.MinorType.FLOAT4)) {
                     return false;
                 }
                 Float4Vector float4Vector = (Float4Vector) fieldVector;
-                Object fieldValue_float4Vector =
+                Object fieldValueFloat4Vector =
                         float4Vector.isNull(rowIndex) ? null : float4Vector.get(rowIndex);
-                addValueToRow(rowIndex, fieldValue_float4Vector);
+                addValueToRow(rowIndex, fieldValueFloat4Vector);
                 break;
             case "TIME":
             case "DOUBLE":
@@ -249,18 +249,18 @@ public class RowFlightBatch {
                     return false;
                 }
                 Float8Vector float8Vector = (Float8Vector) fieldVector;
-                Object fieldValue_float8Vector =
+                Object fieldValueFloat8Vector =
                         float8Vector.isNull(rowIndex) ? null : float8Vector.get(rowIndex);
-                addValueToRow(rowIndex, fieldValue_float8Vector);
+                addValueToRow(rowIndex, fieldValueFloat8Vector);
                 break;
             case "BINARY":
                 if (!minorType.equals(Types.MinorType.VARBINARY)) {
                     return false;
                 }
                 VarBinaryVector varBinaryVector = (VarBinaryVector) fieldVector;
-                Object fieldValue_varBinaryVector =
+                Object fieldValueVarBinaryVector =
                         varBinaryVector.isNull(rowIndex) ? null : varBinaryVector.get(rowIndex);
-                addValueToRow(rowIndex, fieldValue_varBinaryVector);
+                addValueToRow(rowIndex, fieldValueVarBinaryVector);
                 break;
             case "DECIMAL":
             case "DECIMALV2":
