@@ -20,6 +20,7 @@ package org.apache.doris.flink.source.split;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 
 import org.apache.doris.flink.source.reader.DorisValueReader;
+import org.apache.doris.flink.source.reader.ValueReader;
 
 import javax.annotation.Nullable;
 
@@ -34,18 +35,17 @@ import java.util.Set;
 public class DorisSplitRecords implements RecordsWithSplitIds<List> {
 
     private final Set<String> finishedSplits;
-    private final DorisValueReader valueReader;
+    private final ValueReader valueReader;
     private String splitId;
 
-    public DorisSplitRecords(
-            String splitId, DorisValueReader valueReader, Set<String> finishedSplits) {
+    public DorisSplitRecords(String splitId, ValueReader valueReader, Set<String> finishedSplits) {
         this.splitId = splitId;
         this.valueReader = valueReader;
         this.finishedSplits = finishedSplits;
     }
 
     public static DorisSplitRecords forRecords(
-            final String splitId, final DorisValueReader valueReader) {
+            final String splitId, final ValueReader valueReader) {
         return new DorisSplitRecords(splitId, valueReader, Collections.emptySet());
     }
 

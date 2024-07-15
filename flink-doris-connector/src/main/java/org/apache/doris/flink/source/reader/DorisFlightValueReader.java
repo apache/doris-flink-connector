@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.flink.flight.arrow;
+package org.apache.doris.flink.source.reader;
 
 import org.apache.arrow.adbc.core.AdbcConnection;
 import org.apache.arrow.adbc.core.AdbcException;
@@ -29,7 +29,7 @@ import org.apache.doris.flink.rest.PartitionDefinition;
 import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.rest.SchemaUtils;
 import org.apache.doris.flink.rest.models.Schema;
-import org.apache.doris.flink.serialization.RowFlightBatch;
+import org.apache.doris.flink.serialization.RowBatch;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,7 +40,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import static org.apache.doris.flink.util.ErrorMessages.SHOULD_NOT_HAPPEN_MESSAGE;
 
-public class DorisFlightValueReader implements AutoCloseable {
+public class DorisFlightValueReader implements ValueReader, AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(DorisFlightValueReader.class);
     protected AdbcConnection client;
     protected Lock clientLock = new ReentrantLock();
@@ -50,7 +50,7 @@ public class DorisFlightValueReader implements AutoCloseable {
     private final DorisReadOptions readOptions;
     private AdbcStatement statement;
     protected int offset = 0;
-    protected RowFlightBatch rowBatch;
+    protected RowBatch rowBatch;
     protected Schema schema;
     AdbcStatement.QueryResult queryResult;
     protected ArrowReader arrowReader;
@@ -100,12 +100,12 @@ public class DorisFlightValueReader implements AutoCloseable {
                 if (!eos.get()) {
                     eos.set(!arrowReader.loadNextBatch());
                     rowBatch =
-                            new RowFlightBatch(
+                            new RowBatch(
                                             arrowReader,
                                             SchemaUtils.convertToSchema(
                                                     this.schema,
                                                     arrowReader.getVectorSchemaRoot().getSchema()))
-                                    .readArrow();
+                                    .readFlightArrow();
                 }
             }
             hasNext = !eos.get();

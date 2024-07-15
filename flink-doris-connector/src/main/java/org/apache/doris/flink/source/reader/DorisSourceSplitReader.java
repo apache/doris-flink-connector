@@ -21,8 +21,17 @@ import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitsChange;
 
+import org.apache.arrow.adbc.core.AdbcConnection;
+import org.apache.arrow.adbc.core.AdbcDatabase;
+import org.apache.arrow.adbc.core.AdbcDriver;
+import org.apache.arrow.adbc.core.AdbcException;
+import org.apache.arrow.adbc.driver.flightsql.FlightSqlDriver;
+import org.apache.arrow.flight.Location;
+import org.apache.arrow.memory.RootAllocator;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
+import org.apache.doris.flink.exception.DorisException;
+import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.source.split.DorisSourceSplit;
 import org.apache.doris.flink.source.split.DorisSplitRecords;
 import org.slf4j.Logger;
@@ -30,7 +39,9 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Queue;
 
 /** The {@link SplitReader} implementation for the doris source. */
@@ -41,7 +52,7 @@ public class DorisSourceSplitReader implements SplitReader<List, DorisSourceSpli
     private final Queue<DorisSourceSplit> splits;
     private final DorisOptions options;
     private final DorisReadOptions readOptions;
-    private DorisValueReader valueReader;
+    private ValueReader valueReader;
     private String currentSplitId;
 
     public DorisSourceSplitReader(DorisOptions options, DorisReadOptions readOptions) {
@@ -52,7 +63,11 @@ public class DorisSourceSplitReader implements SplitReader<List, DorisSourceSpli
 
     @Override
     public RecordsWithSplitIds<List> fetch() throws IOException {
-        checkSplitOrStartNext();
+        try {
+            checkSplitOrStartNext();
+        } catch (DorisException e) {
+            throw new RuntimeException(e);
+        }
 
         if (!valueReader.hasNext()) {
             return finishSplit();
@@ -60,7 +75,7 @@ public class DorisSourceSplitReader implements SplitReader<List, DorisSourceSpli
         return DorisSplitRecords.forRecords(currentSplitId, valueReader);
     }
 
-    private void checkSplitOrStartNext() throws IOException {
+    private void checkSplitOrStartNext() throws IOException, DorisException {
         if (valueReader != null) {
             return;
         }
@@ -69,8 +84,41 @@ public class DorisSourceSplitReader implements SplitReader<List, DorisSourceSpli
             throw new IOException("Cannot fetch from another split - no split remaining");
         }
         currentSplitId = nextSplit.splitId();
-        valueReader =
-                new DorisValueReader(nextSplit.getPartitionDefinition(), options, readOptions);
+        if (readOptions.getUseFlightSql()) {
+            valueReader =
+                    new DorisFlightValueReader(
+                            nextSplit.getPartitionDefinition(),
+                            options,
+                            readOptions,
+                            backendClient(),
+                            RestService.getSchema(options, readOptions, LOG));
+        } else {
+            valueReader =
+                    new DorisValueReader(nextSplit.getPartitionDefinition(), options, readOptions);
+        }
+    }
+
+    private AdbcConnection backendClient() {
+        final Map<String, Object> parameters = new HashMap<>();
+        RootAllocator allocator = new RootAllocator(Integer.MAX_VALUE);
+        FlightSqlDriver driver = new FlightSqlDriver(allocator);
+        String[] split = options.getFenodes().split(":");
+        AdbcDriver.PARAM_URI.set(
+                parameters,
+                Location.forGrpcInsecure(
+                                String.valueOf(split[0]),
+                                Integer.parseInt(readOptions.getFlightSqlPort()))
+                        .getUri()
+                        .toString());
+        AdbcDriver.PARAM_USERNAME.set(parameters, options.getUsername());
+        AdbcDriver.PARAM_PASSWORD.set(parameters, options.getPassword());
+        try {
+            AdbcDatabase adbcDatabase = driver.open(parameters);
+            return adbcDatabase.connect();
+        } catch (AdbcException e) {
+            LOG.debug("Open Flight Connection error: {}", e.getDetails());
+            throw new RuntimeException(e);
+        }
     }
 
     private DorisSplitRecords finishSplit() {

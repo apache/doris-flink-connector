@@ -41,7 +41,6 @@ import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.deserialization.RowDataDeserializationSchema;
 import org.apache.doris.flink.exception.DorisException;
-import org.apache.doris.flink.flight.DorisFlightSource;
 import org.apache.doris.flink.rest.PartitionDefinition;
 import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.source.DorisSource;
@@ -113,16 +112,6 @@ public final class DorisDynamicTableSource
                             .setReadOptions(readOptions)
                             .setRowType((RowType) physicalRowDataType.getLogicalType());
             return InputFormatProvider.of(builder.build());
-        } else if (readOptions.getUseFlightSql()) {
-            DorisFlightSource<RowData> build =
-                    DorisFlightSource.<RowData>builder()
-                            .setDorisReadOptions(readOptions)
-                            .setDorisOptions(options)
-                            .setDeserializer(
-                                    new RowDataDeserializationSchema(
-                                            (RowType) physicalRowDataType.getLogicalType()))
-                            .build();
-            return SourceProvider.of(build);
         } else {
             // Read data using the interface of the FLIP-27 specification
             DorisSource<RowData> build =
