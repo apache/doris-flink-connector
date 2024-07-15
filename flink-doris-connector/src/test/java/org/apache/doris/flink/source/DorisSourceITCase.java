@@ -255,7 +255,8 @@ public class DorisSourceITCase extends DorisTestBase {
                         USERNAME,
                         PASSWORD);
         tEnv.executeSql(sourceDDL);
-        TableResult tableResult = tEnv.executeSql("SELECT age FROM doris_source");
+        TableResult tableResult =
+                tEnv.executeSql("SELECT age FROM doris_source where name = 'doris'");
 
         List<String> actual = new ArrayList<>();
         try (CloseableIterator<Row> iterator = tableResult.collect()) {
@@ -263,7 +264,7 @@ public class DorisSourceITCase extends DorisTestBase {
                 actual.add(iterator.next().toString());
             }
         }
-        String[] expected = new String[] {"+I[18]", "+I[10]"};
+        String[] expected = new String[] {"+I[18]"};
         Assert.assertArrayEquals(expected, actual.toArray());
     }
 
