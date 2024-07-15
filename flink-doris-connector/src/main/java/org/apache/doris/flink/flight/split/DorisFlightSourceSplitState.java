@@ -15,33 +15,18 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.flink.source.enumerator;
+package org.apache.doris.flink.flight.split;
 
-import javax.annotation.Nullable;
+/** State of the reader, essentially a mutable version of the {@link DorisFlightSourceSplit}. */
+public class DorisFlightSourceSplitState {
 
-import java.util.Collection;
+    private final DorisFlightSourceSplit split;
 
-/**
- * A checkpoint of the current state of the containing the currently pending splits that are not yet
- * assigned.
- */
-public class PendingSplitsCheckpoint<T> {
-
-    /** The splits in the checkpoint. */
-    private final Collection<T> splits;
-
-    /**
-     * The cached byte representation from the last serialization step. This helps to avoid paying
-     * repeated serialization cost for the same checkpoint object. This field is used by {@link
-     * PendingSplitsCheckpointSerializer}.
-     */
-    @Nullable public byte[] serializedFormCache;
-
-    public PendingSplitsCheckpoint(Collection<T> splits) {
-        this.splits = splits;
+    public DorisFlightSourceSplitState(DorisFlightSourceSplit split) {
+        this.split = split;
     }
 
-    public Collection<T> getSplits() {
-        return splits;
+    public DorisFlightSourceSplit toDorisSourceSplit() {
+        return split;
     }
 }

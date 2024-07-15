@@ -18,7 +18,6 @@
 package org.apache.doris.flink.source.assigners;
 
 import org.apache.doris.flink.source.enumerator.PendingSplitsCheckpoint;
-import org.apache.doris.flink.source.split.DorisSourceSplit;
 
 import javax.annotation.Nullable;
 
@@ -29,7 +28,7 @@ import java.util.Optional;
  * The {@code DorisSplitAssigner} is responsible for deciding what split should be processed. It
  * determines split processing order.
  */
-public interface DorisSplitAssigner {
+public interface DorisSplitAssigner<T> {
 
     /**
      * Gets the next split.
@@ -37,13 +36,13 @@ public interface DorisSplitAssigner {
      * <p>When this method returns an empty {@code Optional}, then the set of splits is assumed to
      * be done and the source will finish once the readers finished their current splits.
      */
-    Optional<DorisSourceSplit> getNext(@Nullable String hostname);
+    Optional<T> getNext(@Nullable String hostname);
 
     /**
      * Adds a set of splits to this assigner. This happens for example when some split processing
      * failed and the splits need to be re-added, or when new splits got discovered.
      */
-    void addSplits(Collection<DorisSourceSplit> splits);
+    void addSplits(Collection<T> splits);
 
     /**
      * Creates a snapshot of the state of this split assigner, to be stored in a checkpoint.

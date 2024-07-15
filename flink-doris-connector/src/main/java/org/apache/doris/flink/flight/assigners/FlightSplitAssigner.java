@@ -15,10 +15,12 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.flink.source.assigners;
+package org.apache.doris.flink.flight.assigners;
 
+import org.apache.doris.flink.flight.split.DorisFlightSourceSplit;
+import org.apache.doris.flink.source.assigners.DorisSplitAssigner;
+import org.apache.doris.flink.source.assigners.SimpleSplitAssigner;
 import org.apache.doris.flink.source.enumerator.PendingSplitsCheckpoint;
-import org.apache.doris.flink.source.split.DorisSourceSplit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,23 +31,24 @@ import java.util.Collection;
 import java.util.Optional;
 
 /** The {@code SimpleSplitAssigner} hands out splits in a random order. */
-public class SimpleSplitAssigner implements DorisSplitAssigner<DorisSourceSplit> {
+public class FlightSplitAssigner implements DorisSplitAssigner<DorisFlightSourceSplit> {
 
     private static final Logger LOG = LoggerFactory.getLogger(SimpleSplitAssigner.class);
-    private final ArrayList<DorisSourceSplit> splits;
 
-    public SimpleSplitAssigner(Collection<DorisSourceSplit> splits) {
+    private final ArrayList<DorisFlightSourceSplit> splits;
+
+    public FlightSplitAssigner(Collection<DorisFlightSourceSplit> splits) {
         this.splits = new ArrayList<>(splits);
     }
 
     @Override
-    public Optional<DorisSourceSplit> getNext(@Nullable String hostname) {
+    public Optional<DorisFlightSourceSplit> getNext(@Nullable String hostname) {
         final int size = splits.size();
         return size == 0 ? Optional.empty() : Optional.of(splits.remove(size - 1));
     }
 
     @Override
-    public void addSplits(Collection<DorisSourceSplit> splits) {
+    public void addSplits(Collection<DorisFlightSourceSplit> splits) {
         LOG.info("Adding splits: {}", splits);
         splits.addAll(splits);
     }
@@ -57,6 +60,6 @@ public class SimpleSplitAssigner implements DorisSplitAssigner<DorisSourceSplit>
 
     @Override
     public String toString() {
-        return "SimpleSplitAssigner " + splits;
+        return "FlightSplitAssigner " + splits;
     }
 }
