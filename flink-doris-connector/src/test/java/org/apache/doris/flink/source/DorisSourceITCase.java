@@ -256,7 +256,7 @@ public class DorisSourceITCase extends DorisTestBase {
                         PASSWORD);
         tEnv.executeSql(sourceDDL);
         TableResult tableResult =
-                tEnv.executeSql("SELECT age FROM doris_source where name = 'doris'");
+                tEnv.executeSql("SELECT age FROM doris_source where age = '18'");
 
         List<String> actual = new ArrayList<>();
         try (CloseableIterator<Row> iterator = tableResult.collect()) {
