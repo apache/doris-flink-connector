@@ -49,7 +49,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-/** DorisSource based on FLIP-27 which is a BOUNDED stream. */
+/** DorisFlightSource based on FLIP-27 which is a BOUNDED stream. */
 public class DorisFlightSource<OUT>
         implements Source<OUT, DorisFlightSourceSplit, PendingSplitsCheckpoint>,
                 ResultTypeQueryable<OUT> {
