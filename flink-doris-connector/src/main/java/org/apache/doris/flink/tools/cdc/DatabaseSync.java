@@ -152,13 +152,15 @@ public abstract class DatabaseSync {
             // Calculate the mapping relationship between upstream and downstream tables
             tableMapping.put(
                     schema.getTableIdentifier(), String.format("%s.%s", targetDb, dorisTable));
-            if (tryCreateTableIfAbsent(
+            tryCreateTableIfAbsent(
                     dorisSystem,
                     targetDb,
                     dorisTable,
                     schema,
                     tableBucketsMap,
-                    tablesWithBucketsAssigned)) {
+                    tablesWithBucketsAssigned);
+
+            if (!dorisTables.contains(Tuple2.of(targetDb, dorisTable))) {
                 dorisTables.add(Tuple2.of(targetDb, dorisTable));
             }
         }
@@ -463,7 +465,7 @@ public abstract class DatabaseSync {
         }
     }
 
-    private boolean tryCreateTableIfAbsent(
+    private void tryCreateTableIfAbsent(
             DorisSystem dorisSystem,
             String targetDb,
             String dorisTable,
@@ -480,12 +482,10 @@ public abstract class DatabaseSync {
             }
             try {
                 dorisSystem.createTable(dorisSchema);
-                return true;
             } catch (Exception ex) {
                 handleTableCreationFailure(ex);
             }
         }
-        return false;
     }
 
     private void handleTableCreationFailure(Exception ex) throws DorisSystemException {
