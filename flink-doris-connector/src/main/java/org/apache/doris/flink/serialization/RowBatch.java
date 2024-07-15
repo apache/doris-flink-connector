@@ -40,7 +40,10 @@ import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.complex.MapVector;
 import org.apache.arrow.vector.complex.StructVector;
+import org.apache.arrow.vector.complex.impl.DateDayReaderImpl;
+import org.apache.arrow.vector.complex.impl.TimeStampMicroReaderImpl;
 import org.apache.arrow.vector.complex.impl.UnionMapReader;
+import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.ipc.ArrowStreamReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.doris.flink.exception.DorisException;
@@ -105,6 +108,7 @@ public class RowBatch {
     private final DateTimeFormatter dateTimeV2Formatter =
             DateTimeFormatter.ofPattern(DATETIMEV2_PATTERN);
     private final DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    private static final ZoneId DEFAULT_ZONE_ID = ZoneId.systemDefault();
 
     public List<Row> getRowBatch() {
         return rowBatch;
@@ -454,7 +458,11 @@ public class RowBatch {
                 reader.setPosition(rowIndex);
                 Map<String, Object> mapValue = new HashMap<>();
                 while (reader.next()) {
-                    mapValue.put(reader.key().readObject().toString(), reader.value().readObject());
+                    FieldReader keyReader = reader.key();
+                    FieldReader valueReader = reader.value();
+                    Object mapKeyObj = handleMapFieldReader(keyReader);
+                    Object mapValueObj = handleMapFieldReader(valueReader);
+                    mapValue.put(mapKeyObj.toString(), mapValueObj);
                 }
                 addValueToRow(rowIndex, mapValue);
                 break;
@@ -478,6 +486,16 @@ public class RowBatch {
         return true;
     }
 
+    private Object handleMapFieldReader(FieldReader reader) {
+        if (reader instanceof TimeStampMicroReaderImpl) {
+            return longToLocalDateTime(reader.readLong());
+        }
+        if (reader instanceof DateDayReaderImpl) {
+            return LocalDate.ofEpochDay(((Integer) reader.readObject()).longValue());
+        }
+        return reader.readObject();
+    }
+
     @VisibleForTesting
     public LocalDateTime getDateTime(int rowIndex, FieldVector fieldVector) {
         TimeStampMicroVector vector = (TimeStampMicroVector) fieldVector;
@@ -485,16 +503,21 @@ public class RowBatch {
             return null;
         }
         long time = vector.get(rowIndex);
+        return longToLocalDateTime(time);
+    }
+
+    @VisibleForTesting
+    public static LocalDateTime longToLocalDateTime(long time) {
         Instant instant;
-        if (time / 10000000000L == 0) { // datetime(0)
+        // Determine the timestamp accuracy and process it
+        if (time < 10_000_000_000L) { // Second timestamp
             instant = Instant.ofEpochSecond(time);
-        } else if (time / 10000000000000L == 0) { // datetime(3)
+        } else if (time < 10_000_000_000_000L) { // milli second
             instant = Instant.ofEpochMilli(time);
-        } else { // datetime(6)
-            instant = Instant.ofEpochSecond(time / 1000000, time % 1000000 * 1000);
+        } else { // micro second
+            instant = Instant.ofEpochSecond(time / 1_000_000, (time % 1_000_000) * 1_000);
         }
-        LocalDateTime dateTime = LocalDateTime.ofInstant(instant, ZoneId.systemDefault());
-        return dateTime;
+        return LocalDateTime.ofInstant(instant, DEFAULT_ZONE_ID);
     }
 
     @VisibleForTesting
