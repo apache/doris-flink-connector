@@ -119,7 +119,6 @@ public class DorisStreamOptions implements Serializable {
                                                 ConfigurationOptions.FLIGHT_SQL_PORT,
                                                 ConfigurationOptions.FLIGHT_SQL_PORT_DEFAULT
                                                         .toString())));
-        ;
 
         this.options = optionsBuilder.build();
         this.readOptions = readOptionsBuilder.build();

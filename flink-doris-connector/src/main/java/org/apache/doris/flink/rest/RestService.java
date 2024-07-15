@@ -265,6 +265,7 @@ public class RestService implements Serializable {
         logger.info("Query SQL Sending to Doris FE is: '{}'.", sql);
         return sql;
     }
+
     /**
      * parse table identifier to array.
      *

@@ -194,9 +194,9 @@ public class RowFlightBatch {
                     return false;
                 }
                 SmallIntVector smallIntVector = (SmallIntVector) fieldVector;
-                Object fieldValue_smallint =
+                Object fieldValueSmallint =
                         smallIntVector.isNull(rowIndex) ? null : smallIntVector.get(rowIndex);
-                addValueToRow(rowIndex, fieldValue_smallint);
+                addValueToRow(rowIndex, fieldValueSmallint);
                 break;
             case "INT":
                 if (!minorType.equals(Types.MinorType.INT)) {
@@ -219,11 +219,11 @@ public class RowFlightBatch {
                 } else {
                     ipv4Vector = (UInt4Vector) fieldVector;
                 }
-                Object fieldValue_ipv4Vector =
+                Object fieldValueIpv4Vector =
                         ipv4Vector.isNull(rowIndex)
                                 ? null
                                 : convertLongToIPv4Address(ipv4Vector.getValueAsLong(rowIndex));
-                addValueToRow(rowIndex, fieldValue_ipv4Vector);
+                addValueToRow(rowIndex, fieldValueIpv4Vector);
                 break;
             case "BIGINT":
                 if (!minorType.equals(Types.MinorType.BIGINT)) {
