@@ -18,6 +18,7 @@
 package org.apache.doris.flink.sink;
 
 import org.apache.http.client.config.RequestConfig;
+import org.apache.http.impl.NoConnectionReuseStrategy;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.DefaultRedirectStrategy;
 import org.apache.http.impl.client.HttpClientBuilder;
@@ -27,6 +28,13 @@ import java.util.concurrent.TimeUnit;
 
 /** util to build http client. */
 public class HttpUtil {
+
+    private RequestConfig requestConfigStream =
+            RequestConfig.custom()
+                    .setConnectTimeout(60 * 1000)
+                    .setConnectionRequestTimeout(60 * 1000)
+                    .build();
+
     private final HttpClientBuilder httpClientBuilder =
             HttpClients.custom()
                     .setRedirectStrategy(
@@ -36,8 +44,10 @@ public class HttpUtil {
                                     return true;
                                 }
                             })
+                    .setConnectionReuseStrategy(NoConnectionReuseStrategy.INSTANCE)
                     .evictExpiredConnections()
-                    .evictIdleConnections(60, TimeUnit.SECONDS);
+                    .evictIdleConnections(60, TimeUnit.SECONDS)
+                    .setDefaultRequestConfig(requestConfigStream);
 
     public CloseableHttpClient getHttpClient() {
         return httpClientBuilder.build();

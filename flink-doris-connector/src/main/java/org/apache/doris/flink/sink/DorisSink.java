@@ -17,6 +17,8 @@
 
 package org.apache.doris.flink.sink;
 
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.connector.sink2.Committer;
 import org.apache.flink.api.connector.sink2.StatefulSink;
 import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
@@ -50,6 +52,7 @@ import java.util.Collections;
  *
  * @param <IN> type of record.
  */
+@PublicEvolving
 public class DorisSink<IN>
         implements StatefulSink<IN, DorisWriterState>,
                 TwoPhaseCommittingSink<IN, DorisAbstractCommittable> {
@@ -104,6 +107,7 @@ public class DorisSink<IN>
         return getDorisAbstractWriter(initContext, recoveredState);
     }
 
+    @VisibleForTesting
     public DorisAbstractWriter getDorisAbstractWriter(
             InitContext initContext, Collection<DorisWriterState> states) {
         if (WriteMode.STREAM_LOAD.equals(dorisExecutionOptions.getWriteMode())) {

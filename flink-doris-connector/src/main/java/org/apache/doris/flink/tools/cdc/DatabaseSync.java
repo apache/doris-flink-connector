@@ -34,6 +34,7 @@ import org.apache.doris.flink.cfg.DorisConnectionOptions;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
+import org.apache.doris.flink.exception.DorisSystemException;
 import org.apache.doris.flink.sink.DorisSink;
 import org.apache.doris.flink.sink.writer.WriteMode;
 import org.apache.doris.flink.sink.writer.serializer.DorisRecordSerializer;
@@ -45,6 +46,7 @@ import org.slf4j.LoggerFactory;
 import java.io.Serializable;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.sql.SQLSyntaxErrorException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -71,6 +73,7 @@ public abstract class DatabaseSync {
     protected Map<String, String> tableConfig = new HashMap<>();
     protected Configuration sinkConfig;
     protected boolean ignoreDefaultValue;
+    protected boolean ignoreIncompatible;
 
     public StreamExecutionEnvironment env;
     private boolean createTableOnly = false;
@@ -128,7 +131,9 @@ public abstract class DatabaseSync {
         if (tableConfig.containsKey("table-buckets")) {
             tableBucketsMap = getTableBuckets(tableConfig.get("table-buckets"));
         }
-        Set<String> bucketsTable = new HashSet<>();
+
+        // Set of table names that have assigned bucket numbers.
+        Set<String> tablesWithBucketsAssigned = new HashSet<>();
         Set<String> targetDbSet = new HashSet<>();
         for (SourceSchema schema : schemaList) {
             syncTables.add(schema.getTableName());
@@ -147,16 +152,14 @@ public abstract class DatabaseSync {
             // Calculate the mapping relationship between upstream and downstream tables
             tableMapping.put(
                     schema.getTableIdentifier(), String.format("%s.%s", targetDb, dorisTable));
-            if (!dorisSystem.tableExists(targetDb, dorisTable)) {
-                TableSchema dorisSchema = schema.convertTableSchema(tableConfig);
-                // set doris target database
-                dorisSchema.setDatabase(targetDb);
-                dorisSchema.setTable(dorisTable);
-                if (tableBucketsMap != null) {
-                    setTableSchemaBuckets(tableBucketsMap, dorisSchema, dorisTable, bucketsTable);
-                }
-                dorisSystem.createTable(dorisSchema);
-            }
+            tryCreateTableIfAbsent(
+                    dorisSystem,
+                    targetDb,
+                    dorisTable,
+                    schema,
+                    tableBucketsMap,
+                    tablesWithBucketsAssigned);
+
             if (!dorisTables.contains(Tuple2.of(targetDb, dorisTable))) {
                 dorisTables.add(Tuple2.of(targetDb, dorisTable));
             }
@@ -376,7 +379,7 @@ public abstract class DatabaseSync {
             } else {
                 String excludingPattern =
                         String.format("?!(%s\\.(%s))$", getTableListPrefix(), excludingTables);
-                return String.format("(%s)(%s)", includingPattern, excludingPattern);
+                return String.format("(%s)(%s)", excludingPattern, includingPattern);
             }
         }
     }
@@ -462,6 +465,39 @@ public abstract class DatabaseSync {
         }
     }
 
+    private void tryCreateTableIfAbsent(
+            DorisSystem dorisSystem,
+            String targetDb,
+            String dorisTable,
+            SourceSchema schema,
+            Map<String, Integer> tableBucketsMap,
+            Set<String> tableBucketsSet) {
+        if (!dorisSystem.tableExists(targetDb, dorisTable)) {
+            TableSchema dorisSchema = schema.convertTableSchema(tableConfig);
+            dorisSchema.setDatabase(targetDb);
+            dorisSchema.setTable(dorisTable);
+            // set the table buckets of table
+            if (tableBucketsMap != null) {
+                setTableSchemaBuckets(tableBucketsMap, dorisSchema, dorisTable, tableBucketsSet);
+            }
+            try {
+                dorisSystem.createTable(dorisSchema);
+            } catch (Exception ex) {
+                handleTableCreationFailure(ex);
+            }
+        }
+    }
+
+    private void handleTableCreationFailure(Exception ex) throws DorisSystemException {
+        if (ignoreIncompatible && ex.getCause() instanceof SQLSyntaxErrorException) {
+            LOG.warn(
+                    "Doris schema and source table schema are not compatible. Error: {} ",
+                    ex.getCause().toString());
+        } else {
+            throw new DorisSystemException("Failed to create table due to: ", ex);
+        }
+    }
+
     public DatabaseSync setEnv(StreamExecutionEnvironment env) {
         this.env = env;
         return this;
@@ -526,6 +562,11 @@ public abstract class DatabaseSync {
 
     public DatabaseSync setSingleSink(boolean singleSink) {
         this.singleSink = singleSink;
+        return this;
+    }
+
+    public DatabaseSync setIgnoreIncompatible(boolean ignoreIncompatible) {
+        this.ignoreIncompatible = ignoreIncompatible;
         return this;
     }
 

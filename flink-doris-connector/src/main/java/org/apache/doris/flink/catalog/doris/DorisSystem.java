@@ -85,23 +85,6 @@ public class DorisSystem implements Serializable {
         return databaseExists(database) && listTables(database).contains(table);
     }
 
-    public boolean columnExists(String database, String table, String columnName) {
-        if (tableExists(database, table)) {
-            List<String> columns =
-                    extractColumnValuesBySQL(
-                            "SELECT COLUMN_NAME FROM information_schema.`COLUMNS` WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = ?",
-                            1,
-                            null,
-                            database,
-                            table,
-                            columnName);
-            if (columns != null && !columns.isEmpty()) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     public List<String> listTables(String databaseName) {
         if (!databaseExists(databaseName)) {
             throw new DorisRuntimeException("database" + databaseName + " is not exists");
@@ -298,8 +281,7 @@ public class DorisSystem implements Serializable {
     }
 
     private static List<String> identifier(List<String> name) {
-        List<String> result = name.stream().map(m -> identifier(m)).collect(Collectors.toList());
-        return result;
+        return name.stream().map(DorisSystem::identifier).collect(Collectors.toList());
     }
 
     public static String identifier(String name) {

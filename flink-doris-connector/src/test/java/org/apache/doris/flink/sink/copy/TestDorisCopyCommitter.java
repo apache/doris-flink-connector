@@ -45,6 +45,12 @@ public class TestDorisCopyCommitter {
     DorisCopyCommittable copyCommittable;
     HttpEntityMock entityMock;
 
+    private StatusLine normalLine = new BasicStatusLine(new ProtocolVersion("http", 1, 0), 200, "");
+    private StatusLine abnormalLine =
+            new BasicStatusLine(new ProtocolVersion("http", 1, 0), 404, "server 404");
+
+    CloseableHttpResponse httpResponse;
+
     @Before
     public void setUp() throws Exception {
         DorisOptions dorisOptions = OptionUtils.buildDorisOptions();
@@ -53,8 +59,7 @@ public class TestDorisCopyCommitter {
         CloseableHttpClient httpClient = mock(CloseableHttpClient.class);
         when(httpClientBuilder.build()).thenReturn(httpClient);
         entityMock = new HttpEntityMock();
-        CloseableHttpResponse httpResponse = mock(CloseableHttpResponse.class);
-        StatusLine normalLine = new BasicStatusLine(new ProtocolVersion("http", 1, 0), 200, "");
+        httpResponse = mock(CloseableHttpResponse.class);
         when(httpClient.execute(any())).thenReturn(httpResponse);
         when(httpResponse.getStatusLine()).thenReturn(normalLine);
         when(httpResponse.getEntity()).thenReturn(entityMock);
@@ -81,6 +86,24 @@ public class TestDorisCopyCommitter {
         copyCommitter.commit(Collections.singletonList(request));
     }
 
+    @Test(expected = CopyLoadException.class)
+    public void testCommitedError404() throws Exception {
+        when(httpResponse.getStatusLine()).thenReturn(abnormalLine);
+        when(httpResponse.getEntity()).thenReturn(null);
+        final MockCommitRequest<DorisCopyCommittable> request =
+                new MockCommitRequest<>(copyCommittable);
+        copyCommitter.commit(Collections.singletonList(request));
+    }
+
+    @Test(expected = CopyLoadException.class)
+    public void testCommitedErrorNullEntity() throws Exception {
+        when(httpResponse.getStatusLine()).thenReturn(normalLine);
+        when(httpResponse.getEntity()).thenReturn(null);
+        final MockCommitRequest<DorisCopyCommittable> request =
+                new MockCommitRequest<>(copyCommittable);
+        copyCommitter.commit(Collections.singletonList(request));
+    }
+
     @Test
     public void testHandleCommitResponse() throws Exception {
         String loadResult =
@@ -88,7 +111,17 @@ public class TestDorisCopyCommitter {
         Assert.assertFalse(copyCommitter.handleCommitResponse(loadResult));
 
         loadResult =
+                "{\"msg\":\"Error\",\"code\":0,\"data\":\"Failed to execute sql: java.lang.ClassCastException:  java.util.LinkedHashMap$Entry cannot be cast to java.util.HashMap$TreeNode\",\"count\":0}";
+        Assert.assertFalse(copyCommitter.handleCommitResponse(loadResult));
+
+        loadResult =
                 "{\"msg\":\"success\",\"code\":0,\"data\":{\"result\":{\"msg\":\"errCode = 2, detailMessage = , host: 10.62.1.219\",\"loadedRows\":\"\",\"id\":\"88a895b14bf84184-9a061fd09f125b10\",\"state\":\"CANCELLED\",\"type\":\"LOAD_RUN_FAIL\",\"filterRows\":\"\",\"unselectRows\":\"\",\"url\":null},\"time\":6098,\"type\":\"result_set\"},\"count\":0} ";
+        Assert.assertFalse(copyCommitter.handleCommitResponse(loadResult));
+
+        loadResult = "{\"msg\":\"success\",\"code\":0,\"data\":{\"result\": null},\"count\":0}";
+        Assert.assertFalse(copyCommitter.handleCommitResponse(loadResult));
+
+        loadResult = "{\"msg\":\"success\"," + "\"code\":0,\"data\":{\"code\":1},\"count\":0} ";
         Assert.assertFalse(copyCommitter.handleCommitResponse(loadResult));
 
         loadResult =

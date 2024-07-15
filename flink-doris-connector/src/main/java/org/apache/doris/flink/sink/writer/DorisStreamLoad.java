@@ -58,6 +58,8 @@ import static org.apache.doris.flink.sink.ResponseUtil.LABEL_EXIST_PATTERN;
 import static org.apache.doris.flink.sink.writer.LoadConstants.ARROW;
 import static org.apache.doris.flink.sink.writer.LoadConstants.CSV;
 import static org.apache.doris.flink.sink.writer.LoadConstants.FORMAT_KEY;
+import static org.apache.doris.flink.sink.writer.LoadConstants.GROUP_COMMIT;
+import static org.apache.doris.flink.sink.writer.LoadConstants.GROUP_COMMIT_OFF_MODE;
 import static org.apache.doris.flink.sink.writer.LoadConstants.LINE_DELIMITER_DEFAULT;
 import static org.apache.doris.flink.sink.writer.LoadConstants.LINE_DELIMITER_KEY;
 
@@ -87,6 +89,7 @@ public class DorisStreamLoad implements Serializable {
     private final ExecutorService executorService;
     private boolean loadBatchFirstRecord;
     private volatile String currentLabel;
+    private boolean enableGroupCommit;
 
     public DorisStreamLoad(
             String hostPort,
@@ -129,6 +132,11 @@ public class DorisStreamLoad implements Serializable {
                                             LINE_DELIMITER_KEY, LINE_DELIMITER_DEFAULT))
                             .getBytes();
         }
+        this.enableGroupCommit =
+                streamLoadProp.containsKey(GROUP_COMMIT)
+                        && !streamLoadProp
+                                .getProperty(GROUP_COMMIT)
+                                .equalsIgnoreCase(GROUP_COMMIT_OFF_MODE);
         loadBatchFirstRecord = true;
     }
 
@@ -142,6 +150,11 @@ public class DorisStreamLoad implements Serializable {
 
     public String getHostPort() {
         return hostPort;
+    }
+
+    @VisibleForTesting
+    public byte[] getLineDelimiter() {
+        return lineDelimiter;
     }
 
     public void setHostPort(String hostPort) {
@@ -255,7 +268,16 @@ public class DorisStreamLoad implements Serializable {
 
     public RespContent stopLoad() throws IOException {
         recordStream.endInput();
-        LOG.info("table {} stream load stopped for {} on host {}", table, currentLabel, hostPort);
+        if (enableGroupCommit) {
+            LOG.info("table {} stream load stopped with group commit on host {}", table, hostPort);
+        } else {
+            LOG.info(
+                    "table {} stream load stopped for {} on host {}",
+                    table,
+                    currentLabel,
+                    hostPort);
+        }
+
         Preconditions.checkState(pendingLoadFuture != null);
         try {
             return handlePreCommitResponse(pendingLoadFuture.get());
@@ -271,10 +293,17 @@ public class DorisStreamLoad implements Serializable {
      * @throws IOException
      */
     public void startLoad(String label, boolean isResume) throws IOException {
+        if (enableGroupCommit) {
+            label = null;
+        }
         loadBatchFirstRecord = !isResume;
         HttpPutBuilder putBuilder = new HttpPutBuilder();
         recordStream.startInput(isResume);
-        LOG.info("table {} stream load started for {} on host {}", table, label, hostPort);
+        if (enableGroupCommit) {
+            LOG.info("table {} stream load started with group commit on host {}", table, hostPort);
+        } else {
+            LOG.info("table {} stream load started for {} on host {}", table, label, hostPort);
+        }
         this.currentLabel = label;
         try {
             InputStreamEntity entity = new InputStreamEntity(recordStream);
@@ -289,14 +318,26 @@ public class DorisStreamLoad implements Serializable {
             if (enable2PC) {
                 putBuilder.enable2PC();
             }
+
+            String executeMessage;
+            if (enableGroupCommit) {
+                executeMessage = "table " + table + " start execute load with group commit";
+            } else {
+                executeMessage = "table " + table + " start execute load for label " + label;
+            }
             pendingLoadFuture =
                     executorService.submit(
                             () -> {
-                                LOG.info("table {} start execute load for label {}", table, label);
+                                LOG.info(executeMessage);
                                 return httpClient.execute(putBuilder.build());
                             });
         } catch (Exception e) {
-            String err = "failed to stream load data with label: " + label;
+            String err;
+            if (enableGroupCommit) {
+                err = "failed to stream load data with group commit";
+            } else {
+                err = "failed to stream load data with label: " + label;
+            }
             LOG.warn(err, e);
             throw e;
         }
@@ -326,6 +367,7 @@ public class DorisStreamLoad implements Serializable {
                 mapper.readValue(loadResult, new TypeReference<HashMap<String, String>>() {});
         if (!SUCCESS.equals(res.get("status"))) {
             String msg = res.get("msg");
+            // transaction already aborted
             if (msg != null && ResponseUtil.isAborted(msg)) {
                 LOG.warn("Failed to abort transaction, {}", msg);
                 return;

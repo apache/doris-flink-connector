@@ -73,6 +73,7 @@ public class CdcMysqlSyncDatabaseCase {
         boolean ignoreDefaultValue = false;
         boolean useNewSchemaChange = false;
         boolean singleSink = false;
+        boolean ignoreIncompatible = false;
         DatabaseSync databaseSync = new MysqlDatabaseSync();
         databaseSync
                 .setEnv(env)
@@ -90,6 +91,7 @@ public class CdcMysqlSyncDatabaseCase {
                 .setCreateTableOnly(false)
                 .setNewSchemaChange(useNewSchemaChange)
                 .setSingleSink(singleSink)
+                .setIgnoreIncompatible(ignoreIncompatible)
                 .create();
         databaseSync.build();
         env.execute(String.format("MySQL-Doris Database Sync: %s", database));

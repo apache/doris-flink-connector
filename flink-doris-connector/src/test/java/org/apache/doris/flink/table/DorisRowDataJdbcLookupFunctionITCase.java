@@ -21,16 +21,20 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Collector;
 
 import com.google.common.cache.Cache;
+import org.apache.doris.flink.DorisTestBase;
 import org.apache.doris.flink.cfg.DorisLookupOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
-import org.apache.doris.flink.cfg.DorisReadOptions;
-import org.junit.Ignore;
+import org.junit.Before;
 import org.junit.Test;
 
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -39,10 +43,8 @@ import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertEquals;
 
-@Ignore
-public class DorisRowDataLookupFunctionTest {
+public class DorisRowDataJdbcLookupFunctionITCase extends DorisTestBase {
 
-    private static final String TEST_FENODES = "127.0.0.1:8030";
     private static final String LOOKUP_TABLE = "test.t_lookup_table";
 
     private static String[] fieldNames = new String[] {"id1", "id2", "c_string", "c_double"};
@@ -51,17 +53,54 @@ public class DorisRowDataLookupFunctionTest {
                 DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING(), DataTypes.DOUBLE()
             };
     private static String[] lookupKeys = new String[] {"id1", "id2"};
+    private static int[] keyIndexs = new int[] {0, 1};
+
+    @Before
+    public void setUp() throws Exception {
+        try (Connection connection =
+                        DriverManager.getConnection(
+                                String.format(URL, DORIS_CONTAINER.getHost()), USERNAME, PASSWORD);
+                Statement statement = connection.createStatement()) {
+            statement.execute(String.format("CREATE DATABASE IF NOT EXISTS %s", "test"));
+            statement.execute(String.format("DROP TABLE IF EXISTS %s", LOOKUP_TABLE));
+            statement.execute(
+                    String.format(
+                            "CREATE TABLE %s ( \n"
+                                    + "`id1` int,\n"
+                                    + "`id2` varchar(128),\n"
+                                    + "`c_string` string,\n"
+                                    + "`c_double` double\n"
+                                    + ") DISTRIBUTED BY HASH(`id1`) BUCKETS 1\n"
+                                    + "PROPERTIES (\n"
+                                    + "\"replication_num\" = \"1\"\n"
+                                    + ")\n",
+                            LOOKUP_TABLE));
+            statement.execute(
+                    String.format(
+                            "insert into %s  values (1,'A','zhangsanA',1.12),"
+                                    + "(1,'A','zhangsanA-1',11.12),"
+                                    + "(2,'B','zhangsanB',2.12),(4,'D','zhangsanD',4.12)",
+                            LOOKUP_TABLE));
+        }
+    }
 
     @Test
     public void testEval() throws Exception {
-
-        DorisLookupOptions lookupOptions = DorisLookupOptions.builder().build();
-        DorisRowDataLookupFunction lookupFunction = buildRowDataLookupFunction(lookupOptions);
+        DorisLookupOptions lookupOptions =
+                DorisLookupOptions.builder()
+                        .setJdbcReadBatchQueueSize(16)
+                        .setJdbcReadBatchSize(16)
+                        .setJdbcReadThreadSize(1)
+                        .setMaxRetryTimes(1)
+                        .build();
+        DorisRowDataJdbcLookupFunction lookupFunction =
+                buildRowDataJdbcLookupFunction(lookupOptions);
 
         ListOutputCollector collector = new ListOutputCollector();
         lookupFunction.setCollector(collector);
 
-        lookupFunction.open(null);
+        FunctionContext context = new FunctionContext(null);
+        lookupFunction.open(context);
 
         lookupFunction.eval(1, StringData.fromString("A"));
         lookupFunction.eval(2, StringData.fromString("B"));
@@ -81,19 +120,25 @@ public class DorisRowDataLookupFunctionTest {
 
     @Test
     public void testEvalWithCache() throws Exception {
-        long cacheExpireMs = 10000;
+        long cacheExpireMs = 20000;
         DorisLookupOptions lookupOptions =
                 DorisLookupOptions.builder()
                         .setCacheExpireMs(cacheExpireMs)
                         .setCacheMaxSize(10)
+                        .setJdbcReadBatchQueueSize(16)
+                        .setJdbcReadBatchSize(16)
+                        .setJdbcReadThreadSize(1)
+                        .setMaxRetryTimes(1)
                         .build();
 
-        DorisRowDataLookupFunction lookupFunction = buildRowDataLookupFunction(lookupOptions);
+        DorisRowDataJdbcLookupFunction lookupFunction =
+                buildRowDataJdbcLookupFunction(lookupOptions);
 
         ListOutputCollector collector = new ListOutputCollector();
         lookupFunction.setCollector(collector);
 
-        lookupFunction.open(null);
+        FunctionContext context = new FunctionContext(null);
+        lookupFunction.open(context);
 
         lookupFunction.eval(4, StringData.fromString("D"));
         lookupFunction.eval(5, StringData.fromString("5"));
@@ -116,26 +161,25 @@ public class DorisRowDataLookupFunctionTest {
         assert cache.getIfPresent(keyRow) == null;
     }
 
-    private DorisRowDataLookupFunction buildRowDataLookupFunction(
+    private DorisRowDataJdbcLookupFunction buildRowDataJdbcLookupFunction(
             DorisLookupOptions lookupOptions) {
         DorisOptions dorisOptions =
                 DorisOptions.builder()
-                        .setFenodes(TEST_FENODES)
+                        .setFenodes(getFenodes())
                         .setTableIdentifier(LOOKUP_TABLE)
-                        .setUsername("root")
-                        .setPassword("")
+                        .setJdbcUrl(getJdbcUrl())
+                        .setUsername(USERNAME)
+                        .setPassword(PASSWORD)
                         .build();
 
-        DorisReadOptions readOptions = DorisReadOptions.builder().build();
-
-        DorisRowDataLookupFunction lookupFunction =
-                new DorisRowDataLookupFunction(
+        DorisRowDataJdbcLookupFunction lookupFunction =
+                new DorisRowDataJdbcLookupFunction(
                         dorisOptions,
-                        readOptions,
                         lookupOptions,
                         fieldNames,
                         fieldDataTypes,
-                        lookupKeys);
+                        lookupKeys,
+                        keyIndexs);
 
         return lookupFunction;
     }

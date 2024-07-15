@@ -17,12 +17,14 @@
 
 package org.apache.doris.flink.deserialization;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.util.Collector;
 
 import java.util.List;
 
+@PublicEvolving
 public class SimpleListDeserializationSchema implements DorisDeserializationSchema<List<?>> {
 
     @Override

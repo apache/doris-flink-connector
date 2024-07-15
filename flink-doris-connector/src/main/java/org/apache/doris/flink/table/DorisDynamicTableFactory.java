@@ -35,7 +35,6 @@ import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.sink.writer.WriteMode;
 
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
@@ -256,18 +255,6 @@ public final class DorisDynamicTableFactory
         return builder.build();
     }
 
-    private Properties getStreamLoadProp(Map<String, String> tableOptions) {
-        final Properties streamLoadProp = new Properties();
-
-        for (Map.Entry<String, String> entry : tableOptions.entrySet()) {
-            if (entry.getKey().startsWith(STREAM_LOAD_PROP_PREFIX)) {
-                String subKey = entry.getKey().substring(STREAM_LOAD_PROP_PREFIX.length());
-                streamLoadProp.put(subKey, entry.getValue());
-            }
-        }
-        return streamLoadProp;
-    }
-
     private DorisLookupOptions getDorisLookupOptions(ReadableConfig readableConfig) {
         final DorisLookupOptions.Builder builder = DorisLookupOptions.builder();
         builder.setCacheExpireMs(readableConfig.get(LOOKUP_CACHE_TTL).toMillis());
@@ -290,7 +277,8 @@ public final class DorisDynamicTableFactory
         // sink parallelism
         final Integer parallelism = helper.getOptions().get(SINK_PARALLELISM);
 
-        Properties streamLoadProp = getStreamLoadProp(context.getCatalogTable().getOptions());
+        Properties streamLoadProp =
+                DorisConfigOptions.getStreamLoadProp(context.getCatalogTable().getOptions());
         TableSchema physicalSchema =
                 TableSchemaUtils.getPhysicalSchema(context.getCatalogTable().getSchema());
         // create and return dynamic table source

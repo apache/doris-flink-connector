@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.flink.sink.writer.serializer.jsondebezium;
+package org.apache.doris.flink.tools.cdc.mongodb.serializer;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -27,6 +27,8 @@ import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.apache.doris.flink.exception.IllegalArgumentException;
 import org.apache.doris.flink.sink.schema.SchemaChangeManager;
+import org.apache.doris.flink.sink.writer.serializer.jsondebezium.CdcSchemaChange;
+import org.apache.doris.flink.sink.writer.serializer.jsondebezium.JsonDebeziumChangeContext;
 import org.apache.doris.flink.tools.cdc.SourceSchema;
 import org.apache.doris.flink.tools.cdc.mongodb.MongoDBType;
 import org.apache.doris.flink.tools.cdc.mongodb.MongoDateConverter;
