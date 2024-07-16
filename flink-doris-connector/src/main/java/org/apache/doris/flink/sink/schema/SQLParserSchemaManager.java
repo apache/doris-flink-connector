@@ -35,11 +35,10 @@ import org.slf4j.LoggerFactory;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 /** Use {@link net.sf.jsqlparser.parser.CCJSqlParserUtil} to parse SQL statements. */
-public class SQLParserManager implements Serializable {
-    private static final Logger LOG = LoggerFactory.getLogger(SQLParserManager.class);
+public class SQLParserSchemaManager implements Serializable {
+    private static final Logger LOG = LoggerFactory.getLogger(SQLParserSchemaManager.class);
 
     /**
      * Doris' schema change only supports ADD, DROP, and RENAME operations. This method is only used
@@ -62,10 +61,10 @@ public class SQLParserManager implements Serializable {
                             ddlList.add(dropColumnDDL);
                             break;
                         case ADD:
-                            String addColumnDDL =
+                            List<String> addColumnDDL =
                                     processAddColumnOperation(
                                             sourceConnector, alterExpression, dorisTable);
-                            ddlList.add(addColumnDDL);
+                            ddlList.addAll(addColumnDDL);
                             break;
                         case CHANGE:
                             String changeColumnDDL =
@@ -100,41 +99,36 @@ public class SQLParserManager implements Serializable {
         return dropColumnDDL;
     }
 
-    private String processAddColumnOperation(
+    private List<String> processAddColumnOperation(
             SourceConnector sourceConnector, AlterExpression alterExpression, String dorisTable) {
         List<ColumnDataType> colDataTypeList = alterExpression.getColDataTypeList();
-        if (colDataTypeList.size() != 1) {
-            LOG.warn(
-                    "Unknown alter change expression. colDataTypeListSize={}, colDataTypeList={}",
-                    colDataTypeList.size(),
-                    colDataTypeList.stream()
-                            .map(ColumnDataType::toString)
-                            .collect(Collectors.joining(";")));
-        }
-        ColumnDataType columnDataType = colDataTypeList.get(0);
-        String columnName = columnDataType.getColumnName();
-        ColDataType colDataType = columnDataType.getColDataType();
-        String datatype = colDataType.getDataType();
-        Integer length = null;
-        Integer scale = null;
-        if (CollectionUtils.isNotEmpty(colDataType.getArgumentsStringList())) {
-            List<String> argumentsStringList = colDataType.getArgumentsStringList();
-            length = Integer.parseInt(argumentsStringList.get(0));
-            if (argumentsStringList.size() == 2) {
-                scale = Integer.parseInt(argumentsStringList.get(1));
+        List<String> addColumnList = new ArrayList<>();
+        for (ColumnDataType columnDataType : colDataTypeList) {
+            String columnName = columnDataType.getColumnName();
+            ColDataType colDataType = columnDataType.getColDataType();
+            String datatype = colDataType.getDataType();
+            Integer length = null;
+            Integer scale = null;
+            if (CollectionUtils.isNotEmpty(colDataType.getArgumentsStringList())) {
+                List<String> argumentsStringList = colDataType.getArgumentsStringList();
+                length = Integer.parseInt(argumentsStringList.get(0));
+                if (argumentsStringList.size() == 2) {
+                    scale = Integer.parseInt(argumentsStringList.get(1));
+                }
             }
-        }
-        datatype =
-                JsonDebeziumChangeUtils.buildDorisTypeName(
-                        sourceConnector, datatype, length, scale);
+            datatype =
+                    JsonDebeziumChangeUtils.buildDorisTypeName(
+                            sourceConnector, datatype, length, scale);
 
-        List<String> columnSpecs = columnDataType.getColumnSpecs();
-        String defaultValue = extractDefaultValue(columnSpecs);
-        String comment = extractComment(columnSpecs);
-        FieldSchema fieldSchema = new FieldSchema(columnName, datatype, defaultValue, comment);
-        String addColumnDDL = SchemaChangeHelper.buildAddColumnDDL(dorisTable, fieldSchema);
-        LOG.info("Parsed add column DDL SQL is: {}", addColumnDDL);
-        return addColumnDDL;
+            List<String> columnSpecs = columnDataType.getColumnSpecs();
+            String defaultValue = extractDefaultValue(columnSpecs);
+            String comment = extractComment(columnSpecs);
+            FieldSchema fieldSchema = new FieldSchema(columnName, datatype, defaultValue, comment);
+            String addColumnDDL = SchemaChangeHelper.buildAddColumnDDL(dorisTable, fieldSchema);
+            LOG.info("Parsed add column DDL SQL is: {}", addColumnDDL);
+            addColumnList.add(addColumnDDL);
+        }
+        return addColumnList;
     }
 
     private String processChangeColumnOperation(

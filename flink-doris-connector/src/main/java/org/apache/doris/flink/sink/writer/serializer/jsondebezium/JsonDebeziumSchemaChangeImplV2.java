@@ -162,10 +162,12 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
     private List<String> parserDebeziumStructure(String dorisTable, String ddl, JsonNode record)
             throws JsonProcessingException {
         JsonNode tableChange = extractTableChange(record);
-        EventType eventType = extractEventType(record);
-        if (Objects.isNull(tableChange)
-                || Objects.isNull(ddl)
-                || !eventType.equals(EventType.ALTER)) {
+        if (Objects.isNull(tableChange) || Objects.isNull(ddl)) {
+            LOG.warn(
+                    "tableChange or ddl is empty, cannot do schema change. dorisTable={}, tableChange={}, ddl={}",
+                    dorisTable,
+                    tableChange,
+                    ddl);
             return null;
         }
 

@@ -22,7 +22,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.util.StringUtils;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import org.apache.doris.flink.sink.schema.SQLParserManager;
+import org.apache.doris.flink.sink.schema.SQLParserSchemaManager;
 import org.apache.doris.flink.sink.schema.SchemaChangeManager;
 import org.apache.doris.flink.sink.writer.EventType;
 import org.slf4j.Logger;
@@ -31,15 +31,15 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.List;
 
-public class SQLParserService extends JsonDebeziumSchemaChange {
-    private static final Logger LOG = LoggerFactory.getLogger(SQLParserService.class);
-    private final SQLParserManager sqlParserManager;
+public class SQLParserSchemaChange extends JsonDebeziumSchemaChange {
+    private static final Logger LOG = LoggerFactory.getLogger(SQLParserSchemaChange.class);
+    private final SQLParserSchemaManager sqlParserSchemaManager;
 
-    public SQLParserService(JsonDebeziumChangeContext changeContext) {
+    public SQLParserSchemaChange(JsonDebeziumChangeContext changeContext) {
         this.changeContext = changeContext;
         this.dorisOptions = changeContext.getDorisOptions();
         this.schemaChangeManager = new SchemaChangeManager(dorisOptions);
-        this.sqlParserManager = new SQLParserManager();
+        this.sqlParserSchemaManager = new SQLParserSchemaManager();
         this.tableMapping = changeContext.getTableMapping();
         this.objectMapper = changeContext.getObjectMapper();
     }
@@ -88,6 +88,6 @@ public class SQLParserService extends JsonDebeziumSchemaChange {
         JsonNode historyRecord = extractHistoryRecord(record);
         String ddl = extractJsonNode(historyRecord, "ddl");
         extractSourceConnector(record);
-        return sqlParserManager.parserAlterDDLs(sourceConnector, ddl, dorisTable);
+        return sqlParserSchemaManager.parserAlterDDLs(sourceConnector, ddl, dorisTable);
     }
 }

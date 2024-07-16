@@ -149,6 +149,7 @@ public abstract class JsonDebeziumSchemaChange extends CdcSchemaChange {
         } else if (EventType.CREATE.toString().equalsIgnoreCase(type)) {
             return EventType.CREATE;
         }
+        LOG.warn("Not supported this event type. type={}", type);
         return null;
     }
 

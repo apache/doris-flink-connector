@@ -42,8 +42,7 @@ import java.util.regex.Pattern;
  * method has many flaws. In order to solve this problem, we introduced the com.github.jsqlparser
  * framework, which can accurately parse the schema change of DDL.
  *
- * <p>This class is no longer recommended, we recommend using {@link
- * org.apache.doris.flink.sink.writer.serializer.jsondebezium.SQLParserService}
+ * <p>This class is no longer recommended, we recommend using {@link SQLParserSchemaChange}
  */
 @Deprecated
 public class JsonDebeziumSchemaChangeImpl extends JsonDebeziumSchemaChange {

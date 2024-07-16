@@ -36,7 +36,7 @@ import org.apache.doris.flink.sink.writer.serializer.jsondebezium.JsonDebeziumDa
 import org.apache.doris.flink.sink.writer.serializer.jsondebezium.JsonDebeziumSchemaChange;
 import org.apache.doris.flink.sink.writer.serializer.jsondebezium.JsonDebeziumSchemaChangeImpl;
 import org.apache.doris.flink.sink.writer.serializer.jsondebezium.JsonDebeziumSchemaChangeImplV2;
-import org.apache.doris.flink.sink.writer.serializer.jsondebezium.SQLParserService;
+import org.apache.doris.flink.sink.writer.serializer.jsondebezium.SQLParserSchemaChange;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -158,13 +158,14 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
             LOG.info(
                     "newSchemaChange set to false, instantiation schema change uses JsonDebeziumSchemaChangeImpl.");
             this.schemaChange = new JsonDebeziumSchemaChangeImpl(changeContext);
+            return;
         }
 
         if (Objects.nonNull(schemaChangeMode)
                 && SchemaChangeMode.SQL_PARSER.equals(schemaChangeMode)) {
             LOG.info(
                     "SchemaChangeMode set to SQL_PARSER, instantiation schema change uses SQLParserService.");
-            this.schemaChange = new SQLParserService(changeContext);
+            this.schemaChange = new SQLParserSchemaChange(changeContext);
         } else {
             LOG.info("instantiation schema change uses JsonDebeziumSchemaChangeImplV2.");
             this.schemaChange = new JsonDebeziumSchemaChangeImplV2(changeContext);

@@ -26,9 +26,9 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 
-public class TestSQLParserService extends TestJsonDebeziumChangeBase {
+public class TestSQLParserSchemaChange extends TestJsonDebeziumChangeBase {
 
-    private SQLParserService schemaChange;
+    private SQLParserSchemaChange schemaChange;
 
     @Before
     public void setUp() {
@@ -46,7 +46,7 @@ public class TestSQLParserService extends TestJsonDebeziumChangeBase {
                         ignoreUpdateBefore,
                         "",
                         "");
-        schemaChange = new SQLParserService(changeContext);
+        schemaChange = new SQLParserSchemaChange(changeContext);
     }
 
     @Test
