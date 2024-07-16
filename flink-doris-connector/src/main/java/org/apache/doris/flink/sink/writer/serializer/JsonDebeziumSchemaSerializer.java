@@ -240,6 +240,9 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
         }
 
         public JsonDebeziumSchemaSerializer.Builder setSchemaChangeMode(String schemaChangeMode) {
+            if (org.apache.commons.lang3.StringUtils.isEmpty(schemaChangeMode)) {
+                return this;
+            }
             this.schemaChangeMode = SchemaChangeMode.valueOf(schemaChangeMode.toUpperCase());
             return this;
         }

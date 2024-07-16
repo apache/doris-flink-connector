@@ -92,6 +92,7 @@ public class CdcMysqlSyncDatabaseCase {
                 .setTableConfig(tableConfig)
                 .setCreateTableOnly(false)
                 .setNewSchemaChange(useNewSchemaChange)
+                .setSchemaChangeMode(schemaChangeMode)
                 .setSingleSink(singleSink)
                 .setIgnoreIncompatible(ignoreIncompatible)
                 .create();
