@@ -76,7 +76,7 @@ public class CdcOraclelSyncDatabaseCase {
         String multiToOneOrigin = "a_.*|b_.*";
         String multiToOneTarget = "a|b";
         boolean ignoreDefaultValue = false;
-        boolean useNewSchemaChange = false;
+        boolean useNewSchemaChange = true;
         boolean ignoreIncompatible = false;
         DatabaseSync databaseSync = new OracleDatabaseSync();
         databaseSync

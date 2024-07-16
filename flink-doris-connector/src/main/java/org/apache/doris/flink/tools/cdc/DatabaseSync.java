@@ -78,6 +78,7 @@ public abstract class DatabaseSync {
     public StreamExecutionEnvironment env;
     private boolean createTableOnly = false;
     private boolean newSchemaChange = true;
+    private String schemaChangeMode;
     protected String includingTables;
     protected String excludingTables;
     protected String multiToOneOrigin;
@@ -340,6 +341,7 @@ public abstract class DatabaseSync {
         return JsonDebeziumSchemaSerializer.builder()
                 .setDorisOptions(dorisBuilder.build())
                 .setNewSchemaChange(newSchemaChange)
+                .setSchemaChangeMode(schemaChangeMode)
                 .setExecutionOptions(executionOptions)
                 .setTableMapping(tableMapping)
                 .setTableProperties(tableConfig)
@@ -557,6 +559,11 @@ public abstract class DatabaseSync {
 
     public DatabaseSync setNewSchemaChange(boolean newSchemaChange) {
         this.newSchemaChange = newSchemaChange;
+        return this;
+    }
+
+    public DatabaseSync setSchemaChangeMode(String schemaChangeMode) {
+        this.schemaChangeMode = schemaChangeMode.trim();
         return this;
     }
 

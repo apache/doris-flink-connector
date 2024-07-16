@@ -40,10 +40,6 @@ import org.apache.doris.flink.sink.schema.SchemaChangeManager;
 import org.apache.doris.flink.sink.writer.EventType;
 import org.apache.doris.flink.tools.cdc.DatabaseSync;
 import org.apache.doris.flink.tools.cdc.SourceConnector;
-import org.apache.doris.flink.tools.cdc.mysql.MysqlType;
-import org.apache.doris.flink.tools.cdc.oracle.OracleType;
-import org.apache.doris.flink.tools.cdc.postgres.PostgresType;
-import org.apache.doris.flink.tools.cdc.sqlserver.SqlServerType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,6 +51,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -74,12 +71,11 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
                     Pattern.CASE_INSENSITIVE);
     // schemaChange saves table names, field, and field column information
     private Map<String, Map<String, FieldSchema>> originFieldSchemaMap = new LinkedHashMap<>();
-    private SourceConnector sourceConnector;
     // create table properties
     private final Map<String, String> tableProperties;
-    private String targetDatabase;
-    private String targetTablePrefix;
-    private String targetTableSuffix;
+    private final String targetDatabase;
+    private final String targetTablePrefix;
+    private final String targetTableSuffix;
     private final Set<String> filledTables = new HashSet<>();
 
     public JsonDebeziumSchemaChangeImplV2(JsonDebeziumChangeContext changeContext) {
@@ -124,6 +120,7 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
 
             EventType eventType = extractEventType(recordRoot);
             if (eventType == null) {
+                LOG.warn("Failed to parse eventType. recordRoot={}", recordRoot);
                 return false;
             }
             if (eventType.equals(EventType.CREATE)) {
@@ -137,41 +134,18 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
                     LOG.info("create table ddl status: {}", status);
                 }
             } else if (eventType.equals(EventType.ALTER)) {
-                // db,table
-                Tuple2<String, String> tuple = getDorisTableTuple(recordRoot);
-                if (tuple == null) {
+                Tuple2<String, String> dorisTableTuple = getDorisTableTuple(recordRoot);
+                if (dorisTableTuple == null) {
+                    LOG.warn("Failed to get doris table tuple. record={}", recordRoot);
                     return false;
                 }
                 List<String> ddlSqlList = extractDDLList(recordRoot);
-                if (CollectionUtils.isEmpty(ddlSqlList)) {
-                    LOG.info("ddl can not do schema change:{}", recordRoot);
-                    return false;
-                }
-                List<DDLSchema> ddlSchemas = SchemaChangeHelper.getDdlSchemas();
-                for (int i = 0; i < ddlSqlList.size(); i++) {
-                    DDLSchema ddlSchema = ddlSchemas.get(i);
-                    String ddlSql = ddlSqlList.get(i);
-                    boolean doSchemaChange = checkSchemaChange(tuple.f0, tuple.f1, ddlSchema);
-                    status = doSchemaChange && schemaChangeManager.execute(ddlSql, tuple.f0);
-                    LOG.info("schema change status:{}, ddl:{}", status, ddlSql);
-                }
-            } else {
-                LOG.info("Unsupported event type {}", eventType);
+                status = executeAlterDDLs(ddlSqlList, recordRoot, dorisTableTuple, status);
             }
         } catch (Exception ex) {
-            LOG.warn("schema change error :", ex);
+            LOG.warn("schema change error : ", ex);
         }
         return status;
-    }
-
-    private JsonNode extractTableChange(JsonNode record) throws JsonProcessingException {
-        JsonNode historyRecord = extractHistoryRecord(record);
-        JsonNode tableChanges = historyRecord.get("tableChanges");
-        if (!Objects.isNull(tableChanges)) {
-            JsonNode tableChange = tableChanges.get(0);
-            return tableChange;
-        }
-        return null;
     }
 
     /** Parse Alter Event. */
@@ -181,6 +155,12 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
                 JsonDebeziumChangeUtils.getDorisTableIdentifier(record, dorisOptions, tableMapping);
         JsonNode historyRecord = extractHistoryRecord(record);
         String ddl = extractJsonNode(historyRecord, "ddl");
+        extractSourceConnector(record);
+        return parserDebeziumStructure(dorisTable, ddl, record);
+    }
+
+    private List<String> parserDebeziumStructure(String dorisTable, String ddl, JsonNode record)
+            throws JsonProcessingException {
         JsonNode tableChange = extractTableChange(record);
         EventType eventType = extractEventType(record);
         if (Objects.isNull(tableChange)
@@ -284,7 +264,7 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
                 return tableBucketsMap.get(tableName);
             }
             // Secondly, iterate over the map to find a corresponding regular expression match,
-            for (Map.Entry<String, Integer> entry : tableBucketsMap.entrySet()) {
+            for (Entry<String, Integer> entry : tableBucketsMap.entrySet()) {
 
                 Pattern pattern = Pattern.compile(entry.getKey());
                 if (pattern.matcher(tableName).matches()) {
@@ -301,7 +281,7 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
             return primaryKeys;
         }
         if (!fields.isEmpty()) {
-            Map.Entry<String, FieldSchema> firstField = fields.entrySet().iterator().next();
+            Entry<String, FieldSchema> firstField = fields.entrySet().iterator().next();
             return Collections.singletonList(firstField.getKey());
         }
         return new ArrayList<>();
@@ -318,21 +298,6 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
                 SchemaChangeManager.buildRequestParam(
                         ddlSchema.isDropColumn(), ddlSchema.getColumnName());
         return schemaChangeManager.checkSchemaChange(database, table, param);
-    }
-
-    /** Parse event type. */
-    protected EventType extractEventType(JsonNode record) throws JsonProcessingException {
-        JsonNode tableChange = extractTableChange(record);
-        if (tableChange == null || tableChange.get("type") == null) {
-            return null;
-        }
-        String type = tableChange.get("type").asText();
-        if (EventType.ALTER.toString().equalsIgnoreCase(type)) {
-            return EventType.ALTER;
-        } else if (EventType.CREATE.toString().equalsIgnoreCase(type)) {
-            return EventType.CREATE;
-        }
-        return null;
     }
 
     private Map<String, Object> extractBeforeRow(JsonNode record) {
@@ -402,25 +367,8 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
         int length = column.get("length") == null ? 0 : column.get("length").asInt();
         int scale = column.get("scale") == null ? 0 : column.get("scale").asInt();
         String sourceTypeName = column.get("typeName").asText();
-        String dorisTypeName;
-        switch (sourceConnector) {
-            case MYSQL:
-                dorisTypeName = MysqlType.toDorisType(sourceTypeName, length, scale);
-                break;
-            case ORACLE:
-                dorisTypeName = OracleType.toDorisType(sourceTypeName, length, scale);
-                break;
-            case POSTGRES:
-                dorisTypeName = PostgresType.toDorisType(sourceTypeName, length, scale);
-                break;
-            case SQLSERVER:
-                dorisTypeName = SqlServerType.toDorisType(sourceTypeName, length, scale);
-                break;
-            default:
-                String errMsg = "Not support " + sourceTypeName + " schema change.";
-                throw new UnsupportedOperationException(errMsg);
-        }
-        return dorisTypeName;
+        return JsonDebeziumChangeUtils.buildDorisTypeName(
+                sourceConnector, sourceTypeName, length, scale);
     }
 
     private String handleDefaultValue(String defaultValue) {

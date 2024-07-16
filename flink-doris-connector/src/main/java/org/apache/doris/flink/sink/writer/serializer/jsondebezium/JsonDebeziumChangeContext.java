@@ -38,8 +38,8 @@ public class JsonDebeziumChangeContext implements Serializable {
     private final Pattern pattern;
     private final String lineDelimiter;
     private final boolean ignoreUpdateBefore;
-    private String targetTablePrefix;
-    private String targetTableSuffix;
+    private final String targetTablePrefix;
+    private final String targetTableSuffix;
 
     public JsonDebeziumChangeContext(
             DorisOptions dorisOptions,
