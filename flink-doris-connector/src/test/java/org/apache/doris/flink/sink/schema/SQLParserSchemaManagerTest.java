@@ -23,6 +23,8 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 public class SQLParserSchemaManagerTest {
@@ -89,5 +91,90 @@ public class SQLParserSchemaManagerTest {
         for (String actualDDL : actualDDLs) {
             Assert.assertTrue(expectDDLs.contains(actualDDL));
         }
+    }
+
+    @Test
+    public void testExtractCommentValue() {
+        String expectComment = "";
+        List<String> columnSpecs = Arrays.asList("default", "'100'", "COMMENT", "''");
+        String actualComment = schemaManager.extractComment(columnSpecs);
+        Assert.assertEquals(expectComment, actualComment);
+    }
+
+    @Test
+    public void testExtractCommentValueQuotes() {
+        String expectComment = "comment_test";
+        List<String> columnSpecs =
+                Arrays.asList("Default", "\"100\"", "comment", "\"comment_test\"");
+        String actualComment = schemaManager.extractComment(columnSpecs);
+        Assert.assertEquals(expectComment, actualComment);
+    }
+
+    @Test
+    public void testExtractCommentValueNull() {
+        List<String> columnSpecs = Arrays.asList("default", null, "CommenT", null);
+        String actualComment = schemaManager.extractComment(columnSpecs);
+        Assert.assertNull(actualComment);
+    }
+
+    @Test
+    public void testExtractCommentValueEmpty() {
+        List<String> columnSpecs = Arrays.asList("default", null, "comment");
+        String actualComment = schemaManager.extractComment(columnSpecs);
+        Assert.assertNull(actualComment);
+    }
+
+    @Test
+    public void testExtractCommentValueA() {
+        String expectComment = "test";
+        List<String> columnSpecs = Arrays.asList("comment", "test");
+        String actualComment = schemaManager.extractComment(columnSpecs);
+        Assert.assertEquals(expectComment, actualComment);
+    }
+
+    @Test
+    public void testExtractDefaultValue() {
+        String expectDefault = "100";
+        List<String> columnSpecs = Arrays.asList("default", "'100'", "comment", "");
+        String actualDefault = schemaManager.extractDefaultValue(columnSpecs);
+        Assert.assertEquals(expectDefault, actualDefault);
+    }
+
+    @Test
+    public void testExtractDefaultValueQuotes() {
+        String expectDefault = "100";
+        List<String> columnSpecs = Arrays.asList("default", "\"100\"", "comment", "");
+        String actualDefault = schemaManager.extractDefaultValue(columnSpecs);
+        Assert.assertEquals(expectDefault, actualDefault);
+    }
+
+    @Test
+    public void testExtractDefaultValueNull() {
+        List<String> columnSpecs = Arrays.asList("Default", null, "comment", null);
+        String actualDefault = schemaManager.extractDefaultValue(columnSpecs);
+        Assert.assertNull(actualDefault);
+    }
+
+    @Test
+    public void testExtractDefaultValueEmpty() {
+        String expectDefault = null;
+        List<String> columnSpecs = Arrays.asList("DEFAULT", "comment", null);
+        String actualDefault = schemaManager.extractDefaultValue(columnSpecs);
+        Assert.assertEquals(expectDefault, actualDefault);
+    }
+
+    @Test
+    public void testExtractDefaultValueA() {
+        String expectDefault = "aaa";
+        List<String> columnSpecs = Arrays.asList("default", "aaa");
+        String actualDefault = schemaManager.extractDefaultValue(columnSpecs);
+        Assert.assertEquals(expectDefault, actualDefault);
+    }
+
+    @Test
+    public void testExtractDefaultValueNULL() {
+        List<String> columnSpecs = Collections.singletonList("default");
+        String actualDefault = schemaManager.extractDefaultValue(columnSpecs);
+        Assert.assertNull(actualDefault);
     }
 }

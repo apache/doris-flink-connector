@@ -17,6 +17,8 @@
 
 package org.apache.doris.flink.sink.schema;
 
+import org.apache.flink.annotation.VisibleForTesting;
+
 import net.sf.jsqlparser.JSQLParserException;
 import net.sf.jsqlparser.parser.CCJSqlParserUtil;
 import net.sf.jsqlparser.statement.Statement;
@@ -157,7 +159,8 @@ public class SQLParserSchemaManager implements Serializable {
         return renameColumnDDL;
     }
 
-    private String extractDefaultValue(List<String> columnSpecs) {
+    @VisibleForTesting
+    public String extractDefaultValue(List<String> columnSpecs) {
         return extractAdjacentString(columnSpecs, DEFAULT);
     }
 
@@ -167,8 +170,8 @@ public class SQLParserSchemaManager implements Serializable {
             String columnSpec = columnSpecs.get(i);
             if (key.equalsIgnoreCase(columnSpec) && i < columnSpecsSize - 1) {
                 String adjacentString = columnSpecs.get(i + 1);
-                if (!adjacentString.equalsIgnoreCase(DEFAULT)
-                        && !adjacentString.equalsIgnoreCase(COMMENT)) {
+                if (!(DEFAULT.equalsIgnoreCase(adjacentString))
+                        && !(COMMENT.equalsIgnoreCase(adjacentString))) {
                     return removeQuotes(adjacentString);
                 }
                 LOG.warn(
@@ -180,7 +183,8 @@ public class SQLParserSchemaManager implements Serializable {
         return null;
     }
 
-    private String extractComment(List<String> columnSpecs) {
+    @VisibleForTesting
+    public String extractComment(List<String> columnSpecs) {
         return extractAdjacentString(columnSpecs, COMMENT);
     }
 
