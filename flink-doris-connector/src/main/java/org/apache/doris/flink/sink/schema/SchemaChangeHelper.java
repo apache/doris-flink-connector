@@ -17,10 +17,9 @@
 
 package org.apache.doris.flink.sink.schema;
 
-import org.apache.flink.util.StringUtils;
-
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.compress.utils.Lists;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.doris.flink.catalog.doris.DorisSystem;
 import org.apache.doris.flink.catalog.doris.FieldSchema;
 
@@ -179,7 +178,7 @@ public class SchemaChangeHelper {
     }
 
     private static void commentColumn(StringBuilder ddl, String comment) {
-        if (!StringUtils.isNullOrWhitespaceOnly(comment)) {
+        if (StringUtils.isNotEmpty(comment)) {
             ddl.append(" COMMENT '").append(DorisSystem.quoteComment(comment)).append("'");
         }
     }
