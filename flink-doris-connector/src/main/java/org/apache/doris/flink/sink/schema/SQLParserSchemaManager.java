@@ -172,7 +172,7 @@ public class SQLParserSchemaManager implements Serializable {
                     return removeQuotes(adjacentString);
                 }
                 LOG.warn(
-                        "Failed to extract column specs value. columnSpecs={}, key={}",
+                        "Failed to extract adjacent string value. columnSpecs={}, key={}",
                         String.join(",", columnSpecs),
                         key);
             }
