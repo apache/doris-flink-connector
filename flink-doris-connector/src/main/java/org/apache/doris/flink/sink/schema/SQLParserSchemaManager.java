@@ -34,11 +34,16 @@ import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /** Use {@link net.sf.jsqlparser.parser.CCJSqlParserUtil} to parse SQL statements. */
 public class SQLParserSchemaManager implements Serializable {
     private static final Logger LOG = LoggerFactory.getLogger(SQLParserSchemaManager.class);
+    private static final Set<String> COLUMN_SPECS_KEYS =
+            new HashSet<>(Arrays.asList("COMMENT", "comment", "default", "DEFAULT"));
 
     /**
      * Doris' schema change only supports ADD, DROP, and RENAME operations. This method is only used
@@ -159,23 +164,36 @@ public class SQLParserSchemaManager implements Serializable {
         String defaultValue = null;
         if (columnSpecs.contains("default")) {
             int defaultIndex = columnSpecs.indexOf("default");
-            defaultValue = removeQuotes(columnSpecs.get(defaultIndex + 1));
+            defaultValue = extractColumnSpecsValue(columnSpecs, defaultIndex);
         } else if (columnSpecs.contains("DEFAULT")) {
             int defaultIndex = columnSpecs.indexOf("DEFAULT");
-            defaultValue = removeQuotes(columnSpecs.get(defaultIndex + 1));
+            defaultValue = extractColumnSpecsValue(columnSpecs, defaultIndex);
         }
         return defaultValue;
+    }
+
+    private String extractColumnSpecsValue(List<String> columnSpecs, int keyIndex) {
+        int columnSpecsSize = columnSpecs.size();
+        int valueIndex = keyIndex + 1;
+        if (valueIndex < columnSpecsSize
+                && !COLUMN_SPECS_KEYS.contains(columnSpecs.get(valueIndex))) {
+            return removeQuotes(columnSpecs.get(valueIndex));
+        }
+        LOG.warn(
+                "Failed to extract column specs value. columnSpecs={}",
+                String.join(",", columnSpecs));
+        return null;
     }
 
     private String extractComment(List<String> columnSpecs) {
         String comment = null;
         if (columnSpecs.contains("comment")) {
             int commentIndex = columnSpecs.indexOf("comment");
-            comment = removeQuotes(columnSpecs.get(commentIndex + 1));
+            comment = extractColumnSpecsValue(columnSpecs, commentIndex);
         }
         if (columnSpecs.contains("COMMENT")) {
             int commentIndex = columnSpecs.indexOf("COMMENT");
-            comment = removeQuotes(columnSpecs.get(commentIndex + 1));
+            comment = extractColumnSpecsValue(columnSpecs, commentIndex);
         }
         return comment;
     }
