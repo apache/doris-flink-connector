@@ -202,7 +202,7 @@ public class DorisCatalog extends AbstractCatalog {
     @Override
     public List<String> listViews(String databaseName)
             throws DatabaseNotExistException, CatalogException {
-        throw new UnsupportedOperationException();
+        return Collections.emptyList();
     }
 
     @Override
@@ -425,7 +425,7 @@ public class DorisCatalog extends AbstractCatalog {
     @Override
     public boolean partitionExists(ObjectPath tablePath, CatalogPartitionSpec partitionSpec)
             throws CatalogException {
-        throw new UnsupportedOperationException();
+        return false;
     }
 
     @Override
