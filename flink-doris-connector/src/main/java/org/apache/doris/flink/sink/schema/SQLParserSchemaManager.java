@@ -200,7 +200,8 @@ public class SQLParserSchemaManager implements Serializable {
      * @param str the input string, target the char to be removed
      * @return the string without continuous chars from both sides
      */
-    private static String removeContinuousChar(String str, char target) {
+    @VisibleForTesting
+    public String removeContinuousChar(String str, char target) {
         if (str == null || str.length() < 2) {
             return str;
         }

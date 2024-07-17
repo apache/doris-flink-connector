@@ -177,4 +177,30 @@ public class SQLParserSchemaManagerTest {
         String actualDefault = schemaManager.extractDefaultValue(columnSpecs);
         Assert.assertNull(actualDefault);
     }
+
+    @Test
+    public void testRemoveContinuousChar() {
+        // Test removing continuous target characters from both ends
+        Assert.assertEquals("bc", schemaManager.removeContinuousChar("aaaabcaaa", 'a'));
+        Assert.assertEquals("bcde", schemaManager.removeContinuousChar("abcdea", 'a'));
+
+        // Test cases with no target character
+        Assert.assertEquals("abc", schemaManager.removeContinuousChar("abc", 'x'));
+
+        // Test cases with only target characters
+        Assert.assertEquals("", schemaManager.removeContinuousChar("aaaa", 'a'));
+        Assert.assertEquals("", schemaManager.removeContinuousChar("xxxxxxxx", 'x'));
+
+        // Test empty and null strings
+        Assert.assertNull(schemaManager.removeContinuousChar(null, 'a'));
+        Assert.assertEquals("", schemaManager.removeContinuousChar("", 'a'));
+
+        // Test single character strings
+        Assert.assertEquals("b", schemaManager.removeContinuousChar("b", 'a'));
+
+        // Test removing quotes
+        Assert.assertEquals("abc", schemaManager.removeContinuousChar("\"abc\"", '\"'));
+        Assert.assertEquals("a\"bc\"d", schemaManager.removeContinuousChar("\"a\"bc\"d\"", '\"'));
+        Assert.assertEquals("abc", schemaManager.removeContinuousChar("'abc'", '\''));
+    }
 }
