@@ -19,7 +19,6 @@ package org.apache.doris.flink.sink.writer.serializer.jsondebezium;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
@@ -45,13 +44,11 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -73,9 +70,6 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
     private Map<String, Map<String, FieldSchema>> originFieldSchemaMap = new LinkedHashMap<>();
     // create table properties
     private final Map<String, String> tableProperties;
-    private final String targetDatabase;
-    private final String targetTablePrefix;
-    private final String targetTableSuffix;
     private final Set<String> filledTables = new HashSet<>();
 
     public JsonDebeziumSchemaChangeImplV2(JsonDebeziumChangeContext changeContext) {
@@ -240,7 +234,7 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
         TableSchema tableSchema = new TableSchema();
         tableSchema.setFields(field);
         tableSchema.setKeys(pkList);
-        tableSchema.setDistributeKeys(buildDistributeKeys(pkList, field));
+        tableSchema.setDistributeKeys(JsonDebeziumChangeUtils.buildDistributeKeys(pkList, field));
         tableSchema.setTableComment(tblComment);
         tableSchema.setProperties(tableProperties);
         tableSchema.setModel(pkList.isEmpty() ? DataModel.DUPLICATE : DataModel.UNIQUE);
@@ -252,46 +246,12 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
         if (tableProperties.containsKey("table-buckets")) {
             String tableBucketsConfig = tableProperties.get("table-buckets");
             Map<String, Integer> tableBuckets = DatabaseSync.getTableBuckets(tableBucketsConfig);
-            Integer buckets = getTableSchemaBuckets(tableBuckets, tableSchema.getTable());
+            Integer buckets =
+                    JsonDebeziumChangeUtils.getTableSchemaBuckets(
+                            tableBuckets, tableSchema.getTable());
             tableSchema.setTableBuckets(buckets);
         }
         return tableSchema;
-    }
-
-    @VisibleForTesting
-    public Integer getTableSchemaBuckets(Map<String, Integer> tableBucketsMap, String tableName) {
-        if (tableBucketsMap != null) {
-            // Firstly, if the table name is in the table-buckets map, set the buckets of the table.
-            if (tableBucketsMap.containsKey(tableName)) {
-                return tableBucketsMap.get(tableName);
-            }
-            // Secondly, iterate over the map to find a corresponding regular expression match,
-            for (Entry<String, Integer> entry : tableBucketsMap.entrySet()) {
-
-                Pattern pattern = Pattern.compile(entry.getKey());
-                if (pattern.matcher(tableName).matches()) {
-                    return entry.getValue();
-                }
-            }
-        }
-        return null;
-    }
-
-    private List<String> buildDistributeKeys(
-            List<String> primaryKeys, Map<String, FieldSchema> fields) {
-        if (!CollectionUtil.isNullOrEmpty(primaryKeys)) {
-            return primaryKeys;
-        }
-        if (!fields.isEmpty()) {
-            Entry<String, FieldSchema> firstField = fields.entrySet().iterator().next();
-            return Collections.singletonList(firstField.getKey());
-        }
-        return new ArrayList<>();
-    }
-
-    private String getCreateTableIdentifier(JsonNode record) {
-        String table = extractJsonNode(record.get("source"), "table");
-        return targetDatabase + "." + targetTablePrefix + table + targetTableSuffix;
     }
 
     private boolean checkSchemaChange(String database, String table, DDLSchema ddlSchema)

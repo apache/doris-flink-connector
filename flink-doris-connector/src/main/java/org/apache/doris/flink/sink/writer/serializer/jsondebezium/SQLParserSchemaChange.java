@@ -22,6 +22,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.util.StringUtils;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import org.apache.doris.flink.catalog.doris.TableSchema;
 import org.apache.doris.flink.sink.schema.SQLParserSchemaManager;
 import org.apache.doris.flink.sink.schema.SchemaChangeManager;
 import org.apache.doris.flink.sink.writer.EventType;
@@ -42,6 +43,15 @@ public class SQLParserSchemaChange extends JsonDebeziumSchemaChange {
         this.sqlParserSchemaManager = new SQLParserSchemaManager();
         this.tableMapping = changeContext.getTableMapping();
         this.objectMapper = changeContext.getObjectMapper();
+        this.targetDatabase = changeContext.getTargetDatabase();
+        this.targetTablePrefix =
+                changeContext.getTargetTablePrefix() == null
+                        ? ""
+                        : changeContext.getTargetTablePrefix();
+        this.targetTableSuffix =
+                changeContext.getTargetTableSuffix() == null
+                        ? ""
+                        : changeContext.getTargetTableSuffix();
     }
 
     @Override
@@ -64,8 +74,16 @@ public class SQLParserSchemaChange extends JsonDebeziumSchemaChange {
             }
 
             if (eventType.equals(EventType.CREATE)) {
-                // TODO support auto create table
-                LOG.warn("Not auto support create table. recordRoot={}", recordRoot);
+                String dorisTable = getCreateTableIdentifier(recordRoot);
+                TableSchema tableSchema = tryParseCreateTableStatement(recordRoot, dorisTable);
+                status = schemaChangeManager.createTable(tableSchema);
+                if (status) {
+                    String cdcTbl = getCdcTableIdentifier(recordRoot);
+                    String dorisTbl = getCreateTableIdentifier(recordRoot);
+                    changeContext.getTableMapping().put(cdcTbl, dorisTbl);
+                    this.tableMapping = changeContext.getTableMapping();
+                    LOG.info("create table ddl status: {}", status);
+                }
             } else if (eventType.equals(EventType.ALTER)) {
                 Tuple2<String, String> dorisTableTuple = getDorisTableTuple(recordRoot);
                 if (dorisTableTuple == null) {
@@ -79,6 +97,16 @@ public class SQLParserSchemaChange extends JsonDebeziumSchemaChange {
             LOG.warn("schema change error : ", ex);
         }
         return status;
+    }
+
+    @VisibleForTesting
+    public TableSchema tryParseCreateTableStatement(JsonNode record, String dorisTable)
+            throws IOException {
+        JsonNode historyRecord = extractHistoryRecord(record);
+        String ddl = extractJsonNode(historyRecord, "ddl");
+        extractSourceConnector(record);
+        return sqlParserSchemaManager.parseCreateTableStatement(
+                sourceConnector, ddl, dorisTable, changeContext);
     }
 
     @VisibleForTesting

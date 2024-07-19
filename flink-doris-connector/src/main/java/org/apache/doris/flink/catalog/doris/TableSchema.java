@@ -106,4 +106,31 @@ public class TableSchema {
     public Integer getTableBuckets() {
         return tableBuckets;
     }
+
+    @Override
+    public String toString() {
+        return "TableSchema{"
+                + "database='"
+                + database
+                + '\''
+                + ", table='"
+                + table
+                + '\''
+                + ", tableComment='"
+                + tableComment
+                + '\''
+                + ", fields="
+                + fields
+                + ", keys="
+                + String.join(",", keys)
+                + ", model="
+                + model.name()
+                + ", distributeKeys="
+                + String.join(",", distributeKeys)
+                + ", properties="
+                + properties
+                + ", tableBuckets="
+                + tableBuckets
+                + '}';
+    }
 }

@@ -18,6 +18,7 @@
 package org.apache.doris.flink.sink.schema;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.util.Preconditions;
 
 import net.sf.jsqlparser.JSQLParserException;
 import net.sf.jsqlparser.parser.CCJSqlParserUtil;
@@ -27,22 +28,34 @@ import net.sf.jsqlparser.statement.alter.AlterExpression;
 import net.sf.jsqlparser.statement.alter.AlterExpression.ColumnDataType;
 import net.sf.jsqlparser.statement.alter.AlterOperation;
 import net.sf.jsqlparser.statement.create.table.ColDataType;
+import net.sf.jsqlparser.statement.create.table.CreateTable;
+import net.sf.jsqlparser.statement.create.table.Index;
 import org.apache.commons.collections.CollectionUtils;
+import org.apache.doris.flink.catalog.doris.DataModel;
 import org.apache.doris.flink.catalog.doris.FieldSchema;
+import org.apache.doris.flink.catalog.doris.TableSchema;
+import org.apache.doris.flink.sink.writer.serializer.jsondebezium.JsonDebeziumChangeContext;
 import org.apache.doris.flink.sink.writer.serializer.jsondebezium.JsonDebeziumChangeUtils;
+import org.apache.doris.flink.tools.cdc.DatabaseSync;
 import org.apache.doris.flink.tools.cdc.SourceConnector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
-/** Use {@link net.sf.jsqlparser.parser.CCJSqlParserUtil} to parse SQL statements. */
+/** Use {@link CCJSqlParserUtil} to parse SQL statements. */
 public class SQLParserSchemaManager implements Serializable {
     private static final Logger LOG = LoggerFactory.getLogger(SQLParserSchemaManager.class);
     private static final String DEFAULT = "DEFAULT";
     private static final String COMMENT = "COMMENT";
+    private static final String PRIMARY = "PRIMARY";
+    private static final String KEY = "KEY";
+    private static final String PRIMARY_KEY = "PRIMARY KEY";
+    private static final String UNIQUE = "UNIQUE";
 
     /**
      * Doris' schema change only supports ADD, DROP, and RENAME operations. This method is only used
@@ -96,6 +109,129 @@ public class SQLParserSchemaManager implements Serializable {
         return ddlList;
     }
 
+    public TableSchema parseCreateTableStatement(
+            SourceConnector sourceConnector,
+            String ddl,
+            String dorisTable,
+            JsonDebeziumChangeContext changeContext) {
+        try {
+            Statement statement = CCJSqlParserUtil.parse(ddl);
+            if (statement instanceof CreateTable) {
+                CreateTable createTable = (CreateTable) statement;
+                Map<String, FieldSchema> columnFields = new LinkedHashMap<>();
+                List<String> pkKeys = new ArrayList<>();
+                createTable
+                        .getColumnDefinitions()
+                        .forEach(
+                                column -> {
+                                    String columnName = column.getColumnName();
+                                    ColDataType colDataType = column.getColDataType();
+                                    String dataType = parseDataType(colDataType, sourceConnector);
+                                    List<String> columnSpecs = column.getColumnSpecs();
+                                    String defaultValue = extractDefaultValue(columnSpecs);
+                                    String comment = extractComment(columnSpecs);
+                                    FieldSchema fieldSchema =
+                                            new FieldSchema(
+                                                    columnName, dataType, defaultValue, comment);
+                                    columnFields.put(columnName, fieldSchema);
+                                    extractColumnPrimaryKey(columnName, columnSpecs, pkKeys);
+                                });
+
+                List<Index> indexes = createTable.getIndexes();
+                extractIndexesPrimaryKey(indexes, pkKeys);
+
+                Map<String, String> tableProperties = changeContext.getTableProperties();
+                String[] dbTable = dorisTable.split("\\.");
+                Preconditions.checkArgument(dbTable.length == 2);
+                TableSchema tableSchema = new TableSchema();
+                tableSchema.setDatabase(dbTable[0]);
+                tableSchema.setTable(dbTable[1]);
+                tableSchema.setModel(pkKeys.isEmpty() ? DataModel.DUPLICATE : DataModel.UNIQUE);
+                tableSchema.setFields(columnFields);
+                tableSchema.setKeys(pkKeys);
+                tableSchema.setTableComment(
+                        extractTableComment(createTable.getTableOptionsStrings()));
+                tableSchema.setDistributeKeys(
+                        JsonDebeziumChangeUtils.buildDistributeKeys(pkKeys, columnFields));
+                tableSchema.setProperties(tableProperties);
+                if (tableProperties.containsKey("table-buckets")) {
+                    String tableBucketsConfig = tableProperties.get("table-buckets");
+                    Map<String, Integer> tableBuckets =
+                            DatabaseSync.getTableBuckets(tableBucketsConfig);
+                    Integer buckets =
+                            JsonDebeziumChangeUtils.getTableSchemaBuckets(
+                                    tableBuckets, tableSchema.getTable());
+                    tableSchema.setTableBuckets(buckets);
+                }
+                return tableSchema;
+            } else {
+                LOG.warn(
+                        "Unsupported statement type. ddl={}, sourceConnector={}, dorisTable={}",
+                        ddl,
+                        sourceConnector.getConnectorName(),
+                        dorisTable);
+            }
+        } catch (JSQLParserException e) {
+            LOG.warn(
+                    "Failed to parse create table statement. ddl={}, sourceConnector={}, dorisTable={}",
+                    ddl,
+                    sourceConnector.getConnectorName(),
+                    dorisTable);
+        }
+        return null;
+    }
+
+    private void extractIndexesPrimaryKey(List<Index> indexes, List<String> pkKeys) {
+        if (CollectionUtils.isEmpty(indexes)) {
+            return;
+        }
+        indexes.stream()
+                .filter(
+                        index ->
+                                PRIMARY_KEY.equalsIgnoreCase(index.getType())
+                                        || UNIQUE.equalsIgnoreCase(index.getType()))
+                .flatMap(index -> index.getColumnsNames().stream())
+                .distinct()
+                .filter(
+                        primaryKey ->
+                                pkKeys.stream()
+                                        .noneMatch(pkKey -> pkKey.equalsIgnoreCase(primaryKey)))
+                .forEach(pkKeys::add);
+    }
+
+    private void extractColumnPrimaryKey(
+            String columnName, List<String> columnSpecs, List<String> pkKeys) {
+        if (CollectionUtils.isEmpty(columnSpecs)) {
+            return;
+        }
+        for (String columnSpec : columnSpecs) {
+            if (PRIMARY.equalsIgnoreCase(columnSpec) || KEY.equalsIgnoreCase(columnSpec)) {
+                pkKeys.add(columnName);
+            }
+        }
+    }
+
+    private String extractTableComment(List<String> tableOptionsStrings) {
+        if (CollectionUtils.isEmpty(tableOptionsStrings)) {
+            return null;
+        }
+        return extractAdjacentString(tableOptionsStrings, COMMENT);
+    }
+
+    private String parseDataType(ColDataType colDataType, SourceConnector sourceConnector) {
+        String dataType = colDataType.getDataType();
+        int length = 0;
+        int scale = 0;
+        if (CollectionUtils.isNotEmpty(colDataType.getArgumentsStringList())) {
+            List<String> argumentsStringList = colDataType.getArgumentsStringList();
+            length = Integer.parseInt(argumentsStringList.get(0));
+            if (argumentsStringList.size() == 2) {
+                scale = Integer.parseInt(argumentsStringList.get(1));
+            }
+        }
+        return JsonDebeziumChangeUtils.buildDorisTypeName(sourceConnector, dataType, length, scale);
+    }
+
     private String processDropColumnOperation(AlterExpression alterExpression, String dorisTable) {
         String dropColumnDDL =
                 SchemaChangeHelper.buildDropColumnDDL(dorisTable, alterExpression.getColumnName());
@@ -110,19 +246,7 @@ public class SQLParserSchemaManager implements Serializable {
         for (ColumnDataType columnDataType : colDataTypeList) {
             String columnName = columnDataType.getColumnName();
             ColDataType colDataType = columnDataType.getColDataType();
-            String datatype = colDataType.getDataType();
-            Integer length = null;
-            Integer scale = null;
-            if (CollectionUtils.isNotEmpty(colDataType.getArgumentsStringList())) {
-                List<String> argumentsStringList = colDataType.getArgumentsStringList();
-                length = Integer.parseInt(argumentsStringList.get(0));
-                if (argumentsStringList.size() == 2) {
-                    scale = Integer.parseInt(argumentsStringList.get(1));
-                }
-            }
-            datatype =
-                    JsonDebeziumChangeUtils.buildDorisTypeName(
-                            sourceConnector, datatype, length, scale);
+            String datatype = parseDataType(colDataType, sourceConnector);
 
             List<String> columnSpecs = columnDataType.getColumnSpecs();
             String defaultValue = extractDefaultValue(columnSpecs);
@@ -161,6 +285,9 @@ public class SQLParserSchemaManager implements Serializable {
 
     @VisibleForTesting
     public String extractDefaultValue(List<String> columnSpecs) {
+        if (CollectionUtils.isEmpty(columnSpecs)) {
+            return null;
+        }
         return extractAdjacentString(columnSpecs, DEFAULT);
     }
 
@@ -185,6 +312,9 @@ public class SQLParserSchemaManager implements Serializable {
 
     @VisibleForTesting
     public String extractComment(List<String> columnSpecs) {
+        if (CollectionUtils.isEmpty(columnSpecs)) {
+            return null;
+        }
         return extractAdjacentString(columnSpecs, COMMENT);
     }
 
