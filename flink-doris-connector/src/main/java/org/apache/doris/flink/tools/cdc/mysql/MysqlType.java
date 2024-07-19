@@ -104,6 +104,8 @@ public class MysqlType {
     public static String toDorisType(String type, Integer length, Integer scale) {
         switch (type.toUpperCase()) {
             case BIT:
+                // bit(1) is equals to boolean.when the length of bit is greater than 1,it will
+                // convert to a string.
                 if (length > 1) {
                     return DorisType.STRING;
                 }
