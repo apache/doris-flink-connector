@@ -17,6 +17,7 @@
 
 package org.apache.doris.flink.sink.schema;
 
+import org.apache.doris.flink.catalog.doris.TableSchema;
 import org.apache.doris.flink.tools.cdc.SourceConnector;
 import org.junit.Assert;
 import org.junit.Before;
@@ -25,6 +26,7 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 
 public class SQLParserSchemaManagerTest {
@@ -202,5 +204,141 @@ public class SQLParserSchemaManagerTest {
         Assert.assertEquals("abc", schemaManager.removeContinuousChar("\"abc\"", '\"'));
         Assert.assertEquals("a\"bc\"d", schemaManager.removeContinuousChar("\"a\"bc\"d\"", '\"'));
         Assert.assertEquals("abc", schemaManager.removeContinuousChar("'abc'", '\''));
+    }
+
+    @Test
+    public void testParseCreateTableStatement() {
+        String dorisTable = "doris.auto_tab";
+        String ddl =
+                "CREATE TABLE `test_sinka` (\n"
+                        + "  `id` int NOT NULL DEFAULT '10000' COMMENT 'id_test',\n"
+                        + "  `create_time` datetime(3) DEFAULT CURRENT_TIMESTAMP(3),\n"
+                        + "  `c1` int DEFAULT '999',\n"
+                        + "  `decimal_type` decimal(9,3) DEFAULT '1.000' COMMENT 'decimal_tes',\n"
+                        + "  `aaa` varchar(100) DEFAULT NULL,\n"
+                        + "  `decimal_type3` decimal(38,9) DEFAULT '1.123456789' COMMENT 'comment_test',\n"
+                        + "  `create_time3` datetime(3) DEFAULT CURRENT_TIMESTAMP(3) COMMENT 'ttime_aaa',\n"
+                        + "  PRIMARY KEY (`id`)\n"
+                        + ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci";
+        TableSchema tableSchema =
+                schemaManager.parseCreateTableStatement(
+                        SourceConnector.MYSQL, ddl, dorisTable, new HashMap<>());
+
+        String expected =
+                "TableSchema{database='doris', table='auto_tab', tableComment='null', fields={`id`=FieldSchema{name='`id`', typeString='INT', defaultValue='10000', comment='id_test'}, `create_time`=FieldSchema{name='`create_time`', typeString='DATETIMEV2(3)', defaultValue='CURRENT_TIMESTAMP', comment='null'}, `c1`=FieldSchema{name='`c1`', typeString='INT', defaultValue='999', comment='null'}, `decimal_type`=FieldSchema{name='`decimal_type`', typeString='DECIMALV3(9,3)', defaultValue='1.000', comment='decimal_tes'}, `aaa`=FieldSchema{name='`aaa`', typeString='VARCHAR(300)', defaultValue='NULL', comment='null'}, `decimal_type3`=FieldSchema{name='`decimal_type3`', typeString='DECIMALV3(38,9)', defaultValue='1.123456789', comment='comment_test'}, `create_time3`=FieldSchema{name='`create_time3`', typeString='DATETIMEV2(3)', defaultValue='CURRENT_TIMESTAMP', comment='ttime_aaa'}}, keys=`id`, model=UNIQUE, distributeKeys=`id`, properties={}, tableBuckets=null}";
+        Assert.assertEquals(expected, tableSchema.toString());
+    }
+
+    @Test
+    public void testParseCreateUniqueTableStatement() {
+        String dorisTable = "doris.auto_uni_tab";
+        String ddl =
+                "CREATE TABLE test_sink_unique (     id INT NOT NULL,     name VARCHAR(100) NOT NULL,     age INT,     email VARCHAR(100),     UNIQUE (email) )";
+        TableSchema tableSchema =
+                schemaManager.parseCreateTableStatement(
+                        SourceConnector.MYSQL, ddl, dorisTable, new HashMap<>());
+
+        String expected =
+                "TableSchema{database='doris', table='auto_uni_tab', tableComment='null', fields={id=FieldSchema{name='id', typeString='INT', defaultValue='null', comment='null'}, name=FieldSchema{name='name', typeString='VARCHAR(300)', defaultValue='null', comment='null'}, age=FieldSchema{name='age', typeString='INT', defaultValue='null', comment='null'}, email=FieldSchema{name='email', typeString='VARCHAR(300)', defaultValue='null', comment='null'}}, keys=email, model=UNIQUE, distributeKeys=email, properties={}, tableBuckets=null}";
+        Assert.assertEquals(expected, tableSchema.toString());
+    }
+
+    @Test
+    public void testParseCreateDuplicateTableStatement() {
+        String dorisTable = "doris.auto_duptab";
+        String ddl =
+                "CREATE TABLE test_sink_duplicate (\n"
+                        + "    id INT,\n"
+                        + "    name VARCHAR(50),\n"
+                        + "    age INT,\n"
+                        + "    address VARCHAR(255)\n"
+                        + ")";
+        TableSchema tableSchema =
+                schemaManager.parseCreateTableStatement(
+                        SourceConnector.MYSQL, ddl, dorisTable, new HashMap<>());
+
+        String expected =
+                "TableSchema{database='doris', table='auto_duptab', tableComment='null', fields={id=FieldSchema{name='id', typeString='INT', defaultValue='null', comment='null'}, name=FieldSchema{name='name', typeString='VARCHAR(150)', defaultValue='null', comment='null'}, age=FieldSchema{name='age', typeString='INT', defaultValue='null', comment='null'}, address=FieldSchema{name='address', typeString='VARCHAR(765)', defaultValue='null', comment='null'}}, keys=, model=DUPLICATE, distributeKeys=id, properties={}, tableBuckets=null}";
+        Assert.assertEquals(expected, tableSchema.toString());
+    }
+
+    @Test
+    public void testParseOracleTableStatement() {
+        String dorisTable = "doris.auto_tab";
+        String ddl =
+                "CREATE TABLE employees (\n"
+                        + "    employee_id NUMBER(10) NOT NULL,\n"
+                        + "    first_name VARCHAR2(50),\n"
+                        + "    last_name VARCHAR2(50) NOT NULL,\n"
+                        + "    email VARCHAR2(100) UNIQUE,\n"
+                        + "    phone_number VARCHAR2(20),\n"
+                        + "    hire_date DATE DEFAULT SYSDATE NOT NULL,\n"
+                        + "    job_id VARCHAR2(10) NOT NULL,\n"
+                        + "    salary NUMBER(8, 2),\n"
+                        + "    commission_pct NUMBER(2, 2),\n"
+                        + "    manager_id NUMBER(10),\n"
+                        + "    department_id NUMBER(10),\n"
+                        + "    CONSTRAINT pk_employee PRIMARY KEY (employee_id),\n"
+                        + "    CONSTRAINT fk_department FOREIGN KEY (department_id)\n"
+                        + "        REFERENCES departments(department_id)\n"
+                        + ");";
+        TableSchema tableSchema =
+                schemaManager.parseCreateTableStatement(
+                        SourceConnector.ORACLE, ddl, dorisTable, new HashMap<>());
+
+        String expected =
+                "TableSchema{database='doris', table='auto_tab', tableComment='null', fields={employee_id=FieldSchema{name='employee_id', typeString='BIGINT', defaultValue='null', comment='null'}, first_name=FieldSchema{name='first_name', typeString='VARCHAR(150)', defaultValue='null', comment='null'}, last_name=FieldSchema{name='last_name', typeString='VARCHAR(150)', defaultValue='null', comment='null'}, email=FieldSchema{name='email', typeString='VARCHAR(300)', defaultValue='null', comment='null'}, phone_number=FieldSchema{name='phone_number', typeString='VARCHAR(60)', defaultValue='null', comment='null'}, hire_date=FieldSchema{name='hire_date', typeString='DATETIMEV2', defaultValue='SYSDATE', comment='null'}, job_id=FieldSchema{name='job_id', typeString='VARCHAR(30)', defaultValue='null', comment='null'}, salary=FieldSchema{name='salary', typeString='DECIMALV3(8,2)', defaultValue='null', comment='null'}, commission_pct=FieldSchema{name='commission_pct', typeString='DECIMALV3(2,2)', defaultValue='null', comment='null'}, manager_id=FieldSchema{name='manager_id', typeString='BIGINT', defaultValue='null', comment='null'}, department_id=FieldSchema{name='department_id', typeString='BIGINT', defaultValue='null', comment='null'}}, keys=employee_id, model=UNIQUE, distributeKeys=employee_id, properties={}, tableBuckets=null}";
+        Assert.assertEquals(expected, tableSchema.toString());
+    }
+
+    @Test
+    public void testParseOraclePrimaryTableStatement() {
+        String dorisTable = "doris.auto_tab";
+        String ddl =
+                "CREATE TABLE employees (\n"
+                        + "    employee_id NUMBER(10) PRIMARY KEY,\n"
+                        + "    first_name VARCHAR2(50),\n"
+                        + "    last_name VARCHAR2(50) NOT NULL,\n"
+                        + "    email VARCHAR2(100),\n"
+                        + "    phone_number VARCHAR2(20),\n"
+                        + "    hire_date DATE DEFAULT SYSDATE NOT NULL,\n"
+                        + "    job_id VARCHAR2(10) NOT NULL,\n"
+                        + "    salary NUMBER(8, 2),\n"
+                        + "    commission_pct NUMBER(2, 2),\n"
+                        + "    manager_id NUMBER(10),\n"
+                        + "    department_id NUMBER(10)\n"
+                        + ");";
+        TableSchema tableSchema =
+                schemaManager.parseCreateTableStatement(
+                        SourceConnector.ORACLE, ddl, dorisTable, new HashMap<>());
+
+        String expected =
+                "TableSchema{database='doris', table='auto_tab', tableComment='null', fields={employee_id=FieldSchema{name='employee_id', typeString='BIGINT', defaultValue='null', comment='null'}, first_name=FieldSchema{name='first_name', typeString='VARCHAR(150)', defaultValue='null', comment='null'}, last_name=FieldSchema{name='last_name', typeString='VARCHAR(150)', defaultValue='null', comment='null'}, email=FieldSchema{name='email', typeString='VARCHAR(300)', defaultValue='null', comment='null'}, phone_number=FieldSchema{name='phone_number', typeString='VARCHAR(60)', defaultValue='null', comment='null'}, hire_date=FieldSchema{name='hire_date', typeString='DATETIMEV2', defaultValue='SYSDATE', comment='null'}, job_id=FieldSchema{name='job_id', typeString='VARCHAR(30)', defaultValue='null', comment='null'}, salary=FieldSchema{name='salary', typeString='DECIMALV3(8,2)', defaultValue='null', comment='null'}, commission_pct=FieldSchema{name='commission_pct', typeString='DECIMALV3(2,2)', defaultValue='null', comment='null'}, manager_id=FieldSchema{name='manager_id', typeString='BIGINT', defaultValue='null', comment='null'}, department_id=FieldSchema{name='department_id', typeString='BIGINT', defaultValue='null', comment='null'}}, keys=employee_id, model=UNIQUE, distributeKeys=employee_id, properties={}, tableBuckets=null}";
+        Assert.assertEquals(expected, tableSchema.toString());
+    }
+
+    @Test
+    public void testParseOracleDuplicateTableStatement() {
+        String dorisTable = "doris.auto_tab";
+        String ddl =
+                "CREATE TABLE orders (\n"
+                        + "    order_id NUMBER(10) NOT NULL,\n"
+                        + "    customer_id NUMBER(10) NOT NULL,\n"
+                        + "    order_date DATE DEFAULT SYSDATE NOT NULL,\n"
+                        + "    status VARCHAR2(20) CHECK (status IN ('PENDING', 'SHIPPED', 'DELIVERED', 'CANCELLED')),\n"
+                        + "    total_amount NUMBER(12, 2) NOT NULL,\n"
+                        + "    shipping_address VARCHAR2(255),\n"
+                        + "    delivery_date DATE,\n"
+                        + "    CONSTRAINT fk_customer FOREIGN KEY (customer_id)\n"
+                        + "        REFERENCES customers(customer_id),\n"
+                        + "    CONSTRAINT chk_total_amount CHECK (total_amount >= 0)\n"
+                        + ");";
+        TableSchema tableSchema =
+                schemaManager.parseCreateTableStatement(
+                        SourceConnector.ORACLE, ddl, dorisTable, new HashMap<>());
+
+        String expected =
+                "TableSchema{database='doris', table='auto_tab', tableComment='null', fields={order_id=FieldSchema{name='order_id', typeString='BIGINT', defaultValue='null', comment='null'}, customer_id=FieldSchema{name='customer_id', typeString='BIGINT', defaultValue='null', comment='null'}, order_date=FieldSchema{name='order_date', typeString='DATETIMEV2', defaultValue='SYSDATE', comment='null'}, status=FieldSchema{name='status', typeString='VARCHAR(60)', defaultValue='null', comment='null'}, total_amount=FieldSchema{name='total_amount', typeString='DECIMALV3(12,2)', defaultValue='null', comment='null'}, shipping_address=FieldSchema{name='shipping_address', typeString='VARCHAR(765)', defaultValue='null', comment='null'}, delivery_date=FieldSchema{name='delivery_date', typeString='DATETIMEV2', defaultValue='null', comment='null'}}, keys=, model=DUPLICATE, distributeKeys=order_id, properties={}, tableBuckets=null}";
+        Assert.assertEquals(expected, tableSchema.toString());
     }
 }

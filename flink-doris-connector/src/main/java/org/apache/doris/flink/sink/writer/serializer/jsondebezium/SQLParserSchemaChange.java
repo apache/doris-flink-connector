@@ -106,7 +106,7 @@ public class SQLParserSchemaChange extends JsonDebeziumSchemaChange {
         String ddl = extractJsonNode(historyRecord, "ddl");
         extractSourceConnector(record);
         return sqlParserSchemaManager.parseCreateTableStatement(
-                sourceConnector, ddl, dorisTable, changeContext);
+                sourceConnector, ddl, dorisTable, changeContext.getTableProperties());
     }
 
     @VisibleForTesting

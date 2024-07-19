@@ -34,7 +34,6 @@ import org.apache.commons.collections.CollectionUtils;
 import org.apache.doris.flink.catalog.doris.DataModel;
 import org.apache.doris.flink.catalog.doris.FieldSchema;
 import org.apache.doris.flink.catalog.doris.TableSchema;
-import org.apache.doris.flink.sink.writer.serializer.jsondebezium.JsonDebeziumChangeContext;
 import org.apache.doris.flink.sink.writer.serializer.jsondebezium.JsonDebeziumChangeUtils;
 import org.apache.doris.flink.tools.cdc.DatabaseSync;
 import org.apache.doris.flink.tools.cdc.SourceConnector;
@@ -53,7 +52,6 @@ public class SQLParserSchemaManager implements Serializable {
     private static final String DEFAULT = "DEFAULT";
     private static final String COMMENT = "COMMENT";
     private static final String PRIMARY = "PRIMARY";
-    private static final String KEY = "KEY";
     private static final String PRIMARY_KEY = "PRIMARY KEY";
     private static final String UNIQUE = "UNIQUE";
 
@@ -113,7 +111,7 @@ public class SQLParserSchemaManager implements Serializable {
             SourceConnector sourceConnector,
             String ddl,
             String dorisTable,
-            JsonDebeziumChangeContext changeContext) {
+            Map<String, String> tableProperties) {
         try {
             Statement statement = CCJSqlParserUtil.parse(ddl);
             if (statement instanceof CreateTable) {
@@ -140,7 +138,6 @@ public class SQLParserSchemaManager implements Serializable {
                 List<Index> indexes = createTable.getIndexes();
                 extractIndexesPrimaryKey(indexes, pkKeys);
 
-                Map<String, String> tableProperties = changeContext.getTableProperties();
                 String[] dbTable = dorisTable.split("\\.");
                 Preconditions.checkArgument(dbTable.length == 2);
                 TableSchema tableSchema = new TableSchema();
@@ -205,7 +202,7 @@ public class SQLParserSchemaManager implements Serializable {
             return;
         }
         for (String columnSpec : columnSpecs) {
-            if (PRIMARY.equalsIgnoreCase(columnSpec) || KEY.equalsIgnoreCase(columnSpec)) {
+            if (PRIMARY.equalsIgnoreCase(columnSpec)) {
                 pkKeys.add(columnName);
             }
         }
