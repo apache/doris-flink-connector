@@ -59,6 +59,7 @@ public class DorisSinkITCase extends DorisTestBase {
     static final String TABLE_CSV_BATCH_TBL = "tbl_csv_batch_tbl";
     static final String TABLE_CSV_BATCH_DS = "tbl_csv_batch_DS";
     static final String TABLE_GROUP_COMMIT = "tbl_group_commit";
+    static final String TABLE_GZ_FORMAT = "tbl_gz_format";
     static final String TABLE_CSV_JM = "tbl_csv_jm";
     static final String TABLE_CSV_TM = "tbl_csv_tm";
 
@@ -311,6 +312,48 @@ public class DorisSinkITCase extends DorisTestBase {
         String query =
                 String.format(
                         "select name,age from %s.%s order by 1", DATABASE, TABLE_GROUP_COMMIT);
+        //
+        checkResult(expected, query, 2);
+    }
+
+    @Test
+    public void testTableGzFormat() throws Exception {
+        initializeTable(TABLE_GZ_FORMAT);
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(1);
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+        final StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
+
+        String sinkDDL =
+                String.format(
+                        "CREATE TABLE doris_gz_format_sink ("
+                                + " name STRING,"
+                                + " age INT"
+                                + ") WITH ("
+                                + " 'connector' = 'doris',"
+                                + " 'fenodes' = '%s',"
+                                + " 'table.identifier' = '%s',"
+                                + " 'username' = '%s',"
+                                + " 'password' = '%s',"
+                                + " 'sink.label-prefix' = '"
+                                + UUID.randomUUID()
+                                + "',"
+                                + " 'sink.properties.column_separator' = '\\x01',"
+                                + " 'sink.properties.line_delimiter' = '\\x02',"
+                                + " 'sink.properties.compress_type' = 'gz'"
+                                + ")",
+                        getFenodes(),
+                        DATABASE + "." + TABLE_GZ_FORMAT,
+                        USERNAME,
+                        PASSWORD);
+        tEnv.executeSql(sinkDDL);
+        tEnv.executeSql(
+                "INSERT INTO doris_gz_format_sink SELECT 'doris',1 union all  SELECT 'flink',2");
+
+        Thread.sleep(25000);
+        List<String> expected = Arrays.asList("doris,1", "flink,2");
+        String query =
+                String.format("select name,age from %s.%s order by 1", DATABASE, TABLE_GZ_FORMAT);
         //
         checkResult(expected, query, 2);
     }
