@@ -34,6 +34,7 @@ import org.apache.doris.flink.sink.EscapeHandler;
 import org.apache.doris.flink.sink.HttpPutBuilder;
 import org.apache.doris.flink.sink.HttpUtil;
 import org.apache.doris.flink.sink.writer.LabelGenerator;
+import org.apache.http.client.entity.GzipCompressingEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -65,6 +66,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.apache.doris.flink.sink.LoadStatus.PUBLISH_TIMEOUT;
 import static org.apache.doris.flink.sink.LoadStatus.SUCCESS;
 import static org.apache.doris.flink.sink.writer.LoadConstants.ARROW;
+import static org.apache.doris.flink.sink.writer.LoadConstants.COMPRESS_TYPE;
+import static org.apache.doris.flink.sink.writer.LoadConstants.COMPRESS_TYPE_GZ;
 import static org.apache.doris.flink.sink.writer.LoadConstants.CSV;
 import static org.apache.doris.flink.sink.writer.LoadConstants.FORMAT_KEY;
 import static org.apache.doris.flink.sink.writer.LoadConstants.GROUP_COMMIT;
@@ -98,6 +101,7 @@ public class DorisBatchStreamLoad implements Serializable {
     private HttpClientBuilder httpClientBuilder = new HttpUtil().getHttpClientBuilderForBatch();
     private BackendUtil backendUtil;
     private boolean enableGroupCommit;
+    private boolean enableGzCompress;
     private int subTaskId;
 
     public DorisBatchStreamLoad(
@@ -130,6 +134,7 @@ public class DorisBatchStreamLoad implements Serializable {
                         && !loadProps
                                 .getProperty(GROUP_COMMIT)
                                 .equalsIgnoreCase(GROUP_COMMIT_OFF_MODE);
+        this.enableGzCompress = loadProps.getProperty(COMPRESS_TYPE, "").equals(COMPRESS_TYPE_GZ);
         this.executionOptions = executionOptions;
         this.flushQueue = new LinkedBlockingDeque<>(executionOptions.getFlushQueueSize());
         if (StringUtils.isNotBlank(dorisOptions.getTableIdentifier())) {
@@ -288,6 +293,9 @@ public class DorisBatchStreamLoad implements Serializable {
                     .addHiddenColumns(executionOptions.getDeletable())
                     .addProperties(executionOptions.getStreamLoadProp());
 
+            if (enableGzCompress) {
+                putBuilder.setEntity(new GzipCompressingEntity(entity));
+            }
             Throwable resEx = new Throwable();
             int retry = 0;
             while (retry <= executionOptions.getMaxRetries()) {

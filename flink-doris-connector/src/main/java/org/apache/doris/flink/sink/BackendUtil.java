@@ -34,14 +34,11 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.ThreadLocalRandom;
 
 public class BackendUtil {
     private static final Logger LOG = LoggerFactory.getLogger(BackendUtil.class);
-    private static final ThreadLocalRandom RANDOM = ThreadLocalRandom.current();
     private final List<BackendV2.BackendRowV2> backends;
     private long pos;
-    private int batchSubtaskId;
 
     public BackendUtil(List<BackendV2.BackendRowV2> backends) {
         this.backends = backends;
