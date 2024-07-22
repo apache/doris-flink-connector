@@ -79,7 +79,7 @@ public class TestDorisBatchStreamLoad {
         thrown.expectMessage("tableIdentifier input error");
         DorisBatchStreamLoad loader =
                 new DorisBatchStreamLoad(
-                        options, readOptions, executionOptions, new LabelGenerator("xx", false));
+                        options, readOptions, executionOptions, new LabelGenerator("xx", false), 0);
     }
 
     @Test
@@ -95,7 +95,11 @@ public class TestDorisBatchStreamLoad {
 
         DorisBatchStreamLoad loader =
                 new DorisBatchStreamLoad(
-                        options, readOptions, executionOptions, new LabelGenerator("label", false));
+                        options,
+                        readOptions,
+                        executionOptions,
+                        new LabelGenerator("label", false),
+                        0);
         TestUtil.waitUntilCondition(
                 () -> loader.isLoadThreadAlive(),
                 Deadline.fromNow(Duration.ofSeconds(10)),
@@ -134,7 +138,11 @@ public class TestDorisBatchStreamLoad {
 
         DorisBatchStreamLoad loader =
                 new DorisBatchStreamLoad(
-                        options, readOptions, executionOptions, new LabelGenerator("label", false));
+                        options,
+                        readOptions,
+                        executionOptions,
+                        new LabelGenerator("label", false),
+                        0);
 
         TestUtil.waitUntilCondition(
                 () -> loader.isLoadThreadAlive(),

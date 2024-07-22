@@ -42,22 +42,17 @@ public class TestBackendUtil {
 
     @Test
     public void testGetAvailableBackend() throws Exception {
-        //        backendUtilMockedStatic.when(() ->
-        // BackendUtil.tryHttpConnection(any())).thenReturn(true);
-        //        List<BackendV2.BackendRowV2> backends =
-        //                Arrays.asList(
-        //                        newBackend("127.0.0.2", 8040),
-        //                        newBackend("127.0.0.3", 8040),
-        //                        newBackend("127.0.0.4", 8040));
-        //        BackendUtil backendUtil = new BackendUtil(backends);
-        ////        Assert.assertEquals(backends.get(1).toBackendString(),
-        // backendUtil.getAvailableBackend());
-        ////        Assert.assertEquals(backends.get(2).toBackendString(),
-        // backendUtil.getAvailableBackend());
-        ////        Assert.assertEquals(backends.get(0).toBackendString(),
-        // backendUtil.getAvailableBackend());
-        ////        Assert.assertEquals(backends.get(1).toBackendString(),
-        // backendUtil.getAvailableBackend());
+        backendUtilMockedStatic.when(() -> BackendUtil.tryHttpConnection(any())).thenReturn(true);
+        List<BackendV2.BackendRowV2> backends =
+                Arrays.asList(
+                        newBackend("127.0.0.2", 8040),
+                        newBackend("127.0.0.3", 8040),
+                        newBackend("127.0.0.4", 8040));
+        BackendUtil backendUtil = new BackendUtil(backends);
+        Assert.assertEquals(backends.get(0).toBackendString(), backendUtil.getAvailableBackend());
+        Assert.assertEquals(backends.get(1).toBackendString(), backendUtil.getAvailableBackend());
+        Assert.assertEquals(backends.get(2).toBackendString(), backendUtil.getAvailableBackend());
+        Assert.assertEquals(backends.get(0).toBackendString(), backendUtil.getAvailableBackend());
     }
 
     @Test(expected = DorisRuntimeException.class)

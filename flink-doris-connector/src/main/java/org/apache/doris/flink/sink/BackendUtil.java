@@ -81,8 +81,7 @@ public class BackendUtil {
     }
 
     public String getAvailableBackend() {
-        int batchSubtaskId = RANDOM.nextInt(backends.size());
-        return getAvailableBackend(batchSubtaskId);
+        return getAvailableBackend(0);
     }
 
     public String getAvailableBackend(int subtaskId) {

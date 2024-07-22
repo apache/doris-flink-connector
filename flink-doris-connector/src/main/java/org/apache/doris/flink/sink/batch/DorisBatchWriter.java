@@ -59,6 +59,7 @@ public class DorisBatchWriter<IN>
     private transient volatile Exception flushException = null;
     private String database;
     private String table;
+    private int subtaskId;
 
     public DorisBatchWriter(
             Sink.InitContext initContext,
@@ -75,6 +76,7 @@ public class DorisBatchWriter<IN>
             this.table = tableInfo[1];
         }
         LOG.info("labelPrefix " + executionOptions.getLabelPrefix());
+        this.subtaskId = initContext.getSubtaskId();
         this.labelPrefix = executionOptions.getLabelPrefix() + "_" + initContext.getSubtaskId();
         this.labelGenerator = new LabelGenerator(labelPrefix, false);
         this.scheduledExecutorService =
@@ -92,7 +94,11 @@ public class DorisBatchWriter<IN>
     public void initializeLoad() {
         this.batchStreamLoad =
                 new DorisBatchStreamLoad(
-                        dorisOptions, dorisReadOptions, executionOptions, labelGenerator);
+                        dorisOptions,
+                        dorisReadOptions,
+                        executionOptions,
+                        labelGenerator,
+                        subtaskId);
         // when uploading data in streaming mode, we need to regularly detect whether there are
         // exceptions.
         scheduledExecutorService.scheduleWithFixedDelay(
