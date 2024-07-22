@@ -98,12 +98,14 @@ public class DorisBatchStreamLoad implements Serializable {
     private HttpClientBuilder httpClientBuilder = new HttpUtil().getHttpClientBuilderForBatch();
     private BackendUtil backendUtil;
     private boolean enableGroupCommit;
+    private int subTaskId;
 
     public DorisBatchStreamLoad(
             DorisOptions dorisOptions,
             DorisReadOptions dorisReadOptions,
             DorisExecutionOptions executionOptions,
-            LabelGenerator labelGenerator) {
+            LabelGenerator labelGenerator,
+            int subTaskId) {
         this.backendUtil =
                 StringUtils.isNotEmpty(dorisOptions.getBenodes())
                         ? new BackendUtil(dorisOptions.getBenodes())
@@ -149,6 +151,7 @@ public class DorisBatchStreamLoad implements Serializable {
                         new ThreadPoolExecutor.AbortPolicy());
         this.started = new AtomicBoolean(true);
         this.loadExecutorService.execute(loadAsyncExecutor);
+        this.subTaskId = subTaskId;
     }
 
     /**
@@ -342,7 +345,7 @@ public class DorisBatchStreamLoad implements Serializable {
         }
 
         private void refreshLoadUrl(String database, String table) {
-            hostPort = backendUtil.getAvailableBackend();
+            hostPort = backendUtil.getAvailableBackend(subTaskId);
             loadUrl = String.format(LOAD_URL_PATTERN, hostPort, database, table);
         }
     }
