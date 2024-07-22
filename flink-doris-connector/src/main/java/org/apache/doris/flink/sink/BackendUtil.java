@@ -41,6 +41,7 @@ public class BackendUtil {
     private static final ThreadLocalRandom RANDOM = ThreadLocalRandom.current();
     private final List<BackendV2.BackendRowV2> backends;
     private long pos;
+    private int batchSubtaskId;
 
     public BackendUtil(List<BackendV2.BackendRowV2> backends) {
         this.backends = backends;
