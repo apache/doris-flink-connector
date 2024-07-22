@@ -33,6 +33,7 @@ import org.apache.doris.flink.rest.models.RespContent;
 import org.apache.doris.flink.sink.EscapeHandler;
 import org.apache.doris.flink.sink.HttpPutBuilder;
 import org.apache.doris.flink.sink.ResponseUtil;
+import org.apache.http.client.entity.GzipCompressingEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.entity.InputStreamEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -56,6 +57,8 @@ import static org.apache.doris.flink.sink.LoadStatus.LABEL_ALREADY_EXIST;
 import static org.apache.doris.flink.sink.LoadStatus.SUCCESS;
 import static org.apache.doris.flink.sink.ResponseUtil.LABEL_EXIST_PATTERN;
 import static org.apache.doris.flink.sink.writer.LoadConstants.ARROW;
+import static org.apache.doris.flink.sink.writer.LoadConstants.COMPRESS_TYPE;
+import static org.apache.doris.flink.sink.writer.LoadConstants.COMPRESS_TYPE_GZ;
 import static org.apache.doris.flink.sink.writer.LoadConstants.CSV;
 import static org.apache.doris.flink.sink.writer.LoadConstants.FORMAT_KEY;
 import static org.apache.doris.flink.sink.writer.LoadConstants.GROUP_COMMIT;
@@ -90,6 +93,7 @@ public class DorisStreamLoad implements Serializable {
     private boolean loadBatchFirstRecord;
     private volatile String currentLabel;
     private boolean enableGroupCommit;
+    private boolean enableGzCompress;
 
     public DorisStreamLoad(
             String hostPort,
@@ -137,6 +141,8 @@ public class DorisStreamLoad implements Serializable {
                         && !streamLoadProp
                                 .getProperty(GROUP_COMMIT)
                                 .equalsIgnoreCase(GROUP_COMMIT_OFF_MODE);
+        this.enableGzCompress =
+                streamLoadProp.getProperty(COMPRESS_TYPE, "").equals(COMPRESS_TYPE_GZ);
         loadBatchFirstRecord = true;
     }
 
@@ -317,6 +323,10 @@ public class DorisStreamLoad implements Serializable {
                     .addProperties(streamLoadProp);
             if (enable2PC) {
                 putBuilder.enable2PC();
+            }
+
+            if (enableGzCompress) {
+                putBuilder.setEntity(new GzipCompressingEntity(entity));
             }
 
             String executeMessage;

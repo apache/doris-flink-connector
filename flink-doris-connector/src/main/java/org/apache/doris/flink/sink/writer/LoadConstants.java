@@ -33,4 +33,6 @@ public class LoadConstants {
     public static final String READ_JSON_BY_LINE = "read_json_by_line";
     public static final String GROUP_COMMIT = "group_commit";
     public static final String GROUP_COMMIT_OFF_MODE = "off_mode";
+    public static final String COMPRESS_TYPE = "compress_type";
+    public static final String COMPRESS_TYPE_GZ = "gz";
 }
