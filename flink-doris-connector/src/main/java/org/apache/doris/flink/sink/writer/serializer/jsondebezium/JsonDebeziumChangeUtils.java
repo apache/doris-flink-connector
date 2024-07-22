@@ -23,9 +23,19 @@ import org.apache.flink.util.StringUtils;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.NullNode;
 import org.apache.doris.flink.cfg.DorisOptions;
+import org.apache.doris.flink.tools.cdc.SourceConnector;
 import org.apache.doris.flink.tools.cdc.SourceSchema;
+import org.apache.doris.flink.tools.cdc.mysql.MysqlType;
+import org.apache.doris.flink.tools.cdc.oracle.OracleType;
+import org.apache.doris.flink.tools.cdc.postgres.PostgresType;
+import org.apache.doris.flink.tools.cdc.sqlserver.SqlServerType;
 
 import java.util.Map;
+
+import static org.apache.doris.flink.tools.cdc.SourceConnector.MYSQL;
+import static org.apache.doris.flink.tools.cdc.SourceConnector.ORACLE;
+import static org.apache.doris.flink.tools.cdc.SourceConnector.POSTGRES;
+import static org.apache.doris.flink.tools.cdc.SourceConnector.SQLSERVER;
 
 public class JsonDebeziumChangeUtils {
 
@@ -61,5 +71,28 @@ public class JsonDebeziumChangeUtils {
         return record != null && record.get(key) != null && !(record.get(key) instanceof NullNode)
                 ? record.get(key).asText()
                 : null;
+    }
+
+    public static String buildDorisTypeName(
+            SourceConnector sourceConnector, String dataType, Integer length, Integer scale) {
+        String dorisTypeName;
+        switch (sourceConnector) {
+            case MYSQL:
+                dorisTypeName = MysqlType.toDorisType(dataType, length, scale);
+                break;
+            case ORACLE:
+                dorisTypeName = OracleType.toDorisType(dataType, length, scale);
+                break;
+            case POSTGRES:
+                dorisTypeName = PostgresType.toDorisType(dataType, length, scale);
+                break;
+            case SQLSERVER:
+                dorisTypeName = SqlServerType.toDorisType(dataType, length, scale);
+                break;
+            default:
+                String errMsg = sourceConnector + " not support " + dataType + " schema change.";
+                throw new UnsupportedOperationException(errMsg);
+        }
+        return dorisTypeName;
     }
 }

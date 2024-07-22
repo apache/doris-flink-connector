@@ -35,7 +35,16 @@ import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/** Use expression to match ddl sql. */
+/**
+ * Use expression to match ddl sql.
+ *
+ * <p>The way of parsing DDL statements relies on regular expression matching, and this parsing
+ * method has many flaws. In order to solve this problem, we introduced the com.github.jsqlparser
+ * framework, which can accurately parse the schema change of DDL.
+ *
+ * <p>This class is no longer recommended, we recommend using {@link SQLParserSchemaChange}
+ */
+@Deprecated
 public class JsonDebeziumSchemaChangeImpl extends JsonDebeziumSchemaChange {
     private static final Logger LOG = LoggerFactory.getLogger(JsonDebeziumSchemaChangeImpl.class);
     // alter table tbl add cloumn aca int

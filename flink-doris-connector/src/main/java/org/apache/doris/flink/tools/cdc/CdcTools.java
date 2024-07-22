@@ -130,6 +130,7 @@ public class CdcTools {
         String excludingTables = params.get("excluding-tables");
         String multiToOneOrigin = params.get("multi-to-one-origin");
         String multiToOneTarget = params.get("multi-to-one-target");
+        String schemaChangeMode = params.get("schema-change-mode");
         boolean createTableOnly = params.has("create-table-only");
         boolean ignoreDefaultValue = params.has("ignore-default-value");
         boolean ignoreIncompatible = params.has("ignore-incompatible");
@@ -157,6 +158,7 @@ public class CdcTools {
                 .setCreateTableOnly(createTableOnly)
                 .setSingleSink(singleSink)
                 .setIgnoreIncompatible(ignoreIncompatible)
+                .setSchemaChangeMode(schemaChangeMode)
                 .create();
         databaseSync.build();
         if (StringUtils.isNullOrWhitespaceOnly(jobName)) {
