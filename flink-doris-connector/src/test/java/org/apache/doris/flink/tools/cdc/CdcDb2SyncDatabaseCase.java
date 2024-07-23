@@ -47,14 +47,14 @@ public class CdcDb2SyncDatabaseCase {
         String tablePrefix = "";
         String tableSuffix = "";
         Map<String, String> sourceConfig = new HashMap<>();
-        sourceConfig.put("database-name", "doriscdc");
+        sourceConfig.put("database-name", "testdb");
         sourceConfig.put("schema-name", "DB2INST1");
         sourceConfig.put("hostname", "127.0.0.1");
         sourceConfig.put("port", "50000");
         sourceConfig.put("username", "db2inst1");
-        sourceConfig.put("password", "doris123456");
+        sourceConfig.put("password", "=doris123456");
         // sourceConfig.put("debezium.database.tablename.case.insensitive","false");
-        // sourceConfig.put("scan.incremental.snapshot.enabled","true");
+        sourceConfig.put("scan.incremental.snapshot.enabled", "true");
         // sourceConfig.put("debezium.include.schema.changes","false");
 
         Configuration config = Configuration.fromMap(sourceConfig);
@@ -71,12 +71,14 @@ public class CdcDb2SyncDatabaseCase {
         Map<String, String> tableConfig = new HashMap<>();
         tableConfig.put("replication_num", "1");
         //        tableConfig.put("table-buckets", "tbl1:10,tbl2:20,a.*:30,b.*:40,.*:50");
-        String includingTables = null;
+        String includingTables = "FULL_TYPES";
         String excludingTables = null;
         String multiToOneOrigin = null;
         String multiToOneTarget = null;
         boolean ignoreDefaultValue = false;
-        boolean useNewSchemaChange = false;
+        boolean useNewSchemaChange = true;
+        boolean singleSink = false;
+        boolean ignoreIncompatible = false;
         DatabaseSync databaseSync = new Db2DatabaseSync();
         databaseSync
                 .setEnv(env)
@@ -93,6 +95,8 @@ public class CdcDb2SyncDatabaseCase {
                 .setTableConfig(tableConfig)
                 .setCreateTableOnly(false)
                 .setNewSchemaChange(useNewSchemaChange)
+                .setSingleSink(singleSink)
+                .setIgnoreIncompatible(ignoreIncompatible)
                 .create();
         databaseSync.build();
         env.execute(String.format("DB2-Doris Database Sync: %s", database));

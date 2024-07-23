@@ -142,16 +142,6 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
         return status;
     }
 
-    protected JsonNode extractTableChange(JsonNode record) throws JsonProcessingException {
-        JsonNode historyRecord = extractHistoryRecord(record);
-        JsonNode tableChanges = historyRecord.get("tableChanges");
-        if (!Objects.isNull(tableChanges)) {
-            JsonNode tableChange = tableChanges.get(0);
-            return tableChange;
-        }
-        return null;
-    }
-
     /** Parse Alter Event. */
     @VisibleForTesting
     public List<String> extractDDLList(JsonNode record) throws IOException {
