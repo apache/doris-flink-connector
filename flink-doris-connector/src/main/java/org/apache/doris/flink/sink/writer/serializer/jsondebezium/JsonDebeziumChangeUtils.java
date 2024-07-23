@@ -26,6 +26,7 @@ import org.apache.doris.flink.catalog.doris.FieldSchema;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.tools.cdc.SourceConnector;
 import org.apache.doris.flink.tools.cdc.SourceSchema;
+import org.apache.doris.flink.tools.cdc.db2.Db2Type;
 import org.apache.doris.flink.tools.cdc.mysql.MysqlType;
 import org.apache.doris.flink.tools.cdc.oracle.OracleType;
 import org.apache.doris.flink.tools.cdc.postgres.PostgresType;
@@ -37,11 +38,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.regex.Pattern;
-
-import static org.apache.doris.flink.tools.cdc.SourceConnector.MYSQL;
-import static org.apache.doris.flink.tools.cdc.SourceConnector.ORACLE;
-import static org.apache.doris.flink.tools.cdc.SourceConnector.POSTGRES;
-import static org.apache.doris.flink.tools.cdc.SourceConnector.SQLSERVER;
 
 public class JsonDebeziumChangeUtils {
 
@@ -94,6 +90,9 @@ public class JsonDebeziumChangeUtils {
                 break;
             case SQLSERVER:
                 dorisTypeName = SqlServerType.toDorisType(dataType, length, scale);
+                break;
+            case DB2:
+                dorisTypeName = Db2Type.toDorisType(dataType, length, scale);
                 break;
             default:
                 String errMsg = sourceConnector + " not support " + dataType + " schema change.";
