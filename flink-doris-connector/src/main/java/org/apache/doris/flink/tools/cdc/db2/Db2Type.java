@@ -88,6 +88,7 @@ public class Db2Type {
             case TIME:
             case CLOB:
             case VARGRAPHIC:
+            case XML:
                 return DorisType.STRING;
             default:
                 throw new UnsupportedOperationException("Unsupported DB2 Type: " + db2Type);

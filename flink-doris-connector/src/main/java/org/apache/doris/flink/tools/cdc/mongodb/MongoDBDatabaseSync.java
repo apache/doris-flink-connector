@@ -37,7 +37,6 @@ import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.MongoIterable;
-
 import org.apache.commons.lang3.StringUtils;
 import org.apache.doris.flink.catalog.doris.DataModel;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;

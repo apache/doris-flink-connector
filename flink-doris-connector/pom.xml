@@ -70,7 +70,7 @@ under the License.
         <revision>1.6.2-SNAPSHOT</revision>
         <flink.version>1.18.0</flink.version>
         <flink.major.version>1.18</flink.major.version>
-        <flink.sql.cdc.version>3.1.0</flink.sql.cdc.version>
+        <flink.sql.cdc.version>3.1.1</flink.sql.cdc.version>
         <flink.python.id>flink-python</flink.python.id>
         <libthrift.version>0.16.0</libthrift.version>
         <arrow.version>13.0.0</arrow.version>
@@ -158,6 +158,16 @@ under the License.
                     <groupId>org.apache.httpcomponents</groupId>
                 </exclusion>
             </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>com.oracle.database.jdbc</groupId>
+            <artifactId>ojdbc8</artifactId>
+            <version>23.4.0.24.05</version>
+        </dependency>
+        <dependency>
+            <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>
+            <version>8.0.31</version>
         </dependency>
 
         <dependency>

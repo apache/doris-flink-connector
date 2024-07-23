@@ -142,7 +142,7 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
         return status;
     }
 
-    private JsonNode extractTableChange(JsonNode record) throws JsonProcessingException {
+    protected JsonNode extractTableChange(JsonNode record) throws JsonProcessingException {
         JsonNode historyRecord = extractHistoryRecord(record);
         JsonNode tableChanges = historyRecord.get("tableChanges");
         if (!Objects.isNull(tableChanges)) {
