@@ -31,11 +31,10 @@ import net.sf.jsqlparser.statement.create.table.ColDataType;
 import net.sf.jsqlparser.statement.create.table.CreateTable;
 import net.sf.jsqlparser.statement.create.table.Index;
 import org.apache.commons.collections.CollectionUtils;
-import org.apache.doris.flink.catalog.doris.DataModel;
+import org.apache.doris.flink.catalog.doris.DorisSchemaFactory;
 import org.apache.doris.flink.catalog.doris.FieldSchema;
 import org.apache.doris.flink.catalog.doris.TableSchema;
 import org.apache.doris.flink.sink.writer.serializer.jsondebezium.JsonDebeziumChangeUtils;
-import org.apache.doris.flink.tools.cdc.DatabaseSync;
 import org.apache.doris.flink.tools.cdc.SourceConnector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,7 +58,7 @@ public class SQLParserSchemaManager implements Serializable {
      * Doris' schema change only supports ADD, DROP, and RENAME operations. This method is only used
      * to parse the above schema change operations.
      */
-    public List<String> parserAlterDDLs(
+    public List<String> parseAlterDDLs(
             SourceConnector sourceConnector, String ddl, String dorisTable) {
         List<String> ddlList = new ArrayList<>();
         try {
@@ -137,30 +136,16 @@ public class SQLParserSchemaManager implements Serializable {
 
                 List<Index> indexes = createTable.getIndexes();
                 extractIndexesPrimaryKey(indexes, pkKeys);
-
                 String[] dbTable = dorisTable.split("\\.");
                 Preconditions.checkArgument(dbTable.length == 2);
-                TableSchema tableSchema = new TableSchema();
-                tableSchema.setDatabase(dbTable[0]);
-                tableSchema.setTable(dbTable[1]);
-                tableSchema.setModel(pkKeys.isEmpty() ? DataModel.DUPLICATE : DataModel.UNIQUE);
-                tableSchema.setFields(columnFields);
-                tableSchema.setKeys(pkKeys);
-                tableSchema.setTableComment(
+
+                return DorisSchemaFactory.createTableSchema(
+                        dbTable[0],
+                        dbTable[1],
+                        columnFields,
+                        pkKeys,
+                        tableProperties,
                         extractTableComment(createTable.getTableOptionsStrings()));
-                tableSchema.setDistributeKeys(
-                        JsonDebeziumChangeUtils.buildDistributeKeys(pkKeys, columnFields));
-                tableSchema.setProperties(tableProperties);
-                if (tableProperties.containsKey("table-buckets")) {
-                    String tableBucketsConfig = tableProperties.get("table-buckets");
-                    Map<String, Integer> tableBuckets =
-                            DatabaseSync.getTableBuckets(tableBucketsConfig);
-                    Integer buckets =
-                            JsonDebeziumChangeUtils.getTableSchemaBuckets(
-                                    tableBuckets, tableSchema.getTable());
-                    tableSchema.setTableBuckets(buckets);
-                }
-                return tableSchema;
             } else {
                 LOG.warn(
                         "Unsupported statement type. ddl={}, sourceConnector={}, dorisTable={}",
