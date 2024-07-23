@@ -38,14 +38,8 @@ public class Db2Type {
     private static final String CHAR = "CHAR";
     private static final String LONG_VARCHAR = "LONG VARCHAR";
     private static final String VARCHAR = "VARCHAR";
-    private static final String BINARY = "BINARY";
-    private static final String VARBINARY = "VARBINARY";
-    private static final String BLOB = "BLOB";
-    private static final String CLOB = "CLOB";
-    private static final String DBCLOB = "DBCLOB";
     private static final String XML = "XML";
     private static final String VARGRAPHIC = "VARGRAPHIC";
-    private static final String GRAPHIC = "GRAPHIC";
 
     public static String toDorisType(String db2Type, Integer precision, Integer scale) {
         db2Type = db2Type.toUpperCase();
@@ -86,7 +80,6 @@ public class Db2Type {
                 return String.format(
                         "%s(%s)", DorisType.DATETIME_V2, Math.min(scale == null ? 0 : scale, 6));
             case TIME:
-            case CLOB:
             case VARGRAPHIC:
             case XML:
                 return DorisType.STRING;

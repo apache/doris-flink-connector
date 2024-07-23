@@ -93,6 +93,8 @@ under the License.
         <junit.version>4.12</junit.version>
         <hamcrest.version>1.3</hamcrest.version>
         <jsqlparser.version>4.9</jsqlparser.version>
+        <mysql.driver.version>8.0.26</mysql.driver.version>
+        <ojdbc.version>19.3.0.0</ojdbc.version>
     </properties>
 
     <dependencies>
@@ -158,16 +160,6 @@ under the License.
                     <groupId>org.apache.httpcomponents</groupId>
                 </exclusion>
             </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>com.oracle.database.jdbc</groupId>
-            <artifactId>ojdbc8</artifactId>
-            <version>23.4.0.24.05</version>
-        </dependency>
-        <dependency>
-            <groupId>com.mysql</groupId>
-            <artifactId>mysql-connector-j</artifactId>
-            <version>8.0.31</version>
         </dependency>
 
         <dependency>
@@ -319,6 +311,20 @@ under the License.
                 </exclusion>
             </exclusions>
         </dependency>
+        <!-- add drivers for FLINK-35055 -->
+        <dependency>
+            <groupId>mysql</groupId>
+            <artifactId>mysql-connector-java</artifactId>
+            <version>${mysql.driver.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.oracle.ojdbc</groupId>
+            <artifactId>ojdbc8</artifactId>
+            <version>${ojdbc.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <!-- flink cdc end -->
         <dependency>
             <groupId>org.apache.flink</groupId>
             <artifactId>flink-runtime-web</artifactId>
