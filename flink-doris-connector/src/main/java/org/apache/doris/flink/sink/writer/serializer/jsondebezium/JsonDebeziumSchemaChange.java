@@ -66,6 +66,9 @@ public abstract class JsonDebeziumSchemaChange extends CdcSchemaChange {
     protected SchemaChangeManager schemaChangeManager;
     protected JsonDebeziumChangeContext changeContext;
     protected SourceConnector sourceConnector;
+    protected String targetDatabase;
+    protected String targetTablePrefix;
+    protected String targetTableSuffix;
 
     public abstract boolean schemaChange(JsonNode recordRoot);
 
@@ -187,6 +190,11 @@ public abstract class JsonDebeziumSchemaChange extends CdcSchemaChange {
                     SourceConnector.valueOf(
                             record.get("source").get("connector").asText().toUpperCase());
         }
+    }
+
+    protected String getCreateTableIdentifier(JsonNode record) {
+        String table = extractJsonNode(record.get("source"), "table");
+        return targetDatabase + "." + targetTablePrefix + table + targetTableSuffix;
     }
 
     public Map<String, String> getTableMapping() {
