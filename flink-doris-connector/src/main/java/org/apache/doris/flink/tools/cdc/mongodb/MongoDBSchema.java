@@ -17,6 +17,7 @@
 
 package org.apache.doris.flink.tools.cdc.mongodb;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.tuple.Tuple2;
 
 import org.apache.doris.flink.catalog.doris.DorisType;
@@ -63,7 +64,8 @@ public class MongoDBSchema extends SourceSchema {
         return existingField != null && existingField.getTypeString().startsWith(DorisType.DECIMAL);
     }
 
-    private String replaceDecimalTypeIfNeeded(String fieldName, String newDorisType) {
+    @VisibleForTesting
+    protected String replaceDecimalTypeIfNeeded(String fieldName, String newDorisType) {
         FieldSchema existingField = fields.get(fieldName);
         if (existingField.getTypeString().startsWith(DorisType.DECIMAL)) {
             Tuple2<Integer, Integer> existingPrecisionAndScale =

@@ -72,8 +72,8 @@ public class SchemaManagerTest {
 
     HttpEntityMock entityMock;
     SchemaChangeManager schemaChangeManager;
-    static MockedStatic<HttpClients> httpClientMockedStatic;
-    static MockedStatic<BackendUtil> backendUtilMockedStatic;
+    private MockedStatic<HttpClients> httpClientMockedStatic;
+    private MockedStatic<BackendUtil> backendUtilMockedStatic;
 
     @Before
     public void setUp() throws IOException {
@@ -132,6 +132,12 @@ public class SchemaManagerTest {
         Assert.assertEquals(
                 "ALTER TABLE `test`.`test_flink` ADD COLUMN `col` int DEFAULT current_timestamp COMMENT 'comment \"\\'sdf\\''",
                 addColumnDDL);
+
+        field = new FieldSchema("col", "int", "current_timestamp", "中文注释");
+        addColumnDDL = SchemaChangeHelper.buildAddColumnDDL("test.test_flink", field);
+        Assert.assertEquals(
+                "ALTER TABLE `test`.`test_flink` ADD COLUMN `col` int DEFAULT current_timestamp COMMENT '中文注释'",
+                addColumnDDL);
     }
 
     @Test
@@ -150,7 +156,11 @@ public class SchemaManagerTest {
 
     @After
     public void after() {
-        httpClientMockedStatic.close();
-        backendUtilMockedStatic.close();
+        if (httpClientMockedStatic != null) {
+            httpClientMockedStatic.close();
+        }
+        if (backendUtilMockedStatic != null) {
+            backendUtilMockedStatic.close();
+        }
     }
 }

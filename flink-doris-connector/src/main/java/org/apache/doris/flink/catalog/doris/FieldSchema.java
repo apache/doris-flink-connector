@@ -69,4 +69,22 @@ public class FieldSchema {
     public void setDefaultValue(String defaultValue) {
         this.defaultValue = defaultValue;
     }
+
+    @Override
+    public String toString() {
+        return "FieldSchema{"
+                + "name='"
+                + name
+                + '\''
+                + ", typeString='"
+                + typeString
+                + '\''
+                + ", defaultValue='"
+                + defaultValue
+                + '\''
+                + ", comment='"
+                + comment
+                + '\''
+                + '}';
+    }
 }

@@ -21,6 +21,7 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
+import org.apache.flink.table.types.logical.BinaryType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.DateType;
@@ -28,20 +29,25 @@ import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MapType;
+import org.apache.flink.table.types.logical.MultisetType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.SmallIntType;
+import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.types.logical.ZonedTimestampType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeDefaultVisitor;
 
 import org.apache.doris.flink.catalog.doris.DorisType;
 
 import static org.apache.doris.flink.catalog.doris.DorisType.ARRAY;
 import static org.apache.doris.flink.catalog.doris.DorisType.BIGINT;
+import static org.apache.doris.flink.catalog.doris.DorisType.BIGINT_UNSIGNED;
 import static org.apache.doris.flink.catalog.doris.DorisType.BOOLEAN;
 import static org.apache.doris.flink.catalog.doris.DorisType.CHAR;
 import static org.apache.doris.flink.catalog.doris.DorisType.DATE;
@@ -108,6 +114,7 @@ public class DorisTypeMapper {
             case VARCHAR:
                 return DataTypes.VARCHAR(precision);
             case LARGEINT:
+            case BIGINT_UNSIGNED:
             case STRING:
             case JSONB:
             case JSON:
@@ -226,6 +233,25 @@ public class DorisTypeMapper {
         }
 
         @Override
+        public String visit(ZonedTimestampType timestampType) {
+            int precision = timestampType.getPrecision();
+            return String.format(
+                    "%s(%s)", DorisType.DATETIME_V2, Math.min(Math.max(precision, 0), 6));
+        }
+
+        @Override
+        public String visit(LocalZonedTimestampType localZonedTimestampType) {
+            int precision = localZonedTimestampType.getPrecision();
+            return String.format(
+                    "%s(%s)", DorisType.DATETIME_V2, Math.min(Math.max(precision, 0), 6));
+        }
+
+        @Override
+        public String visit(TimeType timeType) {
+            return STRING;
+        }
+
+        @Override
         public String visit(ArrayType arrayType) {
             return STRING;
         }
@@ -237,6 +263,16 @@ public class DorisTypeMapper {
 
         @Override
         public String visit(RowType rowType) {
+            return STRING;
+        }
+
+        @Override
+        public String visit(MultisetType multisetType) {
+            return STRING;
+        }
+
+        @Override
+        public String visit(BinaryType binaryType) {
             return STRING;
         }
 

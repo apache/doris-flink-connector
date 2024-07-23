@@ -17,6 +17,7 @@
 
 package org.apache.doris.flink.datastream;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
@@ -37,6 +38,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /** DorisSource. */
+@Deprecated
+@PublicEvolving
 public class DorisSourceFunction extends RichParallelSourceFunction<List<?>>
         implements ResultTypeQueryable<List<?>> {
 

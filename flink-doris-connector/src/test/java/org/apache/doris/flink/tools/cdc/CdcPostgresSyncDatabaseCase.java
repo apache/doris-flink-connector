@@ -78,7 +78,8 @@ public class CdcPostgresSyncDatabaseCase {
         String multiToOneOrigin = "a_.*|b_.*";
         String multiToOneTarget = "a|b";
         boolean ignoreDefaultValue = false;
-        boolean useNewSchemaChange = false;
+        boolean useNewSchemaChange = true;
+        boolean ignoreIncompatible = false;
         DatabaseSync databaseSync = new PostgresDatabaseSync();
         databaseSync
                 .setEnv(env)
@@ -95,6 +96,7 @@ public class CdcPostgresSyncDatabaseCase {
                 .setTableConfig(tableConfig)
                 .setCreateTableOnly(false)
                 .setNewSchemaChange(useNewSchemaChange)
+                .setIgnoreIncompatible(ignoreIncompatible)
                 .create();
         databaseSync.build();
         env.execute(String.format("Postgres-Doris Database Sync: %s", database));

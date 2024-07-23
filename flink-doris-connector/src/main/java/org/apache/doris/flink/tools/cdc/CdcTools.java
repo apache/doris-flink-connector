@@ -17,6 +17,7 @@
 
 package org.apache.doris.flink.tools.cdc;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.utils.MultipleParameterTool;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -143,8 +144,10 @@ public class CdcTools {
         String excludingTables = params.get("excluding-tables");
         String multiToOneOrigin = params.get("multi-to-one-origin");
         String multiToOneTarget = params.get("multi-to-one-target");
+        String schemaChangeMode = params.get("schema-change-mode");
         boolean createTableOnly = params.has("create-table-only");
         boolean ignoreDefaultValue = params.has("ignore-default-value");
+        boolean ignoreIncompatible = params.has("ignore-incompatible");
         boolean singleSink = params.has("single-sink");
 
         Preconditions.checkArgument(params.has("sink-conf"));
@@ -168,6 +171,8 @@ public class CdcTools {
                 .setTableConfig(tableMap)
                 .setCreateTableOnly(createTableOnly)
                 .setSingleSink(singleSink)
+                .setIgnoreIncompatible(ignoreIncompatible)
+                .setSchemaChangeMode(schemaChangeMode)
                 .create();
         databaseSync.build();
         if (StringUtils.isNullOrWhitespaceOnly(jobName)) {
@@ -179,7 +184,8 @@ public class CdcTools {
         env.execute(jobName);
     }
 
-    private static Map<String, String> getConfigMap(MultipleParameterTool params, String key) {
+    @VisibleForTesting
+    public static Map<String, String> getConfigMap(MultipleParameterTool params, String key) {
         if (!params.has(key)) {
             System.out.println(
                     "Can not find key ["

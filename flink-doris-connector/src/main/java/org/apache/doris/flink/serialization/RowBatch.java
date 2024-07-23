@@ -17,7 +17,7 @@
 
 package org.apache.doris.flink.serialization;
 
-import org.apache.flink.util.Preconditions;
+import org.apache.flink.annotation.VisibleForTesting;
 
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.BaseIntVector;
@@ -40,7 +40,10 @@ import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.complex.MapVector;
 import org.apache.arrow.vector.complex.StructVector;
+import org.apache.arrow.vector.complex.impl.DateDayReaderImpl;
+import org.apache.arrow.vector.complex.impl.TimeStampMicroReaderImpl;
 import org.apache.arrow.vector.complex.impl.UnionMapReader;
+import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.ipc.ArrowStreamReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.doris.flink.exception.DorisException;
@@ -105,6 +108,7 @@ public class RowBatch {
     private final DateTimeFormatter dateTimeV2Formatter =
             DateTimeFormatter.ofPattern(DATETIMEV2_PATTERN);
     private final DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    private static final ZoneId DEFAULT_ZONE_ID = ZoneId.systemDefault();
 
     public List<Row> getRowBatch() {
         return rowBatch;
@@ -157,7 +161,8 @@ public class RowBatch {
         return offsetInRowBatch < readRowCount;
     }
 
-    private void addValueToRow(int rowIndex, Object obj) {
+    @VisibleForTesting
+    public void addValueToRow(int rowIndex, Object obj) {
         if (rowIndex > rowCountInOneBatch) {
             String errMsg =
                     "Get row offset: " + rowIndex + " larger than row size: " + rowCountInOneBatch;
@@ -175,8 +180,14 @@ public class RowBatch {
                 final String currentType = schema.get(col).getType();
                 for (int rowIndex = 0; rowIndex < rowCountInOneBatch; rowIndex++) {
                     boolean passed = doConvert(col, rowIndex, minorType, currentType, fieldVector);
-                    Preconditions.checkArgument(
-                            passed, typeMismatchMessage(currentType, minorType));
+                    if (!passed) {
+                        throw new java.lang.IllegalArgumentException(
+                                "FLINK type is "
+                                        + currentType
+                                        + ", but arrow type is "
+                                        + minorType.name()
+                                        + ".");
+                    }
                 }
             }
         } catch (Exception e) {
@@ -185,7 +196,8 @@ public class RowBatch {
         }
     }
 
-    private boolean doConvert(
+    @VisibleForTesting
+    public boolean doConvert(
             int col,
             int rowIndex,
             Types.MinorType minorType,
@@ -446,7 +458,11 @@ public class RowBatch {
                 reader.setPosition(rowIndex);
                 Map<String, Object> mapValue = new HashMap<>();
                 while (reader.next()) {
-                    mapValue.put(reader.key().readObject().toString(), reader.value().readObject());
+                    FieldReader keyReader = reader.key();
+                    FieldReader valueReader = reader.value();
+                    Object mapKeyObj = handleMapFieldReader(keyReader);
+                    Object mapValueObj = handleMapFieldReader(valueReader);
+                    mapValue.put(mapKeyObj.toString(), mapValueObj);
                 }
                 addValueToRow(rowIndex, mapValue);
                 break;
@@ -470,28 +486,50 @@ public class RowBatch {
         return true;
     }
 
-    private LocalDateTime getDateTime(int rowIndex, FieldVector fieldVector) {
+    private Object handleMapFieldReader(FieldReader reader) {
+        if (reader instanceof TimeStampMicroReaderImpl) {
+            return longToLocalDateTime(reader.readLong());
+        }
+        if (reader instanceof DateDayReaderImpl) {
+            return LocalDate.ofEpochDay(((Integer) reader.readObject()).longValue());
+        }
+        return reader.readObject();
+    }
+
+    @VisibleForTesting
+    public LocalDateTime getDateTime(int rowIndex, FieldVector fieldVector) {
         TimeStampMicroVector vector = (TimeStampMicroVector) fieldVector;
         if (vector.isNull(rowIndex)) {
             return null;
         }
         long time = vector.get(rowIndex);
-        Instant instant;
-        if (time / 10000000000L == 0) { // datetime(0)
-            instant = Instant.ofEpochSecond(time);
-        } else if (time / 10000000000000L == 0) { // datetime(3)
-            instant = Instant.ofEpochMilli(time);
-        } else { // datetime(6)
-            instant = Instant.ofEpochSecond(time / 1000000, time % 1000000 * 1000);
-        }
-        LocalDateTime dateTime = LocalDateTime.ofInstant(instant, ZoneId.systemDefault());
-        return dateTime;
+        return longToLocalDateTime(time);
     }
 
-    private String completeMilliseconds(String stringValue) {
+    @VisibleForTesting
+    public static LocalDateTime longToLocalDateTime(long time) {
+        Instant instant;
+        // Determine the timestamp accuracy and process it
+        if (time < 10_000_000_000L) { // Second timestamp
+            instant = Instant.ofEpochSecond(time);
+        } else if (time < 10_000_000_000_000L) { // milli second
+            instant = Instant.ofEpochMilli(time);
+        } else { // micro second
+            instant = Instant.ofEpochSecond(time / 1_000_000, (time % 1_000_000) * 1_000);
+        }
+        return LocalDateTime.ofInstant(instant, DEFAULT_ZONE_ID);
+    }
+
+    @VisibleForTesting
+    public static String completeMilliseconds(String stringValue) {
         if (stringValue.length() == DATETIMEV2_PATTERN.length()) {
             return stringValue;
         }
+
+        if (stringValue.length() < DATETIME_PATTERN.length()) {
+            return stringValue;
+        }
+
         StringBuilder sb = new StringBuilder(stringValue);
         if (stringValue.length() == DATETIME_PATTERN.length()) {
             sb.append(".");

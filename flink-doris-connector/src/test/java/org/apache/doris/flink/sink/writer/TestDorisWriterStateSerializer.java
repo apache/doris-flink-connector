@@ -29,5 +29,22 @@ public class TestDorisWriterStateSerializer {
         DorisWriterState dorisWriterState =
                 serializer.deserialize(2, serializer.serialize(expectDorisWriterState));
         Assert.assertEquals(expectDorisWriterState, dorisWriterState);
+
+        DorisWriterState expectDorisWriterStateV1 = new DorisWriterState("doris");
+        serializer = new DorisWriterStateSerializer();
+        DorisWriterState dorisWriterStatev1 =
+                serializer.deserialize(1, serializer.serialize(expectDorisWriterState));
+        Assert.assertEquals(expectDorisWriterStateV1, dorisWriterStatev1);
+
+        DorisWriterState state = new DorisWriterState("doris", "db", "table", 0);
+        DorisWriterState state1 = new DorisWriterState("doris", "db", "table", 0);
+        DorisWriterState state2 = new DorisWriterState("doris", "db1", "table", 0);
+        DorisWriterState state3 = new DorisWriterState("doris", "db", "table1", 0);
+        DorisWriterState state4 = new DorisWriterState("doris", "db", "table", 1);
+        Assert.assertEquals(state, state1);
+        Assert.assertEquals(state, state);
+        Assert.assertNotEquals(state, state2);
+        Assert.assertNotEquals(state, state3);
+        Assert.assertNotEquals(state, state4);
     }
 }

@@ -15,26 +15,22 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.flink.rest.models;
+package org.apache.doris.flink.sink.copy;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonProperty;
+import org.junit.Assert;
+import org.junit.Test;
 
-import java.util.List;
+public class TestCopyCommittableSerializer {
 
-/** Be response model. */
-@Deprecated
-@JsonIgnoreProperties(ignoreUnknown = true)
-public class Backend {
-
-    @JsonProperty(value = "rows")
-    private List<BackendRow> rows;
-
-    public List<BackendRow> getRows() {
-        return rows;
-    }
-
-    public void setRows(List<BackendRow> rows) {
-        this.rows = rows;
+    @Test
+    public void testSerialize() throws Exception {
+        DorisCopyCommittable expectCommittable =
+                new DorisCopyCommittable(
+                        "fe:8040",
+                        "COPY INTO db.table FROM @u FILES=('label_0_1') FILE_FORMAT=('type'='csv','line_delimiter'='\n','column_separator'=',')");
+        CopyCommittableSerializer serializer = new CopyCommittableSerializer();
+        DorisCopyCommittable committable =
+                serializer.deserialize(1, serializer.serialize(expectCommittable));
+        Assert.assertEquals(expectCommittable, committable);
     }
 }

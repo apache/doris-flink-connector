@@ -24,6 +24,8 @@ public class DorisType {
     public static final String INT = "INT";
     public static final String BIGINT = "BIGINT";
     public static final String LARGEINT = "LARGEINT";
+    // largeint is bigint unsigned in information_schema.COLUMNS
+    public static final String BIGINT_UNSIGNED = "BIGINT UNSIGNED";
     public static final String FLOAT = "FLOAT";
     public static final String DOUBLE = "DOUBLE";
     public static final String DECIMAL = "DECIMAL";

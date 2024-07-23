@@ -19,7 +19,6 @@ package org.apache.doris.flink.rest.models;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 
 public class Schema {
     private int status = 0;
@@ -85,24 +84,15 @@ public class Schema {
     }
 
     @Override
-    public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-        if (o == null || getClass() != o.getClass()) {
-            return false;
-        }
-        Schema schema = (Schema) o;
-        return status == schema.status && Objects.equals(properties, schema.properties);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(status, properties);
-    }
-
-    @Override
     public String toString() {
-        return "Schema{" + "status=" + status + ", properties=" + properties + '}';
+        return "Schema{"
+                + "status="
+                + status
+                + ", keysType='"
+                + keysType
+                + '\''
+                + ", properties="
+                + properties
+                + '}';
     }
 }

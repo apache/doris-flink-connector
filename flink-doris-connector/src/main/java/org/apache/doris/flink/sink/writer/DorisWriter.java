@@ -143,7 +143,8 @@ public class DorisWriter<IN>
         }
     }
 
-    private void abortLingeringTransactions(Collection<DorisWriterState> recoveredStates)
+    @VisibleForTesting
+    public void abortLingeringTransactions(Collection<DorisWriterState> recoveredStates)
             throws Exception {
         List<String> alreadyAborts = new ArrayList<>();
         // abort label in state
@@ -333,7 +334,8 @@ public class DorisWriter<IN>
                                 labelPrefix, executionOptions.enabled2PC(), tableKey, subtaskId));
     }
 
-    private DorisStreamLoad getStreamLoader(String tableKey) {
+    @VisibleForTesting
+    public DorisStreamLoad getStreamLoader(String tableKey) {
         LabelGenerator labelGenerator = getLabelGenerator(tableKey);
         dorisOptions.setTableIdentifier(tableKey);
         return dorisStreamLoadMap.computeIfAbsent(
@@ -443,6 +445,11 @@ public class DorisWriter<IN>
     @VisibleForTesting
     public void setDorisMetricsMap(Map<String, DorisWriteMetrics> metricsMap) {
         this.sinkMetricsMap = metricsMap;
+    }
+
+    @VisibleForTesting
+    public void setBackendUtil(BackendUtil backendUtil) {
+        this.backendUtil = backendUtil;
     }
 
     @Override

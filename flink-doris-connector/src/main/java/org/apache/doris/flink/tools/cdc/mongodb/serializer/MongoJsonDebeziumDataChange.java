@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.flink.sink.writer.serializer.jsondebezium;
+package org.apache.doris.flink.tools.cdc.mongodb.serializer;
 
 import org.apache.flink.util.StringUtils;
 
@@ -27,6 +27,8 @@ import com.fasterxml.jackson.databind.node.NullNode;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.sink.writer.ChangeEvent;
 import org.apache.doris.flink.sink.writer.serializer.DorisRecord;
+import org.apache.doris.flink.sink.writer.serializer.jsondebezium.CdcDataChange;
+import org.apache.doris.flink.sink.writer.serializer.jsondebezium.JsonDebeziumChangeContext;
 import org.apache.doris.flink.tools.cdc.SourceSchema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -124,7 +126,13 @@ public class MongoJsonDebeziumDataChange extends CdcDataChange implements Change
     public Map<String, Object> extractAfterRow(JsonNode recordRoot) {
         JsonNode dataNode = recordRoot.get(FIELD_DATA);
         Map<String, Object> rowMap = extractRow(dataNode);
-        String objectId = ((Map<?, ?>) rowMap.get(ID_FIELD)).get(OID_FIELD).toString();
+        String objectId;
+        // if user specifies the `_id` field manually, the $oid field may not exist
+        if (rowMap.get(ID_FIELD) instanceof Map<?, ?>) {
+            objectId = ((Map<?, ?>) rowMap.get(ID_FIELD)).get(OID_FIELD).toString();
+        } else {
+            objectId = rowMap.get(ID_FIELD).toString();
+        }
         rowMap.put(ID_FIELD, objectId);
         return rowMap;
     }
@@ -133,7 +141,13 @@ public class MongoJsonDebeziumDataChange extends CdcDataChange implements Change
             throws JsonProcessingException {
         String documentKey = extractJsonNode(recordRoot, FIELD_DOCUMENT_KEY);
         JsonNode jsonNode = objectMapper.readTree(documentKey);
-        String objectId = extractJsonNode(jsonNode.get(ID_FIELD), OID_FIELD);
+        String objectId;
+        // if user specifies the `_id` field manually, the $oid field may not exist
+        if (jsonNode.get(ID_FIELD).has(OID_FIELD)) {
+            objectId = extractJsonNode(jsonNode.get(ID_FIELD), OID_FIELD);
+        } else {
+            objectId = jsonNode.get(ID_FIELD).asText();
+        }
         Map<String, Object> row = new HashMap<>();
         row.put(ID_FIELD, objectId);
         return row;

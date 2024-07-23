@@ -19,8 +19,6 @@ package org.apache.doris.flink.rest.models;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import java.util.Objects;
-
 public class Field {
     @JsonProperty(value = "name")
     private String name;
@@ -103,27 +101,6 @@ public class Field {
 
     public void setScale(int scale) {
         this.scale = scale;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-        if (o == null || getClass() != o.getClass()) {
-            return false;
-        }
-        Field field = (Field) o;
-        return precision == field.precision
-                && scale == field.scale
-                && Objects.equals(name, field.name)
-                && Objects.equals(type, field.type)
-                && Objects.equals(comment, field.comment);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(name, type, comment, precision, scale);
     }
 
     @Override

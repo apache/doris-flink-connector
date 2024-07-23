@@ -20,6 +20,7 @@ package org.apache.doris.flink.tools.cdc;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
+import org.apache.doris.flink.sink.schema.SchemaChangeMode;
 import org.apache.doris.flink.tools.cdc.mysql.MysqlDatabaseSync;
 
 import java.util.HashMap;
@@ -71,8 +72,10 @@ public class CdcMysqlSyncDatabaseCase {
         String multiToOneOrigin = "a_.*|b_.*";
         String multiToOneTarget = "a|b";
         boolean ignoreDefaultValue = false;
-        boolean useNewSchemaChange = false;
+        boolean useNewSchemaChange = true;
+        String schemaChangeMode = SchemaChangeMode.DEBEZIUM_STRUCTURE.getName();
         boolean singleSink = false;
+        boolean ignoreIncompatible = false;
         DatabaseSync databaseSync = new MysqlDatabaseSync();
         databaseSync
                 .setEnv(env)
@@ -89,7 +92,9 @@ public class CdcMysqlSyncDatabaseCase {
                 .setTableConfig(tableConfig)
                 .setCreateTableOnly(false)
                 .setNewSchemaChange(useNewSchemaChange)
+                .setSchemaChangeMode(schemaChangeMode)
                 .setSingleSink(singleSink)
+                .setIgnoreIncompatible(ignoreIncompatible)
                 .create();
         databaseSync.build();
         env.execute(String.format("MySQL-Doris Database Sync: %s", database));
