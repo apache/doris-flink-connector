@@ -93,7 +93,7 @@ under the License.
         <junit.version>4.12</junit.version>
         <hamcrest.version>1.3</hamcrest.version>
         <jsqlparser.version>4.9</jsqlparser.version>
-        <mysql.driver.version>8.0.26</mysql.driver.version>
+        <mysql.driver.version>8.0.28</mysql.driver.version>
         <ojdbc.version>19.3.0.0</ojdbc.version>
     </properties>
 
