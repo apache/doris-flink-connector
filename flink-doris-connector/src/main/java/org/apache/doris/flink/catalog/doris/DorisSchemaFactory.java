@@ -20,6 +20,7 @@ package org.apache.doris.flink.catalog.doris;
 import org.apache.flink.annotation.VisibleForTesting;
 
 import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections.MapUtils;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -36,6 +37,7 @@ import java.util.regex.Pattern;
  * factory
  */
 public class DorisSchemaFactory {
+    private static Map<String, Integer> tableBucketMap;
 
     public static TableSchema createTableSchema(
             String database,
@@ -55,9 +57,11 @@ public class DorisSchemaFactory {
         tableSchema.setDistributeKeys(buildDistributeKeys(pkKeys, columnFields));
         tableSchema.setProperties(tableProperties);
         if (tableProperties.containsKey("table-buckets")) {
-            String tableBucketsConfig = tableProperties.get("table-buckets");
-            Map<String, Integer> tableBuckets = buildTableBucketMap(tableBucketsConfig);
-            Integer buckets = parseTableSchemaBuckets(tableBuckets, tableSchema.getTable());
+            if (MapUtils.isEmpty(tableBucketMap)) {
+                String tableBucketsConfig = tableProperties.get("table-buckets");
+                tableBucketMap = buildTableBucketMap(tableBucketsConfig);
+            }
+            Integer buckets = parseTableSchemaBuckets(tableBucketMap, table);
             tableSchema.setTableBuckets(buckets);
         }
         return tableSchema;
@@ -93,9 +97,8 @@ public class DorisSchemaFactory {
             if (tableBucketsMap.containsKey(tableName)) {
                 return tableBucketsMap.get(tableName);
             }
-            // Secondly, iterate over the map to find a corresponding regular expression match,
+            // Secondly, iterate over the map to find a corresponding regular expression match.
             for (Entry<String, Integer> entry : tableBucketsMap.entrySet()) {
-
                 Pattern pattern = Pattern.compile(entry.getKey());
                 if (pattern.matcher(tableName).matches()) {
                     return entry.getValue();

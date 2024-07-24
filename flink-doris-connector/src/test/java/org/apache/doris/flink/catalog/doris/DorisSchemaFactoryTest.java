@@ -73,6 +73,35 @@ public class DorisSchemaFactoryTest {
     }
 
     @Test
+    public void testCreateTableSchemaTableBuckets() {
+        String dorisTable = "doris.create_tab";
+        String[] dbTable = dorisTable.split("\\.");
+        Preconditions.checkArgument(dbTable.length == 2);
+
+        Map<String, FieldSchema> columnFields = new HashMap<>();
+        columnFields.put("id", new FieldSchema("id", "INT", "100", "int_test"));
+        columnFields.put("name", new FieldSchema("name", "VARVHAR(100)", null, "Name_test"));
+        columnFields.put("age", new FieldSchema("age", "INT", null, null));
+        columnFields.put("email", new FieldSchema("email", "VARCHAR(100)", "email@doris.com", "e"));
+        List<String> pkKeys = Collections.singletonList("email");
+        Map<String, String> tableProperties = new HashMap<>();
+        tableProperties.put("table-buckets", "create_tab:40, create_taba:10, tabs:12");
+        String tableComment = "auto_tab_comment";
+        TableSchema tableSchema =
+                DorisSchemaFactory.createTableSchema(
+                        dbTable[0],
+                        dbTable[1],
+                        columnFields,
+                        pkKeys,
+                        tableProperties,
+                        tableComment);
+
+        Assert.assertEquals(
+                "TableSchema{database='doris', table='create_tab', tableComment='auto_tab_comment', fields={name=FieldSchema{name='name', typeString='VARVHAR(100)', defaultValue='null', comment='Name_test'}, id=FieldSchema{name='id', typeString='INT', defaultValue='100', comment='int_test'}, age=FieldSchema{name='age', typeString='INT', defaultValue='null', comment='null'}, email=FieldSchema{name='email', typeString='VARCHAR(100)', defaultValue='email@doris.com', comment='e'}}, keys=email, model=UNIQUE, distributeKeys=email, properties={table-buckets=create_tab:40, create_taba:10, tabs:12}, tableBuckets=40}",
+                tableSchema.toString());
+    }
+
+    @Test
     public void testCreateDuplicateTableSchema() {
         String dorisTable = "doris.dup_tab";
         String[] dbTable = dorisTable.split("\\.");
