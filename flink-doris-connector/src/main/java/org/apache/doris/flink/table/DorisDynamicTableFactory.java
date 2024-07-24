@@ -281,7 +281,7 @@ public final class DorisDynamicTableFactory
                 DorisConfigOptions.getStreamLoadProp(context.getCatalogTable().getOptions());
         TableSchema physicalSchema =
                 TableSchemaUtils.getPhysicalSchema(context.getCatalogTable().getSchema());
-        // create and return dynamic table source
+        // create and return dynamic table sink
         return new DorisDynamicTableSink(
                 getDorisOptions(helper.getOptions()),
                 getDorisReadOptions(helper.getOptions()),
