@@ -22,6 +22,7 @@ import org.apache.flink.util.Preconditions;
 import org.apache.doris.flink.catalog.doris.DorisType;
 
 public class Db2Type {
+    private static final String BOOLEAN = "BOOLEAN";
     private static final String SMALLINT = "SMALLINT";
     private static final String INTEGER = "INTEGER";
     private static final String INT = "INT";
@@ -44,6 +45,8 @@ public class Db2Type {
     public static String toDorisType(String db2Type, Integer precision, Integer scale) {
         db2Type = db2Type.toUpperCase();
         switch (db2Type) {
+            case BOOLEAN:
+                return DorisType.BOOLEAN;
             case SMALLINT:
                 return DorisType.SMALLINT;
             case INTEGER:
@@ -54,10 +57,10 @@ public class Db2Type {
             case REAL:
                 return DorisType.FLOAT;
             case DOUBLE:
-            case DECFLOAT:
                 return DorisType.DOUBLE;
             case DATE:
                 return DorisType.DATE_V2;
+            case DECFLOAT:
             case DECIMAL:
             case NUMERIC:
                 if (precision != null && precision > 0 && precision <= 38) {
@@ -81,7 +84,7 @@ public class Db2Type {
                         "%s(%s)", DorisType.DATETIME_V2, Math.min(scale == null ? 0 : scale, 6));
             case TIME:
             case VARGRAPHIC:
-                // As of now, the Flink CDC connector does not support the XML data type from DB2.
+                // Currently, the Flink CDC connector does not support the XML data type from DB2.
                 // Case XML:
                 return DorisType.STRING;
             default:

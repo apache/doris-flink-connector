@@ -118,7 +118,8 @@ public class Db2DatabaseSync extends DatabaseSync {
                         continue;
                     }
                     SourceSchema sourceSchema =
-                            new Db2Schema(metaData, null, schemaName, tableName, tableComment);
+                            new Db2Schema(
+                                    metaData, databaseName, schemaName, tableName, tableComment);
                     sourceSchema.setModel(
                             !sourceSchema.primaryKeys.isEmpty()
                                     ? DataModel.UNIQUE
