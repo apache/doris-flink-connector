@@ -17,9 +17,11 @@
 
 package org.apache.doris.flink.tools.cdc;
 
+import org.apache.flink.cdc.connectors.base.options.JdbcSourceOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
+import org.apache.doris.flink.table.DorisConfigOptions;
 import org.apache.doris.flink.tools.cdc.sqlserver.SqlServerDatabaseSync;
 
 import java.util.HashMap;
@@ -35,24 +37,16 @@ public class CdcSqlServerSyncDatabaseCase {
         env.disableOperatorChaining();
         env.enableCheckpointing(10000);
 
-        //  Map<String,String> flinkMap = new HashMap<>();
-        //  flinkMap.put("execution.checkpointing.interval","10s");
-        //  flinkMap.put("pipeline.operator-chaining","false");
-        //  flinkMap.put("parallelism.default","1");
-
-        //  Configuration configuration = Configuration.fromMap(flinkMap);
-        //  env.configure(configuration);
-
         String database = "db2";
         String tablePrefix = "";
         String tableSuffix = "";
         Map<String, String> sourceConfig = new HashMap<>();
-        sourceConfig.put("database-name", "CDC_DB");
-        sourceConfig.put("schema-name", "dbo");
-        sourceConfig.put("hostname", "127.0.0.1");
-        sourceConfig.put("port", "1433");
-        sourceConfig.put("username", "sa");
-        sourceConfig.put("password", "Passw@rd");
+        sourceConfig.put(JdbcSourceOptions.DATABASE_NAME.key(), "CDC_DB");
+        sourceConfig.put(JdbcSourceOptions.SCHEMA_NAME.key(), "dbo");
+        sourceConfig.put(JdbcSourceOptions.HOSTNAME.key(), "127.0.0.1");
+        sourceConfig.put(DatabaseSyncConfig.PORT, "1433");
+        sourceConfig.put(JdbcSourceOptions.USERNAME.key(), "sa");
+        sourceConfig.put(JdbcSourceOptions.PASSWORD.key(), "Passw@rd");
         // sourceConfig.put("debezium.database.tablename.case.insensitive","false");
         // sourceConfig.put("scan.incremental.snapshot.enabled","true");
         // sourceConfig.put("debezium.include.schema.changes","false");
@@ -60,17 +54,16 @@ public class CdcSqlServerSyncDatabaseCase {
         Configuration config = Configuration.fromMap(sourceConfig);
 
         Map<String, String> sinkConfig = new HashMap<>();
-        sinkConfig.put("fenodes", "10.20.30.1:8030");
-        // sinkConfig.put("benodes","10.20.30.1:8040, 10.20.30.2:8040, 10.20.30.3:8040");
-        sinkConfig.put("username", "root");
-        sinkConfig.put("password", "");
-        sinkConfig.put("jdbc-url", "jdbc:mysql://10.20.30.1:9030");
-        sinkConfig.put("sink.label-prefix", UUID.randomUUID().toString());
+        sinkConfig.put(DorisConfigOptions.FENODES.key(), "10.20.30.1:8030");
+        sinkConfig.put(DorisConfigOptions.USERNAME.key(), "root");
+        sinkConfig.put(DorisConfigOptions.PASSWORD.key(), "");
+        sinkConfig.put(DorisConfigOptions.JDBC_URL.key(), "jdbc:mysql://10.20.30.1:9030");
+        sinkConfig.put(DorisConfigOptions.SINK_LABEL_PREFIX.key(), UUID.randomUUID().toString());
         Configuration sinkConf = Configuration.fromMap(sinkConfig);
 
         Map<String, String> tableConfig = new HashMap<>();
-        tableConfig.put("replication_num", "1");
-        tableConfig.put("table-buckets", "tbl1:10,tbl2:20,a.*:30,b.*:40,.*:50");
+        tableConfig.put(DatabaseSyncConfig.REPLICATION_NUM, "1");
+        tableConfig.put(DatabaseSyncConfig.TABLE_BUCKETS, "tbl1:10,tbl2:20,a.*:30,b.*:40,.*:50");
         String includingTables = "a_.*|b_.*|c";
         String excludingTables = "";
         String multiToOneOrigin = "a_.*|b_.*";

@@ -35,6 +35,7 @@ import org.apache.flink.util.Preconditions;
 
 import org.apache.doris.flink.catalog.doris.DataModel;
 import org.apache.doris.flink.tools.cdc.DatabaseSync;
+import org.apache.doris.flink.tools.cdc.DatabaseSyncConfig;
 import org.apache.doris.flink.tools.cdc.SourceSchema;
 import org.apache.doris.flink.tools.cdc.deserialize.DorisJsonDebeziumDeserializationSchema;
 import org.slf4j.Logger;
@@ -88,8 +89,8 @@ public class SqlServerDatabaseSync extends DatabaseSync {
                         config.getInteger(PORT, 1433),
                         config.get(JdbcSourceOptions.DATABASE_NAME));
         Properties pro = new Properties();
-        pro.setProperty("user", config.get(JdbcSourceOptions.USERNAME));
-        pro.setProperty("password", config.get(JdbcSourceOptions.PASSWORD));
+        pro.setProperty(DatabaseSyncConfig.USER, config.get(JdbcSourceOptions.USERNAME));
+        pro.setProperty(DatabaseSyncConfig.PASSWORD, config.get(JdbcSourceOptions.PASSWORD));
         return DriverManager.getConnection(jdbcUrl, pro);
     }
 
@@ -104,8 +105,8 @@ public class SqlServerDatabaseSync extends DatabaseSync {
             try (ResultSet tables =
                     metaData.getTables(databaseName, schemaName, "%", new String[] {"TABLE"})) {
                 while (tables.next()) {
-                    String tableName = tables.getString("TABLE_NAME");
-                    String tableComment = tables.getString("REMARKS");
+                    String tableName = tables.getString(DatabaseSyncConfig.TABLE_NAME);
+                    String tableComment = tables.getString(DatabaseSyncConfig.REMARKS);
                     if (!isSyncNeeded(tableName)) {
                         continue;
                     }
@@ -138,16 +139,17 @@ public class SqlServerDatabaseSync extends DatabaseSync {
 
         StartupOptions startupOptions = StartupOptions.initial();
         String startupMode = config.get(JdbcSourceOptions.SCAN_STARTUP_MODE);
-        if ("initial".equalsIgnoreCase(startupMode)) {
+        if (DatabaseSyncConfig.SCAN_STARTUP_MODE_VALUE_INITIAL.equalsIgnoreCase(startupMode)) {
             startupOptions = StartupOptions.initial();
-        } else if ("latest-offset".equalsIgnoreCase(startupMode)) {
+        } else if (DatabaseSyncConfig.SCAN_STARTUP_MODE_VALUE_LATEST_OFFSET.equalsIgnoreCase(
+                startupMode)) {
             startupOptions = StartupOptions.latest();
         }
 
         // debezium properties set
         Properties debeziumProperties = new Properties();
         debeziumProperties.putAll(SqlServerDateConverter.DEFAULT_PROPS);
-        debeziumProperties.put("decimal.handling.mode", "string");
+        debeziumProperties.put(DatabaseSyncConfig.DECIMAL_HANDLING_MODE, "string");
 
         for (Map.Entry<String, String> entry : config.toMap().entrySet()) {
             String key = entry.getKey();

@@ -38,31 +38,27 @@ import java.util.Map;
 
 /** cdc sync tools. */
 public class CdcTools {
-    private static final String MYSQL_SYNC_DATABASE = "mysql-sync-database";
-    private static final String ORACLE_SYNC_DATABASE = "oracle-sync-database";
-    private static final String POSTGRES_SYNC_DATABASE = "postgres-sync-database";
-    private static final String SQLSERVER_SYNC_DATABASE = "sqlserver-sync-database";
-    private static final String MONGODB_SYNC_DATABASE = "mongodb-sync-database";
-    private static final List<String> EMPTY_KEYS = Collections.singletonList("password");
+    private static final List<String> EMPTY_KEYS =
+            Collections.singletonList(DatabaseSyncConfig.PASSWORD);
 
     public static void main(String[] args) throws Exception {
         System.out.println("Input args: " + Arrays.asList(args) + ".\n");
         String operation = args[0].toLowerCase();
         String[] opArgs = Arrays.copyOfRange(args, 1, args.length);
         switch (operation) {
-            case MYSQL_SYNC_DATABASE:
+            case DatabaseSyncConfig.MYSQL_SYNC_DATABASE:
                 createMySQLSyncDatabase(opArgs);
                 break;
-            case ORACLE_SYNC_DATABASE:
+            case DatabaseSyncConfig.ORACLE_SYNC_DATABASE:
                 createOracleSyncDatabase(opArgs);
                 break;
-            case POSTGRES_SYNC_DATABASE:
+            case DatabaseSyncConfig.POSTGRES_SYNC_DATABASE:
                 createPostgresSyncDatabase(opArgs);
                 break;
-            case SQLSERVER_SYNC_DATABASE:
+            case DatabaseSyncConfig.SQLSERVER_SYNC_DATABASE:
                 createSqlServerSyncDatabase(opArgs);
                 break;
-            case MONGODB_SYNC_DATABASE:
+            case DatabaseSyncConfig.MONGODB_SYNC_DATABASE:
                 createMongoDBSyncDatabase(opArgs);
                 break;
             default:
@@ -73,72 +69,72 @@ public class CdcTools {
 
     private static void createMySQLSyncDatabase(String[] opArgs) throws Exception {
         MultipleParameterTool params = MultipleParameterTool.fromArgs(opArgs);
-        Preconditions.checkArgument(params.has("mysql-conf"));
-        Map<String, String> mysqlMap = getConfigMap(params, "mysql-conf");
+        Preconditions.checkArgument(params.has(DatabaseSyncConfig.MYSQL_CONF));
+        Map<String, String> mysqlMap = getConfigMap(params, DatabaseSyncConfig.MYSQL_CONF);
         Configuration mysqlConfig = Configuration.fromMap(mysqlMap);
         DatabaseSync databaseSync = new MysqlDatabaseSync();
-        syncDatabase(params, databaseSync, mysqlConfig, "MySQL");
+        syncDatabase(params, databaseSync, mysqlConfig, SourceConnector.MYSQL);
     }
 
     private static void createOracleSyncDatabase(String[] opArgs) throws Exception {
         MultipleParameterTool params = MultipleParameterTool.fromArgs(opArgs);
-        Preconditions.checkArgument(params.has("oracle-conf"));
-        Map<String, String> oracleMap = getConfigMap(params, "oracle-conf");
+        Preconditions.checkArgument(params.has(DatabaseSyncConfig.ORACLE_CONF));
+        Map<String, String> oracleMap = getConfigMap(params, DatabaseSyncConfig.ORACLE_CONF);
         Configuration oracleConfig = Configuration.fromMap(oracleMap);
         DatabaseSync databaseSync = new OracleDatabaseSync();
-        syncDatabase(params, databaseSync, oracleConfig, "Oracle");
+        syncDatabase(params, databaseSync, oracleConfig, SourceConnector.ORACLE);
     }
 
     private static void createPostgresSyncDatabase(String[] opArgs) throws Exception {
         MultipleParameterTool params = MultipleParameterTool.fromArgs(opArgs);
-        Preconditions.checkArgument(params.has("postgres-conf"));
-        Map<String, String> postgresMap = getConfigMap(params, "postgres-conf");
+        Preconditions.checkArgument(params.has(DatabaseSyncConfig.POSTGRES_CONF));
+        Map<String, String> postgresMap = getConfigMap(params, DatabaseSyncConfig.POSTGRES_CONF);
         Configuration postgresConfig = Configuration.fromMap(postgresMap);
         DatabaseSync databaseSync = new PostgresDatabaseSync();
-        syncDatabase(params, databaseSync, postgresConfig, "Postgres");
+        syncDatabase(params, databaseSync, postgresConfig, SourceConnector.POSTGRES);
     }
 
     private static void createSqlServerSyncDatabase(String[] opArgs) throws Exception {
         MultipleParameterTool params = MultipleParameterTool.fromArgs(opArgs);
-        Preconditions.checkArgument(params.has("sqlserver-conf"));
-        Map<String, String> postgresMap = getConfigMap(params, "sqlserver-conf");
+        Preconditions.checkArgument(params.has(DatabaseSyncConfig.SQLSERVER_CONF));
+        Map<String, String> postgresMap = getConfigMap(params, DatabaseSyncConfig.SQLSERVER_CONF);
         Configuration postgresConfig = Configuration.fromMap(postgresMap);
         DatabaseSync databaseSync = new SqlServerDatabaseSync();
-        syncDatabase(params, databaseSync, postgresConfig, "SqlServer");
+        syncDatabase(params, databaseSync, postgresConfig, SourceConnector.SQLSERVER);
     }
 
     private static void createMongoDBSyncDatabase(String[] opArgs) throws Exception {
         MultipleParameterTool params = MultipleParameterTool.fromArgs(opArgs);
-        Preconditions.checkArgument(params.has("mongodb-conf"));
-        Map<String, String> mongoMap = getConfigMap(params, "mongodb-conf");
+        Preconditions.checkArgument(params.has(DatabaseSyncConfig.MONGODB_CONF));
+        Map<String, String> mongoMap = getConfigMap(params, DatabaseSyncConfig.MONGODB_CONF);
         Configuration mongoConfig = Configuration.fromMap(mongoMap);
         DatabaseSync databaseSync = new MongoDBDatabaseSync();
-        syncDatabase(params, databaseSync, mongoConfig, "mongodb");
+        syncDatabase(params, databaseSync, mongoConfig, SourceConnector.MONGODB);
     }
 
     private static void syncDatabase(
             MultipleParameterTool params,
             DatabaseSync databaseSync,
             Configuration config,
-            String type)
+            SourceConnector sourceConnector)
             throws Exception {
-        String jobName = params.get("job-name");
-        String database = params.get("database");
-        String tablePrefix = params.get("table-prefix");
-        String tableSuffix = params.get("table-suffix");
-        String includingTables = params.get("including-tables");
-        String excludingTables = params.get("excluding-tables");
-        String multiToOneOrigin = params.get("multi-to-one-origin");
-        String multiToOneTarget = params.get("multi-to-one-target");
-        String schemaChangeMode = params.get("schema-change-mode");
-        boolean createTableOnly = params.has("create-table-only");
-        boolean ignoreDefaultValue = params.has("ignore-default-value");
-        boolean ignoreIncompatible = params.has("ignore-incompatible");
-        boolean singleSink = params.has("single-sink");
+        String jobName = params.get(DatabaseSyncConfig.JOB_NAME);
+        String database = params.get(DatabaseSyncConfig.DATABASE);
+        String tablePrefix = params.get(DatabaseSyncConfig.TABLE_PREFIX);
+        String tableSuffix = params.get(DatabaseSyncConfig.TABLE_SUFFIX);
+        String includingTables = params.get(DatabaseSyncConfig.INCLUDING_TABLES);
+        String excludingTables = params.get(DatabaseSyncConfig.EXCLUDING_TABLES);
+        String multiToOneOrigin = params.get(DatabaseSyncConfig.MULTI_TO_ONE_ORIGIN);
+        String multiToOneTarget = params.get(DatabaseSyncConfig.MULTI_TO_ONE_TARGET);
+        String schemaChangeMode = params.get(DatabaseSyncConfig.SCHEMA_CHANGE_MODE);
+        boolean createTableOnly = params.has(DatabaseSyncConfig.CREATE_TABLE_ONLY);
+        boolean ignoreDefaultValue = params.has(DatabaseSyncConfig.IGNORE_DEFAULT_VALUE);
+        boolean ignoreIncompatible = params.has(DatabaseSyncConfig.IGNORE_INCOMPATIBLE);
+        boolean singleSink = params.has(DatabaseSyncConfig.SINGLE_SINK);
 
-        Preconditions.checkArgument(params.has("sink-conf"));
-        Map<String, String> sinkMap = getConfigMap(params, "sink-conf");
-        Map<String, String> tableMap = getConfigMap(params, "table-conf");
+        Preconditions.checkArgument(params.has(DatabaseSyncConfig.SINK_CONF));
+        Map<String, String> sinkMap = getConfigMap(params, DatabaseSyncConfig.SINK_CONF);
+        Map<String, String> tableMap = getConfigMap(params, DatabaseSyncConfig.TABLE_CONF);
         Configuration sinkConfig = Configuration.fromMap(sinkMap);
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -165,7 +161,9 @@ public class CdcTools {
             jobName =
                     String.format(
                             "%s-Doris Sync Database: %s",
-                            type, config.getString("database-name", "db"));
+                            sourceConnector.getConnectorName(),
+                            config.getString(
+                                    DatabaseSyncConfig.DATABASE_NAME, DatabaseSyncConfig.DB));
         }
         env.execute(jobName);
     }
