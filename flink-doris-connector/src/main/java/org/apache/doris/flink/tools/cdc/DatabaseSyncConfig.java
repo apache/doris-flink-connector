@@ -49,7 +49,7 @@ public class DatabaseSyncConfig {
     public static final String SCAN_STARTUP_MODE_VALUE_TIMESTAMP = "timestamp";
     public static final String DECIMAL_HANDLING_MODE = "decimal.handling.mode";
 
-    ////////// sink-conf //////////
+    ////////// sink-conf /////////////
     public static final String SINK_CONF = "sink-conf";
     public static final String JOB_NAME = "job-name";
     public static final String DATABASE = "database";
@@ -68,4 +68,29 @@ public class DatabaseSyncConfig {
     public static final String TABLE_CONF = "table-conf";
     public static final String REPLICATION_NUM = "replication_num";
     public static final String TABLE_BUCKETS = "table-buckets";
+
+    ////////// date-converter-conf //////////
+    public static final String CONVERTERS = "converters";
+    public static final String DATE = "date";
+    public static final String DATE_TYPE = "date.type";
+    public static final String DATE_FORMAT_DATE = "date.format.date";
+    public static final String DATE_FORMAT_DATETIME = "date.format.datetime";
+    public static final String DATE_FORMAT_TIMESTAMP = "date.format.timestamp";
+    public static final String DATE_FORMAT_TIMESTAMP_ZONE = "date.format.timestamp.zone";
+    public static final String YEAR_MONTH_DAY_FORMAT = "yyyy-MM-dd";
+    public static final String DATE_TIME_FORMAT = "yyyy-MM-dd HH:mm:ss";
+    public static final String DATETIME_MICRO_FORMAT = "yyyy-MM-dd HH:mm:ss.SSSSSS";
+    public static final String TIME_ZONE_SHANGHAI = "Asia/Shanghai";
+    public static final String TIME_ZONE_UTC_8 = "UTC+8";
+    public static final String FORMAT_DATE = "format.date";
+    public static final String FORMAT_TIME = "format.time";
+    public static final String FORMAT_DATETIME = "format.datetime";
+    public static final String FORMAT_TIMESTAMP = "format.timestamp";
+    public static final String FORMAT_TIMESTAMP_ZONE = "format.timestamp.zone";
+    public static final String UPPERCASE_DATE = "DATE";
+    public static final String TIME = "TIME";
+    public static final String DATETIME = "DATETIME";
+    public static final String TIMESTAMP = "TIMESTAMP";
+    public static final String SMALLDATETIME = "SMALLDATETIME";
+    public static final String DATETIME2 = "DATETIME2";
 }
