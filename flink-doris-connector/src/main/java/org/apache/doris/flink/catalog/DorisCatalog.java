@@ -50,7 +50,7 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
 import org.apache.commons.compress.utils.Lists;
-import org.apache.doris.flink.catalog.doris.DataModel;
+import org.apache.doris.flink.catalog.doris.DorisSchemaFactory;
 import org.apache.doris.flink.catalog.doris.DorisSystem;
 import org.apache.doris.flink.catalog.doris.FieldSchema;
 import org.apache.doris.flink.catalog.doris.TableSchema;
@@ -353,15 +353,14 @@ public class DorisCatalog extends AbstractCatalog {
         }
 
         List<String> primaryKeys = getCreateDorisKeys(table.getSchema());
-        TableSchema schema = new TableSchema();
-        schema.setDatabase(tablePath.getDatabaseName());
-        schema.setTable(tablePath.getObjectName());
-        schema.setTableComment(table.getComment());
-        schema.setFields(getCreateDorisColumns(table.getSchema()));
-        schema.setKeys(primaryKeys);
-        schema.setModel(DataModel.UNIQUE);
-        schema.setDistributeKeys(primaryKeys);
-        schema.setProperties(getCreateTableProps(options));
+        TableSchema schema =
+                DorisSchemaFactory.createTableSchema(
+                        tablePath.getDatabaseName(),
+                        tablePath.getObjectName(),
+                        getCreateDorisColumns(table.getSchema()),
+                        primaryKeys,
+                        getCreateTableProps(options),
+                        table.getComment());
 
         dorisSystem.createTable(schema);
     }

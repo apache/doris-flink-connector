@@ -55,7 +55,7 @@ public class SQLParserSchemaManagerTest {
         SourceConnector mysql = SourceConnector.MYSQL;
         String ddl =
                 "alter table t1 drop c1, drop column c2, add c3 int default 100, add column `decimal_type` decimal(38,9) DEFAULT '1.123456789' COMMENT 'decimal_type_comment', add `create_time` datetime(3) DEFAULT CURRENT_TIMESTAMP(3) comment 'time_comment', rename column c10 to c11, change column c12 c13 varchar(10)";
-        List<String> actualDDLs = schemaManager.parserAlterDDLs(mysql, ddl, dorisTable);
+        List<String> actualDDLs = schemaManager.parseAlterDDLs(mysql, ddl, dorisTable);
         for (String actualDDL : actualDDLs) {
             Assert.assertTrue(expectDDLs.contains(actualDDL));
         }
@@ -70,7 +70,7 @@ public class SQLParserSchemaManagerTest {
         SourceConnector mysql = SourceConnector.ORACLE;
         String ddl =
                 "ALTER TABLE employees ADD (phone_number VARCHAR2(20), address VARCHAR2(255));";
-        List<String> actualDDLs = schemaManager.parserAlterDDLs(mysql, ddl, dorisTable);
+        List<String> actualDDLs = schemaManager.parseAlterDDLs(mysql, ddl, dorisTable);
         for (String actualDDL : actualDDLs) {
             Assert.assertTrue(expectDDLs.contains(actualDDL));
         }
@@ -89,7 +89,7 @@ public class SQLParserSchemaManagerTest {
                         + "CHANGE COLUMN old_phone_number new_phone_number VARCHAR(20) NOT NULL,\n"
                         + "CHANGE COLUMN old_address new_address VARCHAR(255) DEFAULT 'Unknown',\n"
                         + "MODIFY COLUMN hire_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP;";
-        List<String> actualDDLs = schemaManager.parserAlterDDLs(mysql, ddl, dorisTable);
+        List<String> actualDDLs = schemaManager.parseAlterDDLs(mysql, ddl, dorisTable);
         for (String actualDDL : actualDDLs) {
             Assert.assertTrue(expectDDLs.contains(actualDDL));
         }
@@ -258,7 +258,7 @@ public class SQLParserSchemaManagerTest {
                         SourceConnector.MYSQL, ddl, dorisTable, new HashMap<>());
 
         String expected =
-                "TableSchema{database='doris', table='auto_duptab', tableComment='null', fields={id=FieldSchema{name='id', typeString='INT', defaultValue='null', comment='null'}, name=FieldSchema{name='name', typeString='VARCHAR(150)', defaultValue='null', comment='null'}, age=FieldSchema{name='age', typeString='INT', defaultValue='null', comment='null'}, address=FieldSchema{name='address', typeString='VARCHAR(765)', defaultValue='null', comment='null'}}, keys=, model=DUPLICATE, distributeKeys=id, properties={}, tableBuckets=null}";
+                "TableSchema{database='doris', table='auto_duptab', tableComment='null', fields={id=FieldSchema{name='id', typeString='INT', defaultValue='null', comment='null'}, name=FieldSchema{name='name', typeString='VARCHAR(150)', defaultValue='null', comment='null'}, age=FieldSchema{name='age', typeString='INT', defaultValue='null', comment='null'}, address=FieldSchema{name='address', typeString='VARCHAR(765)', defaultValue='null', comment='null'}}, keys=id, model=DUPLICATE, distributeKeys=id, properties={}, tableBuckets=null}";
         Assert.assertEquals(expected, tableSchema.toString());
     }
 
@@ -338,7 +338,7 @@ public class SQLParserSchemaManagerTest {
                         SourceConnector.ORACLE, ddl, dorisTable, new HashMap<>());
 
         String expected =
-                "TableSchema{database='doris', table='auto_tab', tableComment='null', fields={order_id=FieldSchema{name='order_id', typeString='BIGINT', defaultValue='null', comment='null'}, customer_id=FieldSchema{name='customer_id', typeString='BIGINT', defaultValue='null', comment='null'}, order_date=FieldSchema{name='order_date', typeString='DATETIMEV2', defaultValue='SYSDATE', comment='null'}, status=FieldSchema{name='status', typeString='VARCHAR(60)', defaultValue='null', comment='null'}, total_amount=FieldSchema{name='total_amount', typeString='DECIMALV3(12,2)', defaultValue='null', comment='null'}, shipping_address=FieldSchema{name='shipping_address', typeString='VARCHAR(765)', defaultValue='null', comment='null'}, delivery_date=FieldSchema{name='delivery_date', typeString='DATETIMEV2', defaultValue='null', comment='null'}}, keys=, model=DUPLICATE, distributeKeys=order_id, properties={}, tableBuckets=null}";
+                "TableSchema{database='doris', table='auto_tab', tableComment='null', fields={order_id=FieldSchema{name='order_id', typeString='BIGINT', defaultValue='null', comment='null'}, customer_id=FieldSchema{name='customer_id', typeString='BIGINT', defaultValue='null', comment='null'}, order_date=FieldSchema{name='order_date', typeString='DATETIMEV2', defaultValue='SYSDATE', comment='null'}, status=FieldSchema{name='status', typeString='VARCHAR(60)', defaultValue='null', comment='null'}, total_amount=FieldSchema{name='total_amount', typeString='DECIMALV3(12,2)', defaultValue='null', comment='null'}, shipping_address=FieldSchema{name='shipping_address', typeString='VARCHAR(765)', defaultValue='null', comment='null'}, delivery_date=FieldSchema{name='delivery_date', typeString='DATETIMEV2', defaultValue='null', comment='null'}}, keys=order_id, model=DUPLICATE, distributeKeys=order_id, properties={}, tableBuckets=null}";
         Assert.assertEquals(expected, tableSchema.toString());
     }
 }

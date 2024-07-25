@@ -72,6 +72,7 @@ public abstract class SourceSchema {
         return identifier.toString();
     }
 
+    @Deprecated
     public TableSchema convertTableSchema(Map<String, String> tableProps) {
         TableSchema tableSchema = new TableSchema();
         tableSchema.setModel(this.model);
