@@ -33,9 +33,6 @@ import org.apache.doris.flink.tools.cdc.sqlserver.SqlServerType;
 
 import java.util.Map;
 
-import java.util.Map.Entry;
-import java.util.regex.Pattern;
-
 public class JsonDebeziumChangeUtils {
 
     public static String getDorisTableIdentifier(
