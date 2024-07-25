@@ -36,6 +36,7 @@ import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.exception.DorisSystemException;
 import org.apache.doris.flink.sink.DorisSink;
+import org.apache.doris.flink.sink.schema.SchemaChangeMode;
 import org.apache.doris.flink.sink.writer.WriteMode;
 import org.apache.doris.flink.sink.writer.serializer.DorisRecordSerializer;
 import org.apache.doris.flink.sink.writer.serializer.JsonDebeziumSchemaSerializer;
@@ -563,6 +564,10 @@ public abstract class DatabaseSync {
     }
 
     public DatabaseSync setSchemaChangeMode(String schemaChangeMode) {
+        if (org.apache.commons.lang3.StringUtils.isEmpty(schemaChangeMode)) {
+            this.schemaChangeMode = SchemaChangeMode.DEBEZIUM_STRUCTURE.getName();
+            return this;
+        }
         this.schemaChangeMode = schemaChangeMode.trim();
         return this;
     }
