@@ -17,9 +17,12 @@
 
 package org.apache.doris.flink.tools.cdc;
 
+import org.apache.flink.cdc.connectors.base.options.SourceOptions;
+import org.apache.flink.cdc.connectors.mongodb.source.config.MongoDBSourceOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
+import org.apache.doris.flink.table.DorisConfigOptions;
 import org.apache.doris.flink.tools.cdc.mongodb.MongoDBDatabaseSync;
 
 import java.util.HashMap;
@@ -28,12 +31,7 @@ import java.util.UUID;
 
 public class CdcMongoSyncDatabaseCase {
     public static void main(String[] args) throws Exception {
-        Configuration conf = new Configuration();
-        //        conf.setString(RestOptions.BIND_PORT, "8018");
-        //        conf.setString("rest.flamegraph.enabled", "true");
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        //        StreamExecutionEnvironment env =
-        //                StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(conf);
         Map<String, String> flinkMap = new HashMap<>();
         flinkMap.put("execution.checkpointing.interval", "10s");
         flinkMap.put("pipeline.operator-chaining", "false");
@@ -46,38 +44,37 @@ public class CdcMongoSyncDatabaseCase {
         Configuration configuration = Configuration.fromMap(flinkMap);
         env.configure(configuration);
         Map<String, String> mongoConfig = new HashMap<>();
-        mongoConfig.put("database", "test");
-        mongoConfig.put("hosts", "127.0.0.1:27017");
-        mongoConfig.put("username", "flinkuser");
-        // mysqlConfig.put("password","");
-        mongoConfig.put("password", "flinkpwd");
-        //                        mongoConfig.put("scan.startup.mode", "latest-offset");
-        mongoConfig.put("scan.startup.mode", "initial");
+        mongoConfig.put(MongoDBSourceOptions.DATABASE.key(), "test");
+        mongoConfig.put(MongoDBSourceOptions.HOSTS.key(), "127.0.0.1:27017");
+        mongoConfig.put(MongoDBSourceOptions.USERNAME.key(), "flinkuser");
+        mongoConfig.put(MongoDBSourceOptions.PASSWORD.key(), "flinkpwd");
+        // mongoConfig.put(SourceOptions.SCAN_STARTUP_MODE.key(),
+        // DorisCDCConfig.SCAN_STARTUP_MODE_VALUE_LATEST_OFFSET);
+        mongoConfig.put(
+                SourceOptions.SCAN_STARTUP_MODE.key(),
+                DatabaseSyncConfig.SCAN_STARTUP_MODE_VALUE_INITIAL);
         mongoConfig.put("schema.sample-percent", "1");
         Configuration config = Configuration.fromMap(mongoConfig);
 
         Map<String, String> sinkConfig = new HashMap<>();
-        sinkConfig.put("fenodes", "127.0.0.1:8030");
-        // sinkConfig.put("benodes","10.20.30.1:8040, 10.20.30.2:8040, 10.20.30.3:8040");
-        sinkConfig.put("username", "root");
-        sinkConfig.put("password", "");
-        sinkConfig.put("jdbc-url", "jdbc:mysql://127.0.0.1:9030");
-        sinkConfig.put("sink.label-prefix", UUID.randomUUID().toString());
-        sinkConfig.put("auto-redirect", "false");
-        //        sinkConfig.put("sink.enable.batch-mode","true");
-        //        sinkConfig.put("sink.write-mode","stream_load_batch");
+        sinkConfig.put(DorisConfigOptions.FENODES.key(), "127.0.0.1:8030");
+        sinkConfig.put(DorisConfigOptions.USERNAME.key(), "root");
+        sinkConfig.put(DorisConfigOptions.PASSWORD.key(), "");
+        sinkConfig.put(DorisConfigOptions.JDBC_URL.key(), "jdbc:mysql://127.0.0.1:9030");
+        sinkConfig.put(DorisConfigOptions.SINK_LABEL_PREFIX.key(), UUID.randomUUID().toString());
+        sinkConfig.put(DorisConfigOptions.AUTO_REDIRECT.key(), "false");
+        // sinkConfig.put(DorisConfigOptions.SINK_ENABLE_BATCH_MODE.key(),"true");
+        // sinkConfig.put(DorisConfigOptions.SINK_WRITE_MODE.key(),"stream_load_batch");
         Configuration sinkConf = Configuration.fromMap(sinkConfig);
 
         Map<String, String> tableConfig = new HashMap<>();
-        tableConfig.put("replication_num", "1");
-        tableConfig.put("table-buckets", ".*:1");
+        tableConfig.put(DatabaseSyncConfig.REPLICATION_NUM, "1");
+        tableConfig.put(DatabaseSyncConfig.TABLE_BUCKETS, ".*:1");
         String includingTables = "cdc_test";
-        //        String includingTables = "a_.*|b_.*|c";
         String excludingTables = "";
         String multiToOneOrigin = "a_.*|b_.*";
         String multiToOneTarget = "a|b";
         boolean ignoreDefaultValue = false;
-        //        boolean useNewSchemaChange = false;
         DatabaseSync databaseSync = new MongoDBDatabaseSync();
         databaseSync
                 .setEnv(env)
@@ -93,8 +90,6 @@ public class CdcMongoSyncDatabaseCase {
                 .setSinkConfig(sinkConf)
                 .setTableConfig(tableConfig)
                 .setCreateTableOnly(false)
-                //                .setSingleSink(true)
-                //                .setNewSchemaChange(useNewSchemaChange)
                 .create();
         databaseSync.build();
         env.execute(String.format("Mongo-Doris Database Sync: %s", database));
