@@ -31,7 +31,7 @@ import org.apache.arrow.vector.Float4Vector;
 import org.apache.arrow.vector.Float8Vector;
 import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.SmallIntVector;
-import org.apache.arrow.vector.TimeStampMicroVector;
+import org.apache.arrow.vector.TimeStampVector;
 import org.apache.arrow.vector.TinyIntVector;
 import org.apache.arrow.vector.UInt4Vector;
 import org.apache.arrow.vector.VarBinaryVector;
@@ -334,10 +334,6 @@ public class RowBatch {
                 }
                 break;
             case "DATETIME":
-                if (!minorType.equals(Types.MinorType.TIMESTAMPMICRO)
-                        && !minorType.equals(Types.MinorType.VARCHAR)) {
-                    return false;
-                }
                 if (minorType.equals(Types.MinorType.VARCHAR)) {
                     VarCharVector varCharVector = (VarCharVector) fieldVector;
                     if (varCharVector.isNull(rowIndex)) {
@@ -347,16 +343,18 @@ public class RowBatch {
                     String stringValue = new String(varCharVector.get(rowIndex));
                     LocalDateTime parse = LocalDateTime.parse(stringValue, dateTimeFormatter);
                     addValueToRow(rowIndex, parse);
-                } else {
+                } else if (fieldVector instanceof TimeStampVector) {
                     LocalDateTime dateTime = getDateTime(rowIndex, fieldVector);
                     addValueToRow(rowIndex, dateTime);
+                } else {
+                    logger.error(
+                            "Unsupported type for DATETIME, minorType {}, vector {}",
+                            minorType.name(),
+                            fieldVector);
+                    return false;
                 }
                 break;
             case "DATETIMEV2":
-                if (!minorType.equals(Types.MinorType.TIMESTAMPMICRO)
-                        && !minorType.equals(Types.MinorType.VARCHAR)) {
-                    return false;
-                }
                 if (minorType.equals(Types.MinorType.VARCHAR)) {
                     VarCharVector varCharVector = (VarCharVector) fieldVector;
                     if (varCharVector.isNull(rowIndex)) {
@@ -367,9 +365,15 @@ public class RowBatch {
                     stringValue = completeMilliseconds(stringValue);
                     LocalDateTime parse = LocalDateTime.parse(stringValue, dateTimeV2Formatter);
                     addValueToRow(rowIndex, parse);
-                } else {
+                } else if (fieldVector instanceof TimeStampVector) {
                     LocalDateTime dateTime = getDateTime(rowIndex, fieldVector);
                     addValueToRow(rowIndex, dateTime);
+                } else {
+                    logger.error(
+                            "Unsupported type for DATETIMEV2, minorType {}, vector {}",
+                            minorType.name(),
+                            fieldVector);
+                    return false;
                 }
                 break;
             case "LARGEINT":
@@ -498,10 +502,12 @@ public class RowBatch {
 
     @VisibleForTesting
     public LocalDateTime getDateTime(int rowIndex, FieldVector fieldVector) {
-        TimeStampMicroVector vector = (TimeStampMicroVector) fieldVector;
+        TimeStampVector vector = (TimeStampVector) fieldVector;
         if (vector.isNull(rowIndex)) {
             return null;
         }
+        // todo: Currently, the scale of doris's arrow datetimev2 is hardcoded to 6,
+        // and there is also a time zone problem in arrow, so use timestamp to convert first
         long time = vector.get(rowIndex);
         return longToLocalDateTime(time);
     }

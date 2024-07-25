@@ -34,6 +34,8 @@ import org.apache.arrow.vector.Float8Vector;
 import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.SmallIntVector;
 import org.apache.arrow.vector.TimeStampMicroVector;
+import org.apache.arrow.vector.TimeStampMilliVector;
+import org.apache.arrow.vector.TimeStampSecVector;
 import org.apache.arrow.vector.TinyIntVector;
 import org.apache.arrow.vector.UInt4Vector;
 import org.apache.arrow.vector.VarBinaryVector;
@@ -1334,6 +1336,9 @@ public class TestRowBatch {
         flag = rowBatch.doConvert(1, 1, Types.MinorType.INT, "DATETIMEV2", null);
         Assert.assertFalse(flag);
 
+        flag = rowBatch.doConvert(1, 1, Types.MinorType.TIMESTAMPSEC, "DATETIMEV2", null);
+        Assert.assertFalse(flag);
+
         flag = rowBatch.doConvert(1, 1, Types.MinorType.INT, "LARGEINT", null);
         Assert.assertFalse(flag);
 
@@ -1657,5 +1662,98 @@ public class TestRowBatch {
         long[] resultArray = {result1, result2, result3};
 
         Assert.assertArrayEquals(expectArray, resultArray);
+    }
+
+    @Test
+    public void timestampVector() throws IOException, DorisException {
+        List<Field> childrenBuilder = new ArrayList<>();
+        childrenBuilder.add(
+                new Field(
+                        "k0",
+                        FieldType.nullable(new ArrowType.Timestamp(TimeUnit.MICROSECOND, null)),
+                        null));
+        childrenBuilder.add(
+                new Field(
+                        "k1",
+                        FieldType.nullable(new ArrowType.Timestamp(TimeUnit.MILLISECOND, null)),
+                        null));
+        childrenBuilder.add(
+                new Field(
+                        "k2",
+                        FieldType.nullable(new ArrowType.Timestamp(TimeUnit.SECOND, null)),
+                        null));
+
+        VectorSchemaRoot root =
+                VectorSchemaRoot.create(
+                        new org.apache.arrow.vector.types.pojo.Schema(childrenBuilder, null),
+                        new RootAllocator(Integer.MAX_VALUE));
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        ArrowStreamWriter arrowStreamWriter =
+                new ArrowStreamWriter(
+                        root, new DictionaryProvider.MapDictionaryProvider(), outputStream);
+
+        arrowStreamWriter.start();
+        root.setRowCount(1);
+
+        FieldVector vector = root.getVector("k0");
+        TimeStampMicroVector mircoVec = (TimeStampMicroVector) vector;
+        mircoVec.allocateNew(1);
+        mircoVec.setIndexDefined(0);
+        mircoVec.setSafe(0, 1721892143586123L);
+        vector.setValueCount(1);
+
+        vector = root.getVector("k1");
+        TimeStampMilliVector milliVector = (TimeStampMilliVector) vector;
+        milliVector.allocateNew(1);
+        milliVector.setIndexDefined(0);
+        milliVector.setSafe(0, 1721892143586L);
+        vector.setValueCount(1);
+
+        vector = root.getVector("k2");
+        TimeStampSecVector secVector = (TimeStampSecVector) vector;
+        secVector.allocateNew(1);
+        secVector.setIndexDefined(0);
+        secVector.setSafe(0, 1721892143L);
+        vector.setValueCount(1);
+
+        arrowStreamWriter.writeBatch();
+
+        arrowStreamWriter.end();
+        arrowStreamWriter.close();
+
+        TStatus status = new TStatus();
+        status.setStatusCode(TStatusCode.OK);
+        TScanBatchResult scanBatchResult = new TScanBatchResult();
+        scanBatchResult.setStatus(status);
+        scanBatchResult.setEos(false);
+        scanBatchResult.setRows(outputStream.toByteArray());
+
+        String schemaStr =
+                "{\"properties\":[{\"type\":\"DATETIME\",\"name\":\"k0\",\"comment\":\"\"}, {\"type\":\"DATETIME\",\"name\":\"k1\",\"comment\":\"\"}, {\"type\":\"DATETIME\",\"name\":\"k2\",\"comment\":\"\"}],"
+                        + "\"status\":200}";
+
+        Schema schema = RestService.parseSchema(schemaStr, logger);
+
+        RowBatch rowBatch = new RowBatch(scanBatchResult, schema).readArrow();
+        List<Object> next = rowBatch.next();
+        Assert.assertEquals(next.size(), 3);
+        Assert.assertEquals(
+                next.get(0),
+                LocalDateTime.of(2024, 7, 25, 15, 22, 23, 586123000)
+                        .atZone(ZoneId.of("UTC+8"))
+                        .withZoneSameInstant(ZoneId.systemDefault())
+                        .toLocalDateTime());
+        Assert.assertEquals(
+                next.get(1),
+                LocalDateTime.of(2024, 7, 25, 15, 22, 23, 586000000)
+                        .atZone(ZoneId.of("UTC+8"))
+                        .withZoneSameInstant(ZoneId.systemDefault())
+                        .toLocalDateTime());
+        Assert.assertEquals(
+                next.get(2),
+                LocalDateTime.of(2024, 7, 25, 15, 22, 23, 0)
+                        .atZone(ZoneId.of("UTC+8"))
+                        .withZoneSameInstant(ZoneId.systemDefault())
+                        .toLocalDateTime());
     }
 }
