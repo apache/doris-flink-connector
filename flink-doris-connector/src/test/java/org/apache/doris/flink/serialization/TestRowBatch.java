@@ -1333,10 +1333,21 @@ public class TestRowBatch {
         flag = rowBatch.doConvert(1, 1, Types.MinorType.INT, "DATETIME", null);
         Assert.assertFalse(flag);
 
+        flag = rowBatch.doConvert(1, 1, Types.MinorType.TIMESTAMPSEC, "DATETIME", null);
+        Assert.assertFalse(flag);
+
+        IntVector intVector1 = new IntVector("test", new RootAllocator(Integer.MAX_VALUE));
+        intVector1.setNull(0);
+        flag = rowBatch.doConvert(1, 1, Types.MinorType.TIMESTAMPSEC, "DATETIME", intVector1);
+        Assert.assertFalse(flag);
+
         flag = rowBatch.doConvert(1, 1, Types.MinorType.INT, "DATETIMEV2", null);
         Assert.assertFalse(flag);
 
         flag = rowBatch.doConvert(1, 1, Types.MinorType.TIMESTAMPSEC, "DATETIMEV2", null);
+        Assert.assertFalse(flag);
+
+        flag = rowBatch.doConvert(1, 1, Types.MinorType.TIMESTAMPSEC, "DATETIMEV2", intVector1);
         Assert.assertFalse(flag);
 
         flag = rowBatch.doConvert(1, 1, Types.MinorType.INT, "LARGEINT", null);

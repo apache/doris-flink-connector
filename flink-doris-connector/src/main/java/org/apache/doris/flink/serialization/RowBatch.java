@@ -348,9 +348,9 @@ public class RowBatch {
                     addValueToRow(rowIndex, dateTime);
                 } else {
                     logger.error(
-                            "Unsupported type for DATETIME, minorType {}, vector {}",
+                            "Unsupported type for DATETIME, minorType {}, class is {}",
                             minorType.name(),
-                            fieldVector);
+                            fieldVector == null ? null : fieldVector.getClass());
                     return false;
                 }
                 break;
@@ -370,9 +370,9 @@ public class RowBatch {
                     addValueToRow(rowIndex, dateTime);
                 } else {
                     logger.error(
-                            "Unsupported type for DATETIMEV2, minorType {}, vector {}",
+                            "Unsupported type for DATETIMEV2, minorType {}, class is {}",
                             minorType.name(),
-                            fieldVector);
+                            fieldVector == null ? null : fieldVector.getClass());
                     return false;
                 }
                 break;
