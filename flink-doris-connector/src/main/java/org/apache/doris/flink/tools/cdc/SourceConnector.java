@@ -22,7 +22,8 @@ public enum SourceConnector {
     ORACLE("oracle"),
     POSTGRES("postgres"),
     SQLSERVER("sqlserver"),
-    MONGODB("mongodb");
+    MONGODB("mongodb"),
+    DB2("db2");
 
     public final String connectorName;
 

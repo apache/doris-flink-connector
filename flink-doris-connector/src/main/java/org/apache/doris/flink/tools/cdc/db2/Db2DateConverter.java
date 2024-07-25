@@ -21,6 +21,7 @@ import org.apache.flink.cdc.connectors.shaded.org.apache.kafka.connect.data.Sche
 
 import io.debezium.spi.converter.CustomConverter;
 import io.debezium.spi.converter.RelationalColumn;
+import org.apache.doris.flink.tools.cdc.DatabaseSyncConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,11 +46,14 @@ public class Db2DateConverter implements CustomConverter<SchemaBuilder, Relation
     protected static final Properties DEFAULT_PROPS = new Properties();
 
     static {
-        DEFAULT_PROPS.setProperty("converters", "date");
+        DEFAULT_PROPS.setProperty(DatabaseSyncConfig.CONVERTERS, DatabaseSyncConfig.DATE);
         DEFAULT_PROPS.setProperty(
-                "date.type", "org.apache.doris.flink.tools.cdc.db2.Db2DateConverter");
-        DEFAULT_PROPS.setProperty("date.format.date", "yyyy-MM-dd");
-        DEFAULT_PROPS.setProperty("date.format.timestamp", "yyyy-MM-dd HH:mm:ss.SSSSSS");
+                DatabaseSyncConfig.DATE_TYPE,
+                "org.apache.doris.flink.tools.cdc.db2.Db2DateConverter");
+        DEFAULT_PROPS.setProperty(
+                DatabaseSyncConfig.DATE_FORMAT_DATE, DatabaseSyncConfig.YEAR_MONTH_DAY_FORMAT);
+        DEFAULT_PROPS.setProperty(
+                DatabaseSyncConfig.DATE_FORMAT_TIMESTAMP, DatabaseSyncConfig.DATETIME_MICRO_FORMAT);
     }
 
     @Override
@@ -81,15 +85,15 @@ public class Db2DateConverter implements CustomConverter<SchemaBuilder, Relation
         String sqlType = column.typeName().toUpperCase();
         SchemaBuilder schemaBuilder = null;
         CustomConverter.Converter converter = null;
-        if ("DATE".equals(sqlType)) {
+        if (DatabaseSyncConfig.UPPERCASE_DATE.equals(sqlType)) {
             schemaBuilder = SchemaBuilder.string().optional();
             converter = this::convertDate;
         }
-        if ("TIME".equals(sqlType)) {
+        if (DatabaseSyncConfig.TIME.equals(sqlType)) {
             schemaBuilder = SchemaBuilder.string().optional();
             converter = this::convertTime;
         }
-        if ("TIMESTAMP".equals(sqlType)) {
+        if (DatabaseSyncConfig.TIMESTAMP.equals(sqlType)) {
             schemaBuilder = SchemaBuilder.string().optional();
             converter = this::convertTimestamp;
         }
