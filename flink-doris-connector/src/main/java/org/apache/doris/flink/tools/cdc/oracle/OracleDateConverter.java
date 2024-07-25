@@ -22,6 +22,7 @@ import org.apache.flink.cdc.connectors.shaded.org.apache.kafka.connect.data.Sche
 import io.debezium.spi.converter.CustomConverter;
 import io.debezium.spi.converter.RelationalColumn;
 import oracle.sql.TIMESTAMP;
+import org.apache.doris.flink.tools.cdc.DatabaseSyncConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,13 +47,13 @@ public class OracleDateConverter implements CustomConverter<SchemaBuilder, Relat
             Pattern.compile("^TIMESTAMP[(]\\d[)]$|^DATE$", Pattern.CASE_INSENSITIVE);
     private ZoneId timestampZoneId = ZoneId.systemDefault();
     public static final Properties DEFAULT_PROPS = new Properties();
-    private static final String DATETIME_PATTERN = "yyyy-MM-dd HH:mm:ss";
-    private static final String DATETIMEV2_PATTERN = "yyyy-MM-dd HH:mm:ss.SSSSSS";
+    private static final String DATETIME_PATTERN = DatabaseSyncConfig.DATE_TIME_FORMAT;
+    private static final String DATETIMEV2_PATTERN = DatabaseSyncConfig.DATETIME_MICRO_FORMAT;
     private final DateTimeFormatter dateTimeV2Formatter =
             DateTimeFormatter.ofPattern(DATETIMEV2_PATTERN);
 
     static {
-        DEFAULT_PROPS.setProperty("converters", "oracleDate");
+        DEFAULT_PROPS.setProperty(DatabaseSyncConfig.CONVERTERS, "oracleDate");
         DEFAULT_PROPS.setProperty(
                 "oracleDate.type", "org.apache.doris.flink.tools.cdc.oracle.OracleDateConverter");
     }
@@ -60,7 +61,7 @@ public class OracleDateConverter implements CustomConverter<SchemaBuilder, Relat
     private static final DateTimeFormatter TIMESTAMP_FORMATTER =
             new DateTimeFormatterBuilder()
                     .parseCaseInsensitive()
-                    .appendPattern("yyyy-MM-dd HH:mm:ss")
+                    .appendPattern(DatabaseSyncConfig.DATE_TIME_FORMAT)
                     .optionalStart()
                     .appendPattern(".")
                     .appendFraction(ChronoField.NANO_OF_SECOND, 0, 9, false)

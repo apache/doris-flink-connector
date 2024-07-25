@@ -21,6 +21,7 @@ import org.apache.flink.cdc.connectors.shaded.org.apache.kafka.connect.data.Sche
 
 import io.debezium.spi.converter.CustomConverter;
 import io.debezium.spi.converter.RelationalColumn;
+import org.apache.doris.flink.tools.cdc.DatabaseSyncConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,26 +48,42 @@ public class DateToStringConverter implements CustomConverter<SchemaBuilder, Rel
     public static final Properties DEFAULT_PROPS = new Properties();
 
     static {
-        DEFAULT_PROPS.setProperty("converters", "date");
+        DEFAULT_PROPS.setProperty(DatabaseSyncConfig.CONVERTERS, DatabaseSyncConfig.DATE);
         DEFAULT_PROPS.setProperty(
-                "date.type", "org.apache.doris.flink.tools.cdc.mysql.DateToStringConverter");
-        DEFAULT_PROPS.setProperty("date.format.date", "yyyy-MM-dd");
-        DEFAULT_PROPS.setProperty("date.format.datetime", "yyyy-MM-dd HH:mm:ss.SSSSSS");
-        DEFAULT_PROPS.setProperty("date.format.timestamp", "yyyy-MM-dd HH:mm:ss.SSSSSS");
-        DEFAULT_PROPS.setProperty("date.format.timestamp.zone", "UTC+8");
+                DatabaseSyncConfig.DATE_TYPE,
+                "org.apache.doris.flink.tools.cdc.mysql.DateToStringConverter");
+        DEFAULT_PROPS.setProperty(
+                DatabaseSyncConfig.DATE_FORMAT_DATE, DatabaseSyncConfig.YEAR_MONTH_DAY_FORMAT);
+        DEFAULT_PROPS.setProperty(
+                DatabaseSyncConfig.DATE_FORMAT_DATETIME, DatabaseSyncConfig.DATETIME_MICRO_FORMAT);
+        DEFAULT_PROPS.setProperty(
+                DatabaseSyncConfig.DATE_FORMAT_TIMESTAMP, DatabaseSyncConfig.DATETIME_MICRO_FORMAT);
+        DEFAULT_PROPS.setProperty(
+                DatabaseSyncConfig.DATE_FORMAT_TIMESTAMP_ZONE, DatabaseSyncConfig.TIME_ZONE_UTC_8);
     }
 
     @Override
     public void configure(Properties props) {
-        readProps(props, "format.date", p -> dateFormatter = DateTimeFormatter.ofPattern(p));
-        readProps(props, "format.time", p -> timeFormatter = DateTimeFormatter.ofPattern(p));
-        readProps(
-                props, "format.datetime", p -> datetimeFormatter = DateTimeFormatter.ofPattern(p));
         readProps(
                 props,
-                "format.timestamp",
+                DatabaseSyncConfig.FORMAT_DATE,
+                p -> dateFormatter = DateTimeFormatter.ofPattern(p));
+        readProps(
+                props,
+                DatabaseSyncConfig.FORMAT_TIME,
+                p -> timeFormatter = DateTimeFormatter.ofPattern(p));
+        readProps(
+                props,
+                DatabaseSyncConfig.FORMAT_DATETIME,
+                p -> datetimeFormatter = DateTimeFormatter.ofPattern(p));
+        readProps(
+                props,
+                DatabaseSyncConfig.FORMAT_TIMESTAMP,
                 p -> timestampFormatter = DateTimeFormatter.ofPattern(p));
-        readProps(props, "format.timestamp.zone", z -> timestampZoneId = ZoneId.of(z));
+        readProps(
+                props,
+                DatabaseSyncConfig.FORMAT_TIMESTAMP_ZONE,
+                z -> timestampZoneId = ZoneId.of(z));
     }
 
     private void readProps(Properties properties, String settingKey, Consumer<String> callback) {
@@ -88,19 +105,19 @@ public class DateToStringConverter implements CustomConverter<SchemaBuilder, Rel
         String sqlType = column.typeName().toUpperCase();
         SchemaBuilder schemaBuilder = null;
         Converter converter = null;
-        if ("DATE".equals(sqlType)) {
+        if (DatabaseSyncConfig.UPPERCASE_DATE.equals(sqlType)) {
             schemaBuilder = SchemaBuilder.string().optional();
             converter = this::convertDate;
         }
-        if ("TIME".equals(sqlType)) {
+        if (DatabaseSyncConfig.TIME.equals(sqlType)) {
             schemaBuilder = SchemaBuilder.string().optional();
             converter = this::convertTime;
         }
-        if ("DATETIME".equals(sqlType)) {
+        if (DatabaseSyncConfig.DATETIME.equals(sqlType)) {
             schemaBuilder = SchemaBuilder.string().optional();
             converter = this::convertDateTime;
         }
-        if ("TIMESTAMP".equals(sqlType)) {
+        if (DatabaseSyncConfig.TIMESTAMP.equals(sqlType)) {
             schemaBuilder = SchemaBuilder.string().optional();
             converter = this::convertTimestamp;
         }
