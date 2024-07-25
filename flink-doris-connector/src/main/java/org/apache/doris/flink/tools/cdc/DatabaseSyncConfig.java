@@ -41,7 +41,7 @@ public class DatabaseSyncConfig {
     public static final String REMARKS = "REMARKS";
 
     ////////// cdc-conf //////////
-    // config options of {@link SourceOptions.SCAN_STARTUP_MODE}
+    // config options of {@link org.apache.flink.cdc.connectors.base.options.SourceOptions.SCAN_STARTUP_MODE}
     public static final String SCAN_STARTUP_MODE_VALUE_INITIAL = "initial";
     public static final String SCAN_STARTUP_MODE_VALUE_EARLIEST_OFFSET = "earliest-offset";
     public static final String SCAN_STARTUP_MODE_VALUE_SPECIFIC_OFFSET = "specific-offset";
