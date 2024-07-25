@@ -26,7 +26,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.apache.commons.collections.CollectionUtils;
-import org.apache.doris.flink.catalog.doris.DataModel;
+import org.apache.doris.flink.catalog.doris.DorisSchemaFactory;
 import org.apache.doris.flink.catalog.doris.FieldSchema;
 import org.apache.doris.flink.catalog.doris.TableSchema;
 import org.apache.doris.flink.exception.IllegalArgumentException;
@@ -37,7 +37,6 @@ import org.apache.doris.flink.sink.schema.SchemaChangeHelper;
 import org.apache.doris.flink.sink.schema.SchemaChangeHelper.DDLSchema;
 import org.apache.doris.flink.sink.schema.SchemaChangeManager;
 import org.apache.doris.flink.sink.writer.EventType;
-import org.apache.doris.flink.tools.cdc.DatabaseSync;
 import org.apache.doris.flink.tools.cdc.SourceConnector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -221,37 +220,20 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
         JsonNode columns = tableChange.get("table").get("columns");
         JsonNode comment = tableChange.get("table").get("comment");
         String tblComment = comment == null ? "" : comment.asText();
-        Map<String, FieldSchema> field = new LinkedHashMap<>();
+        Map<String, FieldSchema> fields = new LinkedHashMap<>();
         for (JsonNode column : columns) {
-            buildFieldSchema(field, column);
+            buildFieldSchema(fields, column);
         }
         List<String> pkList = new ArrayList<>();
         for (JsonNode column : pkColumns) {
             String fieldName = column.asText();
             pkList.add(fieldName);
         }
+        String[] dbTable = dorisTable.split("\\.");
+        Preconditions.checkArgument(dbTable.length == 2);
 
-        TableSchema tableSchema = new TableSchema();
-        tableSchema.setFields(field);
-        tableSchema.setKeys(pkList);
-        tableSchema.setDistributeKeys(JsonDebeziumChangeUtils.buildDistributeKeys(pkList, field));
-        tableSchema.setTableComment(tblComment);
-        tableSchema.setProperties(tableProperties);
-        tableSchema.setModel(pkList.isEmpty() ? DataModel.DUPLICATE : DataModel.UNIQUE);
-
-        String[] split = dorisTable.split("\\.");
-        Preconditions.checkArgument(split.length == 2);
-        tableSchema.setDatabase(split[0]);
-        tableSchema.setTable(split[1]);
-        if (tableProperties.containsKey("table-buckets")) {
-            String tableBucketsConfig = tableProperties.get("table-buckets");
-            Map<String, Integer> tableBuckets = DatabaseSync.getTableBuckets(tableBucketsConfig);
-            Integer buckets =
-                    JsonDebeziumChangeUtils.getTableSchemaBuckets(
-                            tableBuckets, tableSchema.getTable());
-            tableSchema.setTableBuckets(buckets);
-        }
-        return tableSchema;
+        return DorisSchemaFactory.createTableSchema(
+                dbTable[0], dbTable[1], fields, pkList, tableProperties, tblComment);
     }
 
     private boolean checkSchemaChange(String database, String table, DDLSchema ddlSchema)

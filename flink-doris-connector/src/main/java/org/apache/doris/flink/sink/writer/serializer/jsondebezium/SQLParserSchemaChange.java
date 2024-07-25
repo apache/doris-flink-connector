@@ -90,7 +90,7 @@ public class SQLParserSchemaChange extends JsonDebeziumSchemaChange {
                     LOG.warn("Failed to get doris table tuple. record={}", recordRoot);
                     return false;
                 }
-                List<String> ddlList = tryParserAlterDDLs(recordRoot);
+                List<String> ddlList = tryParseAlterDDLs(recordRoot);
                 status = executeAlterDDLs(ddlList, recordRoot, dorisTableTuple, status);
             }
         } catch (Exception ex) {
@@ -110,12 +110,12 @@ public class SQLParserSchemaChange extends JsonDebeziumSchemaChange {
     }
 
     @VisibleForTesting
-    public List<String> tryParserAlterDDLs(JsonNode record) throws IOException {
+    public List<String> tryParseAlterDDLs(JsonNode record) throws IOException {
         String dorisTable =
                 JsonDebeziumChangeUtils.getDorisTableIdentifier(record, dorisOptions, tableMapping);
         JsonNode historyRecord = extractHistoryRecord(record);
         String ddl = extractJsonNode(historyRecord, "ddl");
         extractSourceConnector(record);
-        return sqlParserSchemaManager.parserAlterDDLs(sourceConnector, ddl, dorisTable);
+        return sqlParserSchemaManager.parseAlterDDLs(sourceConnector, ddl, dorisTable);
     }
 }

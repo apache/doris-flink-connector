@@ -28,6 +28,7 @@ import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
+import org.apache.doris.flink.catalog.doris.DorisSchemaFactory;
 import org.apache.doris.flink.catalog.doris.DorisSystem;
 import org.apache.doris.flink.catalog.doris.TableSchema;
 import org.apache.doris.flink.cfg.DorisConnectionOptions;
@@ -128,13 +129,7 @@ public abstract class DatabaseSync {
         }
         List<String> syncTables = new ArrayList<>();
         List<Tuple2<String, String>> dorisTables = new ArrayList<>();
-        Map<String, Integer> tableBucketsMap = null;
-        if (tableConfig.containsKey("table-buckets")) {
-            tableBucketsMap = getTableBuckets(tableConfig.get("table-buckets"));
-        }
 
-        // Set of table names that have assigned bucket numbers.
-        Set<String> tablesWithBucketsAssigned = new HashSet<>();
         Set<String> targetDbSet = new HashSet<>();
         for (SourceSchema schema : schemaList) {
             syncTables.add(schema.getTableName());
@@ -153,13 +148,7 @@ public abstract class DatabaseSync {
             // Calculate the mapping relationship between upstream and downstream tables
             tableMapping.put(
                     schema.getTableIdentifier(), String.format("%s.%s", targetDb, dorisTable));
-            tryCreateTableIfAbsent(
-                    dorisSystem,
-                    targetDb,
-                    dorisTable,
-                    schema,
-                    tableBucketsMap,
-                    tablesWithBucketsAssigned);
+            tryCreateTableIfAbsent(dorisSystem, targetDb, dorisTable, schema);
 
             if (!dorisTables.contains(Tuple2.of(targetDb, dorisTable))) {
                 dorisTables.add(Tuple2.of(targetDb, dorisTable));
@@ -418,6 +407,7 @@ public abstract class DatabaseSync {
      * @param tableBuckets the string of tableBuckets, eg:student:10,student_info:20,student.*:30
      * @return The table name and buckets map. The key is table name, the value is buckets.
      */
+    @Deprecated
     public static Map<String, Integer> getTableBuckets(String tableBuckets) {
         Map<String, Integer> tableBucketsMap = new LinkedHashMap<>();
         String[] tableBucketsArray = tableBuckets.split(",");
@@ -438,6 +428,7 @@ public abstract class DatabaseSync {
      * @param dorisTable the table name need to set buckets
      * @param tableHasSet The buckets table is set
      */
+    @Deprecated
     public void setTableSchemaBuckets(
             Map<String, Integer> tableBucketsMap,
             TableSchema dorisSchema,
@@ -468,20 +459,16 @@ public abstract class DatabaseSync {
     }
 
     private void tryCreateTableIfAbsent(
-            DorisSystem dorisSystem,
-            String targetDb,
-            String dorisTable,
-            SourceSchema schema,
-            Map<String, Integer> tableBucketsMap,
-            Set<String> tableBucketsSet) {
+            DorisSystem dorisSystem, String targetDb, String dorisTable, SourceSchema schema) {
         if (!dorisSystem.tableExists(targetDb, dorisTable)) {
-            TableSchema dorisSchema = schema.convertTableSchema(tableConfig);
-            dorisSchema.setDatabase(targetDb);
-            dorisSchema.setTable(dorisTable);
-            // set the table buckets of table
-            if (tableBucketsMap != null) {
-                setTableSchemaBuckets(tableBucketsMap, dorisSchema, dorisTable, tableBucketsSet);
-            }
+            TableSchema dorisSchema =
+                    DorisSchemaFactory.createTableSchema(
+                            database,
+                            dorisTable,
+                            schema.getFields(),
+                            schema.getPrimaryKeys(),
+                            tableConfig,
+                            schema.getTableComment());
             try {
                 dorisSystem.createTable(dorisSchema);
             } catch (Exception ex) {
