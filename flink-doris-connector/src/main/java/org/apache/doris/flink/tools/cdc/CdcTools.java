@@ -24,6 +24,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
+import org.apache.doris.flink.tools.cdc.db2.Db2DatabaseSync;
 import org.apache.doris.flink.tools.cdc.mongodb.MongoDBDatabaseSync;
 import org.apache.doris.flink.tools.cdc.mysql.MysqlDatabaseSync;
 import org.apache.doris.flink.tools.cdc.oracle.OracleDatabaseSync;
@@ -120,7 +121,7 @@ public class CdcTools {
         Preconditions.checkArgument(params.has(DatabaseSyncConfig.DB2_CONF));
         Map<String, String> db2Map = getConfigMap(params, DatabaseSyncConfig.DB2_CONF);
         Configuration db2Config = Configuration.fromMap(db2Map);
-        DatabaseSync databaseSync = new MongoDBDatabaseSync();
+        DatabaseSync databaseSync = new Db2DatabaseSync();
         syncDatabase(params, databaseSync, db2Config, SourceConnector.DB2);
     }
 
