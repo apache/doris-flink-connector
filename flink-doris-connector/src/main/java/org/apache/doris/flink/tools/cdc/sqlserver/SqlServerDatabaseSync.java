@@ -63,7 +63,7 @@ import static org.apache.flink.cdc.connectors.base.options.SourceOptions.SPLIT_K
 
 public class SqlServerDatabaseSync extends DatabaseSync {
     private static final Logger LOG = LoggerFactory.getLogger(SqlServerDatabaseSync.class);
-    private static final String JDBC_URL = "jdbc:sqlserver://%s:%d;database=%s";
+    private static final String JDBC_URL = "jdbc:sqlserver://%s:%d;database=%s;encrypt=false";
     private static final String PORT = "port";
 
     public SqlServerDatabaseSync() throws SQLException {
