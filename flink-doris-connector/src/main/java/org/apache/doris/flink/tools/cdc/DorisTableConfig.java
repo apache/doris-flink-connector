@@ -19,31 +19,34 @@ package org.apache.doris.flink.tools.cdc;
 
 import org.apache.flink.annotation.VisibleForTesting;
 
-import org.apache.commons.collections.MapUtils;
-
 import java.io.Serializable;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 
 public class DorisTableConfig implements Serializable {
     private static final String LIGHT_SCHEMA_CHANGE = "light_schema_change";
     // PROPERTIES parameter in doris table creation statement. such as: replication_num=1.
-    private final Map<String, String> tableProperties;
+    private Map<String, String> tableProperties;
     // The specific parameters extracted from --table-conf need to be parsed and integrated into the
     // doris table creation statement. such as: table-buckets="tbl1:10,tbl2:20,a.*:30,b.*:40,.*:50".
     private Map<String, Integer> tableBuckets;
 
+    public DorisTableConfig() {}
+
     public DorisTableConfig(Map<String, String> tableConfig) {
-        if (MapUtils.isNotEmpty(tableConfig)) {
-            // default enable light schema change
-            if (!tableConfig.containsKey(LIGHT_SCHEMA_CHANGE)) {
-                tableConfig.put(LIGHT_SCHEMA_CHANGE, Boolean.toString(true));
-            }
-            if (tableConfig.containsKey(DatabaseSyncConfig.TABLE_BUCKETS)) {
-                this.tableBuckets =
-                        buildTableBucketMap(tableConfig.get(DatabaseSyncConfig.TABLE_BUCKETS));
-                tableConfig.remove(DatabaseSyncConfig.TABLE_BUCKETS);
-            }
+        if (Objects.isNull(tableConfig)) {
+            tableConfig = new HashMap<>();
+        }
+        // default enable light schema change
+        if (!tableConfig.containsKey(LIGHT_SCHEMA_CHANGE)) {
+            tableConfig.put(LIGHT_SCHEMA_CHANGE, Boolean.toString(true));
+        }
+        if (tableConfig.containsKey(DatabaseSyncConfig.TABLE_BUCKETS)) {
+            this.tableBuckets =
+                    buildTableBucketMap(tableConfig.get(DatabaseSyncConfig.TABLE_BUCKETS));
+            tableConfig.remove(DatabaseSyncConfig.TABLE_BUCKETS);
         }
         tableProperties = tableConfig;
     }

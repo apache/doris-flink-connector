@@ -22,6 +22,7 @@ import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.tools.cdc.DorisTableConfig;
 
 import java.io.Serializable;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.regex.Pattern;
@@ -86,7 +87,9 @@ public class JsonDebeziumChangeContext implements Serializable {
 
     @Deprecated
     public Map<String, String> getTableProperties() {
-        return Objects.nonNull(dorisTableConfig) ? dorisTableConfig.getTableProperties() : null;
+        return Objects.nonNull(dorisTableConfig)
+                ? dorisTableConfig.getTableProperties()
+                : new HashMap<>();
     }
 
     public ObjectMapper getObjectMapper() {

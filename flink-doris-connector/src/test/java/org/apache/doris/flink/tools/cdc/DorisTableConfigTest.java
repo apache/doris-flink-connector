@@ -20,7 +20,6 @@ package org.apache.doris.flink.tools.cdc;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.HashMap;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
@@ -31,7 +30,7 @@ public class DorisTableConfigTest {
 
     @Before
     public void init() {
-        dorisTableConfig = new DorisTableConfig(new HashMap<>());
+        dorisTableConfig = new DorisTableConfig();
     }
 
     @Test
