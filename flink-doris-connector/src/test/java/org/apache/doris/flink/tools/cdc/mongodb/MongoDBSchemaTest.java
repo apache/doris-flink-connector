@@ -44,4 +44,15 @@ public class MongoDBSchemaTest {
         String d = mongoDBSchema.replaceDecimalTypeIfNeeded("fields1", "DECIMALV3(12,8)");
         assertEquals("DECIMAL(15,8)", d);
     }
+
+    @Test
+    public void replaceDecimalTypeIfNeededWhenContainsNonDecimalType() throws Exception {
+        ArrayList<Document> documents = new ArrayList<>();
+        documents.add(new Document("fields1", 1234567.666666));
+        documents.add(new Document("fields1", 1234567));
+        documents.add(new Document("fields1", 1234567.7777777));
+        MongoDBSchema mongoDBSchema = new MongoDBSchema(documents, "db_TEST", "test_table", "");
+        String d = mongoDBSchema.replaceDecimalTypeIfNeeded("fields1", "DECIMALV3(12,8)");
+        assertEquals("DECIMAL(15,8)", d);
+    }
 }
