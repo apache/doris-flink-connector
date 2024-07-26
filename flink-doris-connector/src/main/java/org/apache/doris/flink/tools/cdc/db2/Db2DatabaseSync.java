@@ -70,7 +70,7 @@ public class Db2DatabaseSync extends DatabaseSync {
                     .withDescription("Integer port number of the DB2 database server.");
     private static final Logger LOG = LoggerFactory.getLogger(Db2DatabaseSync.class);
 
-    private static final String JDBC_URL = "jdbc:db2://%s:%d/%s";
+    private static final String JDBC_URL = "jdbc:db2://%s:%d/%s%s";
 
     public Db2DatabaseSync() throws SQLException {
         super();
@@ -89,12 +89,26 @@ public class Db2DatabaseSync extends DatabaseSync {
 
     @Override
     public Connection getConnection() throws SQLException {
+        Properties jdbcProperties = getJdbcProperties();
+        StringBuilder jdbcParams = new StringBuilder();
+        int cnt = 0;
+        for (Map.Entry<Object, Object> entry : jdbcProperties.entrySet()) {
+            Object key = entry.getKey();
+            Object value = entry.getValue();
+            if (cnt == 0) {
+                jdbcParams.append(":").append(key).append("=").append(value).append(";");
+                cnt++;
+            } else {
+                jdbcParams.append(key).append("=").append(value).append(";");
+            }
+        }
         String jdbcUrl =
                 String.format(
                         JDBC_URL,
                         config.get(JdbcSourceOptions.HOSTNAME),
                         config.get(PORT),
-                        config.get(JdbcSourceOptions.DATABASE_NAME));
+                        config.get(JdbcSourceOptions.DATABASE_NAME),
+                        jdbcParams);
         Properties pro = new Properties();
         pro.setProperty("user", config.get(JdbcSourceOptions.USERNAME));
         pro.setProperty("password", config.get(JdbcSourceOptions.PASSWORD));

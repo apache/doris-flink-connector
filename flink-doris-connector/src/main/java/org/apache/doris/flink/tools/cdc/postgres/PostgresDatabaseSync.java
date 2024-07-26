@@ -66,7 +66,7 @@ import static org.apache.flink.cdc.connectors.postgres.source.config.PostgresSou
 public class PostgresDatabaseSync extends DatabaseSync {
     private static final Logger LOG = LoggerFactory.getLogger(PostgresDatabaseSync.class);
 
-    private static final String JDBC_URL = "jdbc:postgresql://%s:%d/%s";
+    private static final String JDBC_URL = "jdbc:postgresql://%s:%d/%s?";
 
     public PostgresDatabaseSync() throws SQLException {
         super();
@@ -84,9 +84,13 @@ public class PostgresDatabaseSync extends DatabaseSync {
 
     @Override
     public Connection getConnection() throws SQLException {
+        Properties jdbcProperties = getJdbcProperties();
+        StringBuilder jdbcUrlSb = new StringBuilder(JDBC_URL);
+        jdbcProperties.forEach(
+                (key, value) -> jdbcUrlSb.append("&").append(key).append("=").append(value));
         String jdbcUrl =
                 String.format(
-                        JDBC_URL,
+                        jdbcUrlSb.toString(),
                         config.get(PostgresSourceOptions.HOSTNAME),
                         config.get(PostgresSourceOptions.PG_PORT),
                         config.get(PostgresSourceOptions.DATABASE_NAME));

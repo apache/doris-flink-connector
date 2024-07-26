@@ -53,6 +53,10 @@ public class CdcDb2SyncDatabaseCase {
         sourceConfig.put("port", "50000");
         sourceConfig.put("username", "db2inst1");
         sourceConfig.put("password", "=doris123456");
+        // add jdbc properties configuration
+        sourceConfig.put("jdbc.properties.allowNextOnExhaustedResultSet", "1");
+        sourceConfig.put("jdbc.properties.resultSetHoldability", "1");
+        sourceConfig.put("jdbc.properties.ssl", "false");
         // sourceConfig.put("debezium.database.tablename.case.insensitive","false");
         sourceConfig.put("scan.incremental.snapshot.enabled", "true");
         // sourceConfig.put("debezium.include.schema.changes","false");

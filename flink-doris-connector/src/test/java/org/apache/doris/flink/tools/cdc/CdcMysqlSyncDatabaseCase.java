@@ -53,6 +53,8 @@ public class CdcMysqlSyncDatabaseCase {
         mysqlConfig.put(MySqlSourceOptions.PORT.key(), "3306");
         mysqlConfig.put(MySqlSourceOptions.USERNAME.key(), "root");
         mysqlConfig.put(MySqlSourceOptions.PASSWORD.key(), "12345678");
+        // add jdbc properties for MySQL
+        mysqlConfig.put("jdbc.properties.use_ssl", "false");
         Configuration config = Configuration.fromMap(mysqlConfig);
 
         Map<String, String> sinkConfig = new HashMap<>();
@@ -61,6 +63,7 @@ public class CdcMysqlSyncDatabaseCase {
         sinkConfig.put(DorisConfigOptions.PASSWORD.key(), "");
         sinkConfig.put(DorisConfigOptions.JDBC_URL.key(), "jdbc:mysql://10.20.30.1:9030");
         sinkConfig.put(DorisConfigOptions.SINK_LABEL_PREFIX.key(), UUID.randomUUID().toString());
+        sinkConfig.put("sink.enable-delete", "false");
         Configuration sinkConf = Configuration.fromMap(sinkConfig);
 
         Map<String, String> tableConfig = new HashMap<>();

@@ -55,10 +55,11 @@ import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static org.apache.flink.cdc.debezium.utils.JdbcUrlUtils.PROPERTIES_PREFIX;
+
 public class MysqlDatabaseSync extends DatabaseSync {
     private static final Logger LOG = LoggerFactory.getLogger(MysqlDatabaseSync.class);
     private static final String JDBC_URL = "jdbc:mysql://%s:%d?useInformationSchema=true";
-    private static final String PROPERTIES_PREFIX = "jdbc.properties.";
 
     public MysqlDatabaseSync() throws SQLException {
         super();
@@ -268,17 +269,5 @@ public class MysqlDatabaseSync extends DatabaseSync {
             }
         }
         return chunkMap;
-    }
-
-    private Properties getJdbcProperties() {
-        Properties jdbcProps = new Properties();
-        for (Map.Entry<String, String> entry : config.toMap().entrySet()) {
-            String key = entry.getKey();
-            String value = entry.getValue();
-            if (key.startsWith(PROPERTIES_PREFIX)) {
-                jdbcProps.put(key.substring(PROPERTIES_PREFIX.length()), value);
-            }
-        }
-        return jdbcProps;
     }
 }

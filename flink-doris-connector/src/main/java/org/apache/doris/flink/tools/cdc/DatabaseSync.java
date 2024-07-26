@@ -625,4 +625,16 @@ public abstract class DatabaseSync {
             return target;
         }
     }
+
+    protected Properties getJdbcProperties() {
+        Properties jdbcProps = new Properties();
+        for (Map.Entry<String, String> entry : config.toMap().entrySet()) {
+            String key = entry.getKey();
+            String value = entry.getValue();
+            if (key.startsWith(DatabaseSyncConfig.PROPERTIES_PREFIX)) {
+                jdbcProps.put(key.substring(DatabaseSyncConfig.PROPERTIES_PREFIX.length()), value);
+            }
+        }
+        return jdbcProps;
+    }
 }

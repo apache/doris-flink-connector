@@ -63,7 +63,7 @@ import static org.apache.flink.cdc.connectors.base.options.SourceOptions.SPLIT_K
 
 public class SqlServerDatabaseSync extends DatabaseSync {
     private static final Logger LOG = LoggerFactory.getLogger(SqlServerDatabaseSync.class);
-    private static final String JDBC_URL = "jdbc:sqlserver://%s:%d;database=%s;encrypt=false";
+    private static final String JDBC_URL = "jdbc:sqlserver://%s:%d;database=%s;%s";
     private static final String PORT = "port";
 
     public SqlServerDatabaseSync() throws SQLException {
@@ -82,12 +82,17 @@ public class SqlServerDatabaseSync extends DatabaseSync {
 
     @Override
     public Connection getConnection() throws SQLException {
+        Properties jdbcProperties = getJdbcProperties();
+        StringBuilder jdbcParams = new StringBuilder();
+        jdbcProperties.forEach(
+                (key, value) -> jdbcParams.append(key).append("=").append(value).append(";"));
         String jdbcUrl =
                 String.format(
                         JDBC_URL,
                         config.get(JdbcSourceOptions.HOSTNAME),
                         config.getInteger(PORT, 1433),
-                        config.get(JdbcSourceOptions.DATABASE_NAME));
+                        config.get(JdbcSourceOptions.DATABASE_NAME),
+                        jdbcParams);
         Properties pro = new Properties();
         pro.setProperty(DatabaseSyncConfig.USER, config.get(JdbcSourceOptions.USERNAME));
         pro.setProperty(DatabaseSyncConfig.PASSWORD, config.get(JdbcSourceOptions.PASSWORD));
