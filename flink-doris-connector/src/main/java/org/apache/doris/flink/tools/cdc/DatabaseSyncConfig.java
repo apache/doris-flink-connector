@@ -41,7 +41,6 @@ public class DatabaseSyncConfig {
     public static final String PASSWORD = "password";
     public static final String TABLE_NAME = "TABLE_NAME";
     public static final String REMARKS = "REMARKS";
-    public static final String PROPERTIES_PREFIX = "jdbc.properties.";
 
     ////////// cdc-conf //////////
     // config options of {@link

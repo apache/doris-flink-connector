@@ -59,6 +59,8 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.regex.Pattern;
 
+import static org.apache.flink.cdc.debezium.utils.JdbcUrlUtils.PROPERTIES_PREFIX;
+
 public abstract class DatabaseSync {
     private static final Logger LOG = LoggerFactory.getLogger(DatabaseSync.class);
     private static final String LIGHT_SCHEMA_CHANGE = "light_schema_change";
@@ -631,8 +633,8 @@ public abstract class DatabaseSync {
         for (Map.Entry<String, String> entry : config.toMap().entrySet()) {
             String key = entry.getKey();
             String value = entry.getValue();
-            if (key.startsWith(DatabaseSyncConfig.PROPERTIES_PREFIX)) {
-                jdbcProps.put(key.substring(DatabaseSyncConfig.PROPERTIES_PREFIX.length()), value);
+            if (key.startsWith(PROPERTIES_PREFIX)) {
+                jdbcProps.put(key.substring(PROPERTIES_PREFIX.length()), value);
             }
         }
         return jdbcProps;
