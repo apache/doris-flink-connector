@@ -46,24 +46,25 @@ public class CdcTools {
         System.out.println("Input args: " + Arrays.asList(args) + ".\n");
         String operation = args[0].toLowerCase();
         String[] opArgs = Arrays.copyOfRange(args, 1, args.length);
+        MultipleParameterTool params = MultipleParameterTool.fromArgs(opArgs);
         switch (operation) {
             case DatabaseSyncConfig.MYSQL_SYNC_DATABASE:
-                createMySQLSyncDatabase(opArgs);
+                createMySQLSyncDatabase(params);
                 break;
             case DatabaseSyncConfig.ORACLE_SYNC_DATABASE:
-                createOracleSyncDatabase(opArgs);
+                createOracleSyncDatabase(params);
                 break;
             case DatabaseSyncConfig.POSTGRES_SYNC_DATABASE:
-                createPostgresSyncDatabase(opArgs);
+                createPostgresSyncDatabase(params);
                 break;
             case DatabaseSyncConfig.SQLSERVER_SYNC_DATABASE:
-                createSqlServerSyncDatabase(opArgs);
+                createSqlServerSyncDatabase(params);
                 break;
             case DatabaseSyncConfig.MONGODB_SYNC_DATABASE:
-                createMongoDBSyncDatabase(opArgs);
+                createMongoDBSyncDatabase(params);
                 break;
             case DatabaseSyncConfig.DB2_SYNC_DATABASE:
-                createDb2SyncDatabase(opArgs);
+                createDb2SyncDatabase(params);
                 break;
             default:
                 System.out.println("Unknown operation " + operation);
@@ -71,8 +72,7 @@ public class CdcTools {
         }
     }
 
-    private static void createMySQLSyncDatabase(String[] opArgs) throws Exception {
-        MultipleParameterTool params = MultipleParameterTool.fromArgs(opArgs);
+    private static void createMySQLSyncDatabase(MultipleParameterTool params) throws Exception {
         Preconditions.checkArgument(params.has(DatabaseSyncConfig.MYSQL_CONF));
         Map<String, String> mysqlMap = getConfigMap(params, DatabaseSyncConfig.MYSQL_CONF);
         Configuration mysqlConfig = Configuration.fromMap(mysqlMap);
@@ -80,8 +80,7 @@ public class CdcTools {
         syncDatabase(params, databaseSync, mysqlConfig, SourceConnector.MYSQL);
     }
 
-    private static void createOracleSyncDatabase(String[] opArgs) throws Exception {
-        MultipleParameterTool params = MultipleParameterTool.fromArgs(opArgs);
+    private static void createOracleSyncDatabase(MultipleParameterTool params) throws Exception {
         Preconditions.checkArgument(params.has(DatabaseSyncConfig.ORACLE_CONF));
         Map<String, String> oracleMap = getConfigMap(params, DatabaseSyncConfig.ORACLE_CONF);
         Configuration oracleConfig = Configuration.fromMap(oracleMap);
@@ -89,8 +88,7 @@ public class CdcTools {
         syncDatabase(params, databaseSync, oracleConfig, SourceConnector.ORACLE);
     }
 
-    private static void createPostgresSyncDatabase(String[] opArgs) throws Exception {
-        MultipleParameterTool params = MultipleParameterTool.fromArgs(opArgs);
+    private static void createPostgresSyncDatabase(MultipleParameterTool params) throws Exception {
         Preconditions.checkArgument(params.has(DatabaseSyncConfig.POSTGRES_CONF));
         Map<String, String> postgresMap = getConfigMap(params, DatabaseSyncConfig.POSTGRES_CONF);
         Configuration postgresConfig = Configuration.fromMap(postgresMap);
@@ -98,8 +96,7 @@ public class CdcTools {
         syncDatabase(params, databaseSync, postgresConfig, SourceConnector.POSTGRES);
     }
 
-    private static void createSqlServerSyncDatabase(String[] opArgs) throws Exception {
-        MultipleParameterTool params = MultipleParameterTool.fromArgs(opArgs);
+    private static void createSqlServerSyncDatabase(MultipleParameterTool params) throws Exception {
         Preconditions.checkArgument(params.has(DatabaseSyncConfig.SQLSERVER_CONF));
         Map<String, String> postgresMap = getConfigMap(params, DatabaseSyncConfig.SQLSERVER_CONF);
         Configuration postgresConfig = Configuration.fromMap(postgresMap);
@@ -107,8 +104,7 @@ public class CdcTools {
         syncDatabase(params, databaseSync, postgresConfig, SourceConnector.SQLSERVER);
     }
 
-    private static void createMongoDBSyncDatabase(String[] opArgs) throws Exception {
-        MultipleParameterTool params = MultipleParameterTool.fromArgs(opArgs);
+    private static void createMongoDBSyncDatabase(MultipleParameterTool params) throws Exception {
         Preconditions.checkArgument(params.has(DatabaseSyncConfig.MONGODB_CONF));
         Map<String, String> mongoMap = getConfigMap(params, DatabaseSyncConfig.MONGODB_CONF);
         Configuration mongoConfig = Configuration.fromMap(mongoMap);
@@ -116,8 +112,7 @@ public class CdcTools {
         syncDatabase(params, databaseSync, mongoConfig, SourceConnector.MONGODB);
     }
 
-    private static void createDb2SyncDatabase(String[] opArgs) throws Exception {
-        MultipleParameterTool params = MultipleParameterTool.fromArgs(opArgs);
+    private static void createDb2SyncDatabase(MultipleParameterTool params) throws Exception {
         Preconditions.checkArgument(params.has(DatabaseSyncConfig.DB2_CONF));
         Map<String, String> db2Map = getConfigMap(params, DatabaseSyncConfig.DB2_CONF);
         Configuration db2Config = Configuration.fromMap(db2Map);
@@ -197,10 +192,10 @@ public class CdcTools {
         for (String param : params.getMultiParameter(key)) {
             String[] kv = param.split("=", 2);
             if (kv.length == 2) {
-                map.put(kv[0], kv[1]);
+                map.put(kv[0].trim(), kv[1].trim());
                 continue;
             } else if (kv.length == 1 && EMPTY_KEYS.contains(kv[0])) {
-                map.put(kv[0], "");
+                map.put(kv[0].trim(), "");
                 continue;
             }
 
