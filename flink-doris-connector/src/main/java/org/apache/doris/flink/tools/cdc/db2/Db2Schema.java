@@ -15,23 +15,30 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.flink.tools.cdc;
+package org.apache.doris.flink.tools.cdc.db2;
 
-public enum SourceConnector {
-    MYSQL("mysql"),
-    ORACLE("oracle"),
-    POSTGRES("postgres"),
-    SQLSERVER("sqlserver"),
-    MONGODB("mongodb"),
-    DB2("db2");
+import org.apache.doris.flink.tools.cdc.JdbcSourceSchema;
 
-    public final String connectorName;
+import java.sql.DatabaseMetaData;
 
-    SourceConnector(String connectorName) {
-        this.connectorName = connectorName;
+public class Db2Schema extends JdbcSourceSchema {
+    public Db2Schema(
+            DatabaseMetaData metaData,
+            String databaseName,
+            String schemaName,
+            String tableName,
+            String tableComment)
+            throws Exception {
+        super(metaData, databaseName, schemaName, tableName, tableComment);
     }
 
-    public String getConnectorName() {
-        return connectorName;
+    @Override
+    public String convertToDorisType(String fieldType, Integer precision, Integer scale) {
+        return Db2Type.toDorisType(fieldType, precision, scale);
+    }
+
+    @Override
+    public String getCdcTableName() {
+        return schemaName + "\\." + tableName;
     }
 }

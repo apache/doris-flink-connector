@@ -24,6 +24,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
+import org.apache.doris.flink.tools.cdc.db2.Db2DatabaseSync;
 import org.apache.doris.flink.tools.cdc.mongodb.MongoDBDatabaseSync;
 import org.apache.doris.flink.tools.cdc.mysql.MysqlDatabaseSync;
 import org.apache.doris.flink.tools.cdc.oracle.OracleDatabaseSync;
@@ -60,6 +61,9 @@ public class CdcTools {
                 break;
             case DatabaseSyncConfig.MONGODB_SYNC_DATABASE:
                 createMongoDBSyncDatabase(opArgs);
+                break;
+            case DatabaseSyncConfig.DB2_SYNC_DATABASE:
+                createDb2SyncDatabase(opArgs);
                 break;
             default:
                 System.out.println("Unknown operation " + operation);
@@ -110,6 +114,15 @@ public class CdcTools {
         Configuration mongoConfig = Configuration.fromMap(mongoMap);
         DatabaseSync databaseSync = new MongoDBDatabaseSync();
         syncDatabase(params, databaseSync, mongoConfig, SourceConnector.MONGODB);
+    }
+
+    private static void createDb2SyncDatabase(String[] opArgs) throws Exception {
+        MultipleParameterTool params = MultipleParameterTool.fromArgs(opArgs);
+        Preconditions.checkArgument(params.has(DatabaseSyncConfig.DB2_CONF));
+        Map<String, String> db2Map = getConfigMap(params, DatabaseSyncConfig.DB2_CONF);
+        Configuration db2Config = Configuration.fromMap(db2Map);
+        DatabaseSync databaseSync = new Db2DatabaseSync();
+        syncDatabase(params, databaseSync, db2Config, SourceConnector.DB2);
     }
 
     private static void syncDatabase(
