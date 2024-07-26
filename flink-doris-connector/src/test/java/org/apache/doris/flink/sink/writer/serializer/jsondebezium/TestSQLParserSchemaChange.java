@@ -25,7 +25,6 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 
 public class TestSQLParserSchemaChange extends TestJsonDebeziumChangeBase {
@@ -41,7 +40,7 @@ public class TestSQLParserSchemaChange extends TestJsonDebeziumChangeBase {
                         tableMapping,
                         null,
                         null,
-                        new HashMap<>(),
+                        null,
                         objectMapper,
                         null,
                         lineDelimiter,

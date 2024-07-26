@@ -26,6 +26,7 @@ import org.apache.doris.flink.catalog.doris.TableSchema;
 import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.rest.models.Schema;
+import org.apache.doris.flink.tools.cdc.DorisTableConfig;
 import org.apache.doris.flink.tools.cdc.SourceConnector;
 import org.junit.After;
 import org.junit.Assert;
@@ -76,7 +77,7 @@ public class TestJsonDebeziumSchemaChangeImplV2 extends TestJsonDebeziumChangeBa
                         tableMapping,
                         sourceTableName,
                         targetDatabase,
-                        tableProperties,
+                        new DorisTableConfig(tableProperties),
                         objectMapper,
                         null,
                         lineDelimiter,

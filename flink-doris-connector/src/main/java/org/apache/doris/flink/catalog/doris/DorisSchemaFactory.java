@@ -20,14 +20,14 @@ package org.apache.doris.flink.catalog.doris;
 import org.apache.flink.annotation.VisibleForTesting;
 
 import org.apache.commons.collections.CollectionUtils;
-import org.apache.commons.collections.MapUtils;
+import org.apache.doris.flink.tools.cdc.DorisTableConfig;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.regex.Pattern;
 
 /**
@@ -37,14 +37,13 @@ import java.util.regex.Pattern;
  * factory
  */
 public class DorisSchemaFactory {
-    private static Map<String, Integer> tableBucketMap;
 
     public static TableSchema createTableSchema(
             String database,
             String table,
             Map<String, FieldSchema> columnFields,
             List<String> pkKeys,
-            Map<String, String> tableProperties,
+            DorisTableConfig dorisTableConfig,
             String tableComment) {
         TableSchema tableSchema = new TableSchema();
         tableSchema.setDatabase(database);
@@ -55,14 +54,10 @@ public class DorisSchemaFactory {
         tableSchema.setKeys(buildKeys(pkKeys, columnFields));
         tableSchema.setTableComment(tableComment);
         tableSchema.setDistributeKeys(buildDistributeKeys(pkKeys, columnFields));
-        tableSchema.setProperties(tableProperties);
-        if (tableProperties.containsKey("table-buckets")) {
-            if (MapUtils.isEmpty(tableBucketMap)) {
-                String tableBucketsConfig = tableProperties.get("table-buckets");
-                tableBucketMap = buildTableBucketMap(tableBucketsConfig);
-            }
-            Integer buckets = parseTableSchemaBuckets(tableBucketMap, table);
-            tableSchema.setTableBuckets(buckets);
+        if (Objects.nonNull(dorisTableConfig)) {
+            tableSchema.setProperties(dorisTableConfig.getTableProperties());
+            tableSchema.setTableBuckets(
+                    parseTableSchemaBuckets(dorisTableConfig.getTableBuckets(), table));
         }
         return tableSchema;
     }
@@ -106,23 +101,5 @@ public class DorisSchemaFactory {
             }
         }
         return null;
-    }
-
-    /**
-     * Build table bucket Map.
-     *
-     * @param tableBuckets the string of tableBuckets, eg:student:10,student_info:20,student.*:30
-     * @return The table name and buckets map. The key is table name, the value is buckets.
-     */
-    @VisibleForTesting
-    public static Map<String, Integer> buildTableBucketMap(String tableBuckets) {
-        Map<String, Integer> tableBucketsMap = new LinkedHashMap<>();
-        String[] tableBucketsArray = tableBuckets.split(",");
-        for (String tableBucket : tableBucketsArray) {
-            String[] tableBucketArray = tableBucket.split(":");
-            tableBucketsMap.put(
-                    tableBucketArray[0].trim(), Integer.parseInt(tableBucketArray[1].trim()));
-        }
-        return tableBucketsMap;
     }
 }

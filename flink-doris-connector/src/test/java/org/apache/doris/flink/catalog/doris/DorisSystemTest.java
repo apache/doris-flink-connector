@@ -80,11 +80,11 @@ public class DorisSystemTest {
         schema.setFields(map);
         schema.setTableBuckets(1);
         Map<String, String> properties = new HashMap<>();
-        properties.put("table-buckets", "1");
+        properties.put("replication_num", "3");
         schema.setProperties(properties);
         String createTableDDL = DorisSystem.buildCreateTableDDL(schema);
         String except =
-                "CREATE TABLE IF NOT EXISTS `db`.`table`(`name` VARCHAR(65533) DEFAULT 'zhangsan' COMMENT '' )  DISTRIBUTED BY HASH(`name`) BUCKETS 1";
+                "CREATE TABLE IF NOT EXISTS `db`.`table`(`name` VARCHAR(65533) DEFAULT 'zhangsan' COMMENT '' )  DISTRIBUTED BY HASH(`name`) BUCKETS 1 PROPERTIES ('replication_num'='3')";
         Assert.assertEquals(createTableDDL, except);
     }
 

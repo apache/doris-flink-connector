@@ -18,6 +18,7 @@
 package org.apache.doris.flink.sink.schema;
 
 import org.apache.doris.flink.catalog.doris.TableSchema;
+import org.apache.doris.flink.tools.cdc.DorisTableConfig;
 import org.apache.doris.flink.tools.cdc.SourceConnector;
 import org.junit.Assert;
 import org.junit.Before;
@@ -222,7 +223,7 @@ public class SQLParserSchemaManagerTest {
                         + ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci";
         TableSchema tableSchema =
                 schemaManager.parseCreateTableStatement(
-                        SourceConnector.MYSQL, ddl, dorisTable, new HashMap<>());
+                        SourceConnector.MYSQL, ddl, dorisTable, null);
 
         String expected =
                 "TableSchema{database='doris', table='auto_tab', tableComment='null', fields={`id`=FieldSchema{name='`id`', typeString='INT', defaultValue='10000', comment='id_test'}, `create_time`=FieldSchema{name='`create_time`', typeString='DATETIMEV2(3)', defaultValue='CURRENT_TIMESTAMP', comment='null'}, `c1`=FieldSchema{name='`c1`', typeString='INT', defaultValue='999', comment='null'}, `decimal_type`=FieldSchema{name='`decimal_type`', typeString='DECIMALV3(9,3)', defaultValue='1.000', comment='decimal_tes'}, `aaa`=FieldSchema{name='`aaa`', typeString='VARCHAR(300)', defaultValue='NULL', comment='null'}, `decimal_type3`=FieldSchema{name='`decimal_type3`', typeString='DECIMALV3(38,9)', defaultValue='1.123456789', comment='comment_test'}, `create_time3`=FieldSchema{name='`create_time3`', typeString='DATETIMEV2(3)', defaultValue='CURRENT_TIMESTAMP', comment='ttime_aaa'}}, keys=`id`, model=UNIQUE, distributeKeys=`id`, properties={}, tableBuckets=null}";
@@ -236,7 +237,7 @@ public class SQLParserSchemaManagerTest {
                 "CREATE TABLE test_sink_unique (     id INT NOT NULL,     name VARCHAR(100) NOT NULL,     age INT,     email VARCHAR(100),     UNIQUE (email) )";
         TableSchema tableSchema =
                 schemaManager.parseCreateTableStatement(
-                        SourceConnector.MYSQL, ddl, dorisTable, new HashMap<>());
+                        SourceConnector.MYSQL, ddl, dorisTable, null);
 
         String expected =
                 "TableSchema{database='doris', table='auto_uni_tab', tableComment='null', fields={id=FieldSchema{name='id', typeString='INT', defaultValue='null', comment='null'}, name=FieldSchema{name='name', typeString='VARCHAR(300)', defaultValue='null', comment='null'}, age=FieldSchema{name='age', typeString='INT', defaultValue='null', comment='null'}, email=FieldSchema{name='email', typeString='VARCHAR(300)', defaultValue='null', comment='null'}}, keys=email, model=UNIQUE, distributeKeys=email, properties={}, tableBuckets=null}";
@@ -255,7 +256,7 @@ public class SQLParserSchemaManagerTest {
                         + ")";
         TableSchema tableSchema =
                 schemaManager.parseCreateTableStatement(
-                        SourceConnector.MYSQL, ddl, dorisTable, new HashMap<>());
+                        SourceConnector.MYSQL, ddl, dorisTable, null);
 
         String expected =
                 "TableSchema{database='doris', table='auto_duptab', tableComment='null', fields={id=FieldSchema{name='id', typeString='INT', defaultValue='null', comment='null'}, name=FieldSchema{name='name', typeString='VARCHAR(150)', defaultValue='null', comment='null'}, age=FieldSchema{name='age', typeString='INT', defaultValue='null', comment='null'}, address=FieldSchema{name='address', typeString='VARCHAR(765)', defaultValue='null', comment='null'}}, keys=id, model=DUPLICATE, distributeKeys=id, properties={}, tableBuckets=null}";
@@ -284,7 +285,7 @@ public class SQLParserSchemaManagerTest {
                         + ");";
         TableSchema tableSchema =
                 schemaManager.parseCreateTableStatement(
-                        SourceConnector.ORACLE, ddl, dorisTable, new HashMap<>());
+                        SourceConnector.ORACLE, ddl, dorisTable, null);
 
         String expected =
                 "TableSchema{database='doris', table='auto_tab', tableComment='null', fields={employee_id=FieldSchema{name='employee_id', typeString='BIGINT', defaultValue='null', comment='null'}, first_name=FieldSchema{name='first_name', typeString='VARCHAR(150)', defaultValue='null', comment='null'}, last_name=FieldSchema{name='last_name', typeString='VARCHAR(150)', defaultValue='null', comment='null'}, email=FieldSchema{name='email', typeString='VARCHAR(300)', defaultValue='null', comment='null'}, phone_number=FieldSchema{name='phone_number', typeString='VARCHAR(60)', defaultValue='null', comment='null'}, hire_date=FieldSchema{name='hire_date', typeString='DATETIMEV2', defaultValue='SYSDATE', comment='null'}, job_id=FieldSchema{name='job_id', typeString='VARCHAR(30)', defaultValue='null', comment='null'}, salary=FieldSchema{name='salary', typeString='DECIMALV3(8,2)', defaultValue='null', comment='null'}, commission_pct=FieldSchema{name='commission_pct', typeString='DECIMALV3(2,2)', defaultValue='null', comment='null'}, manager_id=FieldSchema{name='manager_id', typeString='BIGINT', defaultValue='null', comment='null'}, department_id=FieldSchema{name='department_id', typeString='BIGINT', defaultValue='null', comment='null'}}, keys=employee_id, model=UNIQUE, distributeKeys=employee_id, properties={}, tableBuckets=null}";
@@ -310,7 +311,7 @@ public class SQLParserSchemaManagerTest {
                         + ");";
         TableSchema tableSchema =
                 schemaManager.parseCreateTableStatement(
-                        SourceConnector.ORACLE, ddl, dorisTable, new HashMap<>());
+                        SourceConnector.ORACLE, ddl, dorisTable, null);
 
         String expected =
                 "TableSchema{database='doris', table='auto_tab', tableComment='null', fields={employee_id=FieldSchema{name='employee_id', typeString='BIGINT', defaultValue='null', comment='null'}, first_name=FieldSchema{name='first_name', typeString='VARCHAR(150)', defaultValue='null', comment='null'}, last_name=FieldSchema{name='last_name', typeString='VARCHAR(150)', defaultValue='null', comment='null'}, email=FieldSchema{name='email', typeString='VARCHAR(300)', defaultValue='null', comment='null'}, phone_number=FieldSchema{name='phone_number', typeString='VARCHAR(60)', defaultValue='null', comment='null'}, hire_date=FieldSchema{name='hire_date', typeString='DATETIMEV2', defaultValue='SYSDATE', comment='null'}, job_id=FieldSchema{name='job_id', typeString='VARCHAR(30)', defaultValue='null', comment='null'}, salary=FieldSchema{name='salary', typeString='DECIMALV3(8,2)', defaultValue='null', comment='null'}, commission_pct=FieldSchema{name='commission_pct', typeString='DECIMALV3(2,2)', defaultValue='null', comment='null'}, manager_id=FieldSchema{name='manager_id', typeString='BIGINT', defaultValue='null', comment='null'}, department_id=FieldSchema{name='department_id', typeString='BIGINT', defaultValue='null', comment='null'}}, keys=employee_id, model=UNIQUE, distributeKeys=employee_id, properties={}, tableBuckets=null}";
@@ -335,7 +336,10 @@ public class SQLParserSchemaManagerTest {
                         + ");";
         TableSchema tableSchema =
                 schemaManager.parseCreateTableStatement(
-                        SourceConnector.ORACLE, ddl, dorisTable, new HashMap<>());
+                        SourceConnector.ORACLE,
+                        ddl,
+                        dorisTable,
+                        new DorisTableConfig(new HashMap<>()));
 
         String expected =
                 "TableSchema{database='doris', table='auto_tab', tableComment='null', fields={order_id=FieldSchema{name='order_id', typeString='BIGINT', defaultValue='null', comment='null'}, customer_id=FieldSchema{name='customer_id', typeString='BIGINT', defaultValue='null', comment='null'}, order_date=FieldSchema{name='order_date', typeString='DATETIMEV2', defaultValue='SYSDATE', comment='null'}, status=FieldSchema{name='status', typeString='VARCHAR(60)', defaultValue='null', comment='null'}, total_amount=FieldSchema{name='total_amount', typeString='DECIMALV3(12,2)', defaultValue='null', comment='null'}, shipping_address=FieldSchema{name='shipping_address', typeString='VARCHAR(765)', defaultValue='null', comment='null'}, delivery_date=FieldSchema{name='delivery_date', typeString='DATETIMEV2', defaultValue='null', comment='null'}}, keys=order_id, model=DUPLICATE, distributeKeys=order_id, properties={}, tableBuckets=null}";

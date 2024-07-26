@@ -35,6 +35,7 @@ import org.apache.doris.flink.catalog.doris.DorisSchemaFactory;
 import org.apache.doris.flink.catalog.doris.FieldSchema;
 import org.apache.doris.flink.catalog.doris.TableSchema;
 import org.apache.doris.flink.sink.writer.serializer.jsondebezium.JsonDebeziumChangeUtils;
+import org.apache.doris.flink.tools.cdc.DorisTableConfig;
 import org.apache.doris.flink.tools.cdc.SourceConnector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -110,7 +111,7 @@ public class SQLParserSchemaManager implements Serializable {
             SourceConnector sourceConnector,
             String ddl,
             String dorisTable,
-            Map<String, String> tableProperties) {
+            DorisTableConfig dorisTableConfig) {
         try {
             Statement statement = CCJSqlParserUtil.parse(ddl);
             if (statement instanceof CreateTable) {
@@ -144,7 +145,7 @@ public class SQLParserSchemaManager implements Serializable {
                         dbTable[1],
                         columnFields,
                         pkKeys,
-                        tableProperties,
+                        dorisTableConfig,
                         extractTableComment(createTable.getTableOptionsStrings()));
             } else {
                 LOG.warn(

@@ -28,6 +28,7 @@ import org.apache.doris.flink.sink.writer.serializer.DorisRecordSerializer;
 import org.apache.doris.flink.sink.writer.serializer.jsondebezium.CdcDataChange;
 import org.apache.doris.flink.sink.writer.serializer.jsondebezium.CdcSchemaChange;
 import org.apache.doris.flink.sink.writer.serializer.jsondebezium.JsonDebeziumChangeContext;
+import org.apache.doris.flink.tools.cdc.DorisTableConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,7 +53,7 @@ public class MongoDBJsonDebeziumSchemaSerializer implements DorisRecordSerialize
     // <cdc db.schema.table, doris db.table>
     private Map<String, String> tableMapping;
     // create table properties
-    private Map<String, String> tableProperties;
+    private DorisTableConfig dorisTableConfig;
     private String targetDatabase;
 
     private CdcDataChange dataChange;
@@ -67,7 +68,7 @@ public class MongoDBJsonDebeziumSchemaSerializer implements DorisRecordSerialize
             String sourceTableName,
             DorisExecutionOptions executionOptions,
             Map<String, String> tableMapping,
-            Map<String, String> tableProperties,
+            DorisTableConfig dorisTableConfig,
             String targetDatabase,
             String targetTablePrefix,
             String targetTableSuffix) {
@@ -79,7 +80,7 @@ public class MongoDBJsonDebeziumSchemaSerializer implements DorisRecordSerialize
         JsonNodeFactory jsonNodeFactory = JsonNodeFactory.withExactBigDecimals(true);
         this.objectMapper.setNodeFactory(jsonNodeFactory);
         this.tableMapping = tableMapping;
-        this.tableProperties = tableProperties;
+        this.dorisTableConfig = dorisTableConfig;
         this.targetDatabase = targetDatabase;
         this.targetTablePrefix = targetTablePrefix;
         this.targetTableSuffix = targetTableSuffix;
@@ -100,7 +101,7 @@ public class MongoDBJsonDebeziumSchemaSerializer implements DorisRecordSerialize
                         tableMapping,
                         sourceTableName,
                         targetDatabase,
-                        tableProperties,
+                        dorisTableConfig,
                         objectMapper,
                         pattern,
                         lineDelimiter,
@@ -138,7 +139,7 @@ public class MongoDBJsonDebeziumSchemaSerializer implements DorisRecordSerialize
         private String sourceTableName;
         private DorisExecutionOptions executionOptions;
         private Map<String, String> tableMapping;
-        private Map<String, String> tableProperties;
+        private DorisTableConfig dorisTableConfig;
         private String targetDatabase;
         private String targetTablePrefix = "";
         private String targetTableSuffix = "";
@@ -172,9 +173,16 @@ public class MongoDBJsonDebeziumSchemaSerializer implements DorisRecordSerialize
             return this;
         }
 
+        @Deprecated
         public MongoDBJsonDebeziumSchemaSerializer.Builder setTableProperties(
                 Map<String, String> tableProperties) {
-            this.tableProperties = tableProperties;
+            this.dorisTableConfig = new DorisTableConfig(tableProperties);
+            return this;
+        }
+
+        public MongoDBJsonDebeziumSchemaSerializer.Builder setTableConf(
+                DorisTableConfig dorisTableConfig) {
+            this.dorisTableConfig = dorisTableConfig;
             return this;
         }
 
@@ -191,7 +199,7 @@ public class MongoDBJsonDebeziumSchemaSerializer implements DorisRecordSerialize
                     sourceTableName,
                     executionOptions,
                     tableMapping,
-                    tableProperties,
+                    dorisTableConfig,
                     targetDatabase,
                     targetTablePrefix,
                     targetTableSuffix);

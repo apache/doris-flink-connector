@@ -19,6 +19,7 @@ package org.apache.doris.flink.catalog.doris;
 
 import org.apache.flink.util.Preconditions;
 
+import org.apache.doris.flink.tools.cdc.DorisTableConfig;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -27,8 +28,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import static org.junit.Assert.assertEquals;
 
 public class DorisSchemaFactoryTest {
 
@@ -65,7 +64,7 @@ public class DorisSchemaFactoryTest {
                         dbTable[1],
                         columnFields,
                         pkKeys,
-                        tableProperties,
+                        new DorisTableConfig(tableProperties),
                         tableComment);
         Assert.assertEquals(
                 "TableSchema{database='doris', table='create_tab', tableComment='auto_tab_comment', fields={name=FieldSchema{name='name', typeString='VARVHAR(100)', defaultValue='null', comment='Name_test'}, id=FieldSchema{name='id', typeString='INT', defaultValue='100', comment='int_test'}, age=FieldSchema{name='age', typeString='INT', defaultValue='null', comment='null'}, email=FieldSchema{name='email', typeString='VARCHAR(100)', defaultValue='email@doris.com', comment='e'}}, keys=email, model=UNIQUE, distributeKeys=email, properties={}, tableBuckets=null}",
@@ -86,6 +85,7 @@ public class DorisSchemaFactoryTest {
         List<String> pkKeys = Collections.singletonList("email");
         Map<String, String> tableProperties = new HashMap<>();
         tableProperties.put("table-buckets", "create_tab:40, create_taba:10, tabs:12");
+        tableProperties.put("replication_num", "2");
         String tableComment = "auto_tab_comment";
         TableSchema tableSchema =
                 DorisSchemaFactory.createTableSchema(
@@ -93,11 +93,10 @@ public class DorisSchemaFactoryTest {
                         dbTable[1],
                         columnFields,
                         pkKeys,
-                        tableProperties,
+                        new DorisTableConfig(tableProperties),
                         tableComment);
-
         Assert.assertEquals(
-                "TableSchema{database='doris', table='create_tab', tableComment='auto_tab_comment', fields={name=FieldSchema{name='name', typeString='VARVHAR(100)', defaultValue='null', comment='Name_test'}, id=FieldSchema{name='id', typeString='INT', defaultValue='100', comment='int_test'}, age=FieldSchema{name='age', typeString='INT', defaultValue='null', comment='null'}, email=FieldSchema{name='email', typeString='VARCHAR(100)', defaultValue='email@doris.com', comment='e'}}, keys=email, model=UNIQUE, distributeKeys=email, properties={table-buckets=create_tab:40, create_taba:10, tabs:12}, tableBuckets=40}",
+                "TableSchema{database='doris', table='create_tab', tableComment='auto_tab_comment', fields={name=FieldSchema{name='name', typeString='VARVHAR(100)', defaultValue='null', comment='Name_test'}, id=FieldSchema{name='id', typeString='INT', defaultValue='100', comment='int_test'}, age=FieldSchema{name='age', typeString='INT', defaultValue='null', comment='null'}, email=FieldSchema{name='email', typeString='VARCHAR(100)', defaultValue='email@doris.com', comment='e'}}, keys=email, model=UNIQUE, distributeKeys=email, properties={replication_num=2, light_schema_change=true}, tableBuckets=40}",
                 tableSchema.toString());
     }
 
@@ -113,6 +112,7 @@ public class DorisSchemaFactoryTest {
         columnFields.put("age", new FieldSchema("age", "INT", null, null));
         columnFields.put("email", new FieldSchema("email", "VARCHAR(100)", "email@doris.com", "e"));
         Map<String, String> tableProperties = new HashMap<>();
+        tableProperties.put("replication_num", "1");
         String tableComment = "auto_tab_comment";
         TableSchema tableSchema =
                 DorisSchemaFactory.createTableSchema(
@@ -120,21 +120,10 @@ public class DorisSchemaFactoryTest {
                         dbTable[1],
                         columnFields,
                         new ArrayList<>(),
-                        tableProperties,
+                        new DorisTableConfig(tableProperties),
                         tableComment);
         Assert.assertEquals(
-                "TableSchema{database='doris', table='dup_tab', tableComment='auto_tab_comment', fields={name=FieldSchema{name='name', typeString='VARVHAR(100)', defaultValue='null', comment='Name_test'}, id=FieldSchema{name='id', typeString='INT', defaultValue='100', comment='int_test'}, age=FieldSchema{name='age', typeString='INT', defaultValue='null', comment='null'}, email=FieldSchema{name='email', typeString='VARCHAR(100)', defaultValue='email@doris.com', comment='e'}}, keys=name, model=DUPLICATE, distributeKeys=name, properties={}, tableBuckets=null}",
+                "TableSchema{database='doris', table='dup_tab', tableComment='auto_tab_comment', fields={name=FieldSchema{name='name', typeString='VARVHAR(100)', defaultValue='null', comment='Name_test'}, id=FieldSchema{name='id', typeString='INT', defaultValue='100', comment='int_test'}, age=FieldSchema{name='age', typeString='INT', defaultValue='null', comment='null'}, email=FieldSchema{name='email', typeString='VARCHAR(100)', defaultValue='email@doris.com', comment='e'}}, keys=name, model=DUPLICATE, distributeKeys=name, properties={replication_num=1, light_schema_change=true}, tableBuckets=null}",
                 tableSchema.toString());
-    }
-
-    @Test
-    public void buildTableBucketMapTest() {
-        String tableBuckets = "tbl1:10,tbl2 : 20, a.* :30,b.*:40,.*:50";
-        Map<String, Integer> tableBucketsMap = DorisSchemaFactory.buildTableBucketMap(tableBuckets);
-        assertEquals(10, tableBucketsMap.get("tbl1").intValue());
-        assertEquals(20, tableBucketsMap.get("tbl2").intValue());
-        assertEquals(30, tableBucketsMap.get("a.*").intValue());
-        assertEquals(40, tableBucketsMap.get("b.*").intValue());
-        assertEquals(50, tableBucketsMap.get(".*").intValue());
     }
 }
