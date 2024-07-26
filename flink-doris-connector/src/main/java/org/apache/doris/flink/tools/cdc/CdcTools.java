@@ -64,7 +64,7 @@ public class CdcTools {
                 createMongoDBSyncDatabase(params);
                 break;
             case DatabaseSyncConfig.DB2_SYNC_DATABASE:
-                createDb2SyncDatabase(opArgs);
+                createDb2SyncDatabase(params);
                 break;
             default:
                 System.out.println("Unknown operation " + operation);
@@ -112,8 +112,7 @@ public class CdcTools {
         syncDatabase(params, databaseSync, mongoConfig, SourceConnector.MONGODB);
     }
 
-    private static void createDb2SyncDatabase(String[] opArgs) throws Exception {
-        MultipleParameterTool params = MultipleParameterTool.fromArgs(opArgs);
+    private static void createDb2SyncDatabase(MultipleParameterTool params) throws Exception {
         Preconditions.checkArgument(params.has(DatabaseSyncConfig.DB2_CONF));
         Map<String, String> db2Map = getConfigMap(params, DatabaseSyncConfig.DB2_CONF);
         Configuration db2Config = Configuration.fromMap(db2Map);
