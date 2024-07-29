@@ -20,6 +20,7 @@ package org.apache.doris.flink.catalog.doris;
 import org.apache.flink.annotation.VisibleForTesting;
 
 import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections.MapUtils;
 import org.apache.doris.flink.tools.cdc.DorisTableConfig;
 
 import java.util.ArrayList;
@@ -87,7 +88,7 @@ public class DorisSchemaFactory {
     @VisibleForTesting
     public static Integer parseTableSchemaBuckets(
             Map<String, Integer> tableBucketsMap, String tableName) {
-        if (tableBucketsMap != null) {
+        if (MapUtils.isNotEmpty(tableBucketsMap)) {
             // Firstly, if the table name is in the table-buckets map, set the buckets of the table.
             if (tableBucketsMap.containsKey(tableName)) {
                 return tableBucketsMap.get(tableName);
