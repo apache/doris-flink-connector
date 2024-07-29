@@ -33,6 +33,8 @@ public class DorisTableConfig implements Serializable {
     // doris table creation statement. such as: table-buckets="tbl1:10,tbl2:20,a.*:30,b.*:40,.*:50".
     private Map<String, Integer> tableBuckets;
 
+    // Only for testing
+    @VisibleForTesting
     public DorisTableConfig() {
         tableProperties = new HashMap<>();
         tableBuckets = new HashMap<>();
