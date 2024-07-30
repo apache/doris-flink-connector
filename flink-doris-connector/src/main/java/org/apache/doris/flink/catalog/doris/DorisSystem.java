@@ -18,7 +18,6 @@
 package org.apache.doris.flink.catalog.doris;
 
 import org.apache.flink.annotation.Public;
-import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
 import org.apache.commons.compress.utils.Lists;
@@ -168,32 +167,23 @@ public class DorisSystem implements Serializable {
         }
     }
 
+    @Deprecated
     public static String quoteDefaultValue(String defaultValue) {
-        // DEFAULT current_timestamp not need quote
-        if (defaultValue.equalsIgnoreCase("current_timestamp")) {
-            return defaultValue;
-        }
-        return "'" + defaultValue + "'";
+        return DorisSchemaFactory.quoteDefaultValue(defaultValue);
     }
 
+    @Deprecated
     public static String quoteComment(String comment) {
-        if (comment == null) {
-            return "";
-        } else {
-            return comment.replaceAll("'", "\\\\'");
-        }
+        return DorisSchemaFactory.quoteComment(comment);
     }
 
+    @Deprecated
     public static String identifier(String name) {
-        if (name.startsWith("`") && name.endsWith("`")) {
-            return name;
-        }
-        return "`" + name + "`";
+        return DorisSchemaFactory.identifier(name);
     }
 
+    @Deprecated
     public static String quoteTableIdentifier(String tableIdentifier) {
-        String[] dbTable = tableIdentifier.split("\\.");
-        Preconditions.checkArgument(dbTable.length == 2);
-        return identifier(dbTable[0]) + "." + identifier(dbTable[1]);
+        return DorisSchemaFactory.quoteTableIdentifier(tableIdentifier);
     }
 }

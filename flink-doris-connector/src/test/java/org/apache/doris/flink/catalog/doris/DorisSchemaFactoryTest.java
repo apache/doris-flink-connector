@@ -162,4 +162,15 @@ public class DorisSchemaFactoryTest {
                 "CREATE TABLE IF NOT EXISTS `doris`.`dup_tab`(`name` VARVHAR(100) COMMENT 'Name_test',`id` INT DEFAULT '100' COMMENT 'int_test',`age` INT COMMENT '',`email` VARCHAR(100) DEFAULT 'email@doris.com' COMMENT 'e' )  COMMENT 'auto_tab_comment'  DISTRIBUTED BY HASH(`name`) BUCKETS AUTO  PROPERTIES ('replication_num'='1','light_schema_change'='true')",
                 ddl);
     }
+
+    @Test
+    public void quoteTableIdentifier() {
+        String quoted = DorisSchemaFactory.quoteTableIdentifier("db.tbl");
+        Assert.assertEquals("`db`.`tbl`", quoted);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void quoteTableIdentifierException() {
+        DorisSchemaFactory.quoteTableIdentifier("db.tbl.sc");
+    }
 }

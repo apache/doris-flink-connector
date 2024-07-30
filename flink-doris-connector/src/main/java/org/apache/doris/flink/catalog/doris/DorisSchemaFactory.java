@@ -18,6 +18,7 @@
 package org.apache.doris.flink.catalog.doris;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
 import org.apache.commons.collections.CollectionUtils;
@@ -202,23 +203,36 @@ public class DorisSchemaFactory {
         return "'" + name + "'";
     }
 
-    private static List<String> identifier(List<String> name) {
-        return name.stream().map(DorisSystem::identifier).collect(Collectors.toList());
+    private static List<String> identifier(List<String> names) {
+        return names.stream().map(DorisSchemaFactory::identifier).collect(Collectors.toList());
     }
 
-    private static String identifier(String name) {
-        return DorisSystem.identifier(name);
+    public static String identifier(String name) {
+        if (name.startsWith("`") && name.endsWith("`")) {
+            return name;
+        }
+        return "`" + name + "`";
     }
 
-    private static String quoteDefaultValue(String defaultValue) {
-        return DorisSystem.quoteDefaultValue(defaultValue);
+    public static String quoteDefaultValue(String defaultValue) {
+        // DEFAULT current_timestamp not need quote
+        if (defaultValue.equalsIgnoreCase("current_timestamp")) {
+            return defaultValue;
+        }
+        return "'" + defaultValue + "'";
     }
 
-    private static String quoteComment(String comment) {
+    public static String quoteComment(String comment) {
         if (comment == null) {
             return "";
         } else {
             return comment.replaceAll("'", "\\\\'");
         }
+    }
+
+    public static String quoteTableIdentifier(String tableIdentifier) {
+        String[] dbTable = tableIdentifier.split("\\.");
+        Preconditions.checkArgument(dbTable.length == 2);
+        return identifier(dbTable[0]) + "." + identifier(dbTable[1]);
     }
 }
