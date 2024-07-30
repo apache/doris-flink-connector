@@ -142,7 +142,8 @@ public class CdcTools {
 
         Preconditions.checkArgument(params.has(DatabaseSyncConfig.SINK_CONF));
         Map<String, String> sinkMap = getConfigMap(params, DatabaseSyncConfig.SINK_CONF);
-        Map<String, String> tableMap = getConfigMap(params, DatabaseSyncConfig.TABLE_CONF);
+        DorisTableConfig tableConfig =
+                new DorisTableConfig(getConfigMap(params, DatabaseSyncConfig.TABLE_CONF));
         Configuration sinkConfig = Configuration.fromMap(sinkMap);
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -158,7 +159,7 @@ public class CdcTools {
                 .setMultiToOneTarget(multiToOneTarget)
                 .setIgnoreDefaultValue(ignoreDefaultValue)
                 .setSinkConfig(sinkConfig)
-                .setTableConfig(tableMap)
+                .setTableConfig(tableConfig)
                 .setCreateTableOnly(createTableOnly)
                 .setSingleSink(singleSink)
                 .setIgnoreIncompatible(ignoreIncompatible)

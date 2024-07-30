@@ -208,7 +208,7 @@ public class MongoDBDatabaseSync extends DatabaseSync {
                 .setDorisOptions(dorisBuilder.build())
                 .setExecutionOptions(executionOptions)
                 .setTableMapping(tableMapping)
-                .setTableProperties(tableConfig)
+                .setTableConf(dorisTableConfig)
                 .setTargetDatabase(database)
                 .build();
     }

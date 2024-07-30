@@ -30,6 +30,7 @@ import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.exception.IllegalArgumentException;
 import org.apache.doris.flink.sink.schema.SchemaChangeManager;
 import org.apache.doris.flink.sink.writer.EventType;
+import org.apache.doris.flink.tools.cdc.DorisTableConfig;
 import org.apache.doris.flink.tools.cdc.SourceConnector;
 import org.apache.doris.flink.tools.cdc.SourceSchema;
 import org.slf4j.Logger;
@@ -69,6 +70,7 @@ public abstract class JsonDebeziumSchemaChange extends CdcSchemaChange {
     protected String targetDatabase;
     protected String targetTablePrefix;
     protected String targetTableSuffix;
+    protected DorisTableConfig dorisTableConfig;
 
     public abstract boolean schemaChange(JsonNode recordRoot);
 

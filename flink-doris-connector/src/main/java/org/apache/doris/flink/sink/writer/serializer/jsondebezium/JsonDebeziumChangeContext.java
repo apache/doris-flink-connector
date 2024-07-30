@@ -19,9 +19,12 @@ package org.apache.doris.flink.sink.writer.serializer.jsondebezium;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.doris.flink.cfg.DorisOptions;
+import org.apache.doris.flink.tools.cdc.DorisTableConfig;
 
 import java.io.Serializable;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.regex.Pattern;
 
 /** Record the context of schema change and data change during serialization. */
@@ -33,7 +36,7 @@ public class JsonDebeziumChangeContext implements Serializable {
     private final String sourceTableName;
     private final String targetDatabase;
     // create table properties
-    private final Map<String, String> tableProperties;
+    private final DorisTableConfig dorisTableConfig;
     private final ObjectMapper objectMapper;
     private final Pattern pattern;
     private final String lineDelimiter;
@@ -46,7 +49,7 @@ public class JsonDebeziumChangeContext implements Serializable {
             Map<String, String> tableMapping,
             String sourceTableName,
             String targetDatabase,
-            Map<String, String> tableProperties,
+            DorisTableConfig dorisTableConfig,
             ObjectMapper objectMapper,
             Pattern pattern,
             String lineDelimiter,
@@ -57,7 +60,7 @@ public class JsonDebeziumChangeContext implements Serializable {
         this.tableMapping = tableMapping;
         this.sourceTableName = sourceTableName;
         this.targetDatabase = targetDatabase;
-        this.tableProperties = tableProperties;
+        this.dorisTableConfig = dorisTableConfig;
         this.objectMapper = objectMapper;
         this.pattern = pattern;
         this.lineDelimiter = lineDelimiter;
@@ -82,8 +85,11 @@ public class JsonDebeziumChangeContext implements Serializable {
         return targetDatabase;
     }
 
+    @Deprecated
     public Map<String, String> getTableProperties() {
-        return tableProperties;
+        return Objects.nonNull(dorisTableConfig)
+                ? dorisTableConfig.getTableProperties()
+                : new HashMap<>();
     }
 
     public ObjectMapper getObjectMapper() {
@@ -108,5 +114,9 @@ public class JsonDebeziumChangeContext implements Serializable {
 
     public String getTargetTableSuffix() {
         return targetTableSuffix;
+    }
+
+    public DorisTableConfig getDorisTableConf() {
+        return dorisTableConfig;
     }
 }
