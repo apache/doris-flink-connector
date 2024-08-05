@@ -41,6 +41,7 @@ public class JsonDebeziumChangeContext implements Serializable {
     private final Pattern pattern;
     private final String lineDelimiter;
     private final boolean ignoreUpdateBefore;
+    private final boolean enableDelete;
     private final String targetTablePrefix;
     private final String targetTableSuffix;
 
@@ -55,7 +56,8 @@ public class JsonDebeziumChangeContext implements Serializable {
             String lineDelimiter,
             boolean ignoreUpdateBefore,
             String targetTablePrefix,
-            String targetTableSuffix) {
+            String targetTableSuffix,
+            boolean enableDelete) {
         this.dorisOptions = dorisOptions;
         this.tableMapping = tableMapping;
         this.sourceTableName = sourceTableName;
@@ -65,6 +67,7 @@ public class JsonDebeziumChangeContext implements Serializable {
         this.pattern = pattern;
         this.lineDelimiter = lineDelimiter;
         this.ignoreUpdateBefore = ignoreUpdateBefore;
+        this.enableDelete = enableDelete;
         this.targetTablePrefix = targetTablePrefix;
         this.targetTableSuffix = targetTableSuffix;
     }
@@ -114,6 +117,10 @@ public class JsonDebeziumChangeContext implements Serializable {
 
     public String getTargetTableSuffix() {
         return targetTableSuffix;
+    }
+
+    public boolean isEnableDelete() {
+        return enableDelete;
     }
 
     public DorisTableConfig getDorisTableConf() {
