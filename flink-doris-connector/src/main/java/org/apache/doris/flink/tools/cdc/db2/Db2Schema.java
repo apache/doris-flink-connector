@@ -21,7 +21,6 @@ import org.apache.doris.flink.catalog.doris.FieldSchema;
 import org.apache.doris.flink.tools.cdc.JdbcSourceSchema;
 
 import java.sql.DatabaseMetaData;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.LinkedHashMap;
 
@@ -50,26 +49,6 @@ public class Db2Schema extends JdbcSourceSchema {
     public LinkedHashMap<String, FieldSchema> getColumnInfo(
             DatabaseMetaData metaData, String databaseName, String schemaName, String tableName)
             throws SQLException {
-        LinkedHashMap<String, FieldSchema> fields = new LinkedHashMap<>();
-        //
-        try (ResultSet rs = metaData.getColumns(null, schemaName, tableName, null)) {
-            while (rs.next()) {
-                String fieldName = rs.getString("COLUMN_NAME");
-                String comment = rs.getString("REMARKS");
-                String fieldType = rs.getString("TYPE_NAME");
-                Integer precision = rs.getInt("COLUMN_SIZE");
-
-                if (rs.wasNull()) {
-                    precision = null;
-                }
-                Integer scale = rs.getInt("DECIMAL_DIGITS");
-                if (rs.wasNull()) {
-                    scale = null;
-                }
-                String dorisTypeStr = convertToDorisType(fieldType, precision, scale);
-                fields.put(fieldName, new FieldSchema(fieldName, dorisTypeStr, comment));
-            }
-        }
-        return fields;
+        return super.getColumnInfo(metaData, null, schemaName, tableName);
     }
 }
