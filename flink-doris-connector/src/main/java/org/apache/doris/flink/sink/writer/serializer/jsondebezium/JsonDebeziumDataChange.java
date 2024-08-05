@@ -86,6 +86,9 @@ public class JsonDebeziumDataChange extends CdcDataChange {
             case OP_UPDATE:
                 return DorisRecord.of(dorisTableIdentifier, extractUpdate(recordRoot));
             case OP_DELETE:
+                if (!enableDelete) {
+                    return DorisRecord.of(dorisTableIdentifier, null);
+                }
                 valueMap = extractBeforeRow(recordRoot);
                 addDeleteSign(valueMap, true);
                 break;
