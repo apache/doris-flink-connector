@@ -69,7 +69,7 @@ public class MongoJsonDebeziumDataChange extends CdcDataChange implements Change
         this.objectMapper = changeContext.getObjectMapper();
         this.lineDelimiter = changeContext.getLineDelimiter();
         this.tableMapping = changeContext.getTableMapping();
-        this.enableDelete = changeContext.isEnableDelete();
+        this.enableDelete = changeContext.enableDelete();
     }
 
     @Override
