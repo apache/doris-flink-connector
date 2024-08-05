@@ -50,6 +50,7 @@ public class JsonDebeziumDataChange extends CdcDataChange {
     private final ObjectMapper objectMapper;
     private final DorisOptions dorisOptions;
     private final boolean ignoreUpdateBefore;
+    private final boolean enableDelete;
     private final String lineDelimiter;
     private final JsonDebeziumChangeContext changeContext;
 
@@ -59,6 +60,7 @@ public class JsonDebeziumDataChange extends CdcDataChange {
         this.objectMapper = changeContext.getObjectMapper();
         this.ignoreUpdateBefore = changeContext.isIgnoreUpdateBefore();
         this.lineDelimiter = changeContext.getLineDelimiter();
+        this.enableDelete = changeContext.enableDelete();
     }
 
     public DorisRecord serialize(String record, JsonNode recordRoot, String op) throws IOException {
@@ -87,7 +89,7 @@ public class JsonDebeziumDataChange extends CdcDataChange {
                 return DorisRecord.of(dorisTableIdentifier, extractUpdate(recordRoot));
             case OP_DELETE:
                 valueMap = extractBeforeRow(recordRoot);
-                addDeleteSign(valueMap, true);
+                addDeleteSign(valueMap, enableDelete);
                 break;
             default:
                 LOG.error("parse record fail, unknown op {} in {}", op, record);

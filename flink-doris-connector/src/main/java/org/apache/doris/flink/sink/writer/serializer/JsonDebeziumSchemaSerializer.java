@@ -70,6 +70,7 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
     private final boolean newSchemaChange;
     private String lineDelimiter = LINE_DELIMITER_DEFAULT;
     private boolean ignoreUpdateBefore = true;
+    private boolean enableDelete = true;
     // <cdc db.schema.table, doris db.table>
     private Map<String, String> tableMapping;
     // create table properties
@@ -111,6 +112,7 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
                             .getStreamLoadProp()
                             .getProperty(LINE_DELIMITER_KEY, LINE_DELIMITER_DEFAULT);
             this.ignoreUpdateBefore = executionOptions.getIgnoreUpdateBefore();
+            this.enableDelete = executionOptions.getDeletable();
         }
     }
 
@@ -149,7 +151,8 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
                         lineDelimiter,
                         ignoreUpdateBefore,
                         targetTablePrefix,
-                        targetTableSuffix);
+                        targetTableSuffix,
+                        enableDelete);
         initSchemaChangeInstance(changeContext);
         this.dataChange = new JsonDebeziumDataChange(changeContext);
     }
