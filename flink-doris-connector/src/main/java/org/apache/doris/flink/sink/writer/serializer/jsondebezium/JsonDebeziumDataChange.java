@@ -88,8 +88,11 @@ public class JsonDebeziumDataChange extends CdcDataChange {
             case OP_UPDATE:
                 return DorisRecord.of(dorisTableIdentifier, extractUpdate(recordRoot));
             case OP_DELETE:
+                if (!enableDelete) {
+                    return DorisRecord.of(dorisTableIdentifier, null);
+                }
                 valueMap = extractBeforeRow(recordRoot);
-                addDeleteSign(valueMap, enableDelete);
+                addDeleteSign(valueMap, true);
                 break;
             default:
                 LOG.error("parse record fail, unknown op {} in {}", op, record);
