@@ -83,7 +83,8 @@ public class TestJsonDebeziumSchemaChangeImplV2 extends TestJsonDebeziumChangeBa
                         lineDelimiter,
                         ignoreUpdateBefore,
                         "",
-                        "");
+                        "",
+                        true);
         schemaChange = new JsonDebeziumSchemaChangeImplV2(changeContext);
     }
 
