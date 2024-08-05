@@ -119,7 +119,7 @@ public class JsonDebeziumChangeContext implements Serializable {
         return targetTableSuffix;
     }
 
-    public boolean isEnableDelete() {
+    public boolean enableDelete() {
         return enableDelete;
     }
 

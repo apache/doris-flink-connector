@@ -60,7 +60,7 @@ public class JsonDebeziumDataChange extends CdcDataChange {
         this.objectMapper = changeContext.getObjectMapper();
         this.ignoreUpdateBefore = changeContext.isIgnoreUpdateBefore();
         this.lineDelimiter = changeContext.getLineDelimiter();
-        this.enableDelete = changeContext.isEnableDelete();
+        this.enableDelete = changeContext.enableDelete();
     }
 
     public DorisRecord serialize(String record, JsonNode recordRoot, String op) throws IOException {
