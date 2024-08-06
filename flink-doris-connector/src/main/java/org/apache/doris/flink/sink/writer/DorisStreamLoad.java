@@ -339,7 +339,15 @@ public class DorisStreamLoad implements Serializable {
                     executorService.submit(
                             () -> {
                                 LOG.info(executeMessage);
-                                return httpClient.execute(putBuilder.build());
+                                try {
+                                    return httpClient.execute(putBuilder.build());
+                                } catch (Exception e) {
+                                    String errMsg =
+                                            String.format(
+                                                    "Failed to execute load data; url: %s",
+                                                    loadUrlStr);
+                                    throw new DorisException(errMsg, e);
+                                }
                             });
         } catch (Exception e) {
             String err;
