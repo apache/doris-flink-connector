@@ -118,7 +118,7 @@ public class TestDorisBatchStreamLoad {
         when(httpClientBuilder.build()).thenReturn(httpClient);
         when(httpClient.execute(any())).thenReturn(response);
         loader.writeRecord("db", "tbl", "1,data".getBytes());
-        loader.flush("db.tbl", true);
+        loader.doFlush("db.tbl", true, false);
 
         AtomicReference<Throwable> exception = loader.getException();
         Assert.assertTrue(exception.get() instanceof Exception);
@@ -161,7 +161,7 @@ public class TestDorisBatchStreamLoad {
         when(httpClientBuilder.build()).thenReturn(httpClient);
         when(httpClient.execute(any())).thenReturn(response);
         loader.writeRecord("db", "tbl", "1,data".getBytes());
-        loader.flush("db.tbl", true);
+        loader.doFlush("db.tbl", true, false);
 
         AtomicReference<Throwable> exception = loader.getException();
 

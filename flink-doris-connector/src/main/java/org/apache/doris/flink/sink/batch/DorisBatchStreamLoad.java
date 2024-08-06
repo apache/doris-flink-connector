@@ -103,6 +103,7 @@ public class DorisBatchStreamLoad implements Serializable {
     private boolean enableGroupCommit;
     private boolean enableGzCompress;
     private int subTaskId;
+    private final AtomicBoolean flushing = new AtomicBoolean(false);
 
     public DorisBatchStreamLoad(
             DorisOptions dorisOptions,
@@ -183,13 +184,33 @@ public class DorisBatchStreamLoad implements Serializable {
         if (buffer.getBufferSizeBytes() >= executionOptions.getBufferFlushMaxBytes() * 0.8
                 || (executionOptions.getBufferFlushMaxRows() != 0
                         && buffer.getNumOfRecords() >= executionOptions.getBufferFlushMaxRows())) {
-            flush(bufferKey, false);
+            boolean flush = doFlush(bufferKey, false, true);
+            LOG.info("trigger flush by buffer full, flush: {}", flush);
         }
     }
 
-    public synchronized void flush(String bufferKey, boolean waitUtilDone)
+    public synchronized boolean doFlush(String bufferKey, boolean waitUtilDone, boolean bufferFull)
             throws InterruptedException {
         checkFlushException();
+        if (waitUtilDone) {
+            // force flush when checkpoint arrived
+            flush(bufferKey, true);
+        } else if (flushing.compareAndSet(false, true)) {
+            if (flushQueue.size() < executionOptions.getFlushQueueSize()) {
+                flush(bufferKey, waitUtilDone);
+                return true;
+            } else {
+                flushing.compareAndSet(true, false);
+                return false;
+            }
+        } else if (flushQueue.size() < executionOptions.getFlushQueueSize() && bufferFull) {
+            flush(bufferKey, false);
+            return true;
+        }
+        return false;
+    }
+
+    private synchronized void flush(String bufferKey, boolean waitUtilDone) {
         if (null == bufferKey) {
             for (String key : bufferMap.keySet()) {
                 flushBuffer(key);
@@ -197,7 +218,6 @@ public class DorisBatchStreamLoad implements Serializable {
         } else if (bufferMap.containsKey(bufferKey)) {
             flushBuffer(bufferKey);
         }
-
         if (waitUtilDone) {
             waitAsyncLoadFinish();
         }
@@ -261,6 +281,9 @@ public class DorisBatchStreamLoad implements Serializable {
                     }
                     if (buffer.getLabelName() != null) {
                         load(buffer.getLabelName(), buffer);
+                    }
+                    if (flushQueue.size() < executionOptions.getFlushQueueSize()) {
+                        flushing.compareAndSet(true, false);
                     }
                 } catch (Exception e) {
                     LOG.error("worker running error", e);
