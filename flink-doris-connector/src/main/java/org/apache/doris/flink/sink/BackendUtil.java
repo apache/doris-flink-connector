@@ -106,6 +106,8 @@ public class BackendUtil {
             connection.setConnectTimeout(2000);
             connection.setReadTimeout(2000);
             int responseCode = connection.getResponseCode();
+            String responseMessage = connection.getResponseMessage();
+            connection.disconnect();
             if (200 == responseCode) {
                 return true;
             }
@@ -113,7 +115,7 @@ public class BackendUtil {
                     "Failed to connect host {}, responseCode={}, msg={}",
                     host,
                     responseCode,
-                    connection.getResponseMessage());
+                    responseMessage);
             return false;
         } catch (Exception ex) {
             LOG.warn("Failed to connect to host:{}", host, ex);
