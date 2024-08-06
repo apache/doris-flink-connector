@@ -17,9 +17,12 @@
 
 package org.apache.doris.flink.tools.cdc.db2;
 
+import org.apache.doris.flink.catalog.doris.FieldSchema;
 import org.apache.doris.flink.tools.cdc.JdbcSourceSchema;
 
 import java.sql.DatabaseMetaData;
+import java.sql.SQLException;
+import java.util.LinkedHashMap;
 
 public class Db2Schema extends JdbcSourceSchema {
     public Db2Schema(
@@ -40,5 +43,12 @@ public class Db2Schema extends JdbcSourceSchema {
     @Override
     public String getCdcTableName() {
         return schemaName + "\\." + tableName;
+    }
+
+    @Override
+    public LinkedHashMap<String, FieldSchema> getColumnInfo(
+            DatabaseMetaData metaData, String databaseName, String schemaName, String tableName)
+            throws SQLException {
+        return super.getColumnInfo(metaData, null, schemaName, tableName);
     }
 }
