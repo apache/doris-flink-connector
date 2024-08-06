@@ -43,6 +43,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.net.NoRouteToHostException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
@@ -287,6 +288,10 @@ public class DorisStreamLoad implements Serializable {
         Preconditions.checkState(pendingLoadFuture != null);
         try {
             return handlePreCommitResponse(pendingLoadFuture.get());
+        } catch (NoRouteToHostException nex) {
+            LOG.error("Failed to connect, cause ", nex);
+            throw new DorisRuntimeException(
+                    "No Route to Host to " + hostPort + ", exception: " + nex);
         } catch (Exception e) {
             throw new DorisRuntimeException(e);
         }
