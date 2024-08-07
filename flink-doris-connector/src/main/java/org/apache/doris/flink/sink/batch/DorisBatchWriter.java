@@ -108,8 +108,8 @@ public class DorisBatchWriter<IN>
     private void intervalFlush() {
         try {
             boolean flush = batchStreamLoad.doFlush(null, false, false);
-            LOG.debug("interval flush triggered, flush: {}", flush);
-        } catch (InterruptedException e) {
+            LOG.debug("interval flush trigger, flush: {}", flush);
+        } catch (Exception e) {
             flushException = e;
         }
     }

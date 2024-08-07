@@ -139,7 +139,8 @@ public class BatchStageLoad implements Serializable {
                                         database,
                                         table,
                                         this.lineDelimiter,
-                                        executionOptions.getBufferFlushMaxBytes()));
+                                        executionOptions.getBufferFlushMaxBytes(),
+                                        executionOptions.getBufferFlushIntervalMs()));
         buffer.insert(record);
         // When it exceeds 80% of the byteSize,to flush, to avoid triggering bytebuffer expansion
         if (buffer.getBufferSizeBytes() >= executionOptions.getBufferFlushMaxBytes() * 0.8

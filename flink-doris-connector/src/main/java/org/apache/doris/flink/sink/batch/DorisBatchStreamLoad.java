@@ -178,7 +178,8 @@ public class DorisBatchStreamLoad implements Serializable {
                                         database,
                                         table,
                                         this.lineDelimiter,
-                                        executionOptions.getBufferFlushMaxBytes()));
+                                        executionOptions.getBufferFlushMaxBytes(),
+                                        executionOptions.getBufferFlushIntervalMs()));
         buffer.insert(record);
         // When it exceeds 80% of the byteSize,to flush, to avoid triggering bytebuffer expansion
         if (buffer.getBufferSizeBytes() >= executionOptions.getBufferFlushMaxBytes() * 0.8
@@ -192,31 +193,39 @@ public class DorisBatchStreamLoad implements Serializable {
     public synchronized boolean doFlush(String bufferKey, boolean waitUtilDone, boolean bufferFull)
             throws InterruptedException {
         checkFlushException();
-        if (waitUtilDone) {
-            // force flush when checkpoint arrived
-            flush(bufferKey, true);
+        if (waitUtilDone || bufferFull) {
+            flush(bufferKey, waitUtilDone);
+            return true;
         } else if (flushing.compareAndSet(false, true)) {
             if (flushQueue.size() < executionOptions.getFlushQueueSize()) {
-                flush(bufferKey, waitUtilDone);
+                flush(bufferKey, false);
                 return true;
             } else {
                 flushing.compareAndSet(true, false);
                 return false;
             }
-        } else if (flushQueue.size() < executionOptions.getFlushQueueSize() && bufferFull) {
-            flush(bufferKey, false);
-            return true;
         }
         return false;
     }
 
     private synchronized void flush(String bufferKey, boolean waitUtilDone) {
         if (null == bufferKey) {
+            boolean flush = false;
             for (String key : bufferMap.keySet()) {
-                flushBuffer(key);
+                BatchRecordBuffer buffer = bufferMap.get(key);
+                if (waitUtilDone || buffer.shouldFlush()) {
+                    // Ensure that the interval satisfies intervalMS
+                    flushBuffer(key);
+                    flush = true;
+                }
+            }
+            if (!waitUtilDone && !flush) {
+                flushing.compareAndSet(true, false);
             }
         } else if (bufferMap.containsKey(bufferKey)) {
             flushBuffer(bufferKey);
+        } else {
+            throw new DorisBatchLoadException("buffer not found for key: " + bufferKey);
         }
         if (waitUtilDone) {
             waitAsyncLoadFinish();
@@ -284,6 +293,10 @@ public class DorisBatchStreamLoad implements Serializable {
                     }
                     if (flushQueue.size() < executionOptions.getFlushQueueSize()) {
                         flushing.compareAndSet(true, false);
+                        if (flushQueue.isEmpty()) {
+                            // Avoid waiting for 2 rounds of intervalMs
+                            doFlush(null, false, false);
+                        }
                     }
                 } catch (Exception e) {
                     LOG.error("worker running error", e);
@@ -299,6 +312,11 @@ public class DorisBatchStreamLoad implements Serializable {
 
         /** execute stream load. */
         public void load(String label, BatchRecordBuffer buffer) throws IOException {
+            try {
+                Thread.sleep(10000);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
             if (enableGroupCommit) {
                 label = null;
             }

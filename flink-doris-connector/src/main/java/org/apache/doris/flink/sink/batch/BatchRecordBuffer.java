@@ -36,6 +36,8 @@ public class BatchRecordBuffer {
     private boolean loadBatchFirstRecord = true;
     private String database;
     private String table;
+    private final long createTime = System.currentTimeMillis();
+    private long retainTime = 0;
 
     public BatchRecordBuffer() {}
 
@@ -45,12 +47,14 @@ public class BatchRecordBuffer {
         this.buffer = ByteBuffer.allocate(bufferSize);
     }
 
-    public BatchRecordBuffer(String database, String table, byte[] lineDelimiter, int bufferSize) {
+    public BatchRecordBuffer(
+            String database, String table, byte[] lineDelimiter, int bufferSize, long retainTime) {
         super();
         this.database = database;
         this.table = table;
         this.lineDelimiter = lineDelimiter;
         this.buffer = ByteBuffer.allocate(bufferSize);
+        this.retainTime = retainTime;
     }
 
     public void insert(byte[] record) {
@@ -159,5 +163,9 @@ public class BatchRecordBuffer {
 
     public void setTable(String table) {
         this.table = table;
+    }
+
+    public boolean shouldFlush() {
+        return System.currentTimeMillis() - createTime > retainTime;
     }
 }
