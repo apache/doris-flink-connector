@@ -103,8 +103,8 @@ public class BackendUtil {
             URL url = new URL(host);
             HttpURLConnection connection = (HttpURLConnection) url.openConnection();
             connection.setRequestMethod("GET");
-            connection.setConnectTimeout(2000);
-            connection.setReadTimeout(2000);
+            connection.setConnectTimeout(30000);
+            connection.setReadTimeout(30000);
             int responseCode = connection.getResponseCode();
             String responseMessage = connection.getResponseMessage();
             connection.disconnect();
