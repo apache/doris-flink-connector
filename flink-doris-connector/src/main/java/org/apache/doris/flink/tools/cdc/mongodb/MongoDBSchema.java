@@ -29,11 +29,25 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 public class MongoDBSchema extends SourceSchema {
     private static final Logger LOG = LoggerFactory.getLogger(MongoDBSchema.class);
+    private static final List<String> CONVERT_TYPE =
+            Arrays.asList(DorisType.BIGINT, DorisType.INT, DorisType.SMALLINT, DorisType.TINYINT);
+
+    public enum DecimalJudgement {
+        NOT_DECIMAL,
+        CERTAIN_DECIMAL,
+        CONVERT_TO_DECIMAL;
+
+        public static boolean needProcessing(DecimalJudgement decimalJudgement) {
+            return !decimalJudgement.equals(NOT_DECIMAL);
+        }
+    }
 
     public MongoDBSchema(
             ArrayList<Document> sampleData,
@@ -51,21 +65,37 @@ public class MongoDBSchema extends SourceSchema {
         primaryKeys.add("_id");
     }
 
-    private void processSampleData(Document sampleData) {
+    @VisibleForTesting
+    protected void processSampleData(Document sampleData) {
         for (Map.Entry<String, Object> entry : sampleData.entrySet()) {
             String fieldName = entry.getKey();
             Object value = entry.getValue();
             String dorisType = MongoDBType.toDorisType(value);
-            if (isDecimalField(fieldName)) {
+            DecimalJudgement decimalJudgement = judgeDecimalField(fieldName, dorisType);
+            if (DecimalJudgement.needProcessing(decimalJudgement)) {
+                if (decimalJudgement.equals(DecimalJudgement.CONVERT_TO_DECIMAL)) {
+                    int precision = value.toString().length();
+                    dorisType = MongoDBType.formatDecimalType(precision, 0);
+                }
                 dorisType = replaceDecimalTypeIfNeeded(fieldName, dorisType);
             }
             fields.put(fieldName, new FieldSchema(fieldName, dorisType, null));
         }
     }
 
-    private boolean isDecimalField(String fieldName) {
+    private DecimalJudgement judgeDecimalField(String fieldName, String dorisType) {
         FieldSchema existingField = fields.get(fieldName);
-        return existingField != null && existingField.getTypeString().startsWith(DorisType.DECIMAL);
+        if (existingField == null) {
+            return DecimalJudgement.NOT_DECIMAL;
+        }
+        boolean existDecimal = existingField.getTypeString().startsWith(DorisType.DECIMAL);
+        boolean isDecimal = dorisType.startsWith(DorisType.DECIMAL);
+        if (existDecimal && isDecimal) {
+            return DecimalJudgement.CERTAIN_DECIMAL;
+        } else if (CONVERT_TYPE.contains(dorisType)) {
+            return DecimalJudgement.CONVERT_TO_DECIMAL;
+        }
+        return DecimalJudgement.NOT_DECIMAL;
     }
 
     @VisibleForTesting
@@ -91,12 +121,8 @@ public class MongoDBSchema extends SourceSchema {
 
                 return DorisType.DECIMAL + "(" + newPrecision + "," + newScale + ")";
             } catch (DorisRuntimeException e) {
-                LOG.warn(
-                        "Replace decimal type of field:{} failed, the newly type is:{}, rollback to existing type:{}",
-                        fieldName,
-                        newDorisType,
-                        existingField.getTypeString());
-                return existingField.getTypeString();
+                LOG.error("Replace Decimal type error");
+                throw new DorisRuntimeException(e);
             }
         }
         return newDorisType;
