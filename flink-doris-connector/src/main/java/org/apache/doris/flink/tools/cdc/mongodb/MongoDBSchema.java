@@ -70,17 +70,30 @@ public class MongoDBSchema extends SourceSchema {
         for (Map.Entry<String, Object> entry : sampleData.entrySet()) {
             String fieldName = entry.getKey();
             Object value = entry.getValue();
-            String dorisType = MongoDBType.toDorisType(value);
-            DecimalJudgement decimalJudgement = judgeDecimalField(fieldName, dorisType);
-            if (DecimalJudgement.needProcessing(decimalJudgement)) {
-                if (decimalJudgement.equals(DecimalJudgement.CONVERT_TO_DECIMAL)) {
-                    int precision = value.toString().length();
-                    dorisType = MongoDBType.formatDecimalType(precision, 0);
-                }
-                dorisType = replaceDecimalTypeIfNeeded(fieldName, dorisType);
-            }
+            String dorisType = determineDorisType(fieldName, value);
             fields.put(fieldName, new FieldSchema(fieldName, dorisType, null));
         }
+    }
+
+    private String determineDorisType(String fieldName, Object value) {
+        String dorisType = MongoDBType.toDorisType(value);
+        // Check if the type is string or if the existing field is a string type
+        FieldSchema existingField = fields.get(fieldName);
+        if (dorisType.equals(DorisType.STRING)
+                || (existingField != null
+                        && existingField.getTypeString().equals(DorisType.STRING))) {
+            return DorisType.STRING;
+        }
+        // Check and process for decimal types
+        DecimalJudgement decimalJudgement = judgeDecimalField(fieldName, dorisType);
+        if (DecimalJudgement.needProcessing(decimalJudgement)) {
+            if (decimalJudgement == DecimalJudgement.CONVERT_TO_DECIMAL) {
+                int precision = value.toString().length();
+                dorisType = MongoDBType.formatDecimalType(precision, 0);
+            }
+            dorisType = replaceDecimalTypeIfNeeded(fieldName, dorisType);
+        }
+        return dorisType;
     }
 
     private DecimalJudgement judgeDecimalField(String fieldName, String dorisType) {

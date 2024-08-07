@@ -93,4 +93,46 @@ public class MongoDBSchemaTest {
             }
         }
     }
+
+    @Test
+    public void replaceDecimalTypeIfNeededTest2() throws Exception {
+        ArrayList<Document> documents = new ArrayList<>();
+        documents.add(new Document("fields1", "yes"));
+        documents.add(new Document("fields1", 1234567.666666));
+        documents.add(new Document("fields1", 123456789));
+        documents.add(new Document("fields1", 1234567.7777777));
+        documents.add(
+                new Document("fields1", new Decimal128(new BigDecimal("12345679012.999999999"))));
+
+        MongoDBSchema mongoDBSchema = new MongoDBSchema(documents, "db_TEST", "test_table", "");
+        Map<String, FieldSchema> fields = mongoDBSchema.getFields();
+        for (Map.Entry<String, FieldSchema> entry : fields.entrySet()) {
+            FieldSchema fieldSchema = entry.getValue();
+            String fieldName = entry.getKey();
+            if (fieldName.equals("fields1")) {
+                assertEquals("STRING", fieldSchema.getTypeString());
+            }
+        }
+    }
+
+    @Test
+    public void replaceDecimalTypeIfNeededTest3() throws Exception {
+        ArrayList<Document> documents = new ArrayList<>();
+        documents.add(new Document("fields1", 1234567.666666));
+        documents.add(new Document("fields1", 123456789));
+        documents.add(new Document("fields1", 1234567.7777777));
+        documents.add(new Document("fields1", "yes"));
+        documents.add(
+                new Document("fields1", new Decimal128(new BigDecimal("12345679012.999999999"))));
+
+        MongoDBSchema mongoDBSchema = new MongoDBSchema(documents, "db_TEST", "test_table", "");
+        Map<String, FieldSchema> fields = mongoDBSchema.getFields();
+        for (Map.Entry<String, FieldSchema> entry : fields.entrySet()) {
+            FieldSchema fieldSchema = entry.getValue();
+            String fieldName = entry.getKey();
+            if (fieldName.equals("fields1")) {
+                assertEquals("STRING", fieldSchema.getTypeString());
+            }
+        }
+    }
 }
