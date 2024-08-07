@@ -296,7 +296,8 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
         }
     }
 
-    private void buildFieldSchema(Map<String, FieldSchema> filedSchemaMap, JsonNode column) {
+    @VisibleForTesting
+    public void buildFieldSchema(Map<String, FieldSchema> filedSchemaMap, JsonNode column) {
         String fieldName = column.get("name").asText();
         String dorisTypeName = buildDorisTypeName(column);
         String defaultValue = handleDefaultValue(extractJsonNode(column, "defaultValueExpression"));
@@ -315,7 +316,7 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
     }
 
     private String handleDefaultValue(String defaultValue) {
-        if (StringUtils.isNullOrWhitespaceOnly(defaultValue)) {
+        if (defaultValue == null) {
             return null;
         }
         if (defaultValue.equals("1970-01-01 00:00:00")) {
