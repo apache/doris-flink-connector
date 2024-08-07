@@ -22,7 +22,6 @@ import org.apache.flink.api.java.tuple.Tuple2;
 
 import org.apache.doris.flink.catalog.doris.DorisType;
 import org.apache.doris.flink.catalog.doris.FieldSchema;
-import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.apache.doris.flink.tools.cdc.SourceSchema;
 import org.bson.Document;
 import org.slf4j.Logger;
@@ -119,24 +118,17 @@ public class MongoDBSchema extends SourceSchema {
                     MongoDBType.getDecimalPrecisionAndScale(existingField.getTypeString());
             int existingPrecision = existingPrecisionAndScale.f0;
             int existingScale = existingPrecisionAndScale.f1;
+            Tuple2<Integer, Integer> currentPrecisionAndScale =
+                    MongoDBType.getDecimalPrecisionAndScale(newDorisType);
+            int currentPrecision = currentPrecisionAndScale.f0;
+            int currentScale = currentPrecisionAndScale.f1;
 
-            try {
-                Tuple2<Integer, Integer> currentPrecisionAndScale =
-                        MongoDBType.getDecimalPrecisionAndScale(newDorisType);
-                int currentPrecision = currentPrecisionAndScale.f0;
-                int currentScale = currentPrecisionAndScale.f1;
+            int newScale = Math.max(existingScale, currentScale);
+            int newIntegerPartSize =
+                    Math.max(existingPrecision - existingScale, currentPrecision - currentScale);
+            int newPrecision = newIntegerPartSize + newScale;
 
-                int newScale = Math.max(existingScale, currentScale);
-                int newIntegerPartSize =
-                        Math.max(
-                                existingPrecision - existingScale, currentPrecision - currentScale);
-                int newPrecision = newIntegerPartSize + newScale;
-
-                return DorisType.DECIMAL + "(" + newPrecision + "," + newScale + ")";
-            } catch (DorisRuntimeException e) {
-                LOG.error("Replace Decimal type error");
-                throw new DorisRuntimeException(e);
-            }
+            return DorisType.DECIMAL + "(" + newPrecision + "," + newScale + ")";
         }
         return newDorisType;
     }
