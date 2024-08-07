@@ -32,6 +32,7 @@ import net.sf.jsqlparser.statement.create.table.CreateTable;
 import net.sf.jsqlparser.statement.create.table.Index;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.doris.flink.catalog.doris.DorisSchemaFactory;
+import org.apache.doris.flink.catalog.doris.DorisType;
 import org.apache.doris.flink.catalog.doris.FieldSchema;
 import org.apache.doris.flink.catalog.doris.TableSchema;
 import org.apache.doris.flink.sink.writer.serializer.jsondebezium.JsonDebeziumChangeUtils;
@@ -42,9 +43,11 @@ import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /** Use {@link CCJSqlParserUtil} to parse SQL statements. */
 public class SQLParserSchemaManager implements Serializable {
@@ -54,6 +57,15 @@ public class SQLParserSchemaManager implements Serializable {
     private static final String PRIMARY = "PRIMARY";
     private static final String PRIMARY_KEY = "PRIMARY KEY";
     private static final String UNIQUE = "UNIQUE";
+    private static final String DORIS_CURRENT_TIMESTAMP = "CURRENT_TIMESTAMP";
+    private static final List<String> sourceConnectorTimeValues =
+            Arrays.asList(
+                    "SYSDATE",
+                    "SYSTIMESTAMP",
+                    "CURRENT_TIMESTAMP",
+                    "NOW()",
+                    "CURRENT TIMESTAMP",
+                    "GETDATE()");
 
     /**
      * Doris' schema change only supports ADD, DROP, and RENAME operations. This method is only used
@@ -126,7 +138,8 @@ public class SQLParserSchemaManager implements Serializable {
                                     ColDataType colDataType = column.getColDataType();
                                     String dataType = parseDataType(colDataType, sourceConnector);
                                     List<String> columnSpecs = column.getColumnSpecs();
-                                    String defaultValue = extractDefaultValue(columnSpecs);
+                                    String defaultValue =
+                                            extractDefaultValue(dataType, columnSpecs);
                                     String comment = extractComment(columnSpecs);
                                     FieldSchema fieldSchema =
                                             new FieldSchema(
@@ -232,7 +245,7 @@ public class SQLParserSchemaManager implements Serializable {
             String datatype = parseDataType(colDataType, sourceConnector);
 
             List<String> columnSpecs = columnDataType.getColumnSpecs();
-            String defaultValue = extractDefaultValue(columnSpecs);
+            String defaultValue = extractDefaultValue(datatype, columnSpecs);
             String comment = extractComment(columnSpecs);
             FieldSchema fieldSchema = new FieldSchema(columnName, datatype, defaultValue, comment);
             String addColumnDDL = SchemaChangeHelper.buildAddColumnDDL(dorisTable, fieldSchema);
@@ -267,11 +280,28 @@ public class SQLParserSchemaManager implements Serializable {
     }
 
     @VisibleForTesting
-    public String extractDefaultValue(List<String> columnSpecs) {
+    public String extractDefaultValue(String dateType, List<String> columnSpecs) {
         if (CollectionUtils.isEmpty(columnSpecs)) {
             return null;
         }
-        return extractAdjacentString(columnSpecs, DEFAULT);
+        String adjacentDefaultValue = extractAdjacentString(columnSpecs, DEFAULT);
+        return parseDorisDefaultValue(dateType, adjacentDefaultValue);
+    }
+
+    private String parseDorisDefaultValue(String dateType, String defaultValue) {
+        if (Objects.isNull(defaultValue)) {
+            return null;
+        }
+        // In doris, DATETIME supports specifying the current time by default through
+        // CURRENT_TIMESTAMP.
+        if (dateType.startsWith(DorisType.DATETIME) || dateType.startsWith(DorisType.DATETIME_V2)) {
+            for (String timeValue : sourceConnectorTimeValues) {
+                if (timeValue.equalsIgnoreCase(defaultValue)) {
+                    return DORIS_CURRENT_TIMESTAMP;
+                }
+            }
+        }
+        return defaultValue;
     }
 
     private String extractAdjacentString(List<String> columnSpecs, String key) {

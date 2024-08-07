@@ -17,6 +17,7 @@
 
 package org.apache.doris.flink.sink.schema;
 
+import org.apache.doris.flink.catalog.doris.DorisType;
 import org.apache.doris.flink.catalog.doris.TableSchema;
 import org.apache.doris.flink.tools.cdc.DorisTableConfig;
 import org.apache.doris.flink.tools.cdc.SourceConnector;
@@ -139,7 +140,7 @@ public class SQLParserSchemaManagerTest {
     public void testExtractDefaultValue() {
         String expectDefault = "100";
         List<String> columnSpecs = Arrays.asList("default", "'100'", "comment", "");
-        String actualDefault = schemaManager.extractDefaultValue(columnSpecs);
+        String actualDefault = schemaManager.extractDefaultValue(DorisType.INT, columnSpecs);
         Assert.assertEquals(expectDefault, actualDefault);
     }
 
@@ -147,14 +148,14 @@ public class SQLParserSchemaManagerTest {
     public void testExtractDefaultValueQuotes() {
         String expectDefault = "100";
         List<String> columnSpecs = Arrays.asList("default", "\"100\"", "comment", "");
-        String actualDefault = schemaManager.extractDefaultValue(columnSpecs);
+        String actualDefault = schemaManager.extractDefaultValue(DorisType.BIGINT, columnSpecs);
         Assert.assertEquals(expectDefault, actualDefault);
     }
 
     @Test
     public void testExtractDefaultValueNull() {
         List<String> columnSpecs = Arrays.asList("Default", null, "comment", null);
-        String actualDefault = schemaManager.extractDefaultValue(columnSpecs);
+        String actualDefault = schemaManager.extractDefaultValue(DorisType.STRING, columnSpecs);
         Assert.assertNull(actualDefault);
     }
 
@@ -162,7 +163,7 @@ public class SQLParserSchemaManagerTest {
     public void testExtractDefaultValueEmpty() {
         String expectDefault = null;
         List<String> columnSpecs = Arrays.asList("DEFAULT", "comment", null);
-        String actualDefault = schemaManager.extractDefaultValue(columnSpecs);
+        String actualDefault = schemaManager.extractDefaultValue(DorisType.STRING, columnSpecs);
         Assert.assertEquals(expectDefault, actualDefault);
     }
 
@@ -170,14 +171,14 @@ public class SQLParserSchemaManagerTest {
     public void testExtractDefaultValueA() {
         String expectDefault = "aaa";
         List<String> columnSpecs = Arrays.asList("default", "aaa");
-        String actualDefault = schemaManager.extractDefaultValue(columnSpecs);
+        String actualDefault = schemaManager.extractDefaultValue(DorisType.STRING, columnSpecs);
         Assert.assertEquals(expectDefault, actualDefault);
     }
 
     @Test
     public void testExtractDefaultValueNULL() {
         List<String> columnSpecs = Collections.singletonList("default");
-        String actualDefault = schemaManager.extractDefaultValue(columnSpecs);
+        String actualDefault = schemaManager.extractDefaultValue(DorisType.STRING, columnSpecs);
         Assert.assertNull(actualDefault);
     }
 
@@ -288,7 +289,7 @@ public class SQLParserSchemaManagerTest {
                         SourceConnector.ORACLE, ddl, dorisTable, null);
 
         String expected =
-                "TableSchema{database='doris', table='auto_tab', tableComment='null', fields={employee_id=FieldSchema{name='employee_id', typeString='BIGINT', defaultValue='null', comment='null'}, first_name=FieldSchema{name='first_name', typeString='VARCHAR(150)', defaultValue='null', comment='null'}, last_name=FieldSchema{name='last_name', typeString='VARCHAR(150)', defaultValue='null', comment='null'}, email=FieldSchema{name='email', typeString='VARCHAR(300)', defaultValue='null', comment='null'}, phone_number=FieldSchema{name='phone_number', typeString='VARCHAR(60)', defaultValue='null', comment='null'}, hire_date=FieldSchema{name='hire_date', typeString='DATETIMEV2', defaultValue='SYSDATE', comment='null'}, job_id=FieldSchema{name='job_id', typeString='VARCHAR(30)', defaultValue='null', comment='null'}, salary=FieldSchema{name='salary', typeString='DECIMALV3(8,2)', defaultValue='null', comment='null'}, commission_pct=FieldSchema{name='commission_pct', typeString='DECIMALV3(2,2)', defaultValue='null', comment='null'}, manager_id=FieldSchema{name='manager_id', typeString='BIGINT', defaultValue='null', comment='null'}, department_id=FieldSchema{name='department_id', typeString='BIGINT', defaultValue='null', comment='null'}}, keys=employee_id, model=UNIQUE, distributeKeys=employee_id, properties={}, tableBuckets=null}";
+                "TableSchema{database='doris', table='auto_tab', tableComment='null', fields={employee_id=FieldSchema{name='employee_id', typeString='BIGINT', defaultValue='null', comment='null'}, first_name=FieldSchema{name='first_name', typeString='VARCHAR(150)', defaultValue='null', comment='null'}, last_name=FieldSchema{name='last_name', typeString='VARCHAR(150)', defaultValue='null', comment='null'}, email=FieldSchema{name='email', typeString='VARCHAR(300)', defaultValue='null', comment='null'}, phone_number=FieldSchema{name='phone_number', typeString='VARCHAR(60)', defaultValue='null', comment='null'}, hire_date=FieldSchema{name='hire_date', typeString='DATETIMEV2', defaultValue='CURRENT_TIMESTAMP', comment='null'}, job_id=FieldSchema{name='job_id', typeString='VARCHAR(30)', defaultValue='null', comment='null'}, salary=FieldSchema{name='salary', typeString='DECIMALV3(8,2)', defaultValue='null', comment='null'}, commission_pct=FieldSchema{name='commission_pct', typeString='DECIMALV3(2,2)', defaultValue='null', comment='null'}, manager_id=FieldSchema{name='manager_id', typeString='BIGINT', defaultValue='null', comment='null'}, department_id=FieldSchema{name='department_id', typeString='BIGINT', defaultValue='null', comment='null'}}, keys=employee_id, model=UNIQUE, distributeKeys=employee_id, properties={}, tableBuckets=null}";
         Assert.assertEquals(expected, tableSchema.toString());
     }
 
@@ -314,7 +315,7 @@ public class SQLParserSchemaManagerTest {
                         SourceConnector.ORACLE, ddl, dorisTable, null);
 
         String expected =
-                "TableSchema{database='doris', table='auto_tab', tableComment='null', fields={employee_id=FieldSchema{name='employee_id', typeString='BIGINT', defaultValue='null', comment='null'}, first_name=FieldSchema{name='first_name', typeString='VARCHAR(150)', defaultValue='null', comment='null'}, last_name=FieldSchema{name='last_name', typeString='VARCHAR(150)', defaultValue='null', comment='null'}, email=FieldSchema{name='email', typeString='VARCHAR(300)', defaultValue='null', comment='null'}, phone_number=FieldSchema{name='phone_number', typeString='VARCHAR(60)', defaultValue='null', comment='null'}, hire_date=FieldSchema{name='hire_date', typeString='DATETIMEV2', defaultValue='SYSDATE', comment='null'}, job_id=FieldSchema{name='job_id', typeString='VARCHAR(30)', defaultValue='null', comment='null'}, salary=FieldSchema{name='salary', typeString='DECIMALV3(8,2)', defaultValue='null', comment='null'}, commission_pct=FieldSchema{name='commission_pct', typeString='DECIMALV3(2,2)', defaultValue='null', comment='null'}, manager_id=FieldSchema{name='manager_id', typeString='BIGINT', defaultValue='null', comment='null'}, department_id=FieldSchema{name='department_id', typeString='BIGINT', defaultValue='null', comment='null'}}, keys=employee_id, model=UNIQUE, distributeKeys=employee_id, properties={}, tableBuckets=null}";
+                "TableSchema{database='doris', table='auto_tab', tableComment='null', fields={employee_id=FieldSchema{name='employee_id', typeString='BIGINT', defaultValue='null', comment='null'}, first_name=FieldSchema{name='first_name', typeString='VARCHAR(150)', defaultValue='null', comment='null'}, last_name=FieldSchema{name='last_name', typeString='VARCHAR(150)', defaultValue='null', comment='null'}, email=FieldSchema{name='email', typeString='VARCHAR(300)', defaultValue='null', comment='null'}, phone_number=FieldSchema{name='phone_number', typeString='VARCHAR(60)', defaultValue='null', comment='null'}, hire_date=FieldSchema{name='hire_date', typeString='DATETIMEV2', defaultValue='CURRENT_TIMESTAMP', comment='null'}, job_id=FieldSchema{name='job_id', typeString='VARCHAR(30)', defaultValue='null', comment='null'}, salary=FieldSchema{name='salary', typeString='DECIMALV3(8,2)', defaultValue='null', comment='null'}, commission_pct=FieldSchema{name='commission_pct', typeString='DECIMALV3(2,2)', defaultValue='null', comment='null'}, manager_id=FieldSchema{name='manager_id', typeString='BIGINT', defaultValue='null', comment='null'}, department_id=FieldSchema{name='department_id', typeString='BIGINT', defaultValue='null', comment='null'}}, keys=employee_id, model=UNIQUE, distributeKeys=employee_id, properties={}, tableBuckets=null}";
         Assert.assertEquals(expected, tableSchema.toString());
     }
 
@@ -341,7 +342,7 @@ public class SQLParserSchemaManagerTest {
                         dorisTable,
                         new DorisTableConfig(new HashMap<>()));
         String expected =
-                "TableSchema{database='doris', table='auto_tab', tableComment='null', fields={order_id=FieldSchema{name='order_id', typeString='BIGINT', defaultValue='null', comment='null'}, customer_id=FieldSchema{name='customer_id', typeString='BIGINT', defaultValue='null', comment='null'}, order_date=FieldSchema{name='order_date', typeString='DATETIMEV2', defaultValue='SYSDATE', comment='null'}, status=FieldSchema{name='status', typeString='VARCHAR(60)', defaultValue='null', comment='null'}, total_amount=FieldSchema{name='total_amount', typeString='DECIMALV3(12,2)', defaultValue='null', comment='null'}, shipping_address=FieldSchema{name='shipping_address', typeString='VARCHAR(765)', defaultValue='null', comment='null'}, delivery_date=FieldSchema{name='delivery_date', typeString='DATETIMEV2', defaultValue='null', comment='null'}}, keys=order_id, model=DUPLICATE, distributeKeys=order_id, properties={light_schema_change=true}, tableBuckets=null}";
+                "TableSchema{database='doris', table='auto_tab', tableComment='null', fields={order_id=FieldSchema{name='order_id', typeString='BIGINT', defaultValue='null', comment='null'}, customer_id=FieldSchema{name='customer_id', typeString='BIGINT', defaultValue='null', comment='null'}, order_date=FieldSchema{name='order_date', typeString='DATETIMEV2', defaultValue='CURRENT_TIMESTAMP', comment='null'}, status=FieldSchema{name='status', typeString='VARCHAR(60)', defaultValue='null', comment='null'}, total_amount=FieldSchema{name='total_amount', typeString='DECIMALV3(12,2)', defaultValue='null', comment='null'}, shipping_address=FieldSchema{name='shipping_address', typeString='VARCHAR(765)', defaultValue='null', comment='null'}, delivery_date=FieldSchema{name='delivery_date', typeString='DATETIMEV2', defaultValue='null', comment='null'}}, keys=order_id, model=DUPLICATE, distributeKeys=order_id, properties={light_schema_change=true}, tableBuckets=null}";
         Assert.assertEquals(expected, tableSchema.toString());
     }
 }
