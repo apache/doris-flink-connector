@@ -44,10 +44,13 @@ import org.slf4j.LoggerFactory;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 /** Use {@link CCJSqlParserUtil} to parse SQL statements. */
 public class SQLParserSchemaManager implements Serializable {
@@ -58,14 +61,15 @@ public class SQLParserSchemaManager implements Serializable {
     private static final String PRIMARY_KEY = "PRIMARY KEY";
     private static final String UNIQUE = "UNIQUE";
     private static final String DORIS_CURRENT_TIMESTAMP = "CURRENT_TIMESTAMP";
-    private static final List<String> sourceConnectorTimeValues =
-            Arrays.asList(
-                    "SYSDATE",
-                    "SYSTIMESTAMP",
-                    "CURRENT_TIMESTAMP",
-                    "NOW()",
-                    "CURRENT TIMESTAMP",
-                    "GETDATE()");
+    private static final Set<String> sourceConnectorTimeValues =
+            new HashSet<>(
+                    Arrays.asList(
+                            "SYSDATE",
+                            "SYSTIMESTAMP",
+                            "CURRENT_TIMESTAMP",
+                            "NOW()",
+                            "CURRENT TIMESTAMP",
+                            "GETDATE()"));
 
     /**
      * Doris' schema change only supports ADD, DROP, and RENAME operations. This method is only used
@@ -294,12 +298,9 @@ public class SQLParserSchemaManager implements Serializable {
         }
         // In doris, DATETIME supports specifying the current time by default through
         // CURRENT_TIMESTAMP.
-        if (dateType.startsWith(DorisType.DATETIME) || dateType.startsWith(DorisType.DATETIME_V2)) {
-            for (String timeValue : sourceConnectorTimeValues) {
-                if (timeValue.equalsIgnoreCase(defaultValue)) {
-                    return DORIS_CURRENT_TIMESTAMP;
-                }
-            }
+        if ((dateType.startsWith(DorisType.DATETIME) || dateType.startsWith(DorisType.DATETIME_V2))
+                && sourceConnectorTimeValues.contains(defaultValue.toUpperCase(Locale.ROOT))) {
+            return DORIS_CURRENT_TIMESTAMP;
         }
         return defaultValue;
     }
