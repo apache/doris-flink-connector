@@ -183,6 +183,42 @@ public class SQLParserSchemaManagerTest {
     }
 
     @Test
+    public void testExtractDefaultValueDateTime() {
+        List<String> columnSpecs = Arrays.asList("default", "SYSTIMESTAMP");
+        String actualDefault = schemaManager.extractDefaultValue(DorisType.DATETIME, columnSpecs);
+        Assert.assertEquals("CURRENT_TIMESTAMP", actualDefault);
+    }
+
+    @Test
+    public void testExtractDefaultValueDateTimeV2() {
+        List<String> columnSpecs = Arrays.asList("default", "GETDATE()");
+        String actualDefault =
+                schemaManager.extractDefaultValue(DorisType.DATETIME_V2, columnSpecs);
+        Assert.assertEquals("CURRENT_TIMESTAMP", actualDefault);
+    }
+
+    @Test
+    public void testExtractDefaultValueDateTimeV2Time() {
+        List<String> columnSpecs = Arrays.asList("default", "2024-03-14 17:50:36.002");
+        String actualDefault = schemaManager.extractDefaultValue("DATETIMEV2(3)", columnSpecs);
+        Assert.assertEquals("2024-03-14 17:50:36.002", actualDefault);
+    }
+
+    @Test
+    public void testExtractDefaultValueDateTimeV2CurrentTime() {
+        List<String> columnSpecs = Arrays.asList("default", "now()");
+        String actualDefault = schemaManager.extractDefaultValue("DATETIMEV2(3)", columnSpecs);
+        Assert.assertEquals("CURRENT_TIMESTAMP", actualDefault);
+    }
+
+    @Test
+    public void testExtractDefaultValueDate() {
+        List<String> columnSpecs = Arrays.asList("default", "2024-03-14 17:50:36");
+        String actualDefault = schemaManager.extractDefaultValue(DorisType.DATE, columnSpecs);
+        Assert.assertEquals("2024-03-14 17:50:36", actualDefault);
+    }
+
+    @Test
     public void testRemoveContinuousChar() {
         // Test removing continuous target characters from both ends
         Assert.assertEquals("bc", schemaManager.removeContinuousChar("aaaabcaaa", 'a'));
