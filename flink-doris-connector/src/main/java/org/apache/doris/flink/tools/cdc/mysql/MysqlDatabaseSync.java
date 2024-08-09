@@ -84,12 +84,10 @@ public class MysqlDatabaseSync extends DatabaseSync {
     @Override
     public Connection getConnection() throws SQLException {
         Properties jdbcProperties = getJdbcProperties();
-        StringBuilder jdbcUrlSb = new StringBuilder(JDBC_URL);
-        jdbcProperties.forEach(
-                (key, value) -> jdbcUrlSb.append("&").append(key).append("=").append(value));
+        String jdbcUrlTemplate = getJdbcUrlTemplate(JDBC_URL, jdbcProperties);
         String jdbcUrl =
                 String.format(
-                        jdbcUrlSb.toString(),
+                        jdbcUrlTemplate,
                         config.get(MySqlSourceOptions.HOSTNAME),
                         config.get(MySqlSourceOptions.PORT));
 

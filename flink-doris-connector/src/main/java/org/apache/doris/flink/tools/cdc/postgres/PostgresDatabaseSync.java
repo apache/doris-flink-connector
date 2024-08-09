@@ -85,12 +85,10 @@ public class PostgresDatabaseSync extends DatabaseSync {
     @Override
     public Connection getConnection() throws SQLException {
         Properties jdbcProperties = getJdbcProperties();
-        StringBuilder jdbcUrlSb = new StringBuilder(JDBC_URL);
-        jdbcProperties.forEach(
-                (key, value) -> jdbcUrlSb.append("&").append(key).append("=").append(value));
+        String jdbcUrlTemplate = getJdbcUrlTemplate(JDBC_URL, jdbcProperties);
         String jdbcUrl =
                 String.format(
-                        jdbcUrlSb.toString(),
+                        jdbcUrlTemplate,
                         config.get(PostgresSourceOptions.HOSTNAME),
                         config.get(PostgresSourceOptions.PG_PORT),
                         config.get(PostgresSourceOptions.DATABASE_NAME));
@@ -231,7 +229,24 @@ public class PostgresDatabaseSync extends DatabaseSync {
 
     @Override
     public String getTableListPrefix() {
-        String schemaName = config.get(PostgresSourceOptions.SCHEMA_NAME);
-        return schemaName;
+        return config.get(PostgresSourceOptions.SCHEMA_NAME);
+    }
+
+    @Override
+    protected String getJdbcUrlTemplate(String initialJdbcUrl, Properties jdbcProperties) {
+
+        if (!initialJdbcUrl.startsWith("?")) {
+            return super.getJdbcUrlTemplate(initialJdbcUrl, jdbcProperties);
+        }
+        StringBuilder jdbcUrlBuilder = new StringBuilder(initialJdbcUrl);
+        int recordIndex = 0;
+        for (Map.Entry<Object, Object> entry : jdbcProperties.entrySet()) {
+            jdbcUrlBuilder.append(entry.getKey()).append("=").append(entry.getValue());
+            if (recordIndex < jdbcProperties.size() - 1) {
+                jdbcUrlBuilder.append("&");
+                recordIndex++;
+            }
+        }
+        return jdbcUrlBuilder.toString();
     }
 }

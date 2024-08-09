@@ -485,6 +485,25 @@ public abstract class DatabaseSync {
         }
     }
 
+    protected Properties getJdbcProperties() {
+        Properties jdbcProps = new Properties();
+        for (Map.Entry<String, String> entry : config.toMap().entrySet()) {
+            String key = entry.getKey();
+            String value = entry.getValue();
+            if (key.startsWith(PROPERTIES_PREFIX)) {
+                jdbcProps.put(key.substring(PROPERTIES_PREFIX.length()), value);
+            }
+        }
+        return jdbcProps;
+    }
+
+    protected String getJdbcUrlTemplate(String initialJdbcUrl, Properties jdbcProperties) {
+        StringBuilder jdbcUrlBuilder = new StringBuilder(initialJdbcUrl);
+        jdbcProperties.forEach(
+                (key, value) -> jdbcUrlBuilder.append("&").append(key).append("=").append(value));
+        return jdbcUrlBuilder.toString();
+    }
+
     public DatabaseSync setEnv(StreamExecutionEnvironment env) {
         this.env = env;
         return this;
@@ -627,17 +646,5 @@ public abstract class DatabaseSync {
             }
             return target;
         }
-    }
-
-    protected Properties getJdbcProperties() {
-        Properties jdbcProps = new Properties();
-        for (Map.Entry<String, String> entry : config.toMap().entrySet()) {
-            String key = entry.getKey();
-            String value = entry.getValue();
-            if (key.startsWith(PROPERTIES_PREFIX)) {
-                jdbcProps.put(key.substring(PROPERTIES_PREFIX.length()), value);
-            }
-        }
-        return jdbcProps;
     }
 }
