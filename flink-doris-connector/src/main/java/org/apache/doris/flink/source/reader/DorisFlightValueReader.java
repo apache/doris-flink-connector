@@ -48,7 +48,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import static org.apache.doris.flink.util.ErrorMessages.SHOULD_NOT_HAPPEN_MESSAGE;
 
-public class DorisFlightValueReader implements ValueReader, AutoCloseable {
+public class DorisFlightValueReader extends ValueReader implements AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(DorisFlightValueReader.class);
     protected AdbcConnection client;
     protected Lock clientLock = new ReentrantLock();
@@ -71,7 +71,7 @@ public class DorisFlightValueReader implements ValueReader, AutoCloseable {
         this.partition = partition;
         this.options = options;
         this.readOptions = readOptions;
-        this.client = backendClient();
+        this.client = openConnection();
         this.schema = schema;
         init();
     }
@@ -92,7 +92,7 @@ public class DorisFlightValueReader implements ValueReader, AutoCloseable {
         LOG.debug("Open scan result is, schema: {}.", schema);
     }
 
-    private AdbcConnection backendClient() {
+    private AdbcConnection openConnection() {
         final Map<String, Object> parameters = new HashMap<>();
         RootAllocator allocator = new RootAllocator(Integer.MAX_VALUE);
         FlightSqlDriver driver = new FlightSqlDriver(allocator);

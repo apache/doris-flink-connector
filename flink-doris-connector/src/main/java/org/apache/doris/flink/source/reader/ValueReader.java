@@ -17,12 +17,38 @@
 
 package org.apache.doris.flink.source.reader;
 
+import org.apache.doris.flink.cfg.DorisOptions;
+import org.apache.doris.flink.cfg.DorisReadOptions;
+import org.apache.doris.flink.exception.DorisException;
+import org.apache.doris.flink.rest.PartitionDefinition;
+import org.apache.doris.flink.rest.RestService;
+import org.slf4j.Logger;
+
 import java.util.List;
 
-public interface ValueReader {
-    boolean hasNext();
+public abstract class ValueReader {
 
-    List next();
+    public static ValueReader createReader(
+            PartitionDefinition partition,
+            DorisOptions options,
+            DorisReadOptions readOptions,
+            Logger logger)
+            throws DorisException {
+        logger.info("create reader for partition: {}", partition);
+        if (readOptions.getUseFlightSql()) {
+            return new DorisFlightValueReader(
+                    partition,
+                    options,
+                    readOptions,
+                    RestService.getSchema(options, readOptions, logger));
+        } else {
+            return new DorisValueReader(partition, options, readOptions);
+        }
+    }
 
-    void close() throws Exception;
+    public abstract boolean hasNext();
+
+    public abstract List next();
+
+    public abstract void close() throws Exception;
 }

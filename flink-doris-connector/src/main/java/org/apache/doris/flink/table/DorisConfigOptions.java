@@ -308,15 +308,15 @@ public class DorisConfigOptions {
                     .defaultValue(false)
                     .withDescription("Whether to use buffer cache for breakpoint resume");
     public static final ConfigOption<Boolean> USE_FLIGHT_SQL =
-            ConfigOptions.key("use_flight_sql")
+            ConfigOptions.key("source.use-flight-sql")
                     .booleanType()
                     .defaultValue(Boolean.FALSE)
-                    .withDescription("USE_FLIGHT_SQL");
+                    .withDescription("use flight sql flag");
     public static final ConfigOption<String> FLIGHT_SQL_PORT =
-            ConfigOptions.key("flight_sql_port")
+            ConfigOptions.key("source.flight-sql-port")
                     .stringType()
                     .defaultValue("9040")
-                    .withDescription("FLIGHT_SQL_PORT");
+                    .withDescription("flight sql port");
     // Prefix for Doris StreamLoad specific properties.
     public static final String STREAM_LOAD_PROP_PREFIX = "sink.properties.";
 

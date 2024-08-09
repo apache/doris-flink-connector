@@ -24,7 +24,6 @@ import org.apache.flink.connector.base.source.reader.splitreader.SplitsChange;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.exception.DorisException;
-import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.source.split.DorisSourceSplit;
 import org.apache.doris.flink.source.split.DorisSplitRecords;
 import org.slf4j.Logger;
@@ -75,17 +74,9 @@ public class DorisSourceSplitReader implements SplitReader<List, DorisSourceSpli
             throw new IOException("Cannot fetch from another split - no split remaining");
         }
         currentSplitId = nextSplit.splitId();
-        if (readOptions.getUseFlightSql()) {
-            valueReader =
-                    new DorisFlightValueReader(
-                            nextSplit.getPartitionDefinition(),
-                            options,
-                            readOptions,
-                            RestService.getSchema(options, readOptions, LOG));
-        } else {
-            valueReader =
-                    new DorisValueReader(nextSplit.getPartitionDefinition(), options, readOptions);
-        }
+        valueReader =
+                ValueReader.createReader(
+                        nextSplit.getPartitionDefinition(), options, readOptions, LOG);
     }
 
     private DorisSplitRecords finishSplit() {
