@@ -29,7 +29,6 @@ import java.util.List;
 public class BatchBufferHttpEntity extends AbstractHttpEntity {
 
     private static final Logger LOG = LoggerFactory.getLogger(BatchBufferHttpEntity.class);
-
     protected static final int OUTPUT_BUFFER_SIZE = 4096;
     private final List<byte[]> buffer;
     private final long contentLength;

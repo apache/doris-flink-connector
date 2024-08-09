@@ -50,16 +50,19 @@ public class BatchRecordBuffer {
         this.retainTime = retainTime;
     }
 
-    public void insert(byte[] record) {
+    public int insert(byte[] record) {
+        int recordSize = record.length;
         if (loadBatchFirstRecord) {
             loadBatchFirstRecord = false;
         } else if (lineDelimiter != null) {
             this.buffer.add(this.lineDelimiter);
             setBufferSizeBytes(this.bufferSizeBytes + this.lineDelimiter.length);
+            recordSize += this.lineDelimiter.length;
         }
         this.buffer.add(record);
         setNumOfRecords(this.numOfRecords + 1);
         setBufferSizeBytes(this.bufferSizeBytes + record.length);
+        return recordSize;
     }
 
     public String getLabelName() {
@@ -128,6 +131,10 @@ public class BatchRecordBuffer {
             return database + "." + table;
         }
         return null;
+    }
+
+    public byte[] getLineDelimiter() {
+        return lineDelimiter;
     }
 
     public boolean shouldFlush() {

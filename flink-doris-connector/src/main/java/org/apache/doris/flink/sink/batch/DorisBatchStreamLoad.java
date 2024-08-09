@@ -59,7 +59,11 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 import static org.apache.doris.flink.sink.LoadStatus.PUBLISH_TIMEOUT;
 import static org.apache.doris.flink.sink.LoadStatus.SUCCESS;
@@ -101,6 +105,13 @@ public class DorisBatchStreamLoad implements Serializable {
     private boolean enableGroupCommit;
     private boolean enableGzCompress;
     private int subTaskId;
+    private long streamLoadMaxRows = Integer.MAX_VALUE;
+    // todo：Can be configured
+    private long streamLoadMaxBytes = 1024 * 1024 * 1024;
+    private long maxBlockedBytes = 200 * 1024 * 1024;
+    private final AtomicLong currentCacheBytes = new AtomicLong(0L);
+    private final Lock lock = new ReentrantLock();
+    private final Condition block = lock.newCondition();
 
     public DorisBatchStreamLoad(
             DorisOptions dorisOptions,
@@ -166,6 +177,7 @@ public class DorisBatchStreamLoad implements Serializable {
     public synchronized void writeRecord(String database, String table, byte[] record) {
         checkFlushException();
         String bufferKey = getTableIdentifier(database, table);
+
         BatchRecordBuffer buffer =
                 bufferMap.computeIfAbsent(
                         bufferKey,
@@ -175,11 +187,39 @@ public class DorisBatchStreamLoad implements Serializable {
                                         table,
                                         this.lineDelimiter,
                                         executionOptions.getBufferFlushIntervalMs()));
-        buffer.insert(record);
-        if (buffer.getBufferSizeBytes() >= executionOptions.getBufferFlushMaxBytes()
-                || buffer.getNumOfRecords() >= executionOptions.getBufferFlushMaxRows()) {
+
+        int bytes = buffer.insert(record);
+        currentCacheBytes.addAndGet(bytes);
+        if (currentCacheBytes.get() > maxBlockedBytes) {
+            lock.lock();
+            try {
+                while (currentCacheBytes.get() >= maxBlockedBytes) {
+                    LOG.info(
+                            "Cache full, waiting for flush, currentBytes: {}, maxBlockedBytes: {}",
+                            currentCacheBytes.get(),
+                            maxBlockedBytes);
+                    block.await(1, TimeUnit.SECONDS);
+                }
+            } catch (InterruptedException e) {
+                this.exception.set(e);
+                throw new RuntimeException(e);
+            } finally {
+                lock.unlock();
+            }
+        }
+
+        // queue has space, flush according to the bufferMaxRows/bufferMaxBytes
+        if (flushQueue.size() < executionOptions.getFlushQueueSize()
+                && (buffer.getBufferSizeBytes() >= executionOptions.getBufferFlushMaxBytes()
+                        || buffer.getNumOfRecords() >= executionOptions.getBufferFlushMaxRows())) {
             boolean flush = bufferFullFlush(bufferKey);
             LOG.info("trigger flush by buffer full, flush: {}", flush);
+
+        } else if (buffer.getBufferSizeBytes() >= streamLoadMaxRows
+                || buffer.getNumOfRecords() >= streamLoadMaxBytes) {
+            // The buffer capacity exceeds the stream load limit, flush
+            boolean flush = bufferFullFlush(bufferKey);
+            LOG.info("trigger flush by buffer exceeding the limit, flush: {}", flush);
         }
     }
 
@@ -299,10 +339,12 @@ public class DorisBatchStreamLoad implements Serializable {
                     }
 
                     recordList.add(buffer);
-                    flushQueue.drainTo(recordList, flushQueueSize - 1);
-                    mergeBuffer(recordList, buffer);
-                    load(buffer.getLabelName(), buffer);
+                    if (!flushQueue.isEmpty()) {
+                        flushQueue.drainTo(recordList, flushQueueSize - 1);
+                        mergeBuffer(recordList, buffer);
+                    }
 
+                    load(buffer.getLabelName(), buffer);
                     if (flushQueue.isEmpty()) {
                         // Avoid waiting for 2 rounds of intervalMs
                         doFlush(null, false, false);
@@ -331,17 +373,43 @@ public class DorisBatchStreamLoad implements Serializable {
                 if (sameTable) {
                     for (BatchRecordBuffer recordBuffer : recordList) {
                         if (recordBuffer.getLabelName() != null
-                                && !buffer.getLabelName().equals(recordBuffer.getLabelName())) {
-                            buffer.getBuffer().addAll(recordBuffer.getBuffer());
+                                && !buffer.getLabelName().equals(recordBuffer.getLabelName())
+                                && !recordBuffer.getBuffer().isEmpty()) {
+                            merge(buffer, recordBuffer);
                         }
                     }
-                    LOG.info("merge {} buffer to one stream load", recordList.size());
+                    LOG.info(
+                            "merge {} buffer to one stream load, result bufferBytes {}",
+                            recordList.size(),
+                            buffer.getBufferSizeBytes());
                 }
             }
         }
 
+        public boolean merge(BatchRecordBuffer mergeBuffer, BatchRecordBuffer buffer) {
+            if (buffer.getBuffer().isEmpty()) {
+                return false;
+            }
+            if (!mergeBuffer.getBuffer().isEmpty()) {
+                mergeBuffer.getBuffer().add(mergeBuffer.getLineDelimiter());
+                mergeBuffer.setBufferSizeBytes(
+                        mergeBuffer.getBufferSizeBytes() + mergeBuffer.getLineDelimiter().length);
+                currentCacheBytes.addAndGet(buffer.getLineDelimiter().length);
+            }
+            mergeBuffer.getBuffer().addAll(buffer.getBuffer());
+            mergeBuffer.setNumOfRecords(mergeBuffer.getNumOfRecords() + buffer.getNumOfRecords());
+            mergeBuffer.setBufferSizeBytes(
+                    mergeBuffer.getBufferSizeBytes() + buffer.getBufferSizeBytes());
+            return true;
+        }
+
         /** execute stream load. */
         public void load(String label, BatchRecordBuffer buffer) throws IOException {
+            try {
+                Thread.sleep(10000);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
             if (enableGroupCommit) {
                 label = null;
             }
@@ -386,6 +454,18 @@ public class DorisBatchStreamLoad implements Serializable {
                                                 respContent.getErrorURL());
                                 throw new DorisBatchLoadException(errMsg);
                             } else {
+                                long cacheByteBeforeFlush =
+                                        currentCacheBytes.getAndAdd(-respContent.getLoadBytes());
+                                LOG.info(
+                                        "load success, cacheBeforeFlushBytes: {}, currentCacheBytes : {}",
+                                        cacheByteBeforeFlush,
+                                        currentCacheBytes.get());
+                                lock.lock();
+                                try {
+                                    block.signal();
+                                } finally {
+                                    lock.unlock();
+                                }
                                 return;
                             }
                         }
