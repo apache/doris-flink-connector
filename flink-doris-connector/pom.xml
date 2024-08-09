@@ -98,6 +98,12 @@ under the License.
     </properties>
 
     <dependencies>
+
+        <dependency>
+            <groupId>commons-net</groupId>
+            <artifactId>commons-net</artifactId>
+            <version>3.8.0</version>
+        </dependency>
         <dependency>
             <groupId>org.apache.doris</groupId>
             <artifactId>thrift-service</artifactId>

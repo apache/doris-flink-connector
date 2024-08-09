@@ -231,6 +231,12 @@ public class DorisCatalog extends AbstractCatalog {
                 createTableSchema(databaseName, tableName), null, Lists.newArrayList(), props);
     }
 
+    // Only for testing
+    @VisibleForTesting
+    public String testForQueryFenodes() {
+        return queryFenodes();
+    }
+
     @VisibleForTesting
     protected String queryFenodes() {
         try (Connection conn =

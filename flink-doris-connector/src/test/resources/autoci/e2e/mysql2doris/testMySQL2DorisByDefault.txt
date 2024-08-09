@@ -1,0 +1,3 @@
+mysql-sync-database
+    --including-tables "tbl.*"
+    --table-conf replication_num=1

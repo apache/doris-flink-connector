@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.flink.tools.cdc;
+package org.apache.doris.flink.autoci.e2e;
 
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Deadline;
@@ -23,8 +23,9 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
-import org.apache.doris.flink.DorisTestBase;
+import org.apache.doris.flink.autoci.DorisTestBase;
 import org.apache.doris.flink.sink.schema.SchemaChangeMode;
+import org.apache.doris.flink.tools.cdc.DatabaseSync;
 import org.apache.doris.flink.tools.cdc.mysql.MysqlDatabaseSync;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
