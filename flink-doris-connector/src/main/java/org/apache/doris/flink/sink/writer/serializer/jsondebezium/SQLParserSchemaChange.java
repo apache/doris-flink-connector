@@ -44,6 +44,7 @@ public class SQLParserSchemaChange extends JsonDebeziumSchemaChange {
         this.tableMapping = changeContext.getTableMapping();
         this.objectMapper = changeContext.getObjectMapper();
         this.targetDatabase = changeContext.getTargetDatabase();
+        this.dorisTableConfig = changeContext.getDorisTableConf();
         this.targetTablePrefix =
                 changeContext.getTargetTablePrefix() == null
                         ? ""
@@ -106,7 +107,7 @@ public class SQLParserSchemaChange extends JsonDebeziumSchemaChange {
         String ddl = extractJsonNode(historyRecord, "ddl");
         extractSourceConnector(record);
         return sqlParserSchemaManager.parseCreateTableStatement(
-                sourceConnector, ddl, dorisTable, changeContext.getTableProperties());
+                sourceConnector, ddl, dorisTable, dorisTableConfig);
     }
 
     @VisibleForTesting

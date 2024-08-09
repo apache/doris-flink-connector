@@ -19,6 +19,7 @@ package org.apache.doris.flink.catalog.doris;
 
 import org.apache.flink.util.Preconditions;
 
+import org.apache.doris.flink.tools.cdc.DorisTableConfig;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -27,8 +28,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import static org.junit.Assert.assertEquals;
 
 public class DorisSchemaFactoryTest {
 
@@ -47,6 +46,13 @@ public class DorisSchemaFactoryTest {
 
     @Test
     public void testCreateTableSchema() {
+        TableSchema tableSchema = buildCreateTableSchema();
+        Assert.assertEquals(
+                "TableSchema{database='doris', table='create_tab', tableComment='auto_tab_comment', fields={name=FieldSchema{name='name', typeString='VARVHAR(100)', defaultValue='null', comment='Name_test'}, id=FieldSchema{name='id', typeString='INT', defaultValue='100', comment='int_test'}, age=FieldSchema{name='age', typeString='INT', defaultValue='null', comment='null'}, email=FieldSchema{name='email', typeString='VARCHAR(100)', defaultValue='email@doris.com', comment='e'}}, keys=email, model=UNIQUE, distributeKeys=email, properties={light_schema_change=true}, tableBuckets=null}",
+                tableSchema.toString());
+    }
+
+    private TableSchema buildCreateTableSchema() {
         String dorisTable = "doris.create_tab";
         String[] dbTable = dorisTable.split("\\.");
         Preconditions.checkArgument(dbTable.length == 2);
@@ -59,21 +65,24 @@ public class DorisSchemaFactoryTest {
         List<String> pkKeys = Collections.singletonList("email");
         Map<String, String> tableProperties = new HashMap<>();
         String tableComment = "auto_tab_comment";
-        TableSchema tableSchema =
-                DorisSchemaFactory.createTableSchema(
-                        dbTable[0],
-                        dbTable[1],
-                        columnFields,
-                        pkKeys,
-                        tableProperties,
-                        tableComment);
-        Assert.assertEquals(
-                "TableSchema{database='doris', table='create_tab', tableComment='auto_tab_comment', fields={name=FieldSchema{name='name', typeString='VARVHAR(100)', defaultValue='null', comment='Name_test'}, id=FieldSchema{name='id', typeString='INT', defaultValue='100', comment='int_test'}, age=FieldSchema{name='age', typeString='INT', defaultValue='null', comment='null'}, email=FieldSchema{name='email', typeString='VARCHAR(100)', defaultValue='email@doris.com', comment='e'}}, keys=email, model=UNIQUE, distributeKeys=email, properties={}, tableBuckets=null}",
-                tableSchema.toString());
+        return DorisSchemaFactory.createTableSchema(
+                dbTable[0],
+                dbTable[1],
+                columnFields,
+                pkKeys,
+                new DorisTableConfig(tableProperties),
+                tableComment);
     }
 
     @Test
     public void testCreateTableSchemaTableBuckets() {
+        TableSchema tableSchema = buildCreateTableSchemaTableBuckets();
+        Assert.assertEquals(
+                "TableSchema{database='doris', table='create_tab', tableComment='auto_tab_comment', fields={name=FieldSchema{name='name', typeString='VARVHAR(100)', defaultValue='null', comment='Name_test'}, id=FieldSchema{name='id', typeString='INT', defaultValue='100', comment='int_test'}, age=FieldSchema{name='age', typeString='INT', defaultValue='null', comment='null'}, email=FieldSchema{name='email', typeString='VARCHAR(100)', defaultValue='email@doris.com', comment='e'}}, keys=email, model=UNIQUE, distributeKeys=email, properties={replication_num=2, light_schema_change=true}, tableBuckets=40}",
+                tableSchema.toString());
+    }
+
+    private TableSchema buildCreateTableSchemaTableBuckets() {
         String dorisTable = "doris.create_tab";
         String[] dbTable = dorisTable.split("\\.");
         Preconditions.checkArgument(dbTable.length == 2);
@@ -86,23 +95,26 @@ public class DorisSchemaFactoryTest {
         List<String> pkKeys = Collections.singletonList("email");
         Map<String, String> tableProperties = new HashMap<>();
         tableProperties.put("table-buckets", "create_tab:40, create_taba:10, tabs:12");
+        tableProperties.put("replication_num", "2");
         String tableComment = "auto_tab_comment";
-        TableSchema tableSchema =
-                DorisSchemaFactory.createTableSchema(
-                        dbTable[0],
-                        dbTable[1],
-                        columnFields,
-                        pkKeys,
-                        tableProperties,
-                        tableComment);
-
-        Assert.assertEquals(
-                "TableSchema{database='doris', table='create_tab', tableComment='auto_tab_comment', fields={name=FieldSchema{name='name', typeString='VARVHAR(100)', defaultValue='null', comment='Name_test'}, id=FieldSchema{name='id', typeString='INT', defaultValue='100', comment='int_test'}, age=FieldSchema{name='age', typeString='INT', defaultValue='null', comment='null'}, email=FieldSchema{name='email', typeString='VARCHAR(100)', defaultValue='email@doris.com', comment='e'}}, keys=email, model=UNIQUE, distributeKeys=email, properties={table-buckets=create_tab:40, create_taba:10, tabs:12}, tableBuckets=40}",
-                tableSchema.toString());
+        return DorisSchemaFactory.createTableSchema(
+                dbTable[0],
+                dbTable[1],
+                columnFields,
+                pkKeys,
+                new DorisTableConfig(tableProperties),
+                tableComment);
     }
 
     @Test
     public void testCreateDuplicateTableSchema() {
+        TableSchema tableSchema = buildCreateDuplicateTableSchema();
+        Assert.assertEquals(
+                "TableSchema{database='doris', table='dup_tab', tableComment='auto_tab_comment', fields={name=FieldSchema{name='name', typeString='VARVHAR(100)', defaultValue='null', comment='Name_test'}, id=FieldSchema{name='id', typeString='INT', defaultValue='100', comment='int_test'}, age=FieldSchema{name='age', typeString='INT', defaultValue='null', comment='null'}, email=FieldSchema{name='email', typeString='VARCHAR(100)', defaultValue='email@doris.com', comment='e'}}, keys=name, model=DUPLICATE, distributeKeys=name, properties={replication_num=1, light_schema_change=true}, tableBuckets=null}",
+                tableSchema.toString());
+    }
+
+    private TableSchema buildCreateDuplicateTableSchema() {
         String dorisTable = "doris.dup_tab";
         String[] dbTable = dorisTable.split("\\.");
         Preconditions.checkArgument(dbTable.length == 2);
@@ -113,28 +125,52 @@ public class DorisSchemaFactoryTest {
         columnFields.put("age", new FieldSchema("age", "INT", null, null));
         columnFields.put("email", new FieldSchema("email", "VARCHAR(100)", "email@doris.com", "e"));
         Map<String, String> tableProperties = new HashMap<>();
+        tableProperties.put("replication_num", "1");
         String tableComment = "auto_tab_comment";
-        TableSchema tableSchema =
-                DorisSchemaFactory.createTableSchema(
-                        dbTable[0],
-                        dbTable[1],
-                        columnFields,
-                        new ArrayList<>(),
-                        tableProperties,
-                        tableComment);
-        Assert.assertEquals(
-                "TableSchema{database='doris', table='dup_tab', tableComment='auto_tab_comment', fields={name=FieldSchema{name='name', typeString='VARVHAR(100)', defaultValue='null', comment='Name_test'}, id=FieldSchema{name='id', typeString='INT', defaultValue='100', comment='int_test'}, age=FieldSchema{name='age', typeString='INT', defaultValue='null', comment='null'}, email=FieldSchema{name='email', typeString='VARCHAR(100)', defaultValue='email@doris.com', comment='e'}}, keys=name, model=DUPLICATE, distributeKeys=name, properties={}, tableBuckets=null}",
-                tableSchema.toString());
+        return DorisSchemaFactory.createTableSchema(
+                dbTable[0],
+                dbTable[1],
+                columnFields,
+                new ArrayList<>(),
+                new DorisTableConfig(tableProperties),
+                tableComment);
     }
 
     @Test
-    public void buildTableBucketMapTest() {
-        String tableBuckets = "tbl1:10,tbl2 : 20, a.* :30,b.*:40,.*:50";
-        Map<String, Integer> tableBucketsMap = DorisSchemaFactory.buildTableBucketMap(tableBuckets);
-        assertEquals(10, tableBucketsMap.get("tbl1").intValue());
-        assertEquals(20, tableBucketsMap.get("tbl2").intValue());
-        assertEquals(30, tableBucketsMap.get("a.*").intValue());
-        assertEquals(40, tableBucketsMap.get("b.*").intValue());
-        assertEquals(50, tableBucketsMap.get(".*").intValue());
+    public void testGenerateCreateTableDDL() {
+        TableSchema tableSchema = buildCreateTableSchema();
+        String ddl = DorisSchemaFactory.generateCreateTableDDL(tableSchema);
+        Assert.assertEquals(
+                "CREATE TABLE IF NOT EXISTS `doris`.`create_tab`(`email` VARCHAR(100) DEFAULT 'email@doris.com' COMMENT 'e',`name` VARVHAR(100) COMMENT 'Name_test',`id` INT DEFAULT '100' COMMENT 'int_test',`age` INT COMMENT '' ) UNIQUE KEY(`email`) COMMENT 'auto_tab_comment'  DISTRIBUTED BY HASH(`email`) BUCKETS AUTO  PROPERTIES ('light_schema_change'='true')",
+                ddl);
+    }
+
+    @Test
+    public void testGenerateCreateTableDDLBuckets() {
+        TableSchema tableSchema = buildCreateTableSchemaTableBuckets();
+        String ddl = DorisSchemaFactory.generateCreateTableDDL(tableSchema);
+        Assert.assertEquals(
+                "CREATE TABLE IF NOT EXISTS `doris`.`create_tab`(`email` VARCHAR(100) DEFAULT 'email@doris.com' COMMENT 'e',`name` VARVHAR(100) COMMENT 'Name_test',`id` INT DEFAULT '100' COMMENT 'int_test',`age` INT COMMENT '' ) UNIQUE KEY(`email`) COMMENT 'auto_tab_comment'  DISTRIBUTED BY HASH(`email`) BUCKETS 40 PROPERTIES ('replication_num'='2','light_schema_change'='true')",
+                ddl);
+    }
+
+    @Test
+    public void testGenerateCreateTableDDLDuplicate() {
+        TableSchema tableSchema = buildCreateDuplicateTableSchema();
+        String ddl = DorisSchemaFactory.generateCreateTableDDL(tableSchema);
+        Assert.assertEquals(
+                "CREATE TABLE IF NOT EXISTS `doris`.`dup_tab`(`name` VARVHAR(100) COMMENT 'Name_test',`id` INT DEFAULT '100' COMMENT 'int_test',`age` INT COMMENT '',`email` VARCHAR(100) DEFAULT 'email@doris.com' COMMENT 'e' )  COMMENT 'auto_tab_comment'  DISTRIBUTED BY HASH(`name`) BUCKETS AUTO  PROPERTIES ('replication_num'='1','light_schema_change'='true')",
+                ddl);
+    }
+
+    @Test
+    public void quoteTableIdentifier() {
+        String quoted = DorisSchemaFactory.quoteTableIdentifier("db.tbl");
+        Assert.assertEquals("`db`.`tbl`", quoted);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void quoteTableIdentifierException() {
+        DorisSchemaFactory.quoteTableIdentifier("db.tbl.sc");
     }
 }

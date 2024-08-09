@@ -56,6 +56,7 @@ import org.apache.doris.flink.catalog.doris.FieldSchema;
 import org.apache.doris.flink.catalog.doris.TableSchema;
 import org.apache.doris.flink.cfg.DorisConnectionOptions;
 import org.apache.doris.flink.table.DorisDynamicTableFactory;
+import org.apache.doris.flink.tools.cdc.DorisTableConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -359,7 +360,7 @@ public class DorisCatalog extends AbstractCatalog {
                         tablePath.getObjectName(),
                         getCreateDorisColumns(table.getSchema()),
                         primaryKeys,
-                        getCreateTableProps(options),
+                        new DorisTableConfig(getCreateTableProps(options)),
                         table.getComment());
 
         dorisSystem.createTable(schema);

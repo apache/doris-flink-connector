@@ -118,9 +118,11 @@ public class MongoDBType {
             decimal = new BigDecimal(decimal.toPlainString());
         }
         return decimal.precision() <= 38
-                ? String.format(
-                        "%s(%s,%s)",
-                        DorisType.DECIMAL_V3, decimal.precision(), Math.max(decimal.scale(), 0))
+                ? formatDecimalType(decimal.precision(), Math.max(decimal.scale(), 0))
                 : DorisType.STRING;
+    }
+
+    public static String formatDecimalType(int precision, int scale) {
+        return String.format("%s(%s,%s)", DorisType.DECIMAL_V3, precision, scale);
     }
 }

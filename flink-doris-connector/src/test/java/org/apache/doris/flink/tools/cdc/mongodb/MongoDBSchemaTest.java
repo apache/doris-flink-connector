@@ -17,10 +17,14 @@
 
 package org.apache.doris.flink.tools.cdc.mongodb;
 
+import org.apache.doris.flink.catalog.doris.FieldSchema;
 import org.bson.Document;
+import org.bson.types.Decimal128;
 import org.junit.Test;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 
@@ -37,11 +41,119 @@ public class MongoDBSchemaTest {
     }
 
     @Test
-    public void replaceDecimalTypeIfNeeded() throws Exception {
+    public void replaceDecimalTypeIfNeededTest1() throws Exception {
         ArrayList<Document> documents = new ArrayList<>();
         documents.add(new Document("fields1", 1234567.666666));
+        documents.add(new Document("fields1", 123456789.88888888));
+
         MongoDBSchema mongoDBSchema = new MongoDBSchema(documents, "db_TEST", "test_table", "");
-        String d = mongoDBSchema.replaceDecimalTypeIfNeeded("fields1", "DECIMALV3(12,8)");
-        assertEquals("DECIMAL(15,8)", d);
+        Map<String, FieldSchema> fields = mongoDBSchema.getFields();
+        for (Map.Entry<String, FieldSchema> entry : fields.entrySet()) {
+            FieldSchema fieldSchema = entry.getValue();
+            String fieldName = entry.getKey();
+            if (fieldName.equals("fields1")) {
+                assertEquals("DECIMAL(17,8)", fieldSchema.getTypeString());
+            }
+        }
+    }
+
+    @Test
+    public void replaceDecimalTypeIfNeededTest2() throws Exception {
+        ArrayList<Document> documents = new ArrayList<>();
+        documents.add(new Document("fields1", 1234567.666666));
+        documents.add(new Document("fields1", 123456789));
+
+        MongoDBSchema mongoDBSchema = new MongoDBSchema(documents, "db_TEST", "test_table", "");
+        Map<String, FieldSchema> fields = mongoDBSchema.getFields();
+        for (Map.Entry<String, FieldSchema> entry : fields.entrySet()) {
+            FieldSchema fieldSchema = entry.getValue();
+            String fieldName = entry.getKey();
+            if (fieldName.equals("fields1")) {
+                assertEquals("DECIMAL(15,6)", fieldSchema.getTypeString());
+            }
+        }
+    }
+
+    @Test
+    public void replaceDecimalTypeIfNeededTest3() throws Exception {
+        ArrayList<Document> documents = new ArrayList<>();
+        documents.add(new Document("fields1", 1234567.666666));
+        documents.add(new Document("fields1", 123456789));
+        documents.add(new Document("fields1", 1234567.7777777));
+        documents.add(
+                new Document("fields1", new Decimal128(new BigDecimal("12345679012.999999999"))));
+
+        MongoDBSchema mongoDBSchema = new MongoDBSchema(documents, "db_TEST", "test_table", "");
+        Map<String, FieldSchema> fields = mongoDBSchema.getFields();
+        for (Map.Entry<String, FieldSchema> entry : fields.entrySet()) {
+            FieldSchema fieldSchema = entry.getValue();
+            String fieldName = entry.getKey();
+            if (fieldName.equals("fields1")) {
+                assertEquals("DECIMAL(20,9)", fieldSchema.getTypeString());
+            }
+        }
+    }
+
+    @Test
+    public void replaceDecimalTypeIfNeededTest4() throws Exception {
+        ArrayList<Document> documents = new ArrayList<>();
+        documents.add(new Document("fields1", "yes"));
+        documents.add(new Document("fields1", 1234567.666666));
+        documents.add(new Document("fields1", 123456789));
+        documents.add(new Document("fields1", 1234567.7777777));
+        documents.add(
+                new Document("fields1", new Decimal128(new BigDecimal("12345679012.999999999"))));
+
+        MongoDBSchema mongoDBSchema = new MongoDBSchema(documents, "db_TEST", "test_table", "");
+        Map<String, FieldSchema> fields = mongoDBSchema.getFields();
+        for (Map.Entry<String, FieldSchema> entry : fields.entrySet()) {
+            FieldSchema fieldSchema = entry.getValue();
+            String fieldName = entry.getKey();
+            if (fieldName.equals("fields1")) {
+                assertEquals("STRING", fieldSchema.getTypeString());
+            }
+        }
+    }
+
+    @Test
+    public void replaceDecimalTypeIfNeededTest5() throws Exception {
+        ArrayList<Document> documents = new ArrayList<>();
+        documents.add(new Document("fields1", 1234567.666666));
+        documents.add(new Document("fields1", 123456789));
+        documents.add(new Document("fields1", 1234567.7777777));
+        documents.add(new Document("fields1", "yes"));
+        documents.add(
+                new Document("fields1", new Decimal128(new BigDecimal("12345679012.999999999"))));
+
+        MongoDBSchema mongoDBSchema = new MongoDBSchema(documents, "db_TEST", "test_table", "");
+        Map<String, FieldSchema> fields = mongoDBSchema.getFields();
+        for (Map.Entry<String, FieldSchema> entry : fields.entrySet()) {
+            FieldSchema fieldSchema = entry.getValue();
+            String fieldName = entry.getKey();
+            if (fieldName.equals("fields1")) {
+                assertEquals("STRING", fieldSchema.getTypeString());
+            }
+        }
+    }
+
+    @Test
+    public void replaceDecimalTypeIfNeededTest6() throws Exception {
+        ArrayList<Document> documents = new ArrayList<>();
+        documents.add(new Document("fields1", 1234567.666666));
+        documents.add(new Document("fields1", 123456789));
+        documents.add(new Document("fields1", 1234567.7777777));
+        documents.add(new Document("fields1", 123444555433445L));
+        documents.add(
+                new Document("fields1", new Decimal128(new BigDecimal("12345679012.999999999"))));
+
+        MongoDBSchema mongoDBSchema = new MongoDBSchema(documents, "db_TEST", "test_table", "");
+        Map<String, FieldSchema> fields = mongoDBSchema.getFields();
+        for (Map.Entry<String, FieldSchema> entry : fields.entrySet()) {
+            FieldSchema fieldSchema = entry.getValue();
+            String fieldName = entry.getKey();
+            if (fieldName.equals("fields1")) {
+                assertEquals("DECIMAL(24,9)", fieldSchema.getTypeString());
+            }
+        }
     }
 }

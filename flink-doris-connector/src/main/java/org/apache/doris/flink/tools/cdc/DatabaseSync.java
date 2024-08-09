@@ -63,7 +63,6 @@ import static org.apache.flink.cdc.debezium.utils.JdbcUrlUtils.PROPERTIES_PREFIX
 
 public abstract class DatabaseSync {
     private static final Logger LOG = LoggerFactory.getLogger(DatabaseSync.class);
-    private static final String LIGHT_SCHEMA_CHANGE = "light_schema_change";
     private static final String TABLE_NAME_OPTIONS = "table-name";
 
     protected Configuration config;
@@ -74,7 +73,7 @@ public abstract class DatabaseSync {
     protected Pattern includingPattern;
     protected Pattern excludingPattern;
     protected Map<Pattern, String> multiToOneRulesPattern;
-    protected Map<String, String> tableConfig = new HashMap<>();
+    protected DorisTableConfig dorisTableConfig;
     protected Configuration sinkConfig;
     protected boolean ignoreDefaultValue;
     protected boolean ignoreIncompatible;
@@ -112,10 +111,6 @@ public abstract class DatabaseSync {
         this.excludingPattern = excludingTables == null ? null : Pattern.compile(excludingTables);
         this.multiToOneRulesPattern = multiToOneRulesParser(multiToOneOrigin, multiToOneTarget);
         this.converter = new TableNameConverter(tablePrefix, tableSuffix, multiToOneRulesPattern);
-        // default enable light schema change
-        if (!this.tableConfig.containsKey(LIGHT_SCHEMA_CHANGE)) {
-            this.tableConfig.put(LIGHT_SCHEMA_CHANGE, "true");
-        }
     }
 
     public void build() throws Exception {
@@ -338,7 +333,7 @@ public abstract class DatabaseSync {
                 .setSchemaChangeMode(schemaChangeMode)
                 .setExecutionOptions(executionOptions)
                 .setTableMapping(tableMapping)
-                .setTableProperties(tableConfig)
+                .setDorisTableConf(dorisTableConfig)
                 .setTargetDatabase(database)
                 .setTargetTablePrefix(tablePrefix)
                 .setTargetTableSuffix(tableSuffix)
@@ -470,7 +465,7 @@ public abstract class DatabaseSync {
                             dorisTable,
                             schema.getFields(),
                             schema.getPrimaryKeys(),
-                            tableConfig,
+                            dorisTableConfig,
                             schema.getTableComment());
             try {
                 dorisSystem.createTable(dorisSchema);
@@ -525,10 +520,16 @@ public abstract class DatabaseSync {
         return this;
     }
 
+    @Deprecated
     public DatabaseSync setTableConfig(Map<String, String> tableConfig) {
         if (!CollectionUtil.isNullOrEmpty(tableConfig)) {
-            this.tableConfig = tableConfig;
+            this.dorisTableConfig = new DorisTableConfig(tableConfig);
         }
+        return this;
+    }
+
+    public DatabaseSync setTableConfig(DorisTableConfig tableConfig) {
+        this.dorisTableConfig = tableConfig;
         return this;
     }
 

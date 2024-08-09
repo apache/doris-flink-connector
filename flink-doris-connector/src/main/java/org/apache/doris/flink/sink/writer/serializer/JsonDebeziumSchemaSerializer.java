@@ -37,6 +37,7 @@ import org.apache.doris.flink.sink.writer.serializer.jsondebezium.JsonDebeziumSc
 import org.apache.doris.flink.sink.writer.serializer.jsondebezium.JsonDebeziumSchemaChangeImpl;
 import org.apache.doris.flink.sink.writer.serializer.jsondebezium.JsonDebeziumSchemaChangeImplV2;
 import org.apache.doris.flink.sink.writer.serializer.jsondebezium.SQLParserSchemaChange;
+import org.apache.doris.flink.tools.cdc.DorisTableConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,10 +70,11 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
     private final boolean newSchemaChange;
     private String lineDelimiter = LINE_DELIMITER_DEFAULT;
     private boolean ignoreUpdateBefore = true;
+    private boolean enableDelete = true;
     // <cdc db.schema.table, doris db.table>
     private Map<String, String> tableMapping;
     // create table properties
-    private Map<String, String> tableProperties;
+    private DorisTableConfig dorisTableConfig;
     private String targetDatabase;
     private String targetTablePrefix;
     private String targetTableSuffix;
@@ -110,6 +112,7 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
                             .getStreamLoadProp()
                             .getProperty(LINE_DELIMITER_KEY, LINE_DELIMITER_DEFAULT);
             this.ignoreUpdateBefore = executionOptions.getIgnoreUpdateBefore();
+            this.enableDelete = executionOptions.getDeletable();
         }
     }
 
@@ -120,18 +123,18 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
             boolean newSchemaChange,
             DorisExecutionOptions executionOptions,
             Map<String, String> tableMapping,
-            Map<String, String> tableProperties,
+            DorisTableConfig dorisTableConfig,
             String targetDatabase,
             String targetTablePrefix,
             String targetTableSuffix,
             SchemaChangeMode schemaChangeMode) {
         this(dorisOptions, pattern, sourceTableName, newSchemaChange, executionOptions);
         this.tableMapping = tableMapping;
-        this.tableProperties = tableProperties;
         this.targetDatabase = targetDatabase;
         this.targetTablePrefix = targetTablePrefix;
         this.targetTableSuffix = targetTableSuffix;
         this.schemaChangeMode = schemaChangeMode;
+        this.dorisTableConfig = dorisTableConfig;
         init();
     }
 
@@ -142,13 +145,14 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
                         tableMapping,
                         sourceTableName,
                         targetDatabase,
-                        tableProperties,
+                        dorisTableConfig,
                         objectMapper,
                         pattern,
                         lineDelimiter,
                         ignoreUpdateBefore,
                         targetTablePrefix,
-                        targetTableSuffix);
+                        targetTableSuffix,
+                        enableDelete);
         initSchemaChangeInstance(changeContext);
         this.dataChange = new JsonDebeziumDataChange(changeContext);
     }
@@ -225,7 +229,7 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
         private SchemaChangeMode schemaChangeMode;
         private DorisExecutionOptions executionOptions;
         private Map<String, String> tableMapping;
-        private Map<String, String> tableProperties;
+        private DorisTableConfig dorisTableConfig;
         private String targetDatabase;
         private String targetTablePrefix = "";
         private String targetTableSuffix = "";
@@ -268,8 +272,14 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
             return this;
         }
 
+        @Deprecated
         public Builder setTableProperties(Map<String, String> tableProperties) {
-            this.tableProperties = tableProperties;
+            this.dorisTableConfig = new DorisTableConfig(tableProperties);
+            return this;
+        }
+
+        public Builder setDorisTableConf(DorisTableConfig dorisTableConfig) {
+            this.dorisTableConfig = dorisTableConfig;
             return this;
         }
 
@@ -300,7 +310,7 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
                     newSchemaChange,
                     executionOptions,
                     tableMapping,
-                    tableProperties,
+                    dorisTableConfig,
                     targetDatabase,
                     targetTablePrefix,
                     targetTableSuffix,

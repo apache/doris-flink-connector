@@ -18,17 +18,22 @@
 package org.apache.doris.flink.catalog.doris;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.StringUtils;
 
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections.MapUtils;
+import org.apache.doris.flink.exception.CreateTableException;
+import org.apache.doris.flink.tools.cdc.DorisTableConfig;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * Factory that creates doris schema.
@@ -37,14 +42,13 @@ import java.util.regex.Pattern;
  * factory
  */
 public class DorisSchemaFactory {
-    private static Map<String, Integer> tableBucketMap;
 
     public static TableSchema createTableSchema(
             String database,
             String table,
             Map<String, FieldSchema> columnFields,
             List<String> pkKeys,
-            Map<String, String> tableProperties,
+            DorisTableConfig dorisTableConfig,
             String tableComment) {
         TableSchema tableSchema = new TableSchema();
         tableSchema.setDatabase(database);
@@ -55,14 +59,10 @@ public class DorisSchemaFactory {
         tableSchema.setKeys(buildKeys(pkKeys, columnFields));
         tableSchema.setTableComment(tableComment);
         tableSchema.setDistributeKeys(buildDistributeKeys(pkKeys, columnFields));
-        tableSchema.setProperties(tableProperties);
-        if (tableProperties.containsKey("table-buckets")) {
-            if (MapUtils.isEmpty(tableBucketMap)) {
-                String tableBucketsConfig = tableProperties.get("table-buckets");
-                tableBucketMap = buildTableBucketMap(tableBucketsConfig);
-            }
-            Integer buckets = parseTableSchemaBuckets(tableBucketMap, table);
-            tableSchema.setTableBuckets(buckets);
+        if (Objects.nonNull(dorisTableConfig)) {
+            tableSchema.setProperties(dorisTableConfig.getTableProperties());
+            tableSchema.setTableBuckets(
+                    parseTableSchemaBuckets(dorisTableConfig.getTableBuckets(), table));
         }
         return tableSchema;
     }
@@ -92,7 +92,7 @@ public class DorisSchemaFactory {
     @VisibleForTesting
     public static Integer parseTableSchemaBuckets(
             Map<String, Integer> tableBucketsMap, String tableName) {
-        if (tableBucketsMap != null) {
+        if (MapUtils.isNotEmpty(tableBucketsMap)) {
             // Firstly, if the table name is in the table-buckets map, set the buckets of the table.
             if (tableBucketsMap.containsKey(tableName)) {
                 return tableBucketsMap.get(tableName);
@@ -108,21 +108,131 @@ public class DorisSchemaFactory {
         return null;
     }
 
-    /**
-     * Build table bucket Map.
-     *
-     * @param tableBuckets the string of tableBuckets, eg:student:10,student_info:20,student.*:30
-     * @return The table name and buckets map. The key is table name, the value is buckets.
-     */
-    @VisibleForTesting
-    public static Map<String, Integer> buildTableBucketMap(String tableBuckets) {
-        Map<String, Integer> tableBucketsMap = new LinkedHashMap<>();
-        String[] tableBucketsArray = tableBuckets.split(",");
-        for (String tableBucket : tableBucketsArray) {
-            String[] tableBucketArray = tableBucket.split(":");
-            tableBucketsMap.put(
-                    tableBucketArray[0].trim(), Integer.parseInt(tableBucketArray[1].trim()));
+    public static String generateCreateTableDDL(TableSchema schema) {
+        StringBuilder sb = new StringBuilder("CREATE TABLE IF NOT EXISTS ");
+        sb.append(identifier(schema.getDatabase()))
+                .append(".")
+                .append(identifier(schema.getTable()))
+                .append("(");
+
+        Map<String, FieldSchema> fields = schema.getFields();
+        List<String> keys = schema.getKeys();
+        // append keys
+        for (String key : keys) {
+            if (!fields.containsKey(key)) {
+                throw new CreateTableException("key " + key + " not found in column list");
+            }
+            FieldSchema field = fields.get(key);
+            buildColumn(sb, field, true);
         }
-        return tableBucketsMap;
+
+        // append values
+        for (Map.Entry<String, FieldSchema> entry : fields.entrySet()) {
+            if (keys.contains(entry.getKey())) {
+                continue;
+            }
+            FieldSchema field = entry.getValue();
+            buildColumn(sb, field, false);
+        }
+        sb = sb.deleteCharAt(sb.length() - 1);
+        sb.append(" ) ");
+        // append uniq model
+        if (DataModel.UNIQUE.equals(schema.getModel())) {
+            sb.append(schema.getModel().name())
+                    .append(" KEY(")
+                    .append(String.join(",", identifier(schema.getKeys())))
+                    .append(")");
+        }
+
+        // append table comment
+        if (!StringUtils.isNullOrWhitespaceOnly(schema.getTableComment())) {
+            sb.append(" COMMENT '").append(quoteComment(schema.getTableComment())).append("' ");
+        }
+
+        // append distribute key
+        sb.append(" DISTRIBUTED BY HASH(")
+                .append(String.join(",", identifier(schema.getDistributeKeys())))
+                .append(")");
+
+        Map<String, String> properties = schema.getProperties();
+        if (schema.getTableBuckets() != null) {
+
+            int bucketsNum = schema.getTableBuckets();
+            if (bucketsNum <= 0) {
+                throw new CreateTableException("The number of buckets must be positive.");
+            }
+            sb.append(" BUCKETS ").append(bucketsNum);
+        } else {
+            sb.append(" BUCKETS AUTO ");
+        }
+        // append properties
+        int index = 0;
+        for (Map.Entry<String, String> entry : properties.entrySet()) {
+            if (index == 0) {
+                sb.append(" PROPERTIES (");
+            }
+            if (index > 0) {
+                sb.append(",");
+            }
+            sb.append(quoteProperties(entry.getKey()))
+                    .append("=")
+                    .append(quoteProperties(entry.getValue()));
+            index++;
+
+            if (index == (schema.getProperties().size())) {
+                sb.append(")");
+            }
+        }
+        return sb.toString();
+    }
+
+    private static void buildColumn(StringBuilder sql, FieldSchema field, boolean isKey) {
+        String fieldType = field.getTypeString();
+        if (isKey && DorisType.STRING.equals(fieldType)) {
+            fieldType = String.format("%s(%s)", DorisType.VARCHAR, 65533);
+        }
+        sql.append(identifier(field.getName())).append(" ").append(fieldType);
+
+        if (field.getDefaultValue() != null) {
+            sql.append(" DEFAULT " + quoteDefaultValue(field.getDefaultValue()));
+        }
+        sql.append(" COMMENT '").append(quoteComment(field.getComment())).append("',");
+    }
+
+    private static String quoteProperties(String name) {
+        return "'" + name + "'";
+    }
+
+    private static List<String> identifier(List<String> names) {
+        return names.stream().map(DorisSchemaFactory::identifier).collect(Collectors.toList());
+    }
+
+    public static String identifier(String name) {
+        if (name.startsWith("`") && name.endsWith("`")) {
+            return name;
+        }
+        return "`" + name + "`";
+    }
+
+    public static String quoteDefaultValue(String defaultValue) {
+        // DEFAULT current_timestamp not need quote
+        if (defaultValue.equalsIgnoreCase("current_timestamp")) {
+            return defaultValue;
+        }
+        return "'" + defaultValue + "'";
+    }
+
+    public static String quoteComment(String comment) {
+        if (comment == null) {
+            return "";
+        } else {
+            return comment.replaceAll("'", "\\\\'");
+        }
+    }
+
+    public static String quoteTableIdentifier(String tableIdentifier) {
+        String[] dbTable = tableIdentifier.split("\\.");
+        Preconditions.checkArgument(dbTable.length == 2);
+        return identifier(dbTable[0]) + "." + identifier(dbTable[1]);
     }
 }
