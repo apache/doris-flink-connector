@@ -28,7 +28,6 @@ import org.apache.doris.flink.exception.DorisBatchLoadException;
 import org.apache.doris.flink.sink.EscapeHandler;
 import org.apache.doris.flink.sink.HttpPutBuilder;
 import org.apache.doris.flink.sink.HttpUtil;
-import org.apache.doris.flink.sink.batch.BatchRecordBuffer;
 import org.apache.doris.flink.sink.writer.LabelGenerator;
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;

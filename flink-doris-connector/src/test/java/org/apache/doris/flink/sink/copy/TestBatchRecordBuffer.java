@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.flink.sink.batch;
+package org.apache.doris.flink.sink.copy;
 
 import org.junit.Assert;
 import org.junit.Test;
