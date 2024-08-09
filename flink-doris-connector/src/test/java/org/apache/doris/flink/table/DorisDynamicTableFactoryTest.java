@@ -65,7 +65,8 @@ public class DorisDynamicTableFactoryTest {
         properties.put("lookup.jdbc.read.batch.size", "16");
         properties.put("lookup.jdbc.read.batch.queue-size", "16");
         properties.put("lookup.jdbc.read.thread-size", "1");
-
+        properties.put("use_flight_sql", "false");
+        properties.put("flight_sql_port", "9040");
         DynamicTableSource actual = createTableSource(SCHEMA, properties);
         DorisOptions options =
                 DorisOptions.builder()
@@ -98,7 +99,9 @@ public class DorisDynamicTableFactoryTest {
                 .setRequestConnectTimeoutMs(DORIS_REQUEST_CONNECT_TIMEOUT_MS_DEFAULT)
                 .setRequestReadTimeoutMs(DORIS_REQUEST_READ_TIMEOUT_MS_DEFAULT)
                 .setRequestRetries(DORIS_REQUEST_RETRIES_DEFAULT)
-                .setRequestTabletSize(DORIS_TABLET_SIZE_DEFAULT);
+                .setRequestTabletSize(DORIS_TABLET_SIZE_DEFAULT)
+                .setUseFlightSql(false)
+                .setFlightSqlPort("9040");
         DorisDynamicTableSource expected =
                 new DorisDynamicTableSource(
                         options,
@@ -182,7 +185,9 @@ public class DorisDynamicTableFactoryTest {
                 .setRequestConnectTimeoutMs(DORIS_REQUEST_CONNECT_TIMEOUT_MS_DEFAULT)
                 .setRequestReadTimeoutMs(DORIS_REQUEST_READ_TIMEOUT_MS_DEFAULT)
                 .setRequestRetries(DORIS_REQUEST_RETRIES_DEFAULT)
-                .setRequestTabletSize(DORIS_TABLET_SIZE_DEFAULT);
+                .setRequestTabletSize(DORIS_TABLET_SIZE_DEFAULT)
+                .setUseFlightSql(false)
+                .setFlightSqlPort("9040");
         DorisDynamicTableSink expected =
                 new DorisDynamicTableSink(
                         options,

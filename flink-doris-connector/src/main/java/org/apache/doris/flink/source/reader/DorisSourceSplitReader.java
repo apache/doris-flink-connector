@@ -23,6 +23,8 @@ import org.apache.flink.connector.base.source.reader.splitreader.SplitsChange;
 
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
+import org.apache.doris.flink.exception.DorisException;
+import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.source.split.DorisSourceSplit;
 import org.apache.doris.flink.source.split.DorisSplitRecords;
 import org.slf4j.Logger;
@@ -41,7 +43,7 @@ public class DorisSourceSplitReader implements SplitReader<List, DorisSourceSpli
     private final Queue<DorisSourceSplit> splits;
     private final DorisOptions options;
     private final DorisReadOptions readOptions;
-    private DorisValueReader valueReader;
+    private ValueReader valueReader;
     private String currentSplitId;
 
     public DorisSourceSplitReader(DorisOptions options, DorisReadOptions readOptions) {
@@ -52,7 +54,11 @@ public class DorisSourceSplitReader implements SplitReader<List, DorisSourceSpli
 
     @Override
     public RecordsWithSplitIds<List> fetch() throws IOException {
-        checkSplitOrStartNext();
+        try {
+            checkSplitOrStartNext();
+        } catch (DorisException e) {
+            throw new RuntimeException(e);
+        }
 
         if (!valueReader.hasNext()) {
             return finishSplit();
@@ -60,7 +66,7 @@ public class DorisSourceSplitReader implements SplitReader<List, DorisSourceSpli
         return DorisSplitRecords.forRecords(currentSplitId, valueReader);
     }
 
-    private void checkSplitOrStartNext() throws IOException {
+    private void checkSplitOrStartNext() throws IOException, DorisException {
         if (valueReader != null) {
             return;
         }
@@ -69,8 +75,17 @@ public class DorisSourceSplitReader implements SplitReader<List, DorisSourceSpli
             throw new IOException("Cannot fetch from another split - no split remaining");
         }
         currentSplitId = nextSplit.splitId();
-        valueReader =
-                new DorisValueReader(nextSplit.getPartitionDefinition(), options, readOptions);
+        if (readOptions.getUseFlightSql()) {
+            valueReader =
+                    new DorisFlightValueReader(
+                            nextSplit.getPartitionDefinition(),
+                            options,
+                            readOptions,
+                            RestService.getSchema(options, readOptions, LOG));
+        } else {
+            valueReader =
+                    new DorisValueReader(nextSplit.getPartitionDefinition(), options, readOptions);
+        }
     }
 
     private DorisSplitRecords finishSplit() {
