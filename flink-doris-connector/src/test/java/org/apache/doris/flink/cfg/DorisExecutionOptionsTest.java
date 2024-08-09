@@ -52,9 +52,9 @@ public class DorisExecutionOptionsTest {
                         .setWriteMode(WriteMode.STREAM_LOAD)
                         .setLabelPrefix("doris")
                         .enable2PC()
-                        .setBufferFlushMaxBytes(10)
+                        .setBufferFlushMaxBytes(524288001)
                         .setBufferFlushIntervalMs(10000)
-                        .setBufferFlushMaxRows(12)
+                        .setBufferFlushMaxRows(500001)
                         .setCheckInterval(10)
                         .setIgnoreCommitError(true)
                         .setDeletable(true)
@@ -72,9 +72,9 @@ public class DorisExecutionOptionsTest {
                         .setWriteMode(WriteMode.STREAM_LOAD)
                         .setLabelPrefix("doris")
                         .enable2PC()
-                        .setBufferFlushMaxBytes(10)
+                        .setBufferFlushMaxBytes(524288001)
                         .setBufferFlushIntervalMs(10000)
-                        .setBufferFlushMaxRows(12)
+                        .setBufferFlushMaxRows(500001)
                         .setCheckInterval(10)
                         .setIgnoreCommitError(true)
                         .setDeletable(true)
@@ -111,17 +111,17 @@ public class DorisExecutionOptionsTest {
         Assert.assertNotEquals(exceptOptions, builder.build());
         builder.enable2PC();
 
-        builder.setBufferFlushMaxBytes(11);
+        builder.setBufferFlushMaxBytes(524288002);
         Assert.assertNotEquals(exceptOptions, builder.build());
-        builder.setBufferFlushMaxBytes(10);
+        builder.setBufferFlushMaxBytes(524288001);
 
         builder.setBufferFlushIntervalMs(100001);
         Assert.assertNotEquals(exceptOptions, builder.build());
         builder.setBufferFlushIntervalMs(10000);
 
-        builder.setBufferFlushMaxRows(2);
+        builder.setBufferFlushMaxRows(500002);
         Assert.assertNotEquals(exceptOptions, builder.build());
-        builder.setBufferFlushMaxRows(12);
+        builder.setBufferFlushMaxRows(500001);
 
         builder.setCheckInterval(11);
         Assert.assertNotEquals(exceptOptions, builder.build());
