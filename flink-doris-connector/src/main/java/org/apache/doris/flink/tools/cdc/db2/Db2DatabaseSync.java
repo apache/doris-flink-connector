@@ -91,7 +91,7 @@ public class Db2DatabaseSync extends DatabaseSync {
     public Connection getConnection() throws SQLException {
         Properties jdbcProperties = getJdbcProperties();
         StringBuilder jdbcParams = new StringBuilder();
-        int cnt = 0;
+       boolean firstParam = true;
         for (Map.Entry<Object, Object> entry : jdbcProperties.entrySet()) {
             Object key = entry.getKey();
             Object value = entry.getValue();
