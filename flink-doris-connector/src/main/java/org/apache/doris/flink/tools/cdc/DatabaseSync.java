@@ -59,6 +59,8 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.regex.Pattern;
 
+import static org.apache.flink.cdc.debezium.utils.JdbcUrlUtils.PROPERTIES_PREFIX;
+
 public abstract class DatabaseSync {
     private static final Logger LOG = LoggerFactory.getLogger(DatabaseSync.class);
     private static final String TABLE_NAME_OPTIONS = "table-name";
@@ -481,6 +483,25 @@ public abstract class DatabaseSync {
         } else {
             throw new DorisSystemException("Failed to create table due to: ", ex);
         }
+    }
+
+    protected Properties getJdbcProperties() {
+        Properties jdbcProps = new Properties();
+        for (Map.Entry<String, String> entry : config.toMap().entrySet()) {
+            String key = entry.getKey();
+            String value = entry.getValue();
+            if (key.startsWith(PROPERTIES_PREFIX)) {
+                jdbcProps.put(key.substring(PROPERTIES_PREFIX.length()), value);
+            }
+        }
+        return jdbcProps;
+    }
+
+    protected String getJdbcUrlTemplate(String initialJdbcUrl, Properties jdbcProperties) {
+        StringBuilder jdbcUrlBuilder = new StringBuilder(initialJdbcUrl);
+        jdbcProperties.forEach(
+                (key, value) -> jdbcUrlBuilder.append("&").append(key).append("=").append(value));
+        return jdbcUrlBuilder.toString();
     }
 
     public DatabaseSync setEnv(StreamExecutionEnvironment env) {

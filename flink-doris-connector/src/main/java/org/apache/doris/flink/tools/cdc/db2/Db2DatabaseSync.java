@@ -89,9 +89,11 @@ public class Db2DatabaseSync extends DatabaseSync {
 
     @Override
     public Connection getConnection() throws SQLException {
+        Properties jdbcProperties = getJdbcProperties();
+        String jdbcUrlTemplate = getJdbcUrlTemplate(JDBC_URL, jdbcProperties);
         String jdbcUrl =
                 String.format(
-                        JDBC_URL,
+                        jdbcUrlTemplate,
                         config.get(JdbcSourceOptions.HOSTNAME),
                         config.get(PORT),
                         config.get(JdbcSourceOptions.DATABASE_NAME));
@@ -223,5 +225,22 @@ public class Db2DatabaseSync extends DatabaseSync {
     @Override
     public String getTableListPrefix() {
         return config.get(JdbcSourceOptions.SCHEMA_NAME);
+    }
+
+    @Override
+    protected String getJdbcUrlTemplate(String initialJdbcUrl, Properties jdbcProperties) {
+        StringBuilder jdbcUrlBuilder = new StringBuilder(initialJdbcUrl);
+        boolean firstParam = true;
+        for (Map.Entry<Object, Object> entry : jdbcProperties.entrySet()) {
+            Object key = entry.getKey();
+            Object value = entry.getValue();
+            if (firstParam) {
+                jdbcUrlBuilder.append(":").append(key).append("=").append(value).append(";");
+                firstParam = false;
+            } else {
+                jdbcUrlBuilder.append(key).append("=").append(value).append(";");
+            }
+        }
+        return jdbcUrlBuilder.toString();
     }
 }
