@@ -28,7 +28,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.Assert.assertEquals;
 
 public class SchemaUtilsTest {
     private static final Logger logger = LoggerFactory.getLogger(SchemaUtilsTest.class);
