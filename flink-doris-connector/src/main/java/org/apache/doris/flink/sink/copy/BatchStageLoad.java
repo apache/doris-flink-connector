@@ -28,7 +28,6 @@ import org.apache.doris.flink.exception.DorisBatchLoadException;
 import org.apache.doris.flink.sink.EscapeHandler;
 import org.apache.doris.flink.sink.HttpPutBuilder;
 import org.apache.doris.flink.sink.HttpUtil;
-import org.apache.doris.flink.sink.batch.BatchRecordBuffer;
 import org.apache.doris.flink.sink.writer.LabelGenerator;
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
@@ -139,8 +138,7 @@ public class BatchStageLoad implements Serializable {
                                         database,
                                         table,
                                         this.lineDelimiter,
-                                        executionOptions.getBufferFlushMaxBytes(),
-                                        executionOptions.getBufferFlushIntervalMs()));
+                                        executionOptions.getBufferFlushMaxBytes()));
         buffer.insert(record);
         // When it exceeds 80% of the byteSize,to flush, to avoid triggering bytebuffer expansion
         if (buffer.getBufferSizeBytes() >= executionOptions.getBufferFlushMaxBytes() * 0.8

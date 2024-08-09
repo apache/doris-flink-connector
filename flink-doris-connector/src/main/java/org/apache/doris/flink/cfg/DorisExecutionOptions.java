@@ -40,8 +40,8 @@ public class DorisExecutionOptions implements Serializable {
     private static final int DEFAULT_BUFFER_COUNT = 3;
     // batch flush
     private static final int DEFAULT_FLUSH_QUEUE_SIZE = 2;
-    private static final int DEFAULT_BUFFER_FLUSH_MAX_ROWS = 50000;
-    private static final int DEFAULT_BUFFER_FLUSH_MAX_BYTES = 10 * 1024 * 1024;
+    private static final int DEFAULT_BUFFER_FLUSH_MAX_ROWS = 500000;
+    private static final int DEFAULT_BUFFER_FLUSH_MAX_BYTES = 100 * 1024 * 1024;
     private static final long DEFAULT_BUFFER_FLUSH_INTERVAL_MS = 10 * 1000;
     private final int checkInterval;
     private final int maxRetries;

@@ -118,8 +118,13 @@ public class TestDorisBatchStreamLoad {
         when(httpClientBuilder.build()).thenReturn(httpClient);
         when(httpClient.execute(any())).thenReturn(response);
         loader.writeRecord("db", "tbl", "1,data".getBytes());
-        loader.doFlush("db.tbl", true, false);
+        loader.checkpointFlush();
 
+        TestUtil.waitUntilCondition(
+                () -> !loader.isLoadThreadAlive(),
+                Deadline.fromNow(Duration.ofSeconds(10)),
+                100L,
+                "Condition was not met in given timeout.");
         AtomicReference<Throwable> exception = loader.getException();
         Assert.assertTrue(exception.get() instanceof Exception);
         Assert.assertTrue(exception.get().getMessage().contains("stream load error"));
@@ -161,10 +166,14 @@ public class TestDorisBatchStreamLoad {
         when(httpClientBuilder.build()).thenReturn(httpClient);
         when(httpClient.execute(any())).thenReturn(response);
         loader.writeRecord("db", "tbl", "1,data".getBytes());
-        loader.doFlush("db.tbl", true, false);
+        loader.checkpointFlush();
 
+        TestUtil.waitUntilCondition(
+                () -> !loader.isLoadThreadAlive(),
+                Deadline.fromNow(Duration.ofSeconds(10)),
+                100L,
+                "Condition was not met in given timeout.");
         AtomicReference<Throwable> exception = loader.getException();
-
         Assert.assertTrue(exception.get() instanceof Exception);
         Assert.assertTrue(exception.get().getMessage().contains("stream load error"));
     }

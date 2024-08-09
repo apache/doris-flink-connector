@@ -36,7 +36,6 @@ import org.apache.doris.flink.sink.HttpUtil;
 import org.apache.doris.flink.sink.writer.LabelGenerator;
 import org.apache.http.client.entity.GzipCompressingEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.util.EntityUtils;
@@ -45,7 +44,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -103,7 +101,6 @@ public class DorisBatchStreamLoad implements Serializable {
     private boolean enableGroupCommit;
     private boolean enableGzCompress;
     private int subTaskId;
-    private final AtomicBoolean flushing = new AtomicBoolean(false);
 
     public DorisBatchStreamLoad(
             DorisOptions dorisOptions,
@@ -145,7 +142,7 @@ public class DorisBatchStreamLoad implements Serializable {
                     "tableIdentifier input error, the format is database.table");
             this.loadUrl = String.format(LOAD_URL_PATTERN, hostPort, tableInfo[0], tableInfo[1]);
         }
-        this.loadAsyncExecutor = new LoadAsyncExecutor();
+        this.loadAsyncExecutor = new LoadAsyncExecutor(executionOptions.getFlushQueueSize());
         this.loadExecutorService =
                 new ThreadPoolExecutor(
                         1,
@@ -178,32 +175,36 @@ public class DorisBatchStreamLoad implements Serializable {
                                         database,
                                         table,
                                         this.lineDelimiter,
-                                        executionOptions.getBufferFlushMaxBytes(),
                                         executionOptions.getBufferFlushIntervalMs()));
         buffer.insert(record);
-        // When it exceeds 80% of the byteSize,to flush, to avoid triggering bytebuffer expansion
-        if (buffer.getBufferSizeBytes() >= executionOptions.getBufferFlushMaxBytes() * 0.8
-                || (executionOptions.getBufferFlushMaxRows() != 0
-                        && buffer.getNumOfRecords() >= executionOptions.getBufferFlushMaxRows())) {
-            boolean flush = doFlush(bufferKey, false, true);
+        if (buffer.getBufferSizeBytes() >= executionOptions.getBufferFlushMaxBytes()
+                || buffer.getNumOfRecords() >= executionOptions.getBufferFlushMaxRows()) {
+            boolean flush = bufferFullFlush(bufferKey);
             LOG.info("trigger flush by buffer full, flush: {}", flush);
         }
     }
 
-    public synchronized boolean doFlush(String bufferKey, boolean waitUtilDone, boolean bufferFull)
-            throws InterruptedException {
+    public synchronized boolean bufferFullFlush(String bufferKey) throws InterruptedException {
+        return doFlush(bufferKey, false, true);
+    }
+
+    public synchronized boolean intervalFlush() throws InterruptedException {
+        return doFlush(null, false, false);
+    }
+
+    public synchronized boolean checkpointFlush() throws InterruptedException {
+        return doFlush(null, true, false);
+    }
+
+    private synchronized boolean doFlush(
+            String bufferKey, boolean waitUtilDone, boolean bufferFull) {
         checkFlushException();
         if (waitUtilDone || bufferFull) {
             flush(bufferKey, waitUtilDone);
             return true;
-        } else if (flushing.compareAndSet(false, true)) {
-            if (flushQueue.size() < executionOptions.getFlushQueueSize()) {
-                flush(bufferKey, false);
-                return true;
-            } else {
-                flushing.compareAndSet(true, false);
-                return false;
-            }
+        } else if (flushQueue.size() < executionOptions.getFlushQueueSize()) {
+            flush(bufferKey, false);
+            return true;
         }
         return false;
     }
@@ -220,7 +221,7 @@ public class DorisBatchStreamLoad implements Serializable {
                 }
             }
             if (!waitUtilDone && !flush) {
-                flushing.compareAndSet(true, false);
+                return;
             }
         } else if (bufferMap.containsKey(bufferKey)) {
             flushBuffer(bufferKey);
@@ -277,26 +278,35 @@ public class DorisBatchStreamLoad implements Serializable {
     }
 
     class LoadAsyncExecutor implements Runnable {
+
+        private int flushQueueSize;
+
+        public LoadAsyncExecutor(int flushQueueSize) {
+            this.flushQueueSize = flushQueueSize;
+        }
+
         @Override
         public void run() {
             LOG.info("LoadAsyncExecutor start");
             loadThreadAlive = true;
+            List<BatchRecordBuffer> recordList = new ArrayList<>(flushQueueSize);
             while (started.get()) {
-                BatchRecordBuffer buffer = null;
+                recordList.clear();
                 try {
-                    buffer = flushQueue.poll(2000L, TimeUnit.MILLISECONDS);
-                    if (buffer == null) {
+                    BatchRecordBuffer buffer = flushQueue.poll(2000L, TimeUnit.MILLISECONDS);
+                    if (buffer == null || buffer.getLabelName() == null) {
+                        // label is empty and does not need to load. It is the flag of waitUtilDone
                         continue;
                     }
-                    if (buffer.getLabelName() != null) {
-                        load(buffer.getLabelName(), buffer);
-                    }
-                    if (flushQueue.size() < executionOptions.getFlushQueueSize()) {
-                        flushing.compareAndSet(true, false);
-                        if (flushQueue.isEmpty()) {
-                            // Avoid waiting for 2 rounds of intervalMs
-                            doFlush(null, false, false);
-                        }
+
+                    recordList.add(buffer);
+                    flushQueue.drainTo(recordList, flushQueueSize - 1);
+                    mergeBuffer(recordList, buffer);
+                    load(buffer.getLabelName(), buffer);
+
+                    if (flushQueue.isEmpty()) {
+                        // Avoid waiting for 2 rounds of intervalMs
+                        doFlush(null, false, false);
                     }
                 } catch (Exception e) {
                     LOG.error("worker running error", e);
@@ -310,15 +320,34 @@ public class DorisBatchStreamLoad implements Serializable {
             loadThreadAlive = false;
         }
 
+        private void mergeBuffer(List<BatchRecordBuffer> recordList, BatchRecordBuffer buffer) {
+            if (recordList.size() > 1) {
+                boolean sameTable =
+                        recordList.stream()
+                                        .map(BatchRecordBuffer::getTableIdentifier)
+                                        .distinct()
+                                        .count()
+                                == 1;
+                // Buffers can be merged only if they belong to the same table.
+                if (sameTable) {
+                    for (BatchRecordBuffer recordBuffer : recordList) {
+                        if (recordBuffer.getLabelName() != null
+                                && !buffer.getLabelName().equals(recordBuffer.getLabelName())) {
+                            buffer.getBuffer().addAll(recordBuffer.getBuffer());
+                        }
+                    }
+                }
+            }
+        }
+
         /** execute stream load. */
         public void load(String label, BatchRecordBuffer buffer) throws IOException {
             if (enableGroupCommit) {
                 label = null;
             }
             refreshLoadUrl(buffer.getDatabase(), buffer.getTable());
-            ByteBuffer data = buffer.getData();
-            ByteArrayEntity entity =
-                    new ByteArrayEntity(data.array(), data.arrayOffset(), data.limit());
+
+            BatchBufferHttpEntity entity = new BatchBufferHttpEntity(buffer);
             HttpPutBuilder putBuilder = new HttpPutBuilder();
             putBuilder
                     .setUrl(loadUrl)
