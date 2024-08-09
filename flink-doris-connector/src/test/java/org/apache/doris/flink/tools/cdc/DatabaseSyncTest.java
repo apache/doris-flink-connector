@@ -176,12 +176,6 @@ public class DatabaseSyncTest {
         assertFalse("ssb_test.lineorder".matches(syncTableListPattern));
     }
 
-    /**
-     * protected Properties getJdbcProperties() { Properties jdbcProps = new Properties(); for
-     * (Map.Entry<String, String> entry : config.toMap().entrySet()) { String key = entry.getKey();
-     * String value = entry.getValue(); if (key.startsWith(PROPERTIES_PREFIX)) {
-     * jdbcProps.put(key.substring(PROPERTIES_PREFIX.length()), value); } } return jdbcProps; }
-     */
     @Test
     public void getJdbcPropertiesTest() throws Exception {
         DatabaseSync databaseSync = new MysqlDatabaseSync();
