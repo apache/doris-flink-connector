@@ -116,7 +116,9 @@ public abstract class DatabaseSync {
         DorisSystem dorisSystem = new DorisSystem(options);
 
         List<SourceSchema> schemaList = getSchemaList();
-        Preconditions.checkState(!schemaList.isEmpty(), "No tables to be synchronized.");
+        Preconditions.checkState(
+                !schemaList.isEmpty(),
+                "No tables to be synchronized. Please make sure whether the tables that need to be synchronized exist in the corresponding database or schema.");
 
         if (!StringUtils.isNullOrWhitespaceOnly(database)
                 && !dorisSystem.databaseExists(database)) {
