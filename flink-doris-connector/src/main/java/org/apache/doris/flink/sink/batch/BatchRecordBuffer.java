@@ -55,10 +55,11 @@ public class BatchRecordBuffer {
             loadBatchFirstRecord = false;
         } else if (lineDelimiter != null) {
             this.buffer.add(this.lineDelimiter);
+            setBufferSizeBytes(this.bufferSizeBytes + this.lineDelimiter.length);
         }
         this.buffer.add(record);
-        setNumOfRecords(getNumOfRecords() + 1);
-        setBufferSizeBytes(getBufferSizeBytes() + record.length);
+        setNumOfRecords(this.numOfRecords + 1);
+        setBufferSizeBytes(this.bufferSizeBytes + record.length);
     }
 
     public String getLabelName() {

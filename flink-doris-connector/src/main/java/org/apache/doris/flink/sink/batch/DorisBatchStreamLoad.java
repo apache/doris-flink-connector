@@ -163,8 +163,7 @@ public class DorisBatchStreamLoad implements Serializable {
      * @param record
      * @throws IOException
      */
-    public synchronized void writeRecord(String database, String table, byte[] record)
-            throws InterruptedException {
+    public synchronized void writeRecord(String database, String table, byte[] record) {
         checkFlushException();
         String bufferKey = getTableIdentifier(database, table);
         BatchRecordBuffer buffer =
@@ -184,15 +183,15 @@ public class DorisBatchStreamLoad implements Serializable {
         }
     }
 
-    public synchronized boolean bufferFullFlush(String bufferKey) throws InterruptedException {
+    public synchronized boolean bufferFullFlush(String bufferKey) {
         return doFlush(bufferKey, false, true);
     }
 
-    public synchronized boolean intervalFlush() throws InterruptedException {
+    public synchronized boolean intervalFlush() {
         return doFlush(null, false, false);
     }
 
-    public synchronized boolean checkpointFlush() throws InterruptedException {
+    public synchronized boolean checkpointFlush() {
         return doFlush(null, true, false);
     }
 
@@ -336,6 +335,7 @@ public class DorisBatchStreamLoad implements Serializable {
                             buffer.getBuffer().addAll(recordBuffer.getBuffer());
                         }
                     }
+                    LOG.info("merge {} buffer to one stream load", recordList.size());
                 }
             }
         }

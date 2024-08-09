@@ -24,7 +24,7 @@ import java.util.List;
 
 public class BatchBufferStream extends InputStream {
     private final Iterator<byte[]> iterator;
-    private byte[] currentItem;
+    private byte[] currentRow;
     private int currentPos;
 
     public BatchBufferStream(List<byte[]> buffer) {
@@ -43,11 +43,11 @@ public class BatchBufferStream extends InputStream {
 
     @Override
     public int read(byte[] buf, int off, int len) throws IOException {
-        if (!iterator.hasNext() && currentItem == null) {
+        if (!iterator.hasNext() && currentRow == null) {
             return -1;
         }
 
-        byte[] item = currentItem;
+        byte[] item = currentRow;
         int pos = currentPos;
         int readBytes = 0;
         while (readBytes < len && (item != null || iterator.hasNext())) {
@@ -66,8 +66,7 @@ public class BatchBufferStream extends InputStream {
                 pos = 0;
             }
         }
-
-        currentItem = item;
+        currentRow = item;
         currentPos = pos;
         return readBytes;
     }
