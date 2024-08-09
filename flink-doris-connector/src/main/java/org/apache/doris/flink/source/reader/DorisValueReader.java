@@ -52,7 +52,7 @@ import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_EXEC_MEM_LIM
 import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_REQUEST_QUERY_TIMEOUT_S_DEFAULT;
 import static org.apache.doris.flink.util.ErrorMessages.SHOULD_NOT_HAPPEN_MESSAGE;
 
-public class DorisValueReader implements AutoCloseable {
+public class DorisValueReader extends ValueReader implements AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(DorisValueReader.class);
     protected BackendClient client;
     protected Lock clientLock = new ReentrantLock();

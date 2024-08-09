@@ -73,7 +73,6 @@ under the License.
         <flink.sql.cdc.version>3.1.1</flink.sql.cdc.version>
         <flink.python.id>flink-python</flink.python.id>
         <libthrift.version>0.16.0</libthrift.version>
-        <arrow.version>13.0.0</arrow.version>
         <maven-compiler-plugin.version>3.10.1</maven-compiler-plugin.version>
         <maven-javadoc-plugin.version>3.3.0</maven-javadoc-plugin.version>
         <maven-source-plugin.version>3.2.1</maven-source-plugin.version>
@@ -95,6 +94,8 @@ under the License.
         <jsqlparser.version>4.9</jsqlparser.version>
         <mysql.driver.version>8.0.26</mysql.driver.version>
         <ojdbc.version>19.3.0.0</ojdbc.version>
+        <arrow.version>15.0.2</arrow.version>
+        <adbc.version>0.12.0</adbc.version>
     </properties>
 
     <dependencies>
@@ -179,13 +180,16 @@ under the License.
             <artifactId>commons-codec</artifactId>
             <version>${commons-codec.version}</version>
         </dependency>
-
+        <dependency>
+            <groupId>org.apache.arrow.adbc</groupId>
+            <artifactId>adbc-driver-flight-sql</artifactId>
+            <version>${adbc.version}</version>
+        </dependency>
         <dependency>
             <groupId>org.apache.arrow</groupId>
             <artifactId>arrow-vector</artifactId>
             <version>${arrow.version}</version>
         </dependency>
-
         <dependency>
             <groupId>org.apache.arrow</groupId>
             <artifactId>arrow-memory-netty</artifactId>
@@ -206,7 +210,6 @@ under the License.
                 </exclusion>
             </exclusions>
         </dependency>
-
         <!--  jackson  -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
@@ -410,13 +413,13 @@ under the License.
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-shade-plugin</artifactId>
-                    <version>3.2.4</version>
+                    <version>3.4.1</version>
                     <configuration>
                         <relocations>
-                            <relocation>
-                                <pattern>org.apache.arrow</pattern>
-                                <shadedPattern>org.apache.doris.shaded.org.apache.arrow</shadedPattern>
-                            </relocation>
+<!--                            <relocation>-->
+<!--                                <pattern>org.apache.arrow</pattern>-->
+<!--                                <shadedPattern>org.apache.doris.shaded.org.apache.arrow</shadedPattern>-->
+<!--                            </relocation>-->
                             <relocation>
                                 <pattern>io.netty</pattern>
                                 <shadedPattern>org.apache.doris.shaded.io.netty</shadedPattern>

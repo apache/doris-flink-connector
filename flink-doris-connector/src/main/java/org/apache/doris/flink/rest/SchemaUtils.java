@@ -22,6 +22,9 @@ import org.apache.doris.flink.rest.models.Schema;
 import org.apache.doris.sdk.thrift.TScanColumnDesc;
 
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 public class SchemaUtils {
 
@@ -40,6 +43,27 @@ public class SchemaUtils {
                                         new Field(
                                                 desc.getName(),
                                                 desc.getType().name(),
+                                                "",
+                                                0,
+                                                0,
+                                                "")));
+        return schema;
+    }
+
+    public static Schema convertToSchema(
+            Schema tableSchema, org.apache.arrow.vector.types.pojo.Schema tscanColumnDescs) {
+        Schema schema = new Schema(tscanColumnDescs.getFields().size());
+        Map<String, Field> collect =
+                tableSchema.getProperties().stream()
+                        .collect(Collectors.toMap(Field::getName, Function.identity()));
+        tscanColumnDescs
+                .getFields()
+                .forEach(
+                        desc ->
+                                schema.put(
+                                        new Field(
+                                                desc.getName(),
+                                                collect.get(desc.getName()).getType(),
                                                 "",
                                                 0,
                                                 0,
