@@ -358,9 +358,6 @@ public class DorisExecutionOptions implements Serializable {
         }
 
         public Builder setBufferFlushIntervalMs(long bufferFlushIntervalMs) {
-            Preconditions.checkState(
-                    bufferFlushIntervalMs >= 1000,
-                    "bufferFlushIntervalMs must be greater than or equal to 1 second");
             this.bufferFlushIntervalMs = bufferFlushIntervalMs;
             return this;
         }
@@ -397,6 +394,8 @@ public class DorisExecutionOptions implements Serializable {
                     && JSON.equals(streamLoadProp.getProperty(FORMAT_KEY))) {
                 streamLoadProp.put(READ_JSON_BY_LINE, true);
             }
+            checkParams();
+
             return new DorisExecutionOptions(
                     checkInterval,
                     maxRetries,
@@ -416,6 +415,18 @@ public class DorisExecutionOptions implements Serializable {
                     force2PC,
                     writeMode,
                     ignoreCommitError);
+        }
+
+        private void checkParams() {
+            Preconditions.checkState(
+                    bufferFlushIntervalMs >= 1000,
+                    "bufferFlushIntervalMs must be greater than or equal to 1 second");
+            Preconditions.checkState(
+                    bufferFlushMaxBytes >= 52428800,
+                    "bufferFlushMaxBytes must be greater than or equal to 52428800(50mb)");
+            Preconditions.checkState(
+                    bufferFlushMaxRows >= 50000,
+                    "bufferFlushMaxRows must be greater than or equal to 50000");
         }
     }
 }
