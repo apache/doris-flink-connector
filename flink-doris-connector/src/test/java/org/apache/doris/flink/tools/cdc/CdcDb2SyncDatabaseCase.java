@@ -38,14 +38,6 @@ public class CdcDb2SyncDatabaseCase {
         env.disableOperatorChaining();
         env.enableCheckpointing(10000);
 
-        //  Map<String,String> flinkMap = new HashMap<>();
-        //  flinkMap.put("execution.checkpointing.interval","10s");
-        //  flinkMap.put("pipeline.operator-chaining","false");
-        //  flinkMap.put("parallelism.default","1");
-
-        //  Configuration configuration = Configuration.fromMap(flinkMap);
-        //  env.configure(configuration);
-
         String database = "db2_test";
         String tablePrefix = "";
         String tableSuffix = "";
