@@ -312,10 +312,10 @@ public class DorisConfigOptions {
                     .booleanType()
                     .defaultValue(Boolean.FALSE)
                     .withDescription("use flight sql flag");
-    public static final ConfigOption<String> FLIGHT_SQL_PORT =
+    public static final ConfigOption<Integer> FLIGHT_SQL_PORT =
             ConfigOptions.key("source.flight-sql-port")
-                    .stringType()
-                    .defaultValue("9040")
+                    .intType()
+                    .defaultValue(9040)
                     .withDescription("flight sql port");
     // Prefix for Doris StreamLoad specific properties.
     public static final String STREAM_LOAD_PROP_PREFIX = "sink.properties.";

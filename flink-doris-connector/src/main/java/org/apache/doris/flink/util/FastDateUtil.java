@@ -44,7 +44,7 @@ public final class FastDateUtil {
         int hour = parseFromIndex(arr, indexes[3], indexes[3] + 2);
         int minute = parseFromIndex(arr, indexes[4], indexes[4] + 2);
         int second = parseFromIndex(arr, indexes[5], indexes[5] + 2);
-        int nanos = parseFromIndex(arr, indexes[6], indexes[6] + 6) * 100;
+        int nanos = parseFromIndex(arr, indexes[6], indexes[6] + 6) * 1000;
         return LocalDateTime.of(year, month, day, hour, minute, second, nanos);
     }
 

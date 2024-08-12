@@ -104,9 +104,7 @@ public class DorisFlightValueReader extends ValueReader implements AutoCloseable
         }
         AdbcDriver.PARAM_URI.set(
                 parameters,
-                Location.forGrpcInsecure(
-                                String.valueOf(split[0]),
-                                Integer.parseInt(readOptions.getFlightSqlPort()))
+                Location.forGrpcInsecure(String.valueOf(split[0]), readOptions.getFlightSqlPort())
                         .getUri()
                         .toString());
         AdbcDriver.PARAM_USERNAME.set(parameters, options.getUsername());

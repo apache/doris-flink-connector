@@ -114,7 +114,7 @@ public class DorisStreamOptions implements Serializable {
                                                 ConfigurationOptions.USE_FLIGHT_SQL_DEFAULT
                                                         .toString())))
                         .setFlightSqlPort(
-                                String.valueOf(
+                                Integer.valueOf(
                                         prop.getProperty(
                                                 ConfigurationOptions.FLIGHT_SQL_PORT,
                                                 ConfigurationOptions.FLIGHT_SQL_PORT_DEFAULT

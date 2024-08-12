@@ -56,5 +56,5 @@ public interface ConfigurationOptions {
     Boolean USE_FLIGHT_SQL_DEFAULT = false;
 
     String FLIGHT_SQL_PORT = "source.flight-sql-port";
-    String FLIGHT_SQL_PORT_DEFAULT = "9040";
+    Integer FLIGHT_SQL_PORT_DEFAULT = 9040;
 }

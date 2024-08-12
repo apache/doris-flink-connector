@@ -38,7 +38,7 @@ public class DorisReadOptions implements Serializable {
     private Boolean deserializeArrowAsync;
     private boolean useOldApi;
     private boolean useFlightSql;
-    private String flightSqlPort;
+    private Integer flightSqlPort;
 
     public DorisReadOptions(
             String readFields,
@@ -54,7 +54,7 @@ public class DorisReadOptions implements Serializable {
             Boolean deserializeArrowAsync,
             boolean useOldApi,
             boolean useFlightSql,
-            String flightSqlPort) {
+            Integer flightSqlPort) {
         this.readFields = readFields;
         this.filterQuery = filterQuery;
         this.requestTabletSize = requestTabletSize;
@@ -131,7 +131,7 @@ public class DorisReadOptions implements Serializable {
         return useFlightSql;
     }
 
-    public String getFlightSqlPort() {
+    public Integer getFlightSqlPort() {
         return flightSqlPort;
     }
 
@@ -203,7 +203,7 @@ public class DorisReadOptions implements Serializable {
         private Boolean deserializeArrowAsync;
         private Boolean useOldApi = false;
         private Boolean useFlightSql = false;
-        private String flightSqlPort;
+        private Integer flightSqlPort;
 
         public Builder setReadFields(String readFields) {
             this.readFields = readFields;
@@ -270,7 +270,7 @@ public class DorisReadOptions implements Serializable {
             return this;
         }
 
-        public Builder setFlightSqlPort(String flightSqlPort) {
+        public Builder setFlightSqlPort(Integer flightSqlPort) {
             this.flightSqlPort = flightSqlPort;
             return this;
         }

@@ -101,7 +101,7 @@ public class DorisDynamicTableFactoryTest {
                 .setRequestRetries(DORIS_REQUEST_RETRIES_DEFAULT)
                 .setRequestTabletSize(DORIS_TABLET_SIZE_DEFAULT)
                 .setUseFlightSql(false)
-                .setFlightSqlPort("9040");
+                .setFlightSqlPort(9040);
         DorisDynamicTableSource expected =
                 new DorisDynamicTableSource(
                         options,
@@ -187,7 +187,7 @@ public class DorisDynamicTableFactoryTest {
                 .setRequestRetries(DORIS_REQUEST_RETRIES_DEFAULT)
                 .setRequestTabletSize(DORIS_TABLET_SIZE_DEFAULT)
                 .setUseFlightSql(false)
-                .setFlightSqlPort("9040");
+                .setFlightSqlPort(9040);
         DorisDynamicTableSink expected =
                 new DorisDynamicTableSink(
                         options,
