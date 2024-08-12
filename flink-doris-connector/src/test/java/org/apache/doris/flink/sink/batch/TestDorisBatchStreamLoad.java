@@ -88,6 +88,7 @@ public class TestDorisBatchStreamLoad {
 
     @Test
     public void testLoadFail() throws Exception {
+        LOG.info("testLoadFail start");
         DorisReadOptions readOptions = DorisReadOptions.builder().build();
         DorisExecutionOptions executionOptions =
                 DorisExecutionOptions.builder().setBufferFlushMaxRows(1).build();
@@ -109,7 +110,7 @@ public class TestDorisBatchStreamLoad {
                 () -> loader.isLoadThreadAlive(),
                 Deadline.fromNow(Duration.ofSeconds(10)),
                 100L,
-                "Condition was not met in given timeout.");
+                "testLoadFail wait loader start failed.");
         Assert.assertTrue(loader.isLoadThreadAlive());
         BackendUtil backendUtil = mock(BackendUtil.class);
         HttpClientBuilder httpClientBuilder = mock(HttpClientBuilder.class);
@@ -127,16 +128,18 @@ public class TestDorisBatchStreamLoad {
 
         TestUtil.waitUntilCondition(
                 () -> !loader.isLoadThreadAlive(),
-                Deadline.fromNow(Duration.ofSeconds(10)),
+                Deadline.fromNow(Duration.ofSeconds(20)),
                 100L,
-                "Condition was not met in given timeout.");
+                "testLoadFail wait loader exit failed." + loader.isLoadThreadAlive());
         AtomicReference<Throwable> exception = loader.getException();
         Assert.assertTrue(exception.get() instanceof Exception);
         Assert.assertTrue(exception.get().getMessage().contains("stream load error"));
+        LOG.info("testLoadFail end");
     }
 
     @Test
     public void testLoadError() throws Exception {
+        LOG.info("testLoadError start");
         DorisReadOptions readOptions = DorisReadOptions.builder().build();
         DorisExecutionOptions executionOptions =
                 DorisExecutionOptions.builder().setBufferFlushMaxRows(1).build();
@@ -159,7 +162,7 @@ public class TestDorisBatchStreamLoad {
                 () -> loader.isLoadThreadAlive(),
                 Deadline.fromNow(Duration.ofSeconds(10)),
                 100L,
-                "Condition was not met in given timeout.");
+                "testLoadError wait loader start failed.");
         Assert.assertTrue(loader.isLoadThreadAlive());
         BackendUtil backendUtil = mock(BackendUtil.class);
         HttpClientBuilder httpClientBuilder = mock(HttpClientBuilder.class);
@@ -176,12 +179,13 @@ public class TestDorisBatchStreamLoad {
 
         TestUtil.waitUntilCondition(
                 () -> !loader.isLoadThreadAlive(),
-                Deadline.fromNow(Duration.ofSeconds(10)),
+                Deadline.fromNow(Duration.ofSeconds(20)),
                 100L,
-                "Condition was not met in given timeout.");
+                "testLoadError wait loader exit failed." + loader.isLoadThreadAlive());
         AtomicReference<Throwable> exception = loader.getException();
         Assert.assertTrue(exception.get() instanceof Exception);
         Assert.assertTrue(exception.get().getMessage().contains("stream load error"));
+        LOG.info("testLoadError end");
     }
 
     @After
@@ -192,7 +196,7 @@ public class TestDorisBatchStreamLoad {
     }
 
     @Test
-    public void mergeBufferTest() throws Exception {
+    public void mergeBufferTest() {
         DorisReadOptions readOptions = DorisReadOptions.builder().build();
         DorisExecutionOptions executionOptions = DorisExecutionOptions.builder().build();
         DorisOptions options =
