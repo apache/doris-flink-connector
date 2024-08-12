@@ -242,16 +242,16 @@ public class DorisBatchStreamLoad implements Serializable {
             String bufferKey, boolean waitUtilDone, boolean bufferFull) {
         checkFlushException();
         if (waitUtilDone || bufferFull) {
-            flush(bufferKey, waitUtilDone);
-            return true;
+            boolean flush = flush(bufferKey, waitUtilDone);
+            return flush;
         } else if (flushQueue.size() < executionOptions.getFlushQueueSize()) {
-            flush(bufferKey, false);
-            return true;
+            boolean flush = flush(bufferKey, false);
+            return flush;
         }
         return false;
     }
 
-    private synchronized void flush(String bufferKey, boolean waitUtilDone) {
+    private synchronized boolean flush(String bufferKey, boolean waitUtilDone) {
         if (null == bufferKey) {
             boolean flush = false;
             for (String key : bufferMap.keySet()) {
@@ -263,7 +263,7 @@ public class DorisBatchStreamLoad implements Serializable {
                 }
             }
             if (!waitUtilDone && !flush) {
-                return;
+                return false;
             }
         } else if (bufferMap.containsKey(bufferKey)) {
             flushBuffer(bufferKey);
@@ -273,6 +273,7 @@ public class DorisBatchStreamLoad implements Serializable {
         if (waitUtilDone) {
             waitAsyncLoadFinish();
         }
+        return true;
     }
 
     private synchronized void flushBuffer(String bufferKey) {
@@ -387,7 +388,6 @@ public class DorisBatchStreamLoad implements Serializable {
                         // label is empty and does not need to load. It is the flag of waitUtilDone
                         continue;
                     }
-
                     recordList.add(buffer);
                     boolean merge = false;
                     if (!flushQueue.isEmpty()) {
@@ -407,7 +407,7 @@ public class DorisBatchStreamLoad implements Serializable {
                         }
                     }
 
-                    if (flushQueue.isEmpty()) {
+                    if (flushQueue.size() < flushQueueSize) {
                         // Avoid waiting for 2 rounds of intervalMs
                         doFlush(null, false, false);
                     }

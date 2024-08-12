@@ -138,6 +138,9 @@ public class BatchRecordBuffer {
     }
 
     public boolean shouldFlush() {
-        return System.currentTimeMillis() - createTime > retainTime;
+        // When the buffer create time is later than the first interval trigger,
+        // the write will not be triggered in the next interval,
+        // so multiply it by 1.5 to trigger it as early as possible.
+        return (System.currentTimeMillis() - createTime) * 1.5 > retainTime;
     }
 }
