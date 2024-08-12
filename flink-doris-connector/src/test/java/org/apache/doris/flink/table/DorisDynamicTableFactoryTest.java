@@ -132,7 +132,7 @@ public class DorisDynamicTableFactoryTest {
         properties.put("sink.use-cache", "true");
         properties.put("sink.enable.batch-mode", "true");
         properties.put("sink.flush.queue-size", "2");
-        properties.put("sink.buffer-flush.max-rows", "1000");
+        properties.put("sink.buffer-flush.max-rows", "10000");
         properties.put("sink.buffer-flush.max-bytes", "10MB");
         properties.put("sink.buffer-flush.interval", "10s");
         properties.put("sink.ignore.update-before", "true");
@@ -166,7 +166,7 @@ public class DorisDynamicTableFactoryTest {
                         .enable2PC()
                         .setBufferFlushIntervalMs(10000)
                         .setBufferFlushMaxBytes(10 * 1024 * 1024)
-                        .setBufferFlushMaxRows(1000)
+                        .setBufferFlushMaxRows(10000)
                         .setFlushQueueSize(2)
                         .setUseCache(true)
                         .setIgnoreCommitError(false)

@@ -91,7 +91,7 @@ public class TestDorisBatchStreamLoad {
         LOG.info("testLoadFail start");
         DorisReadOptions readOptions = DorisReadOptions.builder().build();
         DorisExecutionOptions executionOptions =
-                DorisExecutionOptions.builder().setBufferFlushMaxRows(1).build();
+                DorisExecutionOptions.builder().setBufferFlushIntervalMs(1000).build();
         DorisOptions options =
                 DorisOptions.builder()
                         .setFenodes("127.0.0.1:1")
@@ -142,7 +142,7 @@ public class TestDorisBatchStreamLoad {
         LOG.info("testLoadError start");
         DorisReadOptions readOptions = DorisReadOptions.builder().build();
         DorisExecutionOptions executionOptions =
-                DorisExecutionOptions.builder().setBufferFlushMaxRows(1).build();
+                DorisExecutionOptions.builder().setBufferFlushIntervalMs(1000).build();
         DorisOptions options =
                 DorisOptions.builder()
                         .setFenodes("127.0.0.1:1")
