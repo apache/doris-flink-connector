@@ -85,7 +85,8 @@ public class TestDorisBatchStreamLoad {
     @Test
     public void testLoadFail() throws Exception {
         DorisReadOptions readOptions = DorisReadOptions.builder().build();
-        DorisExecutionOptions executionOptions = DorisExecutionOptions.builder().build();
+        DorisExecutionOptions executionOptions =
+                DorisExecutionOptions.builder().setBufferFlushMaxRows(1).build();
         DorisOptions options =
                 DorisOptions.builder()
                         .setFenodes("127.0.0.1:1")
@@ -133,7 +134,8 @@ public class TestDorisBatchStreamLoad {
     @Test
     public void testLoadError() throws Exception {
         DorisReadOptions readOptions = DorisReadOptions.builder().build();
-        DorisExecutionOptions executionOptions = DorisExecutionOptions.builder().build();
+        DorisExecutionOptions executionOptions =
+                DorisExecutionOptions.builder().setBufferFlushMaxRows(1).build();
         DorisOptions options =
                 DorisOptions.builder()
                         .setFenodes("127.0.0.1:1")

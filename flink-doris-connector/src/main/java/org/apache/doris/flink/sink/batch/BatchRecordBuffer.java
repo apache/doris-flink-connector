@@ -30,7 +30,7 @@ public class BatchRecordBuffer {
     private LinkedList<byte[]> buffer;
     private byte[] lineDelimiter;
     private int numOfRecords = 0;
-    private int bufferSizeBytes = 0;
+    private long bufferSizeBytes = 0;
     private boolean loadBatchFirstRecord = true;
     private String database;
     private String table;
@@ -96,7 +96,7 @@ public class BatchRecordBuffer {
     }
 
     /** @return Buffer size in bytes */
-    public int getBufferSizeBytes() {
+    public long getBufferSizeBytes() {
         return bufferSizeBytes;
     }
 
@@ -106,7 +106,7 @@ public class BatchRecordBuffer {
     }
 
     /** @param bufferSizeBytes Updates sum of size of records present in this buffer (Bytes) */
-    public void setBufferSizeBytes(int bufferSizeBytes) {
+    public void setBufferSizeBytes(long bufferSizeBytes) {
         this.bufferSizeBytes = bufferSizeBytes;
     }
 
