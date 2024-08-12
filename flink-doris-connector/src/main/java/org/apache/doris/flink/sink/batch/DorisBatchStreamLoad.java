@@ -319,6 +319,53 @@ public class DorisBatchStreamLoad implements Serializable {
         this.flushQueue.clear();
     }
 
+    @VisibleForTesting
+    public boolean mergeBuffer(List<BatchRecordBuffer> recordList, BatchRecordBuffer buffer) {
+        boolean merge = false;
+        if (recordList.size() > 1) {
+            boolean sameTable =
+                    recordList.stream()
+                                    .map(BatchRecordBuffer::getTableIdentifier)
+                                    .distinct()
+                                    .count()
+                            == 1;
+            // Buffers can be merged only if they belong to the same table.
+            if (sameTable) {
+                for (BatchRecordBuffer recordBuffer : recordList) {
+                    if (recordBuffer != null
+                            && recordBuffer.getLabelName() != null
+                            && !buffer.getLabelName().equals(recordBuffer.getLabelName())
+                            && !recordBuffer.getBuffer().isEmpty()) {
+                        merge(buffer, recordBuffer);
+                        merge = true;
+                    }
+                }
+                LOG.info(
+                        "merge {} buffer to one stream load, result bufferBytes {}",
+                        recordList.size(),
+                        buffer.getBufferSizeBytes());
+            }
+        }
+        return merge;
+    }
+
+    private boolean merge(BatchRecordBuffer mergeBuffer, BatchRecordBuffer buffer) {
+        if (buffer.getBuffer().isEmpty()) {
+            return false;
+        }
+        if (!mergeBuffer.getBuffer().isEmpty()) {
+            mergeBuffer.getBuffer().add(mergeBuffer.getLineDelimiter());
+            mergeBuffer.setBufferSizeBytes(
+                    mergeBuffer.getBufferSizeBytes() + mergeBuffer.getLineDelimiter().length);
+            currentCacheBytes.addAndGet(buffer.getLineDelimiter().length);
+        }
+        mergeBuffer.getBuffer().addAll(buffer.getBuffer());
+        mergeBuffer.setNumOfRecords(mergeBuffer.getNumOfRecords() + buffer.getNumOfRecords());
+        mergeBuffer.setBufferSizeBytes(
+                mergeBuffer.getBufferSizeBytes() + buffer.getBufferSizeBytes());
+        return true;
+    }
+
     class LoadAsyncExecutor implements Runnable {
 
         private int flushQueueSize;
@@ -342,12 +389,24 @@ public class DorisBatchStreamLoad implements Serializable {
                     }
 
                     recordList.add(buffer);
+                    boolean merge = false;
                     if (!flushQueue.isEmpty()) {
                         flushQueue.drainTo(recordList, flushQueueSize - 1);
-                        mergeBuffer(recordList, buffer);
+                        if (mergeBuffer(recordList, buffer)) {
+                            load(buffer.getLabelName(), buffer);
+                            merge = true;
+                        }
                     }
 
-                    load(buffer.getLabelName(), buffer);
+                    if (!merge) {
+                        for (BatchRecordBuffer bf : recordList) {
+                            if (bf == null || bf.getLabelName() == null) {
+                                continue;
+                            }
+                            load(bf.getLabelName(), bf);
+                        }
+                    }
+
                     if (flushQueue.isEmpty()) {
                         // Avoid waiting for 2 rounds of intervalMs
                         doFlush(null, false, false);
@@ -362,48 +421,6 @@ public class DorisBatchStreamLoad implements Serializable {
             }
             LOG.info("LoadAsyncExecutor stop");
             loadThreadAlive = false;
-        }
-
-        private void mergeBuffer(List<BatchRecordBuffer> recordList, BatchRecordBuffer buffer) {
-            if (recordList.size() > 1) {
-                boolean sameTable =
-                        recordList.stream()
-                                        .map(BatchRecordBuffer::getTableIdentifier)
-                                        .distinct()
-                                        .count()
-                                == 1;
-                // Buffers can be merged only if they belong to the same table.
-                if (sameTable) {
-                    for (BatchRecordBuffer recordBuffer : recordList) {
-                        if (recordBuffer.getLabelName() != null
-                                && !buffer.getLabelName().equals(recordBuffer.getLabelName())
-                                && !recordBuffer.getBuffer().isEmpty()) {
-                            merge(buffer, recordBuffer);
-                        }
-                    }
-                    LOG.info(
-                            "merge {} buffer to one stream load, result bufferBytes {}",
-                            recordList.size(),
-                            buffer.getBufferSizeBytes());
-                }
-            }
-        }
-
-        public boolean merge(BatchRecordBuffer mergeBuffer, BatchRecordBuffer buffer) {
-            if (buffer.getBuffer().isEmpty()) {
-                return false;
-            }
-            if (!mergeBuffer.getBuffer().isEmpty()) {
-                mergeBuffer.getBuffer().add(mergeBuffer.getLineDelimiter());
-                mergeBuffer.setBufferSizeBytes(
-                        mergeBuffer.getBufferSizeBytes() + mergeBuffer.getLineDelimiter().length);
-                currentCacheBytes.addAndGet(buffer.getLineDelimiter().length);
-            }
-            mergeBuffer.getBuffer().addAll(buffer.getBuffer());
-            mergeBuffer.setNumOfRecords(mergeBuffer.getNumOfRecords() + buffer.getNumOfRecords());
-            mergeBuffer.setBufferSizeBytes(
-                    mergeBuffer.getBufferSizeBytes() + buffer.getBufferSizeBytes());
-            return true;
         }
 
         /** execute stream load. */

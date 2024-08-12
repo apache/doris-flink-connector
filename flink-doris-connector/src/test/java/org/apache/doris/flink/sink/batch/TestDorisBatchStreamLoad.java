@@ -41,9 +41,13 @@ import org.mockito.MockedStatic;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.apache.doris.flink.sink.batch.TestBatchBufferStream.mergeByteArrays;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
@@ -185,5 +189,52 @@ public class TestDorisBatchStreamLoad {
         if (backendUtilMockedStatic != null) {
             backendUtilMockedStatic.close();
         }
+    }
+
+    @Test
+    public void mergeBufferTest() throws Exception {
+        DorisReadOptions readOptions = DorisReadOptions.builder().build();
+        DorisExecutionOptions executionOptions = DorisExecutionOptions.builder().build();
+        DorisOptions options =
+                DorisOptions.builder()
+                        .setFenodes("127.0.0.1:8030")
+                        .setBenodes("127.0.0.1:9030")
+                        .setTableIdentifier("db.tbl")
+                        .build();
+
+        DorisBatchStreamLoad loader =
+                new DorisBatchStreamLoad(
+                        options, readOptions, executionOptions, new LabelGenerator("xx", false), 0);
+
+        List<BatchRecordBuffer> bufferList = new ArrayList<>();
+        BatchRecordBuffer recordBuffer =
+                new BatchRecordBuffer("db", "tbl", "\n".getBytes(StandardCharsets.UTF_8), 0);
+        recordBuffer.insert("doris,2".getBytes(StandardCharsets.UTF_8));
+        recordBuffer.setLabelName("label2");
+        BatchRecordBuffer buffer =
+                new BatchRecordBuffer("db", "tbl", "\n".getBytes(StandardCharsets.UTF_8), 0);
+        buffer.insert("doris,1".getBytes(StandardCharsets.UTF_8));
+        buffer.setLabelName("label1");
+
+        boolean flag = loader.mergeBuffer(bufferList, buffer);
+        Assert.assertEquals(false, flag);
+
+        bufferList.add(buffer);
+        bufferList.add(recordBuffer);
+        flag = loader.mergeBuffer(bufferList, buffer);
+        Assert.assertEquals(true, flag);
+        byte[] bytes = mergeByteArrays(buffer.getBuffer());
+        Assert.assertArrayEquals(bytes, "doris,1\ndoris,2".getBytes(StandardCharsets.UTF_8));
+
+        // multi table
+        bufferList.clear();
+        bufferList.add(buffer);
+        BatchRecordBuffer recordBuffer2 =
+                new BatchRecordBuffer("db", "tbl2", "\n".getBytes(StandardCharsets.UTF_8), 0);
+        recordBuffer2.insert("doris,3".getBytes(StandardCharsets.UTF_8));
+        recordBuffer2.setLabelName("label3");
+        bufferList.add(recordBuffer2);
+        flag = loader.mergeBuffer(bufferList, buffer);
+        Assert.assertEquals(false, flag);
     }
 }
