@@ -52,6 +52,7 @@ import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_REQUEST_READ
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_REQUEST_RETRIES;
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_TABLET_SIZE;
 import static org.apache.doris.flink.table.DorisConfigOptions.FENODES;
+import static org.apache.doris.flink.table.DorisConfigOptions.FLIGHT_SQL_PORT;
 import static org.apache.doris.flink.table.DorisConfigOptions.IDENTIFIER;
 import static org.apache.doris.flink.table.DorisConfigOptions.JDBC_URL;
 import static org.apache.doris.flink.table.DorisConfigOptions.LOOKUP_CACHE_MAX_ROWS;
@@ -83,6 +84,7 @@ import static org.apache.doris.flink.table.DorisConfigOptions.SOURCE_USE_OLD_API
 import static org.apache.doris.flink.table.DorisConfigOptions.STREAM_LOAD_PROP_PREFIX;
 import static org.apache.doris.flink.table.DorisConfigOptions.TABLE_IDENTIFIER;
 import static org.apache.doris.flink.table.DorisConfigOptions.USERNAME;
+import static org.apache.doris.flink.table.DorisConfigOptions.USE_FLIGHT_SQL;
 
 /**
  * The {@link DorisDynamicTableFactory} translates the catalog table to a table source.
@@ -157,6 +159,9 @@ public final class DorisDynamicTableFactory
         options.add(SOURCE_USE_OLD_API);
         options.add(SINK_WRITE_MODE);
         options.add(SINK_IGNORE_COMMIT_ERROR);
+
+        options.add(USE_FLIGHT_SQL);
+        options.add(FLIGHT_SQL_PORT);
         return options;
     }
 
@@ -216,7 +221,9 @@ public final class DorisDynamicTableFactory
                         (int) readableConfig.get(DORIS_REQUEST_READ_TIMEOUT_MS).toMillis())
                 .setRequestRetries(readableConfig.get(DORIS_REQUEST_RETRIES))
                 .setRequestTabletSize(readableConfig.get(DORIS_TABLET_SIZE))
-                .setUseOldApi(readableConfig.get(SOURCE_USE_OLD_API));
+                .setUseOldApi(readableConfig.get(SOURCE_USE_OLD_API))
+                .setUseFlightSql(readableConfig.get(USE_FLIGHT_SQL))
+                .setFlightSqlPort(readableConfig.get(FLIGHT_SQL_PORT));
         return builder.build();
     }
 
