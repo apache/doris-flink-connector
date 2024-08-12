@@ -84,6 +84,7 @@ public class DorisBatchStreamLoad implements Serializable {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final List<String> DORIS_SUCCESS_STATUS =
             new ArrayList<>(Arrays.asList(SUCCESS, PUBLISH_TIMEOUT));
+    private static final long STREAM_LOAD_MAX_BYTES = 10 * 1024 * 1024 * 1024L; //10 GB
     private final LabelGenerator labelGenerator;
     private final byte[] lineDelimiter;
     private static final String LOAD_URL_PATTERN = "http://%s/api/%s/%s/_stream_load";
@@ -106,9 +107,7 @@ public class DorisBatchStreamLoad implements Serializable {
     private boolean enableGzCompress;
     private int subTaskId;
     private long streamLoadMaxRows = Integer.MAX_VALUE;
-    // todo：Can be configured
-    private long streamLoadMaxBytes = 1024 * 1024 * 1024;
-    private long maxBlockedBytes = 200 * 1024 * 1024;
+    private long maxBlockedBytes;
     private final AtomicLong currentCacheBytes = new AtomicLong(0L);
     private final Lock lock = new ReentrantLock();
     private final Condition block = lock.newCondition();
@@ -146,6 +145,8 @@ public class DorisBatchStreamLoad implements Serializable {
         this.enableGzCompress = loadProps.getProperty(COMPRESS_TYPE, "").equals(COMPRESS_TYPE_GZ);
         this.executionOptions = executionOptions;
         this.flushQueue = new LinkedBlockingDeque<>(executionOptions.getFlushQueueSize());
+        // maxBlockedBytes ensures that a buffer can be written even if the queue is full
+        this.maxBlockedBytes = (long) executionOptions.getBufferFlushMaxBytes() * (executionOptions.getFlushQueueSize() + 1);
         if (StringUtils.isNotBlank(dorisOptions.getTableIdentifier())) {
             String[] tableInfo = dorisOptions.getTableIdentifier().split("\\.");
             Preconditions.checkState(
@@ -216,7 +217,7 @@ public class DorisBatchStreamLoad implements Serializable {
             LOG.info("trigger flush by buffer full, flush: {}", flush);
 
         } else if (buffer.getBufferSizeBytes() >= streamLoadMaxRows
-                || buffer.getNumOfRecords() >= streamLoadMaxBytes) {
+                || buffer.getNumOfRecords() >= STREAM_LOAD_MAX_BYTES) {
             // The buffer capacity exceeds the stream load limit, flush
             boolean flush = bufferFullFlush(bufferKey);
             LOG.info("trigger flush by buffer exceeding the limit, flush: {}", flush);
