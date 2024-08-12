@@ -208,9 +208,9 @@ public class DorisSinkITCase extends DorisTestBase {
                                 + " 'sink.enable.batch-mode' = 'true',"
                                 + " 'sink.enable-delete' = 'true',"
                                 + " 'sink.flush.queue-size' = '2',"
-                                + " 'sink.buffer-flush.max-rows' = '1',"
-                                + " 'sink.buffer-flush.max-bytes' = '5',"
-                                + " 'sink.buffer-flush.interval' = '10s'"
+                                + " 'sink.buffer-flush.max-rows' = '10000',"
+                                + " 'sink.buffer-flush.max-bytes' = '10MB',"
+                                + " 'sink.buffer-flush.interval' = '1s'"
                                 + ")",
                         getFenodes(),
                         DATABASE + "." + TABLE_CSV_BATCH_TBL,
@@ -295,9 +295,9 @@ public class DorisSinkITCase extends DorisTestBase {
                                 + " 'sink.enable.batch-mode' = 'true',"
                                 + " 'sink.enable-delete' = 'true',"
                                 + " 'sink.flush.queue-size' = '2',"
-                                + " 'sink.buffer-flush.max-rows' = '3',"
-                                + " 'sink.buffer-flush.max-bytes' = '5000',"
-                                + " 'sink.buffer-flush.interval' = '10s'"
+                                + " 'sink.buffer-flush.max-rows' = '10000',"
+                                + " 'sink.buffer-flush.max-bytes' = '10MB',"
+                                + " 'sink.buffer-flush.interval' = '1s'"
                                 + ")",
                         getFenodes(),
                         DATABASE + "." + TABLE_GROUP_COMMIT,
