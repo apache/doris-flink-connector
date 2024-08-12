@@ -63,7 +63,7 @@ import static org.apache.flink.cdc.connectors.base.options.SourceOptions.SPLIT_K
 
 public class SqlServerDatabaseSync extends DatabaseSync {
     private static final Logger LOG = LoggerFactory.getLogger(SqlServerDatabaseSync.class);
-    private static final String JDBC_URL = "jdbc:sqlserver://%s:%d;database=%s";
+    private static final String JDBC_URL = "jdbc:sqlserver://%s:%d;database=%s;";
     private static final String PORT = "port";
 
     public SqlServerDatabaseSync() throws SQLException {
@@ -82,9 +82,11 @@ public class SqlServerDatabaseSync extends DatabaseSync {
 
     @Override
     public Connection getConnection() throws SQLException {
+        Properties jdbcProperties = getJdbcProperties();
+        String jdbcUrlTemplate = getJdbcUrlTemplate(JDBC_URL, jdbcProperties);
         String jdbcUrl =
                 String.format(
-                        JDBC_URL,
+                        jdbcUrlTemplate,
                         config.get(JdbcSourceOptions.HOSTNAME),
                         config.getInteger(PORT, 1433),
                         config.get(JdbcSourceOptions.DATABASE_NAME));
@@ -215,5 +217,13 @@ public class SqlServerDatabaseSync extends DatabaseSync {
     @Override
     public String getTableListPrefix() {
         return config.get(JdbcSourceOptions.SCHEMA_NAME);
+    }
+
+    @Override
+    public String getJdbcUrlTemplate(String initialJdbcUrl, Properties jdbcProperties) {
+        StringBuilder jdbcUrlBuilder = new StringBuilder(initialJdbcUrl);
+        jdbcProperties.forEach(
+                (key, value) -> jdbcUrlBuilder.append(key).append("=").append(value).append(";"));
+        return jdbcUrlBuilder.toString();
     }
 }

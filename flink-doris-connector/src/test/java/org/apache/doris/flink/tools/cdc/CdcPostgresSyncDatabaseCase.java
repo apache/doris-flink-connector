@@ -49,6 +49,8 @@ public class CdcPostgresSyncDatabaseCase {
         sourceConfig.put(PostgresSourceOptions.PG_PORT.key(), "5432");
         sourceConfig.put(PostgresSourceOptions.USERNAME.key(), "postgres");
         sourceConfig.put(PostgresSourceOptions.PASSWORD.key(), "123456");
+        // add jdbc properties configuration
+        sourceConfig.put("jdbc.properties.ssl", "false");
         // sourceConfig.put("debezium.database.tablename.case.insensitive","false");
         // sourceConfig.put("scan.incremental.snapshot.enabled","true");
         // sourceConfig.put("debezium.include.schema.changes","false");
