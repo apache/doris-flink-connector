@@ -53,7 +53,7 @@ public abstract class JdbcSourceSchema extends SourceSchema {
             DatabaseMetaData metaData, String databaseName, String schemaName, String tableName)
             throws SQLException {
         LinkedHashMap<String, FieldSchema> fields = new LinkedHashMap<>();
-        LOG.info("Starting to get column info for table: {}", tableName);
+        LOG.debug("Starting to get column info for table: {}", tableName);
         try (ResultSet rs = metaData.getColumns(databaseName, schemaName, tableName, null)) {
             while (rs.next()) {
                 String fieldName = rs.getString("COLUMN_NAME");
@@ -73,7 +73,7 @@ public abstract class JdbcSourceSchema extends SourceSchema {
             }
         }
         Preconditions.checkArgument(!fields.isEmpty(), "The column info of {} is empty", tableName);
-        LOG.info("Successfully retrieved column info for table: {}", tableName);
+        LOG.debug("Successfully retrieved column info for table: {}", tableName);
         return fields;
     }
 
