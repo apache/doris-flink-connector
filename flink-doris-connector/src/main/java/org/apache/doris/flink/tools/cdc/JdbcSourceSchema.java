@@ -68,7 +68,12 @@ public abstract class JdbcSourceSchema extends SourceSchema {
                 if (rs.wasNull()) {
                     scale = null;
                 }
-                String dorisTypeStr = convertToDorisType(fieldType, precision, scale);
+                String dorisTypeStr = null;
+                try {
+                    dorisTypeStr = convertToDorisType(fieldType, precision, scale);
+                } catch (UnsupportedOperationException e) {
+                    throw new UnsupportedOperationException(e + " in table: " + tableName);
+                }
                 fields.put(fieldName, new FieldSchema(fieldName, dorisTypeStr, comment));
             }
         }
