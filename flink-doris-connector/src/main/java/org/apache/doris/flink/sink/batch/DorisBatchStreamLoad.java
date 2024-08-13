@@ -33,6 +33,7 @@ import org.apache.doris.flink.sink.BackendUtil;
 import org.apache.doris.flink.sink.EscapeHandler;
 import org.apache.doris.flink.sink.HttpPutBuilder;
 import org.apache.doris.flink.sink.HttpUtil;
+import org.apache.doris.flink.sink.LoadStatus;
 import org.apache.doris.flink.sink.writer.LabelGenerator;
 import org.apache.http.client.entity.GzipCompressingEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -302,36 +303,43 @@ public class DorisBatchStreamLoad implements Serializable {
                 if (enableGroupCommit) {
                     LOG.info("stream load started with group commit on host {}", hostPort);
                 } else {
-                    LOG.info("stream load started for {} on host {}", label, hostPort);
+                    LOG.info(
+                            "stream load started for {} on host {}",
+                            putBuilder.getLabel(),
+                            hostPort);
                 }
 
                 try (CloseableHttpClient httpClient = httpClientBuilder.build()) {
                     try (CloseableHttpResponse response = httpClient.execute(putBuilder.build())) {
                         int statusCode = response.getStatusLine().getStatusCode();
+                        String reason = response.getStatusLine().toString();
                         if (statusCode == 200 && response.getEntity() != null) {
                             String loadResult = EntityUtils.toString(response.getEntity());
                             LOG.info("load Result {}", loadResult);
                             RespContent respContent =
                                     OBJECT_MAPPER.readValue(loadResult, RespContent.class);
-                            if (!DORIS_SUCCESS_STATUS.contains(respContent.getStatus())) {
+                            if (DORIS_SUCCESS_STATUS.contains(respContent.getStatus())) {
+                                return;
+                            } else if (LoadStatus.LABEL_ALREADY_EXIST.equals(
+                                    respContent.getStatus())) {
+                                // todo: need to abort transaction when JobStatus not finished
+                                putBuilder.setLabel(label + "_" + retry);
+                                reason = respContent.getMessage();
+                            } else {
                                 String errMsg =
                                         String.format(
                                                 "stream load error: %s, see more in %s",
                                                 respContent.getMessage(),
                                                 respContent.getErrorURL());
                                 throw new DorisBatchLoadException(errMsg);
-                            } else {
-                                return;
                             }
                         }
                         LOG.error(
                                 "stream load failed with {}, reason {}, to retry",
                                 hostPort,
-                                response.getStatusLine().toString());
+                                reason);
                         if (retry == executionOptions.getMaxRetries()) {
-                            resEx =
-                                    new DorisRuntimeException(
-                                            "stream load failed with: " + response.getStatusLine());
+                            resEx = new DorisRuntimeException("stream load failed with: " + reason);
                         }
                     } catch (Exception ex) {
                         resEx = ex;

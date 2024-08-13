@@ -117,6 +117,10 @@ public class HttpPutBuilder {
         return this;
     }
 
+    public String getLabel() {
+        return header.get("label");
+    }
+
     public HttpPut build() {
         Preconditions.checkNotNull(url);
         Preconditions.checkNotNull(httpEntity);
