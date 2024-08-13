@@ -234,6 +234,38 @@ public class RestService implements Serializable {
         }
     }
 
+    @VisibleForTesting
+    public static String parseFlightSql(
+            DorisReadOptions readOptions,
+            DorisOptions options,
+            PartitionDefinition partition,
+            Logger logger)
+            throws IllegalArgumentException {
+        String[] tableIdentifiers = parseIdentifier(options.getTableIdentifier(), logger);
+        String readFields =
+                StringUtils.isBlank(readOptions.getReadFields())
+                        ? "*"
+                        : readOptions.getReadFields();
+        String sql =
+                "select "
+                        + readFields
+                        + " from `"
+                        + tableIdentifiers[0]
+                        + "`.`"
+                        + tableIdentifiers[1]
+                        + "`";
+        String tablet =
+                partition.getTabletIds().stream()
+                        .map(Object::toString)
+                        .collect(Collectors.joining(","));
+        sql += "  TABLET(" + tablet + ") ";
+        if (!StringUtils.isEmpty(readOptions.getFilterQuery())) {
+            sql += " where " + readOptions.getFilterQuery();
+        }
+        logger.info("Query SQL Sending to Doris FE is: '{}'.", sql);
+        return sql;
+    }
+
     /**
      * parse table identifier to array.
      *

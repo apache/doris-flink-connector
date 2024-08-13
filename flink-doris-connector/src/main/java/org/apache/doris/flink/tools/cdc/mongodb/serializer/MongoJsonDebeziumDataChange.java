@@ -61,6 +61,7 @@ public class MongoJsonDebeziumDataChange extends CdcDataChange implements Change
     public JsonDebeziumChangeContext changeContext;
     public ObjectMapper objectMapper;
     public Map<String, String> tableMapping;
+    private final boolean enableDelete;
 
     public MongoJsonDebeziumDataChange(JsonDebeziumChangeContext changeContext) {
         this.changeContext = changeContext;
@@ -68,6 +69,7 @@ public class MongoJsonDebeziumDataChange extends CdcDataChange implements Change
         this.objectMapper = changeContext.getObjectMapper();
         this.lineDelimiter = changeContext.getLineDelimiter();
         this.tableMapping = changeContext.getTableMapping();
+        this.enableDelete = changeContext.enableDelete();
     }
 
     @Override
@@ -93,7 +95,7 @@ public class MongoJsonDebeziumDataChange extends CdcDataChange implements Change
                 break;
             case OP_DELETE:
                 valueMap = extractDeleteRow(recordRoot);
-                addDeleteSign(valueMap, true);
+                addDeleteSign(valueMap, enableDelete);
                 break;
             default:
                 LOG.error("parse record fail, unknown op {} in {}", op, record);

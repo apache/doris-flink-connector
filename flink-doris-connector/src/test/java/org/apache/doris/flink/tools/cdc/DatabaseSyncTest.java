@@ -20,16 +20,22 @@ package org.apache.doris.flink.tools.cdc;
 import org.apache.flink.configuration.Configuration;
 
 import org.apache.doris.flink.catalog.doris.TableSchema;
+import org.apache.doris.flink.tools.cdc.db2.Db2DatabaseSync;
 import org.apache.doris.flink.tools.cdc.mysql.MysqlDatabaseSync;
+import org.apache.doris.flink.tools.cdc.postgres.PostgresDatabaseSync;
+import org.apache.doris.flink.tools.cdc.sqlserver.SqlServerDatabaseSync;
 import org.jetbrains.annotations.NotNull;
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 
 import static org.junit.Assert.assertEquals;
@@ -168,5 +174,96 @@ public class DatabaseSyncTest {
         assertFalse("ssb_test.customer".matches(syncTableListPattern));
         assertFalse("ssb_test.dates".matches(syncTableListPattern));
         assertFalse("ssb_test.lineorder".matches(syncTableListPattern));
+    }
+
+    @Test
+    public void getJdbcPropertiesTest() throws Exception {
+        DatabaseSync databaseSync = new MysqlDatabaseSync();
+        Map<String, String> mysqlConfig = new HashMap<>();
+        mysqlConfig.put("jdbc.properties.use_ssl", "false");
+
+        Configuration config = Configuration.fromMap(mysqlConfig);
+        databaseSync.setConfig(config);
+        Properties jdbcProperties = databaseSync.getJdbcProperties();
+        Assert.assertEquals(1, jdbcProperties.size());
+        Assert.assertEquals("false", jdbcProperties.getProperty("use_ssl"));
+    }
+
+    @Test
+    public void getJdbcUrlTemplateTest() throws SQLException {
+        String mysqlJdbcTemplate = "jdbc:mysql://%s:%d?useInformationSchema=true";
+        String postgresJdbcTemplate = "jdbc:postgresql://%s:%d/%s?";
+        String sqlServerJdbcTemplate = "jdbc:sqlserver://%s:%d;database=%s;";
+        String db2JdbcTemplate = "jdbc:db2://%s:%d/%s";
+
+        // mysql jdbc properties configuration
+        DatabaseSync mysqlDatabaseSync = new MysqlDatabaseSync();
+        Map<String, String> mysqlJdbcConfig = new LinkedHashMap<>();
+        mysqlJdbcConfig.put("jdbc.properties.use_ssl", "false");
+
+        DatabaseSync postgresDatabaseSync = new PostgresDatabaseSync();
+        Map<String, String> postgresJdbcConfig = new LinkedHashMap<>();
+        postgresJdbcConfig.put("jdbc.properties.ssl", "false");
+
+        DatabaseSync sqlServerDatabaseSync = new SqlServerDatabaseSync();
+        Map<String, String> sqlServerJdbcConfig = new LinkedHashMap<>();
+        sqlServerJdbcConfig.put("jdbc.properties.encrypt", "false");
+        sqlServerJdbcConfig.put("jdbc.properties.integratedSecurity", "false");
+
+        DatabaseSync db2DatabaseSync = new Db2DatabaseSync();
+        Map<String, String> db2JdbcConfig = new LinkedHashMap<>();
+        db2JdbcConfig.put("jdbc.properties.ssl", "false");
+        db2JdbcConfig.put("jdbc.properties.allowNextOnExhaustedResultSet", "1");
+        db2JdbcConfig.put("jdbc.properties.resultSetHoldability", "1");
+
+        Configuration mysqlConfig = Configuration.fromMap(mysqlJdbcConfig);
+        mysqlDatabaseSync.setConfig(mysqlConfig);
+
+        Configuration postgresConfig = Configuration.fromMap(postgresJdbcConfig);
+        postgresDatabaseSync.setConfig(postgresConfig);
+
+        Configuration sqlServerConfig = Configuration.fromMap(sqlServerJdbcConfig);
+        sqlServerDatabaseSync.setConfig(sqlServerConfig);
+
+        Configuration db2Config = Configuration.fromMap(db2JdbcConfig);
+        db2DatabaseSync.setConfig(db2Config);
+
+        Properties mysqlJdbcProperties = mysqlDatabaseSync.getJdbcProperties();
+        Assert.assertEquals(1, mysqlJdbcProperties.size());
+        Assert.assertEquals("false", mysqlJdbcProperties.getProperty("use_ssl"));
+        String mysqlJdbcUrlTemplate =
+                mysqlDatabaseSync.getJdbcUrlTemplate(mysqlJdbcTemplate, mysqlJdbcProperties);
+        Assert.assertEquals(mysqlJdbcTemplate + "&use_ssl=false", mysqlJdbcUrlTemplate);
+
+        Properties postgresJdbcProperties = postgresDatabaseSync.getJdbcProperties();
+        Assert.assertEquals(1, postgresJdbcProperties.size());
+        Assert.assertEquals("false", postgresJdbcProperties.getProperty("ssl"));
+        String postgresJdbcUrlTemplate =
+                postgresDatabaseSync.getJdbcUrlTemplate(
+                        postgresJdbcTemplate, postgresJdbcProperties);
+        Assert.assertEquals(postgresJdbcTemplate + "&ssl=false", postgresJdbcUrlTemplate);
+
+        Properties sqlServerJdbcProperties = sqlServerDatabaseSync.getJdbcProperties();
+        Assert.assertEquals(2, sqlServerJdbcProperties.size());
+        Assert.assertEquals("false", sqlServerJdbcProperties.getProperty("encrypt"));
+        Assert.assertEquals("false", sqlServerJdbcProperties.getProperty("integratedSecurity"));
+        String sqlServerJdbcUrlTemplate =
+                sqlServerDatabaseSync.getJdbcUrlTemplate(
+                        sqlServerJdbcTemplate, sqlServerJdbcProperties);
+        Assert.assertEquals(
+                sqlServerJdbcTemplate + "encrypt=false;integratedSecurity=false;",
+                sqlServerJdbcUrlTemplate);
+
+        Properties db2JdbcProperties = db2DatabaseSync.getJdbcProperties();
+        Assert.assertEquals(3, db2JdbcProperties.size());
+        Assert.assertEquals("false", db2JdbcProperties.getProperty("ssl"));
+        Assert.assertEquals("1", db2JdbcProperties.getProperty("allowNextOnExhaustedResultSet"));
+        Assert.assertEquals("1", db2JdbcProperties.getProperty("resultSetHoldability"));
+        String db2JdbcUrlTemplate =
+                db2DatabaseSync.getJdbcUrlTemplate(db2JdbcTemplate, db2JdbcProperties);
+        Assert.assertEquals(
+                db2JdbcTemplate
+                        + ":allowNextOnExhaustedResultSet=1;ssl=false;resultSetHoldability=1;",
+                db2JdbcUrlTemplate);
     }
 }

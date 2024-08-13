@@ -47,6 +47,9 @@ public class CdcSqlServerSyncDatabaseCase {
         sourceConfig.put(DatabaseSyncConfig.PORT, "1433");
         sourceConfig.put(JdbcSourceOptions.USERNAME.key(), "sa");
         sourceConfig.put(JdbcSourceOptions.PASSWORD.key(), "Passw@rd");
+        // add jdbc properties configuration
+        sourceConfig.put("jdbc.properties.encrypt", "false");
+        sourceConfig.put("jdbc.properties.integratedSecurity", "false");
         // sourceConfig.put("debezium.database.tablename.case.insensitive","false");
         // sourceConfig.put("scan.incremental.snapshot.enabled","true");
         // sourceConfig.put("debezium.include.schema.changes","false");
