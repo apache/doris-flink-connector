@@ -49,6 +49,10 @@ public class CdcDb2SyncDatabaseCase {
         sourceConfig.put(JdbcSourceOptions.USERNAME.key(), "db2inst1");
         sourceConfig.put(JdbcSourceOptions.PASSWORD.key(), "=doris123456");
         sourceConfig.put(SourceOptions.SCAN_INCREMENTAL_SNAPSHOT_ENABLED.key(), "true");
+        // add jdbc properties configuration
+        sourceConfig.put("jdbc.properties.allowNextOnExhaustedResultSet", "1");
+        sourceConfig.put("jdbc.properties.resultSetHoldability", "1");
+        sourceConfig.put("jdbc.properties.SSL", "false");
 
         Configuration config = Configuration.fromMap(sourceConfig);
 

@@ -37,6 +37,8 @@ public class DorisReadOptions implements Serializable {
     private Integer deserializeQueueSize;
     private Boolean deserializeArrowAsync;
     private boolean useOldApi;
+    private boolean useFlightSql;
+    private Integer flightSqlPort;
 
     public DorisReadOptions(
             String readFields,
@@ -50,7 +52,9 @@ public class DorisReadOptions implements Serializable {
             Long execMemLimit,
             Integer deserializeQueueSize,
             Boolean deserializeArrowAsync,
-            boolean useOldApi) {
+            boolean useOldApi,
+            boolean useFlightSql,
+            Integer flightSqlPort) {
         this.readFields = readFields;
         this.filterQuery = filterQuery;
         this.requestTabletSize = requestTabletSize;
@@ -63,6 +67,8 @@ public class DorisReadOptions implements Serializable {
         this.deserializeQueueSize = deserializeQueueSize;
         this.deserializeArrowAsync = deserializeArrowAsync;
         this.useOldApi = useOldApi;
+        this.useFlightSql = useFlightSql;
+        this.flightSqlPort = flightSqlPort;
     }
 
     public String getReadFields() {
@@ -121,6 +127,14 @@ public class DorisReadOptions implements Serializable {
         this.filterQuery = filterQuery;
     }
 
+    public boolean getUseFlightSql() {
+        return useFlightSql;
+    }
+
+    public Integer getFlightSqlPort() {
+        return flightSqlPort;
+    }
+
     public static Builder builder() {
         return new Builder();
     }
@@ -149,7 +163,9 @@ public class DorisReadOptions implements Serializable {
                 && Objects.equals(requestBatchSize, that.requestBatchSize)
                 && Objects.equals(execMemLimit, that.execMemLimit)
                 && Objects.equals(deserializeQueueSize, that.deserializeQueueSize)
-                && Objects.equals(deserializeArrowAsync, that.deserializeArrowAsync);
+                && Objects.equals(deserializeArrowAsync, that.deserializeArrowAsync)
+                && Objects.equals(useFlightSql, that.useFlightSql)
+                && Objects.equals(flightSqlPort, that.flightSqlPort);
     }
 
     @Override
@@ -166,7 +182,9 @@ public class DorisReadOptions implements Serializable {
                 execMemLimit,
                 deserializeQueueSize,
                 deserializeArrowAsync,
-                useOldApi);
+                useOldApi,
+                useFlightSql,
+                flightSqlPort);
     }
 
     /** Builder of {@link DorisReadOptions}. */
@@ -184,6 +202,8 @@ public class DorisReadOptions implements Serializable {
         private Integer deserializeQueueSize;
         private Boolean deserializeArrowAsync;
         private Boolean useOldApi = false;
+        private Boolean useFlightSql = false;
+        private Integer flightSqlPort;
 
         public Builder setReadFields(String readFields) {
             this.readFields = readFields;
@@ -240,8 +260,18 @@ public class DorisReadOptions implements Serializable {
             return this;
         }
 
-        public Builder setUseOldApi(boolean useOldApi) {
+        public Builder setUseFlightSql(Boolean useFlightSql) {
+            this.useFlightSql = useFlightSql;
+            return this;
+        }
+
+        public Builder setUseOldApi(Boolean useOldApi) {
             this.useOldApi = useOldApi;
+            return this;
+        }
+
+        public Builder setFlightSqlPort(Integer flightSqlPort) {
+            this.flightSqlPort = flightSqlPort;
             return this;
         }
 
@@ -258,7 +288,9 @@ public class DorisReadOptions implements Serializable {
                     execMemLimit,
                     deserializeQueueSize,
                     deserializeArrowAsync,
-                    useOldApi);
+                    useOldApi,
+                    useFlightSql,
+                    flightSqlPort);
         }
     }
 }

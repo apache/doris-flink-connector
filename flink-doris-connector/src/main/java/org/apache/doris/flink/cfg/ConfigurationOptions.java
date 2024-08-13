@@ -51,4 +51,10 @@ public interface ConfigurationOptions {
     Boolean DORIS_DESERIALIZE_ARROW_ASYNC_DEFAULT = false;
     String DORIS_DESERIALIZE_QUEUE_SIZE = "doris.deserialize.queue.size";
     Integer DORIS_DESERIALIZE_QUEUE_SIZE_DEFAULT = 64;
+
+    String USE_FLIGHT_SQL = "source.use-flight-sql";
+    Boolean USE_FLIGHT_SQL_DEFAULT = false;
+
+    String FLIGHT_SQL_PORT = "source.flight-sql-port";
+    Integer FLIGHT_SQL_PORT_DEFAULT = 9040;
 }

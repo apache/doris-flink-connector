@@ -44,11 +44,13 @@ import org.apache.arrow.vector.complex.impl.DateDayReaderImpl;
 import org.apache.arrow.vector.complex.impl.TimeStampMicroReaderImpl;
 import org.apache.arrow.vector.complex.impl.UnionMapReader;
 import org.apache.arrow.vector.complex.reader.FieldReader;
+import org.apache.arrow.vector.ipc.ArrowReader;
 import org.apache.arrow.vector.ipc.ArrowStreamReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.doris.flink.exception.DorisException;
 import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.apache.doris.flink.rest.models.Schema;
+import org.apache.doris.flink.util.FastDateUtil;
 import org.apache.doris.flink.util.IPUtils;
 import org.apache.doris.sdk.thrift.TScanBatchResult;
 import org.slf4j.Logger;
@@ -58,6 +60,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -96,18 +99,19 @@ public class RowBatch {
     private int rowCountInOneBatch = 0;
     private int readRowCount = 0;
     private final List<Row> rowBatch = new ArrayList<>();
-    private final ArrowStreamReader arrowStreamReader;
+    private final ArrowReader arrowStreamReader;
     private VectorSchemaRoot root;
     private List<FieldVector> fieldVectors;
     private RootAllocator rootAllocator;
     private final Schema schema;
     private static final String DATETIME_PATTERN = "yyyy-MM-dd HH:mm:ss";
     private static final String DATETIMEV2_PATTERN = "yyyy-MM-dd HH:mm:ss.SSSSSS";
+    private static final String DATE_PATTERN = "yyyy-MM-dd";
     private final DateTimeFormatter dateTimeFormatter =
             DateTimeFormatter.ofPattern(DATETIME_PATTERN);
     private final DateTimeFormatter dateTimeV2Formatter =
             DateTimeFormatter.ofPattern(DATETIMEV2_PATTERN);
-    private final DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    private final DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern(DATE_PATTERN);
     private static final ZoneId DEFAULT_ZONE_ID = ZoneId.systemDefault();
 
     public List<Row> getRowBatch() {
@@ -121,6 +125,43 @@ public class RowBatch {
                 new ArrowStreamReader(
                         new ByteArrayInputStream(nextResult.getRows()), rootAllocator);
         this.offsetInRowBatch = 0;
+    }
+
+    public RowBatch(ArrowReader nextResult, Schema schema) {
+        this.schema = schema;
+        this.arrowStreamReader = nextResult;
+        this.offsetInRowBatch = 0;
+    }
+
+    public RowBatch readFlightArrow() {
+        try {
+            this.root = arrowStreamReader.getVectorSchemaRoot();
+            fieldVectors = root.getFieldVectors();
+            if (fieldVectors.size() > schema.size()) {
+                logger.error(
+                        "Schema size '{}' is not equal to arrow field size '{}'.",
+                        fieldVectors.size(),
+                        schema.size());
+                throw new DorisException(
+                        "Load Doris data failed, schema size of fetch data is wrong.");
+            }
+            if (fieldVectors.isEmpty() || root.getRowCount() == 0) {
+                logger.debug("One batch in arrow has no data.");
+                return null;
+            }
+            rowCountInOneBatch = root.getRowCount();
+            for (int i = 0; i < rowCountInOneBatch; ++i) {
+                rowBatch.add(new RowBatch.Row(fieldVectors.size()));
+            }
+            convertArrowToRowBatch();
+            readRowCount += root.getRowCount();
+            return this;
+        } catch (DorisException e) {
+            logger.error("Read Doris Data failed because: ", e);
+            throw new DorisRuntimeException(e.getMessage());
+        } catch (IOException e) {
+            return this;
+        }
     }
 
     public RowBatch readArrow() {
@@ -297,6 +338,7 @@ public class RowBatch {
             case "DECIMAL32":
             case "DECIMAL64":
             case "DECIMAL128I":
+            case "DECIMAL128":
                 if (!minorType.equals(Types.MinorType.DECIMAL)) {
                     return false;
                 }
@@ -320,8 +362,8 @@ public class RowBatch {
                         addValueToRow(rowIndex, null);
                         break;
                     }
-                    String stringValue = new String(date.get(rowIndex));
-                    LocalDate localDate = LocalDate.parse(stringValue, dateFormatter);
+                    String stringValue = new String(date.get(rowIndex), StandardCharsets.UTF_8);
+                    LocalDate localDate = FastDateUtil.fastParseDate(stringValue, DATE_PATTERN);
                     addValueToRow(rowIndex, localDate);
                 } else {
                     DateDayVector date = (DateDayVector) fieldVector;
@@ -340,8 +382,11 @@ public class RowBatch {
                         addValueToRow(rowIndex, null);
                         break;
                     }
-                    String stringValue = new String(varCharVector.get(rowIndex));
-                    LocalDateTime parse = LocalDateTime.parse(stringValue, dateTimeFormatter);
+                    String stringValue =
+                            new String(varCharVector.get(rowIndex), StandardCharsets.UTF_8);
+                    stringValue = completeMilliseconds(stringValue);
+                    LocalDateTime parse =
+                            FastDateUtil.fastParseDateTime(stringValue, DATETIME_PATTERN);
                     addValueToRow(rowIndex, parse);
                 } else if (fieldVector instanceof TimeStampVector) {
                     LocalDateTime dateTime = getDateTime(rowIndex, fieldVector);
@@ -361,9 +406,11 @@ public class RowBatch {
                         addValueToRow(rowIndex, null);
                         break;
                     }
-                    String stringValue = new String(varCharVector.get(rowIndex));
+                    String stringValue =
+                            new String(varCharVector.get(rowIndex), StandardCharsets.UTF_8);
                     stringValue = completeMilliseconds(stringValue);
-                    LocalDateTime parse = LocalDateTime.parse(stringValue, dateTimeV2Formatter);
+                    LocalDateTime parse =
+                            FastDateUtil.fastParseDateTimeV2(stringValue, DATETIMEV2_PATTERN);
                     addValueToRow(rowIndex, parse);
                 } else if (fieldVector instanceof TimeStampVector) {
                     LocalDateTime dateTime = getDateTime(rowIndex, fieldVector);
@@ -405,7 +452,8 @@ public class RowBatch {
                         addValueToRow(rowIndex, null);
                         break;
                     }
-                    String stringValue = new String(largeIntVector.get(rowIndex));
+                    String stringValue =
+                            new String(largeIntVector.get(rowIndex), StandardCharsets.UTF_8);
                     BigInteger largeInt = new BigInteger(stringValue);
                     addValueToRow(rowIndex, largeInt);
                     break;
@@ -423,7 +471,8 @@ public class RowBatch {
                     addValueToRow(rowIndex, null);
                     break;
                 }
-                String stringValue = new String(varCharVector.get(rowIndex));
+                String stringValue =
+                        new String(varCharVector.get(rowIndex), StandardCharsets.UTF_8);
                 addValueToRow(rowIndex, stringValue);
                 break;
             case "IPV6":
@@ -435,7 +484,8 @@ public class RowBatch {
                     addValueToRow(rowIndex, null);
                     break;
                 }
-                String ipv6Str = new String(ipv6VarcharVector.get(rowIndex));
+                String ipv6Str =
+                        new String(ipv6VarcharVector.get(rowIndex), StandardCharsets.UTF_8);
                 String ipv6Address = IPUtils.fromBigInteger(new BigInteger(ipv6Str));
                 addValueToRow(rowIndex, ipv6Address);
                 break;
@@ -526,6 +576,14 @@ public class RowBatch {
         return LocalDateTime.ofInstant(instant, DEFAULT_ZONE_ID);
     }
 
+    /**
+     * use case when to replace while "Benchmark","Mode","Threads","Samples","Score","Score Error.
+     * (99.9%)","Unit" "CaseWhenTest", "thrpt", 1, 5, 40657433.897696, 2515802.067503,"ops/s"
+     * "WhileTest", "thrpt", 1, 5, 9708130.819491, 1207453.635429,"ops/s"
+     *
+     * @param stringValue
+     * @return
+     */
     @VisibleForTesting
     public static String completeMilliseconds(String stringValue) {
         if (stringValue.length() == DATETIMEV2_PATTERN.length()) {
@@ -536,14 +594,26 @@ public class RowBatch {
             return stringValue;
         }
 
-        StringBuilder sb = new StringBuilder(stringValue);
         if (stringValue.length() == DATETIME_PATTERN.length()) {
-            sb.append(".");
+            stringValue += ".";
         }
-        while (sb.toString().length() < DATETIMEV2_PATTERN.length()) {
-            sb.append(0);
+        int s = DATETIMEV2_PATTERN.length() - stringValue.length();
+        switch (s) {
+            case 1:
+                return stringValue + "0";
+            case 2:
+                return stringValue + "00";
+            case 3:
+                return stringValue + "000";
+            case 4:
+                return stringValue + "0000";
+            case 5:
+                return stringValue + "00000";
+            case 6:
+                return stringValue + "000000";
+            default:
+                return stringValue;
         }
-        return sb.toString();
     }
 
     public List<Object> next() {
