@@ -116,7 +116,7 @@ fi
 
 selectFlink() {
   echo 'Flink-Doris-Connector supports multiple versions of flink. Which version do you need ?'
-  select flink in "1.15.x" "1.16.x" "1.17.x" "1.18.x" "1.19.x"
+  select flink in "1.15.x" "1.16.x" "1.17.x" "1.18.x" "1.19.x" "1.20.x"
   do
     case $flink in
       "1.15.x")
@@ -133,6 +133,9 @@ selectFlink() {
         ;;
       "1.19.x")
         return 5
+        ;;
+      "1.20.x")
+        return 6
         ;;
       *)
         echo "invalid selected, exit.."
@@ -157,6 +160,8 @@ elif [ ${flinkVer} -eq 4 ]; then
     FLINK_VERSION="1.18.0"
 elif [ ${flinkVer} -eq 5 ]; then
     FLINK_VERSION="1.19.0"
+elif [ ${flinkVer} -eq 6 ]; then
+    FLINK_VERSION="1.20.0"
 fi
 
 # extract major version:
