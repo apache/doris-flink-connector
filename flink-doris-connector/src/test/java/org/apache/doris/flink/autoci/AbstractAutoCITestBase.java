@@ -32,12 +32,13 @@ public abstract class AbstractAutoCITestBase {
 
     @BeforeClass
     public static void initContainers() {
-        LOG.info("Starting to init auto ci containers.");
+        LOG.info("Trying to start auto ci containers.");
         initDorisContainer();
     }
 
     private static void initDorisContainer() {
         if (Objects.nonNull(dorisContainerService)) {
+            LOG.info("The doris container has been started and will be used directly.");
             return;
         }
         dorisContainerService = new DorisContainerService();

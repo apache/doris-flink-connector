@@ -27,8 +27,8 @@ import org.slf4j.LoggerFactory;
 import java.util.Arrays;
 import java.util.List;
 
-public class Mysql2DorisService extends AbstractE2EService {
-    private static final Logger LOG = LoggerFactory.getLogger(Mysql2DorisService.class);
+public class Mysql2DorisE2ECase extends AbstractE2EService {
+    private static final Logger LOG = LoggerFactory.getLogger(Mysql2DorisE2ECase.class);
     private static final String DATABASE = "test_e2e_mysql";
     private static final String CREATE_DATABASE = "CREATE DATABASE IF NOT EXISTS " + DATABASE;
     private static final String MYSQL_CONF = "--" + DatabaseSyncConfig.MYSQL_CONF;

@@ -96,11 +96,6 @@ public class DorisContainerService implements ContainerService {
             throw new DorisRuntimeException("Failed to start containers doris", ex);
         }
         LOG.info("Doris container started successfully.");
-        try {
-            Thread.sleep(20000);
-        } catch (InterruptedException e) {
-            throw new DorisRuntimeException(e);
-        }
     }
 
     @Override

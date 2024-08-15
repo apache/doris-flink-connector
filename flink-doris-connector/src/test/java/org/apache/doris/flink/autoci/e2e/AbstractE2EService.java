@@ -55,12 +55,13 @@ public abstract class AbstractE2EService extends AbstractAutoCITestBase {
 
     @BeforeClass
     public static void initE2EContainers() {
-        LOG.info("Starting to init E2E containers.");
+        LOG.info("Trying to Start init E2E containers.");
         initMySQLContainer();
     }
 
     private static void initMySQLContainer() {
         if (Objects.nonNull(mysqlContainerService)) {
+            LOG.info("The MySQL container has been started and will be used directly.");
             return;
         }
         mysqlContainerService = new MySQLContainerService();

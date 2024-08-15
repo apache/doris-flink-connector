@@ -33,8 +33,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-public class Doris2DorisService extends AbstractE2EService {
-    private static final Logger LOG = LoggerFactory.getLogger(Doris2DorisService.class);
+public class Doris2DorisE2ECase extends AbstractE2EService {
+    private static final Logger LOG = LoggerFactory.getLogger(Doris2DorisE2ECase.class);
     private static final String DATABASE_SOURCE = "test_doris2doris_source";
     private static final String DATABASE_SINK = "test_doris2doris_sink";
     private static final String TABLE = "test_tbl";
