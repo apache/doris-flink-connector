@@ -208,9 +208,9 @@ public class DorisSinkITCase extends DorisTestBase {
                                 + " 'sink.enable.batch-mode' = 'true',"
                                 + " 'sink.enable-delete' = 'true',"
                                 + " 'sink.flush.queue-size' = '2',"
-                                + " 'sink.buffer-flush.max-rows' = '1',"
-                                + " 'sink.buffer-flush.max-bytes' = '5',"
-                                + " 'sink.buffer-flush.interval' = '10s'"
+                                + " 'sink.buffer-flush.max-rows' = '10000',"
+                                + " 'sink.buffer-flush.max-bytes' = '10MB',"
+                                + " 'sink.buffer-flush.interval' = '1s'"
                                 + ")",
                         getFenodes(),
                         DATABASE + "." + TABLE_CSV_BATCH_TBL,
@@ -219,7 +219,7 @@ public class DorisSinkITCase extends DorisTestBase {
         tEnv.executeSql(sinkDDL);
         tEnv.executeSql("INSERT INTO doris_sink SELECT 'doris',1 union all SELECT 'flink',2");
 
-        Thread.sleep(10000);
+        Thread.sleep(20000);
         List<String> expected = Arrays.asList("doris,1", "flink,2");
         String query =
                 String.format(
@@ -248,8 +248,9 @@ public class DorisSinkITCase extends DorisTestBase {
         executionBuilder
                 .setLabelPrefix(UUID.randomUUID().toString())
                 .setStreamLoadProp(properties)
-                .setBufferFlushMaxBytes(1)
-                .setBufferFlushMaxRows(10);
+                .setBufferFlushMaxBytes(10485760)
+                .setBufferFlushMaxRows(10000)
+                .setBufferFlushIntervalMs(1000);
 
         builder.setDorisExecutionOptions(executionBuilder.build())
                 .setSerializer(new SimpleStringSerializer())
@@ -258,7 +259,7 @@ public class DorisSinkITCase extends DorisTestBase {
         env.fromElements("doris,1", "flink,2").sinkTo(builder.build());
         env.execute();
 
-        Thread.sleep(10000);
+        Thread.sleep(20000);
         List<String> expected = Arrays.asList("doris,1", "flink,2");
         String query =
                 String.format(
@@ -295,9 +296,9 @@ public class DorisSinkITCase extends DorisTestBase {
                                 + " 'sink.enable.batch-mode' = 'true',"
                                 + " 'sink.enable-delete' = 'true',"
                                 + " 'sink.flush.queue-size' = '2',"
-                                + " 'sink.buffer-flush.max-rows' = '3',"
-                                + " 'sink.buffer-flush.max-bytes' = '5000',"
-                                + " 'sink.buffer-flush.interval' = '10s'"
+                                + " 'sink.buffer-flush.max-rows' = '10000',"
+                                + " 'sink.buffer-flush.max-bytes' = '10MB',"
+                                + " 'sink.buffer-flush.interval' = '1s'"
                                 + ")",
                         getFenodes(),
                         DATABASE + "." + TABLE_GROUP_COMMIT,

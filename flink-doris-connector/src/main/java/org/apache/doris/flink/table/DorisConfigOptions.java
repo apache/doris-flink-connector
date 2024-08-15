@@ -275,14 +275,14 @@ public class DorisConfigOptions {
     public static final ConfigOption<Integer> SINK_BUFFER_FLUSH_MAX_ROWS =
             ConfigOptions.key("sink.buffer-flush.max-rows")
                     .intType()
-                    .defaultValue(50000)
+                    .defaultValue(500000)
                     .withDescription(
                             "The maximum number of flush items in each batch, the default is 5w");
 
     public static final ConfigOption<MemorySize> SINK_BUFFER_FLUSH_MAX_BYTES =
             ConfigOptions.key("sink.buffer-flush.max-bytes")
                     .memoryType()
-                    .defaultValue(MemorySize.parse("10mb"))
+                    .defaultValue(MemorySize.parse("100mb"))
                     .withDescription(
                             "The maximum number of bytes flushed in each batch, the default is 10MB");
 

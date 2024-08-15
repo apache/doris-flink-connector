@@ -17,7 +17,11 @@
 
 package org.apache.doris.flink.tools.cdc;
 
+import org.apache.flink.util.Preconditions;
+
 import org.apache.doris.flink.catalog.doris.FieldSchema;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
@@ -31,6 +35,7 @@ import java.util.List;
  * databases.
  */
 public abstract class JdbcSourceSchema extends SourceSchema {
+    private static final Logger LOG = LoggerFactory.getLogger(JdbcSourceSchema.class);
 
     public JdbcSourceSchema(
             DatabaseMetaData metaData,
@@ -48,7 +53,7 @@ public abstract class JdbcSourceSchema extends SourceSchema {
             DatabaseMetaData metaData, String databaseName, String schemaName, String tableName)
             throws SQLException {
         LinkedHashMap<String, FieldSchema> fields = new LinkedHashMap<>();
-        //
+        LOG.debug("Starting to get column info for table: {}", tableName);
         try (ResultSet rs = metaData.getColumns(databaseName, schemaName, tableName, null)) {
             while (rs.next()) {
                 String fieldName = rs.getString("COLUMN_NAME");
@@ -63,10 +68,17 @@ public abstract class JdbcSourceSchema extends SourceSchema {
                 if (rs.wasNull()) {
                     scale = null;
                 }
-                String dorisTypeStr = convertToDorisType(fieldType, precision, scale);
+                String dorisTypeStr = null;
+                try {
+                    dorisTypeStr = convertToDorisType(fieldType, precision, scale);
+                } catch (UnsupportedOperationException e) {
+                    throw new UnsupportedOperationException(e + " in table: " + tableName);
+                }
                 fields.put(fieldName, new FieldSchema(fieldName, dorisTypeStr, comment));
             }
         }
+        Preconditions.checkArgument(!fields.isEmpty(), "The column info of {} is empty", tableName);
+        LOG.debug("Successfully retrieved column info for table: {}", tableName);
         return fields;
     }
 

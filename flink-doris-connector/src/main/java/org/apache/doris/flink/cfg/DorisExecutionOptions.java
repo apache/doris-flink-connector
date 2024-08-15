@@ -40,8 +40,8 @@ public class DorisExecutionOptions implements Serializable {
     private static final int DEFAULT_BUFFER_COUNT = 3;
     // batch flush
     private static final int DEFAULT_FLUSH_QUEUE_SIZE = 2;
-    private static final int DEFAULT_BUFFER_FLUSH_MAX_ROWS = 50000;
-    private static final int DEFAULT_BUFFER_FLUSH_MAX_BYTES = 10 * 1024 * 1024;
+    private static final int DEFAULT_BUFFER_FLUSH_MAX_ROWS = 500000;
+    private static final int DEFAULT_BUFFER_FLUSH_MAX_BYTES = 100 * 1024 * 1024;
     private static final long DEFAULT_BUFFER_FLUSH_INTERVAL_MS = 10 * 1000;
     private final int checkInterval;
     private final int maxRetries;
@@ -358,9 +358,6 @@ public class DorisExecutionOptions implements Serializable {
         }
 
         public Builder setBufferFlushIntervalMs(long bufferFlushIntervalMs) {
-            Preconditions.checkState(
-                    bufferFlushIntervalMs >= 1000,
-                    "bufferFlushIntervalMs must be greater than or equal to 1 second");
             this.bufferFlushIntervalMs = bufferFlushIntervalMs;
             return this;
         }
@@ -397,6 +394,19 @@ public class DorisExecutionOptions implements Serializable {
                     && JSON.equals(streamLoadProp.getProperty(FORMAT_KEY))) {
                 streamLoadProp.put(READ_JSON_BY_LINE, true);
             }
+
+            Preconditions.checkArgument(
+                    bufferFlushIntervalMs >= 1000,
+                    "bufferFlushIntervalMs must be greater than or equal to 1 second");
+
+            Preconditions.checkArgument(
+                    bufferFlushMaxRows >= 10000,
+                    "bufferFlushMaxRows must be greater than or equal to 10000");
+
+            Preconditions.checkArgument(
+                    bufferFlushMaxBytes >= 10485760,
+                    "bufferFlushMaxBytes must be greater than or equal to 10485760(10MB)");
+
             return new DorisExecutionOptions(
                     checkInterval,
                     maxRetries,

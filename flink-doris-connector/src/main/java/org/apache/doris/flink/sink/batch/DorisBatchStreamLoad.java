@@ -37,7 +37,6 @@ import org.apache.doris.flink.sink.LoadStatus;
 import org.apache.doris.flink.sink.writer.LabelGenerator;
 import org.apache.http.client.entity.GzipCompressingEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.util.EntityUtils;
@@ -46,7 +45,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -62,7 +60,11 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 import static org.apache.doris.flink.sink.LoadStatus.PUBLISH_TIMEOUT;
 import static org.apache.doris.flink.sink.LoadStatus.SUCCESS;
@@ -83,6 +85,8 @@ public class DorisBatchStreamLoad implements Serializable {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final List<String> DORIS_SUCCESS_STATUS =
             new ArrayList<>(Arrays.asList(SUCCESS, PUBLISH_TIMEOUT));
+    private static final long STREAM_LOAD_MAX_BYTES = 10 * 1024 * 1024 * 1024L; // 10 GB
+    private static final long STREAM_LOAD_MAX_ROWS = Integer.MAX_VALUE;
     private final LabelGenerator labelGenerator;
     private final byte[] lineDelimiter;
     private static final String LOAD_URL_PATTERN = "http://%s/api/%s/%s/_stream_load";
@@ -104,6 +108,10 @@ public class DorisBatchStreamLoad implements Serializable {
     private boolean enableGroupCommit;
     private boolean enableGzCompress;
     private int subTaskId;
+    private long maxBlockedBytes;
+    private final AtomicLong currentCacheBytes = new AtomicLong(0L);
+    private final Lock lock = new ReentrantLock();
+    private final Condition block = lock.newCondition();
 
     public DorisBatchStreamLoad(
             DorisOptions dorisOptions,
@@ -138,6 +146,10 @@ public class DorisBatchStreamLoad implements Serializable {
         this.enableGzCompress = loadProps.getProperty(COMPRESS_TYPE, "").equals(COMPRESS_TYPE_GZ);
         this.executionOptions = executionOptions;
         this.flushQueue = new LinkedBlockingDeque<>(executionOptions.getFlushQueueSize());
+        // maxBlockedBytes ensures that a buffer can be written even if the queue is full
+        this.maxBlockedBytes =
+                (long) executionOptions.getBufferFlushMaxBytes()
+                        * (executionOptions.getFlushQueueSize() + 1);
         if (StringUtils.isNotBlank(dorisOptions.getTableIdentifier())) {
             String[] tableInfo = dorisOptions.getTableIdentifier().split("\\.");
             Preconditions.checkState(
@@ -145,7 +157,7 @@ public class DorisBatchStreamLoad implements Serializable {
                     "tableIdentifier input error, the format is database.table");
             this.loadUrl = String.format(LOAD_URL_PATTERN, hostPort, tableInfo[0], tableInfo[1]);
         }
-        this.loadAsyncExecutor = new LoadAsyncExecutor();
+        this.loadAsyncExecutor = new LoadAsyncExecutor(executionOptions.getFlushQueueSize());
         this.loadExecutorService =
                 new ThreadPoolExecutor(
                         1,
@@ -166,10 +178,10 @@ public class DorisBatchStreamLoad implements Serializable {
      * @param record
      * @throws IOException
      */
-    public synchronized void writeRecord(String database, String table, byte[] record)
-            throws InterruptedException {
+    public synchronized void writeRecord(String database, String table, byte[] record) {
         checkFlushException();
         String bufferKey = getTableIdentifier(database, table);
+
         BatchRecordBuffer buffer =
                 bufferMap.computeIfAbsent(
                         bufferKey,
@@ -178,30 +190,91 @@ public class DorisBatchStreamLoad implements Serializable {
                                         database,
                                         table,
                                         this.lineDelimiter,
-                                        executionOptions.getBufferFlushMaxBytes()));
-        buffer.insert(record);
-        // When it exceeds 80% of the byteSize,to flush, to avoid triggering bytebuffer expansion
-        if (buffer.getBufferSizeBytes() >= executionOptions.getBufferFlushMaxBytes() * 0.8
-                || (executionOptions.getBufferFlushMaxRows() != 0
-                        && buffer.getNumOfRecords() >= executionOptions.getBufferFlushMaxRows())) {
-            flush(bufferKey, false);
+                                        executionOptions.getBufferFlushIntervalMs()));
+
+        int bytes = buffer.insert(record);
+        currentCacheBytes.addAndGet(bytes);
+        if (currentCacheBytes.get() > maxBlockedBytes) {
+            lock.lock();
+            try {
+                while (currentCacheBytes.get() >= maxBlockedBytes) {
+                    LOG.info(
+                            "Cache full, waiting for flush, currentBytes: {}, maxBlockedBytes: {}",
+                            currentCacheBytes.get(),
+                            maxBlockedBytes);
+                    block.await(1, TimeUnit.SECONDS);
+                }
+            } catch (InterruptedException e) {
+                this.exception.set(e);
+                throw new RuntimeException(e);
+            } finally {
+                lock.unlock();
+            }
+        }
+
+        // queue has space, flush according to the bufferMaxRows/bufferMaxBytes
+        if (flushQueue.size() < executionOptions.getFlushQueueSize()
+                && (buffer.getBufferSizeBytes() >= executionOptions.getBufferFlushMaxBytes()
+                        || buffer.getNumOfRecords() >= executionOptions.getBufferFlushMaxRows())) {
+            boolean flush = bufferFullFlush(bufferKey);
+            LOG.info("trigger flush by buffer full, flush: {}", flush);
+
+        } else if (buffer.getBufferSizeBytes() >= STREAM_LOAD_MAX_BYTES
+                || buffer.getNumOfRecords() >= STREAM_LOAD_MAX_ROWS) {
+            // The buffer capacity exceeds the stream load limit, flush
+            boolean flush = bufferFullFlush(bufferKey);
+            LOG.info("trigger flush by buffer exceeding the limit, flush: {}", flush);
         }
     }
 
-    public synchronized void flush(String bufferKey, boolean waitUtilDone)
-            throws InterruptedException {
+    public synchronized boolean bufferFullFlush(String bufferKey) {
+        return doFlush(bufferKey, false, true);
+    }
+
+    public synchronized boolean intervalFlush() {
+        return doFlush(null, false, false);
+    }
+
+    public synchronized boolean checkpointFlush() {
+        return doFlush(null, true, false);
+    }
+
+    private synchronized boolean doFlush(
+            String bufferKey, boolean waitUtilDone, boolean bufferFull) {
         checkFlushException();
+        if (waitUtilDone || bufferFull) {
+            boolean flush = flush(bufferKey, waitUtilDone);
+            return flush;
+        } else if (flushQueue.size() < executionOptions.getFlushQueueSize()) {
+            boolean flush = flush(bufferKey, false);
+            return flush;
+        }
+        return false;
+    }
+
+    private synchronized boolean flush(String bufferKey, boolean waitUtilDone) {
         if (null == bufferKey) {
+            boolean flush = false;
             for (String key : bufferMap.keySet()) {
-                flushBuffer(key);
+                BatchRecordBuffer buffer = bufferMap.get(key);
+                if (waitUtilDone || buffer.shouldFlush()) {
+                    // Ensure that the interval satisfies intervalMS
+                    flushBuffer(key);
+                    flush = true;
+                }
+            }
+            if (!waitUtilDone && !flush) {
+                return false;
             }
         } else if (bufferMap.containsKey(bufferKey)) {
             flushBuffer(bufferKey);
+        } else {
+            throw new DorisBatchLoadException("buffer not found for key: " + bufferKey);
         }
-
         if (waitUtilDone) {
             waitAsyncLoadFinish();
         }
+        return true;
     }
 
     private synchronized void flushBuffer(String bufferKey) {
@@ -248,20 +321,96 @@ public class DorisBatchStreamLoad implements Serializable {
         this.flushQueue.clear();
     }
 
+    @VisibleForTesting
+    public boolean mergeBuffer(List<BatchRecordBuffer> recordList, BatchRecordBuffer buffer) {
+        boolean merge = false;
+        if (recordList.size() > 1) {
+            boolean sameTable =
+                    recordList.stream()
+                                    .map(BatchRecordBuffer::getTableIdentifier)
+                                    .distinct()
+                                    .count()
+                            == 1;
+            // Buffers can be merged only if they belong to the same table.
+            if (sameTable) {
+                for (BatchRecordBuffer recordBuffer : recordList) {
+                    if (recordBuffer != null
+                            && recordBuffer.getLabelName() != null
+                            && !buffer.getLabelName().equals(recordBuffer.getLabelName())
+                            && !recordBuffer.getBuffer().isEmpty()) {
+                        merge(buffer, recordBuffer);
+                        merge = true;
+                    }
+                }
+                LOG.info(
+                        "merge {} buffer to one stream load, result bufferBytes {}",
+                        recordList.size(),
+                        buffer.getBufferSizeBytes());
+            }
+        }
+        return merge;
+    }
+
+    private boolean merge(BatchRecordBuffer mergeBuffer, BatchRecordBuffer buffer) {
+        if (buffer.getBuffer().isEmpty()) {
+            return false;
+        }
+        if (!mergeBuffer.getBuffer().isEmpty()) {
+            mergeBuffer.getBuffer().add(mergeBuffer.getLineDelimiter());
+            mergeBuffer.setBufferSizeBytes(
+                    mergeBuffer.getBufferSizeBytes() + mergeBuffer.getLineDelimiter().length);
+            currentCacheBytes.addAndGet(buffer.getLineDelimiter().length);
+        }
+        mergeBuffer.getBuffer().addAll(buffer.getBuffer());
+        mergeBuffer.setNumOfRecords(mergeBuffer.getNumOfRecords() + buffer.getNumOfRecords());
+        mergeBuffer.setBufferSizeBytes(
+                mergeBuffer.getBufferSizeBytes() + buffer.getBufferSizeBytes());
+        return true;
+    }
+
     class LoadAsyncExecutor implements Runnable {
+
+        private int flushQueueSize;
+
+        public LoadAsyncExecutor(int flushQueueSize) {
+            this.flushQueueSize = flushQueueSize;
+        }
+
         @Override
         public void run() {
             LOG.info("LoadAsyncExecutor start");
             loadThreadAlive = true;
+            List<BatchRecordBuffer> recordList = new ArrayList<>(flushQueueSize);
             while (started.get()) {
-                BatchRecordBuffer buffer = null;
+                recordList.clear();
                 try {
-                    buffer = flushQueue.poll(2000L, TimeUnit.MILLISECONDS);
-                    if (buffer == null) {
+                    BatchRecordBuffer buffer = flushQueue.poll(2000L, TimeUnit.MILLISECONDS);
+                    if (buffer == null || buffer.getLabelName() == null) {
+                        // label is empty and does not need to load. It is the flag of waitUtilDone
                         continue;
                     }
-                    if (buffer.getLabelName() != null) {
-                        load(buffer.getLabelName(), buffer);
+                    recordList.add(buffer);
+                    boolean merge = false;
+                    if (!flushQueue.isEmpty()) {
+                        flushQueue.drainTo(recordList, flushQueueSize - 1);
+                        if (mergeBuffer(recordList, buffer)) {
+                            load(buffer.getLabelName(), buffer);
+                            merge = true;
+                        }
+                    }
+
+                    if (!merge) {
+                        for (BatchRecordBuffer bf : recordList) {
+                            if (bf == null || bf.getLabelName() == null) {
+                                continue;
+                            }
+                            load(bf.getLabelName(), bf);
+                        }
+                    }
+
+                    if (flushQueue.size() < flushQueueSize) {
+                        // Avoid waiting for 2 rounds of intervalMs
+                        doFlush(null, false, false);
                     }
                 } catch (Exception e) {
                     LOG.error("worker running error", e);
@@ -281,9 +430,8 @@ public class DorisBatchStreamLoad implements Serializable {
                 label = null;
             }
             refreshLoadUrl(buffer.getDatabase(), buffer.getTable());
-            ByteBuffer data = buffer.getData();
-            ByteArrayEntity entity =
-                    new ByteArrayEntity(data.array(), data.arrayOffset(), data.limit());
+
+            BatchBufferHttpEntity entity = new BatchBufferHttpEntity(buffer);
             HttpPutBuilder putBuilder = new HttpPutBuilder();
             putBuilder
                     .setUrl(loadUrl)
@@ -319,6 +467,18 @@ public class DorisBatchStreamLoad implements Serializable {
                             RespContent respContent =
                                     OBJECT_MAPPER.readValue(loadResult, RespContent.class);
                             if (DORIS_SUCCESS_STATUS.contains(respContent.getStatus())) {
+                                long cacheByteBeforeFlush =
+                                        currentCacheBytes.getAndAdd(-respContent.getLoadBytes());
+                                LOG.info(
+                                        "load success, cacheBeforeFlushBytes: {}, currentCacheBytes : {}",
+                                        cacheByteBeforeFlush,
+                                        currentCacheBytes.get());
+                                lock.lock();
+                                try {
+                                    block.signal();
+                                } finally {
+                                    lock.unlock();
+                                }
                                 return;
                             } else if (LoadStatus.LABEL_ALREADY_EXIST.equals(
                                     respContent.getStatus())) {
