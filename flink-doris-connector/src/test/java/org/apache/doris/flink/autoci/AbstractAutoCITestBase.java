@@ -19,7 +19,6 @@ package org.apache.doris.flink.autoci;
 
 import org.apache.doris.flink.autoci.container.ContainerService;
 import org.apache.doris.flink.autoci.container.DorisContainerService;
-import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -76,7 +75,7 @@ public abstract class AbstractAutoCITestBase {
         return dorisContainerService.getInstanceHost();
     }
 
-    @AfterClass
+    //    @AfterClass
     public static void closeContainers() {
         LOG.info("Starting to close auto ci containers.");
         closeDorisContainer();

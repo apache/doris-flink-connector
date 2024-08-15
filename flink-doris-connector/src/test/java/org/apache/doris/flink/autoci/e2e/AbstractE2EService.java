@@ -27,7 +27,6 @@ import org.apache.doris.flink.autoci.container.MySQLContainerService;
 import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.apache.doris.flink.tools.cdc.CdcTools;
 import org.apache.doris.flink.tools.cdc.DatabaseSyncConfig;
-import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -157,7 +156,7 @@ public abstract class AbstractE2EService extends AbstractAutoCITestBase {
         argList.add(SINK_LABEL_PREFIX + "=" + "label");
     }
 
-    @AfterClass
+    //    @AfterClass
     public static void closeE2EContainers() {
         LOG.info("Starting to close E2E containers.");
         closeMySQLContainer();
