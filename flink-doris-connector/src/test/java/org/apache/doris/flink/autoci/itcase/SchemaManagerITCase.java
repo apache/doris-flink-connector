@@ -15,9 +15,9 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.flink.sink.schema;
+package org.apache.doris.flink.autoci.itcase;
 
-import org.apache.doris.flink.DorisTestBase;
+import org.apache.doris.flink.autoci.DorisTestBase;
 import org.apache.doris.flink.catalog.doris.DataModel;
 import org.apache.doris.flink.catalog.doris.FieldSchema;
 import org.apache.doris.flink.catalog.doris.TableSchema;
@@ -25,6 +25,7 @@ import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.exception.IllegalArgumentException;
 import org.apache.doris.flink.rest.models.Field;
 import org.apache.doris.flink.rest.models.Schema;
+import org.apache.doris.flink.sink.schema.SchemaChangeManager;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;

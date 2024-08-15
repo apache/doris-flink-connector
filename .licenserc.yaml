@@ -12,5 +12,6 @@ header:
     - '.github/PULL_REQUEST_TEMPLATE.md'
     - '.licenserc.yaml'
     - 'custom_env.sh.tpl'
+    - 'flink-doris-connector/src/test/resources/autoci'
 
   comment: on-failure

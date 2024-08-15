@@ -36,11 +36,13 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /** cdc sync tools. */
 public class CdcTools {
     private static final List<String> EMPTY_KEYS =
             Collections.singletonList(DatabaseSyncConfig.PASSWORD);
+    private static StreamExecutionEnvironment flinkEnvironmentForTesting;
 
     public static void main(String[] args) throws Exception {
         System.out.println("Input args: " + Arrays.asList(args) + ".\n");
@@ -146,7 +148,10 @@ public class CdcTools {
                 new DorisTableConfig(getConfigMap(params, DatabaseSyncConfig.TABLE_CONF));
         Configuration sinkConfig = Configuration.fromMap(sinkMap);
 
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        StreamExecutionEnvironment env =
+                Objects.nonNull(flinkEnvironmentForTesting)
+                        ? flinkEnvironmentForTesting
+                        : StreamExecutionEnvironment.getExecutionEnvironment();
         databaseSync
                 .setEnv(env)
                 .setDatabase(database)
@@ -175,6 +180,13 @@ public class CdcTools {
                                     DatabaseSyncConfig.DATABASE_NAME, DatabaseSyncConfig.DB));
         }
         env.execute(jobName);
+    }
+
+    // Only for testing, please do not use it in actual environment
+    @VisibleForTesting
+    public static void setStreamExecutionEnvironmentForTesting(
+            StreamExecutionEnvironment environment) {
+        flinkEnvironmentForTesting = environment;
     }
 
     @VisibleForTesting

@@ -40,5 +40,5 @@ jobs:
 
     - name: Run E2ECases
       run: |
-        cd flink-doris-connector && mvn test -Dtest="*E2ECase" -Dimage="apache/doris:doris-all-in-one-2.1.0"
+        cd flink-doris-connector && mvn test -Dtest="*DorisService" -Dimage="apache/doris:doris-all-in-one-2.1.0"
 

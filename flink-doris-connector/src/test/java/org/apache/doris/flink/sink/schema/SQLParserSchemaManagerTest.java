@@ -64,6 +64,15 @@ public class SQLParserSchemaManagerTest {
     }
 
     @Test
+    public void testParserAlterDDLsa() {
+
+        SourceConnector mysql = SourceConnector.MYSQL;
+        String ddl =
+                "alter table test_hualing  add column `order_dt_23312` date DEFAULT(CURRENT_DATE)  COMMENT '第三方单行号1号'";
+        List<String> actualDDLs = schemaManager.parseAlterDDLs(mysql, ddl, dorisTable);
+    }
+
+    @Test
     public void testParserAlterDDLsAdd() {
         List<String> expectDDLs = new ArrayList<>();
         expectDDLs.add("ALTER TABLE `doris`.`tab` ADD COLUMN `phone_number` VARCHAR(60)");
