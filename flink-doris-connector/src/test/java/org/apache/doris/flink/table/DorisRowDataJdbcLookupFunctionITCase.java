@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.flink.autoci.itcase;
+package org.apache.doris.flink.table;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.GenericRowData;
@@ -26,10 +26,9 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Collector;
 
 import com.google.common.cache.Cache;
-import org.apache.doris.flink.autoci.DorisTestBase;
+import org.apache.doris.flink.DorisTestBase;
 import org.apache.doris.flink.cfg.DorisLookupOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
-import org.apache.doris.flink.table.DorisRowDataJdbcLookupFunction;
 import org.junit.Before;
 import org.junit.Test;
 

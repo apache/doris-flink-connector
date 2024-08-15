@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.flink.autoci.itcase;
+package org.apache.doris.flink.catalog;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
@@ -40,8 +40,7 @@ import org.apache.flink.types.RowKind;
 import org.apache.flink.util.CollectionUtil;
 
 import com.google.common.collect.Lists;
-import org.apache.doris.flink.autoci.DorisTestBase;
-import org.apache.doris.flink.catalog.DorisCatalog;
+import org.apache.doris.flink.DorisTestBase;
 import org.apache.doris.flink.cfg.DorisConnectionOptions;
 import org.junit.Assert;
 import org.junit.Before;
@@ -182,6 +181,13 @@ public class DorisCatalogITCase extends DorisTestBase {
         catalog.createTable(new ObjectPath(TEST_DB, TEST_TABLE), createTable(), true);
         catalog.createTable(new ObjectPath(TEST_DB, TEST_TABLE_SINK), createTable(), true);
         catalog.createTable(new ObjectPath(TEST_DB, TEST_TABLE_SINK_GROUPBY), createTable(), true);
+    }
+
+    @Test
+    @Ignore
+    public void testQueryFenodes() {
+        String actual = catalog.queryFenodes();
+        assertEquals(getFenodes(), actual);
     }
 
     @Test
