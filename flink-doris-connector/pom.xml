@@ -67,7 +67,7 @@ under the License.
     </mailingLists>
 
     <properties>
-        <revision>1.6.2-SNAPSHOT</revision>
+        <revision>24.0.0-SNAPSHOT</revision>
         <flink.version>1.18.0</flink.version>
         <flink.major.version>1.18</flink.major.version>
         <flink.sql.cdc.version>3.1.1</flink.sql.cdc.version>
@@ -94,6 +94,7 @@ under the License.
         <jsqlparser.version>4.9</jsqlparser.version>
         <mysql.driver.version>8.0.26</mysql.driver.version>
         <ojdbc.version>19.3.0.0</ojdbc.version>
+        <log4j.version>2.17.1</log4j.version>
         <arrow.version>15.0.2</arrow.version>
         <adbc.version>0.12.0</adbc.version>
     </properties>
@@ -228,17 +229,35 @@ under the License.
             <artifactId>jackson-databind</artifactId>
             <version>${fasterxml.version}</version>
         </dependency>
-
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
             <version>${guava.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-log4j12</artifactId>
-            <version>${slf4j.version}</version>
-            <scope>provided</scope>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-slf4j-impl</artifactId>
+            <version>${log4j.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-api</artifactId>
+            <version>${log4j.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-core</artifactId>
+            <version>${log4j.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <!-- API bridge between log4j 1 and 2 -->
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-1.2-api</artifactId>
+            <version>${log4j.version}</version>
+            <scope>test</scope>
         </dependency>
         <!-- use cdc bundled jar for kafka connect class-->
         <dependency>

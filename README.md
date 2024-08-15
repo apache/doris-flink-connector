@@ -24,7 +24,7 @@ under the License.
 
 ## Flink Doris Connector
 
-Flink Doris Connector now support flink version from 1.11 to 1.19.
+Flink Doris Connector now support flink version from 1.11 to 1.20.
 
 If you wish to contribute or use a connector from flink 1.13 (and earlier), please use the [branch-for-flink-before-1.13](https://github.com/apache/doris-flink-connector/tree/branch-for-flink-before-1.13)
 

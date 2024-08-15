@@ -72,3 +72,10 @@ jobs:
           -Dflink.version=1.19.0 \
           -Dflink.minor.version=1.19 \
           -Dflink.python.id=flink-python
+
+    - name: Build flink connector 1.20
+      run: |
+        cd flink-doris-connector && mvn clean package \
+          -Dflink.version=1.20.0 \
+          -Dflink.minor.version=1.20 \
+          -Dflink.python.id=flink-python
