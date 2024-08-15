@@ -75,7 +75,6 @@ public abstract class AbstractAutoCITestBase {
         return dorisContainerService.getInstanceHost();
     }
 
-    //    @AfterClass
     public static void closeContainers() {
         LOG.info("Starting to close auto ci containers.");
         closeDorisContainer();

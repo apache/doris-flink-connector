@@ -1,8 +1,8 @@
-CREATE DATABASE IF NOT EXISTS test_e2e_sink;
+CREATE DATABASE IF NOT EXISTS test_doris2doris_sink;
 
-DROP TABLE IF EXISTS test_e2e_sink.test_tbl;
+DROP TABLE IF EXISTS test_doris2doris_sink.test_tbl;
 
-CREATE TABLE test_e2e_sink.test_tbl (
+CREATE TABLE test_doris2doris_sink.test_tbl (
       `id` int,
       `c1` boolean,
       `c2` tinyint,

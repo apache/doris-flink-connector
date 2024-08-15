@@ -1,8 +1,8 @@
-CREATE DATABASE IF NOT EXISTS test_e2e_source;
+CREATE DATABASE IF NOT EXISTS test_doris2doris_source;
 
-DROP TABLE IF EXISTS test_e2e_source.test_tbl;
+DROP TABLE IF EXISTS test_doris2doris_source.test_tbl;
 
-CREATE TABLE test_e2e_source.test_tbl (
+CREATE TABLE test_doris2doris_source.test_tbl (
      `id` int,
      `c1` boolean,
      `c2` tinyint,
@@ -29,7 +29,7 @@ PROPERTIES (
 "light_schema_change" = "true"
 );
 
-INSERT INTO test_e2e_source.test_tbl
+INSERT INTO test_doris2doris_source.test_tbl
 VALUES
     (
         1,

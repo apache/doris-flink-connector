@@ -36,15 +36,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
 
 public abstract class AbstractE2EService extends AbstractAutoCITestBase {
     private static final Logger LOG = LoggerFactory.getLogger(AbstractE2EService.class);
     private static ContainerService mysqlContainerService;
     private static final CustomerSingleThreadExecutor singleThreadExecutor =
             new CustomerSingleThreadExecutor();
-    private static final BlockingQueue<Runnable> jobQueue = new LinkedBlockingQueue<>();
     protected static final String SINK_CONF = "--" + DatabaseSyncConfig.SINK_CONF;
     protected static final String DORIS_DATABASE = "--database";
     protected static final String HOSTNAME = "hostname";
@@ -55,23 +52,6 @@ public abstract class AbstractE2EService extends AbstractAutoCITestBase {
     protected static final String FENODES = "fenodes";
     protected static final String JDBC_URL = "jdbc-url";
     protected static final String SINK_LABEL_PREFIX = "sink.label-prefix";
-
-    static {
-        // 启动一个线程来顺序执行任务
-        new Thread(
-                        () -> {
-                            while (true) {
-                                try {
-                                    Runnable job = jobQueue.take();
-                                    job.run();
-                                } catch (InterruptedException e) {
-                                    Thread.currentThread().interrupt();
-                                    LOG.error("Task execution interrupted.", e);
-                                }
-                            }
-                        })
-                .start();
-    }
 
     @BeforeClass
     public static void initE2EContainers() {
@@ -156,7 +136,6 @@ public abstract class AbstractE2EService extends AbstractAutoCITestBase {
         argList.add(SINK_LABEL_PREFIX + "=" + "label");
     }
 
-    //    @AfterClass
     public static void closeE2EContainers() {
         LOG.info("Starting to close E2E containers.");
         closeMySQLContainer();

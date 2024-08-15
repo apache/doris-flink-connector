@@ -35,8 +35,8 @@ import java.util.UUID;
 
 public class Doris2DorisService extends AbstractE2EService {
     private static final Logger LOG = LoggerFactory.getLogger(Doris2DorisService.class);
-    private static final String DATABASE_SOURCE = "test_e2e_source";
-    private static final String DATABASE_SINK = "test_e2e_sink";
+    private static final String DATABASE_SOURCE = "test_doris2doris_source";
+    private static final String DATABASE_SINK = "test_doris2doris_sink";
     private static final String TABLE = "test_tbl";
 
     @Test
@@ -144,11 +144,11 @@ public class Doris2DorisService extends AbstractE2EService {
     private void initializeDorisTable() {
         String[] sourceInitSql =
                 E2EContainerUtils.parseFileContentSQL(
-                        "autoci/e2e/doris2doris/initialize/test_e2e_source_test_tbl.sql");
+                        "autoci/e2e/doris2doris/initialize/test_doris2doris_source_test_tbl.sql");
         E2EContainerUtils.executeSQLStatement(getDorisQueryConnection(), LOG, sourceInitSql);
         String[] sinkInitSql =
                 E2EContainerUtils.parseFileContentSQL(
-                        "autoci/e2e/doris2doris/initialize/test_e2e_sink_test_tbl.sql");
+                        "autoci/e2e/doris2doris/initialize/test_doris2doris_sink_test_tbl.sql");
         E2EContainerUtils.executeSQLStatement(getDorisQueryConnection(), LOG, sinkInitSql);
         LOG.info("Initialization of doris table successful.");
     }
