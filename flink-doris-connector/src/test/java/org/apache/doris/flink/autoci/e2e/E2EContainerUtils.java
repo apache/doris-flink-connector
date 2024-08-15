@@ -44,8 +44,10 @@ public class E2EContainerUtils {
         }
         try (Statement statement = connection.createStatement()) {
             for (String s : sql) {
-                logger.info("start to execute sql={}", s);
-                statement.execute(s);
+                if (StringUtils.isNotEmpty(s)) {
+                    logger.info("start to execute sql={}", s);
+                    statement.execute(s);
+                }
             }
         } catch (SQLException e) {
             throw new DorisRuntimeException(e);
