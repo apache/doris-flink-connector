@@ -39,6 +39,9 @@ import java.util.stream.Collectors;
 public class E2EContainerUtils {
 
     protected static void executeSQLStatement(Connection connection, Logger logger, String... sql) {
+        if (Objects.isNull(sql) || sql.length == 0) {
+            return;
+        }
         try (Statement statement = connection.createStatement()) {
             for (String s : sql) {
                 logger.info("start to execute sql={}", s);
