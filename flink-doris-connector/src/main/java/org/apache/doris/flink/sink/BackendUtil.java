@@ -56,6 +56,7 @@ public class BackendUtil {
         nodes.forEach(
                 node -> {
                     if (tryHttpConnection(node)) {
+                        LOG.info("{} backend http connection success.", node);
                         node = node.trim();
                         String[] ipAndPort = node.split(":");
                         BackendRowV2 backendRowV2 = new BackendRowV2();
@@ -100,11 +101,22 @@ public class BackendUtil {
             LOG.debug("try to connect host {}", host);
             host = "http://" + host;
             URL url = new URL(host);
-            HttpURLConnection co = (HttpURLConnection) url.openConnection();
-            co.setConnectTimeout(60000);
-            co.connect();
-            co.disconnect();
-            return true;
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            connection.setRequestMethod("GET");
+            connection.setConnectTimeout(60000);
+            connection.setReadTimeout(60000);
+            int responseCode = connection.getResponseCode();
+            String responseMessage = connection.getResponseMessage();
+            connection.disconnect();
+            if (200 == responseCode) {
+                return true;
+            }
+            LOG.warn(
+                    "Failed to connect host {}, responseCode={}, msg={}",
+                    host,
+                    responseCode,
+                    responseMessage);
+            return false;
         } catch (Exception ex) {
             LOG.warn("Failed to connect to host:{}", host, ex);
             return false;
