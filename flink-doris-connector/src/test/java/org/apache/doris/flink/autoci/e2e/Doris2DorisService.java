@@ -118,8 +118,8 @@ public class Doris2DorisService extends AbstractE2EService {
                                 + ")",
                         getFenodes(),
                         DATABASE_SINK + "." + TABLE,
-                        USERNAME,
-                        PASSWORD);
+                        getDorisUsername(),
+                        getDorisPassword());
         tEnv.executeSql(sinkDDL);
 
         tEnv.executeSql("INSERT INTO doris_sink SELECT * FROM doris_source").await();
