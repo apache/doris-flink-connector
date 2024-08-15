@@ -46,7 +46,6 @@ public class MySQLContainerService implements ContainerService {
 
     @Override
     public void startContainer() {
-        //        mysqlcontainer.setCommand("--default-time-zone=Asia/Shanghai");
         LOG.info("Starting MySQL container.");
         Startables.deepStart(Stream.of(mysqlcontainer)).join();
         LOG.info("MySQL Container was started.");

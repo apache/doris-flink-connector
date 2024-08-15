@@ -19,6 +19,7 @@ package org.apache.doris.flink.autoci.e2e;
 
 import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.apache.doris.flink.tools.cdc.DatabaseSyncConfig;
+import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,7 +33,8 @@ public class Mysql2DorisService extends AbstractE2EService {
     private static final String CREATE_DATABASE = "CREATE DATABASE IF NOT EXISTS " + DATABASE;
     private static final String MYSQL_CONF = "--" + DatabaseSyncConfig.MYSQL_CONF;
 
-    private void initialize() {
+    @Before
+    public void initialize() {
         // init mysql table
         LOG.info("start to init mysql table.");
         E2EContainerUtils.executeSQLStatement(getMySQLQueryConnection(), LOG, CREATE_DATABASE);
@@ -120,7 +122,6 @@ public class Mysql2DorisService extends AbstractE2EService {
 
     @Test
     public void testMySQL2Doris() throws Exception {
-        initialize();
         String jobName = "testMySQL2Doris";
         String resourcePath = "autoci/e2e/mysql2doris/testMySQL2Doris.txt";
         startMysql2DorisJob(jobName, resourcePath);
@@ -135,7 +136,6 @@ public class Mysql2DorisService extends AbstractE2EService {
 
     @Test
     public void testAutoAddTable() throws InterruptedException {
-        initialize();
         String jobName = "testAutoAddTable";
         startMysql2DorisJob(jobName, "autoci/e2e/mysql2doris/testAutoAddTable.txt");
 
@@ -198,7 +198,6 @@ public class Mysql2DorisService extends AbstractE2EService {
 
     @Test
     public void testMySQL2DorisSQLParse() throws Exception {
-        initialize();
         String jobName = "testMySQL2DorisSQLParse";
         String resourcePath = "autoci/e2e/mysql2doris/testMySQL2DorisSQLParse.txt";
         startMysql2DorisJob(jobName, resourcePath);
@@ -287,7 +286,6 @@ public class Mysql2DorisService extends AbstractE2EService {
 
     @Test
     public void testMySQL2DorisByDefault() throws InterruptedException {
-        initialize();
         String jobName = "testMySQL2DorisByDefault";
         startMysql2DorisJob(jobName, "autoci/e2e/mysql2doris/testMySQL2DorisByDefault.txt");
 
@@ -298,7 +296,6 @@ public class Mysql2DorisService extends AbstractE2EService {
 
     @Test
     public void testMySQL2DorisEnableDelete() throws Exception {
-        initialize();
         String jobName = "testMySQL2DorisEnableDelete";
         startMysql2DorisJob(jobName, "autoci/e2e/mysql2doris/testMySQL2DorisEnableDelete.txt");
 
