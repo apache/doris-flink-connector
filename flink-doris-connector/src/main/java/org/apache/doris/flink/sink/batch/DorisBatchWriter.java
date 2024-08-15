@@ -107,9 +107,9 @@ public class DorisBatchWriter<IN>
 
     private void intervalFlush() {
         try {
-            LOG.info("interval flush triggered.");
-            batchStreamLoad.flush(null, false);
-        } catch (InterruptedException e) {
+            boolean flush = batchStreamLoad.intervalFlush();
+            LOG.debug("interval flush trigger, flush: {}", flush);
+        } catch (Exception e) {
             flushException = e;
         }
     }
@@ -125,7 +125,7 @@ public class DorisBatchWriter<IN>
         checkFlushException();
         writeOneDorisRecord(serializer.flush());
         LOG.info("checkpoint flush triggered.");
-        batchStreamLoad.flush(null, true);
+        batchStreamLoad.checkpointFlush();
     }
 
     @Override
