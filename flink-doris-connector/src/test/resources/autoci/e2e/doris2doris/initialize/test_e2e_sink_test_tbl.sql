@@ -2,7 +2,7 @@ CREATE DATABASE IF NOT EXISTS test_e2e_sink;
 
 DROP TABLE IF EXISTS test_e2e_sink.test_tbl;
 
-CREATE TABLE test_e2e_source.test_tbl (
+CREATE TABLE test_e2e_sink.test_tbl (
       `id` int,
       `c1` boolean,
       `c2` tinyint,
