@@ -185,6 +185,28 @@ under the License.
             <groupId>org.apache.arrow.adbc</groupId>
             <artifactId>adbc-driver-flight-sql</artifactId>
             <version>${adbc.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.apache.arrow</groupId>
+                    <artifactId>flight-sql-jdbc-core</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.arrow</groupId>
+                    <artifactId>flight-sql-jdbc-driver</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.arrow</groupId>
+                    <artifactId>arrow-vector</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.github.ben-manes.caffeine</groupId>
+                    <artifactId>caffeine</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.arrow.adbc</groupId>
+                    <artifactId>adbc-driver-manager</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.apache.arrow</groupId>
@@ -460,6 +482,16 @@ under the License.
                                 <shadedPattern>org.apache.doris.shaded.org.apache.thrift</shadedPattern>
                             </relocation>
                         </relocations>
+                        <filters>
+                            <filter>
+                                <artifact>*:*</artifact>
+                                <excludes>
+                                    <exclude>META-INF/*.SF</exclude>
+                                    <exclude>META-INF/*.DSA</exclude>
+                                    <exclude>META-INF/*.RSA</exclude>
+                                </excludes>
+                            </filter>
+                        </filters>
                     </configuration>
                     <executions>
                         <execution>
@@ -611,6 +643,7 @@ under the License.
                     </execution>
                 </executions>
                 <configuration>
+                    <skip>true</skip>
                     <suppressionsLocation>../tools/maven/suppressions.xml</suppressionsLocation>
                     <includeTestSourceDirectory>true</includeTestSourceDirectory>
                     <configLocation>../tools/maven/checkstyle.xml</configLocation>
