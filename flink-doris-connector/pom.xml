@@ -199,10 +199,6 @@ under the License.
                     <artifactId>arrow-vector</artifactId>
                 </exclusion>
                 <exclusion>
-                    <groupId>com.github.ben-manes.caffeine</groupId>
-                    <artifactId>caffeine</artifactId>
-                </exclusion>
-                <exclusion>
                     <groupId>org.apache.arrow.adbc</groupId>
                     <artifactId>adbc-driver-manager</artifactId>
                 </exclusion>
