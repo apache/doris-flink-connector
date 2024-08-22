@@ -15,8 +15,10 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.flink.autoci.e2e;
+package org.apache.doris.flink.container.e2e;
 
+import org.apache.doris.flink.container.AbstractE2EService;
+import org.apache.doris.flink.container.ContainerUtils;
 import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.apache.doris.flink.tools.cdc.DatabaseSyncConfig;
 import org.junit.Before;
@@ -37,37 +39,37 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
     public void initialize() {
         // init mysql table
         LOG.info("start to init mysql table.");
-        E2EContainerUtils.executeSQLStatement(getMySQLQueryConnection(), LOG, CREATE_DATABASE);
-        E2EContainerUtils.executeSQLStatement(
+        ContainerUtils.executeSQLStatement(getMySQLQueryConnection(), LOG, CREATE_DATABASE);
+        ContainerUtils.executeSQLStatement(
                 getMySQLQueryConnection(),
                 LOG,
-                E2EContainerUtils.parseFileContentSQL(
+                ContainerUtils.parseFileContentSQL(
                         "autoci/e2e/mysql2doris/initialize/mysql_tbl1.sql"));
-        E2EContainerUtils.executeSQLStatement(
+        ContainerUtils.executeSQLStatement(
                 getMySQLQueryConnection(),
                 LOG,
-                E2EContainerUtils.parseFileContentSQL(
+                ContainerUtils.parseFileContentSQL(
                         "autoci/e2e/mysql2doris/initialize/mysql_tbl2.sql"));
-        E2EContainerUtils.executeSQLStatement(
+        ContainerUtils.executeSQLStatement(
                 getMySQLQueryConnection(),
                 LOG,
-                E2EContainerUtils.parseFileContentSQL(
+                ContainerUtils.parseFileContentSQL(
                         "autoci/e2e/mysql2doris/initialize/mysql_tbl3.sql"));
-        E2EContainerUtils.executeSQLStatement(
+        ContainerUtils.executeSQLStatement(
                 getMySQLQueryConnection(),
                 LOG,
-                E2EContainerUtils.parseFileContentSQL(
+                ContainerUtils.parseFileContentSQL(
                         "autoci/e2e/mysql2doris/initialize/mysql_tbl4.sql"));
-        E2EContainerUtils.executeSQLStatement(
+        ContainerUtils.executeSQLStatement(
                 getMySQLQueryConnection(),
                 LOG,
-                E2EContainerUtils.parseFileContentSQL(
+                ContainerUtils.parseFileContentSQL(
                         "autoci/e2e/mysql2doris/initialize/mysql_tbl5.sql"));
 
         // init doris table
         LOG.info("start to init doris table.");
-        E2EContainerUtils.executeSQLStatement(getDorisQueryConnection(), LOG, CREATE_DATABASE);
-        E2EContainerUtils.executeSQLStatement(
+        ContainerUtils.executeSQLStatement(getDorisQueryConnection(), LOG, CREATE_DATABASE);
+        ContainerUtils.executeSQLStatement(
                 getDorisQueryConnection(),
                 LOG,
                 "DROP TABLE IF EXISTS test_e2e_mysql.tbl1",
@@ -99,7 +101,7 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
 
     private void startMysql2DorisJob(String jobName, String resourcePath) {
         LOG.info("start a mysql to doris job. jobName={}, resourcePath={}", jobName, resourcePath);
-        List<String> argList = E2EContainerUtils.parseFileArgs(resourcePath);
+        List<String> argList = ContainerUtils.parseFileArgs(resourcePath);
         String[] args = setMysql2DorisDefaultConfig(argList).toArray(new String[0]);
         submitE2EJob(jobName, args);
         verifyInitializeResult();
@@ -114,7 +116,7 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
                     Arrays.asList("doris_1,1", "doris_2,2", "doris_3,3", "doris_5,5");
             String sql1 =
                     "select * from ( select * from test_e2e_mysql.tbl1 union all select * from test_e2e_mysql.tbl2 union all select * from test_e2e_mysql.tbl3 union all select * from test_e2e_mysql.tbl5) res order by 1";
-            E2EContainerUtils.checkResult(getDorisQueryConnection(), expected, sql1, 2);
+            ContainerUtils.checkResult(getDorisQueryConnection(), expected, sql1, 2);
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
@@ -141,7 +143,7 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
 
         // auto add table
         LOG.info("starting to create auto_add table.");
-        E2EContainerUtils.executeSQLStatement(
+        ContainerUtils.executeSQLStatement(
                 getMySQLQueryConnection(),
                 LOG,
                 "CREATE TABLE test_e2e_mysql.auto_add ( \n"
@@ -153,12 +155,12 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
         Thread.sleep(20000);
         List<String> autoAddResult = Arrays.asList("doris_4_1,4", "doris_4_2,4");
         String autoAddSql = "select * from test_e2e_mysql.auto_add order by 1";
-        E2EContainerUtils.checkResult(getDorisQueryConnection(), autoAddResult, autoAddSql, 2);
+        ContainerUtils.checkResult(getDorisQueryConnection(), autoAddResult, autoAddSql, 2);
 
         // incremental data
         LOG.info("starting to increment data.");
         addIncrementalData();
-        E2EContainerUtils.executeSQLStatement(
+        ContainerUtils.executeSQLStatement(
                 getMySQLQueryConnection(),
                 LOG,
                 "insert into test_e2e_mysql.auto_add values ('doris_4_3',43)",
@@ -176,12 +178,12 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
                         "doris_4_3,43");
         String incrementDataSql =
                 "select * from ( select * from test_e2e_mysql.tbl1 union all select * from test_e2e_mysql.tbl2 union all select * from test_e2e_mysql.tbl3 union all select * from test_e2e_mysql.auto_add) res order by 1";
-        E2EContainerUtils.checkResult(
+        ContainerUtils.checkResult(
                 getDorisQueryConnection(), incrementDataExpected, incrementDataSql, 2);
 
         // schema change
         LOG.info("starting to mock schema change.");
-        E2EContainerUtils.executeSQLStatement(
+        ContainerUtils.executeSQLStatement(
                 getMySQLQueryConnection(),
                 LOG,
                 "alter table test_e2e_mysql.auto_add add column c1 varchar(128)",
@@ -191,7 +193,7 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
         List<String> schemaChangeExpected =
                 Arrays.asList("doris_4_1,null", "doris_4_3,null", "doris_4_4,c1_val");
         String schemaChangeSql = "select * from test_e2e_mysql.auto_add order by 1";
-        E2EContainerUtils.checkResult(
+        ContainerUtils.checkResult(
                 getDorisQueryConnection(), schemaChangeExpected, schemaChangeSql, 2);
         cancelCurrentE2EJob(jobName);
     }
@@ -210,7 +212,7 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
 
         // mock create table
         LOG.info("start to create table in mysql.");
-        E2EContainerUtils.executeSQLStatement(
+        ContainerUtils.executeSQLStatement(
                 getMySQLQueryConnection(),
                 LOG,
                 "CREATE TABLE test_e2e_mysql.add_tbl (\n"
@@ -223,7 +225,7 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
         Thread.sleep(20000);
         List<String> createTableExpected = Arrays.asList("doris_1,1", "doris_2,2", "doris_3,3");
         String createTableSql = "select * from test_e2e_mysql.add_tbl order by 1";
-        E2EContainerUtils.checkResult(
+        ContainerUtils.checkResult(
                 getDorisQueryConnection(), createTableExpected, createTableSql, 2);
         cancelCurrentE2EJob(jobName);
     }
@@ -232,13 +234,13 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
         // mock schema change
         LOG.info("start to schema change in mysql.");
         try {
-            E2EContainerUtils.executeSQLStatement(
+            ContainerUtils.executeSQLStatement(
                     getMySQLQueryConnection(),
                     LOG,
                     "alter table test_e2e_mysql.tbl1 add column c1 varchar(128)",
                     "alter table test_e2e_mysql.tbl1 drop column age");
             Thread.sleep(20000);
-            E2EContainerUtils.executeSQLStatement(
+            ContainerUtils.executeSQLStatement(
                     getMySQLQueryConnection(),
                     LOG,
                     "insert into test_e2e_mysql.tbl1  values ('doris_1_1_1','c1_val')");
@@ -253,14 +255,14 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
         List<String> schemaChangeExpected =
                 Arrays.asList("doris_1,null", "doris_1_1,null", "doris_1_1_1,c1_val");
         String schemaChangeSql = "select * from test_e2e_mysql.tbl1 order by 1";
-        E2EContainerUtils.checkResult(
+        ContainerUtils.checkResult(
                 getDorisQueryConnection(), schemaChangeExpected, schemaChangeSql, 2);
     }
 
     private void addIncrementalData() {
         // add incremental data
         try {
-            E2EContainerUtils.executeSQLStatement(
+            ContainerUtils.executeSQLStatement(
                     getMySQLQueryConnection(),
                     LOG,
                     "insert into test_e2e_mysql.tbl1 values ('doris_1_1',10)",
@@ -281,7 +283,7 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
                         "doris_1,18", "doris_1_1,10", "doris_2_1,11", "doris_3,3", "doris_3_1,12");
         String sql2 =
                 "select * from ( select * from test_e2e_mysql.tbl1 union all select * from test_e2e_mysql.tbl2 union all select * from test_e2e_mysql.tbl3 ) res order by 1";
-        E2EContainerUtils.checkResult(getDorisQueryConnection(), expected2, sql2, 2);
+        ContainerUtils.checkResult(getDorisQueryConnection(), expected2, sql2, 2);
     }
 
     @Test
@@ -300,7 +302,7 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
         startMysql2DorisJob(jobName, "autoci/e2e/mysql2doris/testMySQL2DorisEnableDelete.txt");
 
         addIncrementalData();
-        E2EContainerUtils.executeSQLStatement(
+        ContainerUtils.executeSQLStatement(
                 getMySQLQueryConnection(),
                 LOG,
                 "delete from test_e2e_mysql.tbl3 where name='doris_3'",
@@ -318,7 +320,7 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
                         "doris_5,5");
         String sql =
                 "select * from ( select * from test_e2e_mysql.tbl1 union all select * from test_e2e_mysql.tbl2 union all select * from test_e2e_mysql.tbl3 union all select * from test_e2e_mysql.tbl5) res order by 1";
-        E2EContainerUtils.checkResult(getDorisQueryConnection(), expected, sql, 2);
+        ContainerUtils.checkResult(getDorisQueryConnection(), expected, sql, 2);
         cancelCurrentE2EJob(jobName);
     }
 }

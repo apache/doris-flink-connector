@@ -15,12 +15,11 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.flink.autoci.container;
+package org.apache.doris.flink.container.instance;
 
 import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.lifecycle.Startables;
 
 import java.sql.Connection;
@@ -28,20 +27,22 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.stream.Stream;
 
-public class MySQLContainerService implements ContainerService {
-    private static final Logger LOG = LoggerFactory.getLogger(MySQLContainerService.class);
+public class MySQLContainer implements ContainerService {
+    private static final Logger LOG = LoggerFactory.getLogger(MySQLContainer.class);
     private static final String MYSQL_VERSION = "mysql:8.0";
     private static final String USERNAME = "root";
     private static final String PASSWORD = "123456";
-    private final MySQLContainer mysqlcontainer;
+    private final org.testcontainers.containers.MySQLContainer mysqlcontainer;
 
-    public MySQLContainerService() {
+    public MySQLContainer() {
         mysqlcontainer = createContainer();
     }
 
-    private MySQLContainer createContainer() {
+    private org.testcontainers.containers.MySQLContainer createContainer() {
         LOG.info("Will create mysql container.");
-        return new MySQLContainer(MYSQL_VERSION).withUsername(USERNAME).withPassword(PASSWORD);
+        return new org.testcontainers.containers.MySQLContainer(MYSQL_VERSION)
+                .withUsername(USERNAME)
+                .withPassword(PASSWORD);
     }
 
     @Override

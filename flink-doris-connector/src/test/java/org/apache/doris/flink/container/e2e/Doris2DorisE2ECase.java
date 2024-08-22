@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.flink.autoci.e2e;
+package org.apache.doris.flink.container.e2e;
 
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -24,6 +24,8 @@ import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
 
+import org.apache.doris.flink.container.AbstractE2EService;
+import org.apache.doris.flink.container.ContainerUtils;
 import org.junit.Assert;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -143,13 +145,13 @@ public class Doris2DorisE2ECase extends AbstractE2EService {
 
     private void initializeDorisTable() {
         String[] sourceInitSql =
-                E2EContainerUtils.parseFileContentSQL(
+                ContainerUtils.parseFileContentSQL(
                         "autoci/e2e/doris2doris/initialize/test_doris2doris_source_test_tbl.sql");
-        E2EContainerUtils.executeSQLStatement(getDorisQueryConnection(), LOG, sourceInitSql);
+        ContainerUtils.executeSQLStatement(getDorisQueryConnection(), LOG, sourceInitSql);
         String[] sinkInitSql =
-                E2EContainerUtils.parseFileContentSQL(
+                ContainerUtils.parseFileContentSQL(
                         "autoci/e2e/doris2doris/initialize/test_doris2doris_sink_test_tbl.sql");
-        E2EContainerUtils.executeSQLStatement(getDorisQueryConnection(), LOG, sinkInitSql);
+        ContainerUtils.executeSQLStatement(getDorisQueryConnection(), LOG, sinkInitSql);
         LOG.info("Initialization of doris table successful.");
     }
 }

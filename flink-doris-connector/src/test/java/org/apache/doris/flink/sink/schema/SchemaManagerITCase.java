@@ -17,31 +17,30 @@
 
 package org.apache.doris.flink.sink.schema;
 
-import org.apache.doris.flink.DorisTestBase;
 import org.apache.doris.flink.catalog.doris.DataModel;
 import org.apache.doris.flink.catalog.doris.FieldSchema;
 import org.apache.doris.flink.catalog.doris.TableSchema;
 import org.apache.doris.flink.cfg.DorisOptions;
+import org.apache.doris.flink.container.AbstractITCaseService;
+import org.apache.doris.flink.container.ContainerUtils;
 import org.apache.doris.flink.exception.IllegalArgumentException;
 import org.apache.doris.flink.rest.models.Field;
 import org.apache.doris.flink.rest.models.Schema;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 
-public class SchemaManagerITCase extends DorisTestBase {
-
+public class SchemaManagerITCase extends AbstractITCaseService {
+    private static final Logger LOG = LoggerFactory.getLogger(SchemaManagerITCase.class);
     private static final String DATABASE = "test_sc_db";
     private DorisOptions options;
     private SchemaChangeManager schemaChangeManager;
@@ -52,34 +51,31 @@ public class SchemaManagerITCase extends DorisTestBase {
                 DorisOptions.builder()
                         .setFenodes(getFenodes())
                         .setTableIdentifier(DATABASE + ".add_column")
-                        .setUsername(USERNAME)
-                        .setPassword(PASSWORD)
+                        .setUsername(getDorisUsername())
+                        .setPassword(getDorisPassword())
                         .build();
         schemaChangeManager = new SchemaChangeManager(options);
     }
 
-    private void initDorisSchemaChangeTable(String table) throws SQLException {
-        try (Connection connection =
-                        DriverManager.getConnection(
-                                String.format(URL, DORIS_CONTAINER.getHost()), USERNAME, PASSWORD);
-                Statement statement = connection.createStatement()) {
-            statement.execute(String.format("CREATE DATABASE IF NOT EXISTS %s", DATABASE));
-            statement.execute(String.format("DROP TABLE IF EXISTS %s.%s", DATABASE, table));
-            statement.execute(
-                    String.format(
-                            "CREATE TABLE %s.%s ( \n"
-                                    + "`id` varchar(32),\n"
-                                    + "`age` int\n"
-                                    + ") DISTRIBUTED BY HASH(`id`) BUCKETS 1\n"
-                                    + "PROPERTIES (\n"
-                                    + "\"replication_num\" = \"1\"\n"
-                                    + ")\n",
-                            DATABASE, table));
-        }
+    private void initDorisSchemaChangeTable(String table) {
+        ContainerUtils.executeSQLStatement(
+                getDorisQueryConnection(),
+                LOG,
+                String.format("CREATE DATABASE IF NOT EXISTS %s", DATABASE),
+                String.format("DROP TABLE IF EXISTS %s.%s", DATABASE, table),
+                String.format(
+                        "CREATE TABLE %s.%s ( \n"
+                                + "`id` varchar(32),\n"
+                                + "`age` int\n"
+                                + ") DISTRIBUTED BY HASH(`id`) BUCKETS 1\n"
+                                + "PROPERTIES (\n"
+                                + "\"replication_num\" = \"1\"\n"
+                                + ")\n",
+                        DATABASE, table));
     }
 
     @Test
-    public void testAddColumn() throws SQLException, IOException, IllegalArgumentException {
+    public void testAddColumn() throws IOException, IllegalArgumentException {
         String addColumnTbls = "add_column";
         initDorisSchemaChangeTable(addColumnTbls);
         FieldSchema field = new FieldSchema("c1", "int", "");
@@ -93,7 +89,7 @@ public class SchemaManagerITCase extends DorisTestBase {
 
     @Test
     public void testAddColumnWithChineseComment()
-            throws SQLException, IOException, IllegalArgumentException, InterruptedException {
+            throws IOException, IllegalArgumentException, InterruptedException {
         String addColumnTbls = "add_column";
         initDorisSchemaChangeTable(addColumnTbls);
 
@@ -149,7 +145,7 @@ public class SchemaManagerITCase extends DorisTestBase {
     }
 
     @Test
-    public void testDropColumn() throws SQLException, IOException, IllegalArgumentException {
+    public void testDropColumn() throws IOException, IllegalArgumentException {
         String dropColumnTbls = "drop_column";
         initDorisSchemaChangeTable(dropColumnTbls);
         schemaChangeManager.dropColumn(DATABASE, dropColumnTbls, "age");
@@ -161,7 +157,7 @@ public class SchemaManagerITCase extends DorisTestBase {
     }
 
     @Test
-    public void testRenameColumn() throws SQLException, IOException, IllegalArgumentException {
+    public void testRenameColumn() throws IOException, IllegalArgumentException {
         String renameColumnTbls = "rename_column";
         initDorisSchemaChangeTable(renameColumnTbls);
         schemaChangeManager.renameColumn(DATABASE, renameColumnTbls, "age", "age1");
@@ -173,8 +169,7 @@ public class SchemaManagerITCase extends DorisTestBase {
     }
 
     @Test
-    public void testModifyColumnComment()
-            throws SQLException, IOException, IllegalArgumentException {
+    public void testModifyColumnComment() throws IOException, IllegalArgumentException {
         String modifyColumnCommentTbls = "modify_column_comment";
         initDorisSchemaChangeTable(modifyColumnCommentTbls);
         String columnName = "age";
@@ -188,7 +183,7 @@ public class SchemaManagerITCase extends DorisTestBase {
 
     @Test
     public void testOnlyModifyColumnType()
-            throws SQLException, IOException, IllegalArgumentException, InterruptedException {
+            throws IOException, IllegalArgumentException, InterruptedException {
         String modifyColumnTbls = "modify_column_type";
         String columnName = "age";
         String newColumnType = "bigint";
@@ -203,7 +198,7 @@ public class SchemaManagerITCase extends DorisTestBase {
 
     @Test
     public void testModifyColumnTypeAndComment()
-            throws SQLException, IOException, IllegalArgumentException, InterruptedException {
+            throws IOException, IllegalArgumentException, InterruptedException {
         String modifyColumnTbls = "modify_column_type_and_comment";
         initDorisSchemaChangeTable(modifyColumnTbls);
         String columnName = "age";

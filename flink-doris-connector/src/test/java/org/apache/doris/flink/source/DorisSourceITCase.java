@@ -25,33 +25,33 @@ import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
 
-import org.apache.doris.flink.DorisTestBase;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisStreamOptions;
+import org.apache.doris.flink.container.AbstractITCaseService;
+import org.apache.doris.flink.container.ContainerUtils;
 import org.apache.doris.flink.datastream.DorisSourceFunction;
 import org.apache.doris.flink.deserialization.SimpleListDeserializationSchema;
 import org.junit.Assert;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 
 /** DorisSource ITCase. */
-public class DorisSourceITCase extends DorisTestBase {
-    static final String DATABASE = "test_source";
-    static final String TABLE_READ = "tbl_read";
-    static final String TABLE_READ_OLD_API = "tbl_read_old_api";
-    static final String TABLE_READ_TBL = "tbl_read_tbl";
-    static final String TABLE_READ_TBL_OLD_API = "tbl_read_tbl_old_api";
-    static final String TABLE_READ_TBL_ALL_OPTIONS = "tbl_read_tbl_all_options";
-    static final String TABLE_READ_TBL_PUSH_DOWN = "tbl_read_tbl_push_down";
-    static final String TABLE_READ_TBL_PUSH_DOWN_WITH_UNION_ALL =
-            "tbl_read_tbl_push_down_with_union_all";
+public class DorisSourceITCase extends AbstractITCaseService {
+    private static final Logger LOG = LoggerFactory.getLogger(DorisSourceITCase.class);
+    private static final String DATABASE = "test_source";
+    private static final String TABLE_READ = "tbl_read";
+    private static final String TABLE_READ_OLD_API = "tbl_read_old_api";
+    private static final String TABLE_READ_TBL = "tbl_read_tbl";
+    private static final String TABLE_READ_TBL_OLD_API = "tbl_read_tbl_old_api";
+    private static final String TABLE_READ_TBL_ALL_OPTIONS = "tbl_read_tbl_all_options";
+    private static final String TABLE_READ_TBL_PUSH_DOWN = "tbl_read_tbl_push_down";
+    private static final String TABLE_READ_TBL_PUSH_DOWN_WITH_UNION_ALL = "tbl_read_tbl_push_down_with_union_all";
 
     @Test
     public void testSource() throws Exception {
@@ -63,8 +63,8 @@ public class DorisSourceITCase extends DorisTestBase {
         dorisBuilder
                 .setFenodes(getFenodes())
                 .setTableIdentifier(DATABASE + "." + TABLE_READ)
-                .setUsername(USERNAME)
-                .setPassword(PASSWORD);
+                .setUsername(getDorisUsername())
+                .setPassword(getDorisPassword());
 
         DorisSource<List<?>> source =
                 DorisSource.<List<?>>builder()
@@ -89,8 +89,8 @@ public class DorisSourceITCase extends DorisTestBase {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         Properties properties = new Properties();
         properties.put("fenodes", getFenodes());
-        properties.put("username", USERNAME);
-        properties.put("password", PASSWORD);
+        properties.put("username", getDorisUsername());
+        properties.put("password", getDorisPassword());
         properties.put("table.identifier", DATABASE + "." + TABLE_READ_OLD_API);
         DorisStreamOptions options = new DorisStreamOptions(properties);
 
@@ -128,7 +128,10 @@ public class DorisSourceITCase extends DorisTestBase {
                                 + " 'username' = '%s',"
                                 + " 'password' = '%s'"
                                 + ")",
-                        getFenodes(), DATABASE + "." + TABLE_READ_TBL, USERNAME, PASSWORD);
+                        getFenodes(),
+                        DATABASE + "." + TABLE_READ_TBL,
+                        getDorisUsername(),
+                        getDorisPassword());
         tEnv.executeSql(sourceDDL);
         TableResult tableResult = tEnv.executeSql("SELECT * FROM doris_source");
 
@@ -174,7 +177,10 @@ public class DorisSourceITCase extends DorisTestBase {
                                 + " 'username' = '%s',"
                                 + " 'password' = '%s'"
                                 + ")",
-                        getFenodes(), DATABASE + "." + TABLE_READ_TBL_OLD_API, USERNAME, PASSWORD);
+                        getFenodes(),
+                        DATABASE + "." + TABLE_READ_TBL_OLD_API,
+                        getDorisUsername(),
+                        getDorisPassword());
         tEnv.executeSql(sourceDDL);
         TableResult tableResult = tEnv.executeSql("SELECT * FROM doris_source");
 
@@ -219,8 +225,8 @@ public class DorisSourceITCase extends DorisTestBase {
                                 + ")",
                         getFenodes(),
                         DATABASE + "." + TABLE_READ_TBL_ALL_OPTIONS,
-                        USERNAME,
-                        PASSWORD);
+                        getDorisUsername(),
+                        getDorisPassword());
         tEnv.executeSql(sourceDDL);
         TableResult tableResult = tEnv.executeSql("SELECT * FROM doris_source");
 
@@ -255,8 +261,8 @@ public class DorisSourceITCase extends DorisTestBase {
                                 + ")",
                         getFenodes(),
                         DATABASE + "." + TABLE_READ_TBL_PUSH_DOWN,
-                        USERNAME,
-                        PASSWORD);
+                        getDorisUsername(),
+                        getDorisPassword());
         tEnv.executeSql(sourceDDL);
         TableResult tableResult = tEnv.executeSql("SELECT age FROM doris_source where age = '18'");
 
@@ -291,8 +297,8 @@ public class DorisSourceITCase extends DorisTestBase {
                                 + ")",
                         getFenodes(),
                         DATABASE + "." + TABLE_READ_TBL_PUSH_DOWN_WITH_UNION_ALL,
-                        USERNAME,
-                        PASSWORD);
+                        getDorisUsername(),
+                        getDorisPassword());
         tEnv.executeSql(sourceDDL);
         TableResult tableResult =
                 tEnv.executeSql(
@@ -310,29 +316,23 @@ public class DorisSourceITCase extends DorisTestBase {
         Assert.assertArrayEquals(expected, actual.toArray());
     }
 
-    private void initializeTable(String table) throws Exception {
-        try (Connection connection =
-                        DriverManager.getConnection(
-                                String.format(URL, DORIS_CONTAINER.getHost()), USERNAME, PASSWORD);
-                Statement statement = connection.createStatement()) {
-            statement.execute(String.format("CREATE DATABASE IF NOT EXISTS %s", DATABASE));
-            statement.execute(String.format("DROP TABLE IF EXISTS %s.%s", DATABASE, table));
-            statement.execute(
-                    String.format(
-                            "CREATE TABLE %s.%s ( \n"
-                                    + "`name` varchar(256),\n"
-                                    + "`age` int\n"
-                                    + ") DISTRIBUTED BY HASH(`name`) BUCKETS 1\n"
-                                    + "PROPERTIES (\n"
-                                    + "\"replication_num\" = \"1\"\n"
-                                    + ")\n",
-                            DATABASE, table));
-            statement.execute(
-                    String.format("insert into %s.%s  values ('doris',18)", DATABASE, table));
-            statement.execute(
-                    String.format("insert into %s.%s  values ('flink',10)", DATABASE, table));
-            statement.execute(
-                    String.format("insert into %s.%s  values ('apache',12)", DATABASE, table));
-        }
+    private void initializeTable(String table) {
+        ContainerUtils.executeSQLStatement(
+                getDorisQueryConnection(),
+                LOG,
+                String.format("CREATE DATABASE IF NOT EXISTS %s", DATABASE),
+                String.format("DROP TABLE IF EXISTS %s.%s", DATABASE, table),
+                String.format(
+                        "CREATE TABLE %s.%s ( \n"
+                                + "`name` varchar(256),\n"
+                                + "`age` int\n"
+                                + ") DISTRIBUTED BY HASH(`name`) BUCKETS 1\n"
+                                + "PROPERTIES (\n"
+                                + "\"replication_num\" = \"1\"\n"
+                                + ")\n",
+                        DATABASE, table),
+                String.format("insert into %s.%s  values ('doris',18)", DATABASE, table),
+                String.format("insert into %s.%s  values ('flink',10)", DATABASE, table),
+                String.format("insert into %s.%s  values ('apache',12)", DATABASE, table));
     }
 }

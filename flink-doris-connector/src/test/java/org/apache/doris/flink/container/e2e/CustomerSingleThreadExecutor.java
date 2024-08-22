@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.flink.autoci.e2e;
+package org.apache.doris.flink.container.e2e;
 
 import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.slf4j.Logger;

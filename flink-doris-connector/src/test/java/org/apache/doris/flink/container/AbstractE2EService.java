@@ -15,15 +15,15 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.flink.autoci.e2e;
+package org.apache.doris.flink.container;
 
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
-import org.apache.doris.flink.autoci.AbstractAutoCITestBase;
-import org.apache.doris.flink.autoci.container.ContainerService;
-import org.apache.doris.flink.autoci.container.MySQLContainerService;
+import org.apache.doris.flink.container.e2e.CustomerSingleThreadExecutor;
+import org.apache.doris.flink.container.instance.ContainerService;
+import org.apache.doris.flink.container.instance.MySQLContainer;
 import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.apache.doris.flink.tools.cdc.CdcTools;
 import org.apache.doris.flink.tools.cdc.DatabaseSyncConfig;
@@ -37,7 +37,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-public abstract class AbstractE2EService extends AbstractAutoCITestBase {
+public abstract class AbstractE2EService extends AbstractContainerTestBase {
     private static final Logger LOG = LoggerFactory.getLogger(AbstractE2EService.class);
     private static ContainerService mysqlContainerService;
     private static final CustomerSingleThreadExecutor singleThreadExecutor =
@@ -64,7 +64,7 @@ public abstract class AbstractE2EService extends AbstractAutoCITestBase {
             LOG.info("The MySQL container has been started and will be used directly.");
             return;
         }
-        mysqlContainerService = new MySQLContainerService();
+        mysqlContainerService = new MySQLContainer();
         mysqlContainerService.startContainer();
         LOG.info("Mysql container was started.");
     }

@@ -15,10 +15,10 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.flink.autoci;
+package org.apache.doris.flink.container;
 
-import org.apache.doris.flink.autoci.container.ContainerService;
-import org.apache.doris.flink.autoci.container.DorisContainerService;
+import org.apache.doris.flink.container.instance.ContainerService;
+import org.apache.doris.flink.container.instance.DorisContainer;
 import org.junit.BeforeClass;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,8 +26,8 @@ import org.slf4j.LoggerFactory;
 import java.sql.Connection;
 import java.util.Objects;
 
-public abstract class AbstractAutoCITestBase {
-    private static final Logger LOG = LoggerFactory.getLogger(AbstractAutoCITestBase.class);
+public abstract class AbstractContainerTestBase {
+    private static final Logger LOG = LoggerFactory.getLogger(AbstractContainerTestBase.class);
     private static ContainerService dorisContainerService;
 
     @BeforeClass
@@ -41,7 +41,7 @@ public abstract class AbstractAutoCITestBase {
             LOG.info("The doris container has been started and will be used directly.");
             return;
         }
-        dorisContainerService = new DorisContainerService();
+        dorisContainerService = new DorisContainer();
         dorisContainerService.startContainer();
         LOG.info("Doris container was started.");
     }

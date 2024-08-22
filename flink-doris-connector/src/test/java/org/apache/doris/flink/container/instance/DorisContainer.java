@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.flink.autoci.container;
+package org.apache.doris.flink.container.instance;
 
 import com.google.common.collect.Lists;
 import org.apache.doris.flink.exception.DorisRuntimeException;
@@ -45,8 +45,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.locks.LockSupport;
 
-public class DorisContainerService implements ContainerService {
-    private static final Logger LOG = LoggerFactory.getLogger(DorisContainerService.class);
+public class DorisContainer implements ContainerService {
+    private static final Logger LOG = LoggerFactory.getLogger(DorisContainer.class);
     private static final String DEFAULT_DOCKER_IMAGE = "apache/doris:doris-all-in-one-2.1.0";
     private static final String DORIS_DOCKER_IMAGE =
             System.getProperty("image") == null
@@ -59,7 +59,7 @@ public class DorisContainerService implements ContainerService {
     private static final String PASSWORD = "";
     private final GenericContainer dorisContainer;
 
-    public DorisContainerService() {
+    public DorisContainer() {
         dorisContainer = createDorisContainer();
     }
 
@@ -149,8 +149,7 @@ public class DorisContainerService implements ContainerService {
     private void initializeJDBCDriver() throws MalformedURLException {
         URLClassLoader urlClassLoader =
                 new URLClassLoader(
-                        new URL[] {new URL(DRIVER_JAR)},
-                        DorisContainerService.class.getClassLoader());
+                        new URL[] {new URL(DRIVER_JAR)}, DorisContainer.class.getClassLoader());
         LOG.info("Try to connect to Doris.");
         Thread.currentThread().setContextClassLoader(urlClassLoader);
     }

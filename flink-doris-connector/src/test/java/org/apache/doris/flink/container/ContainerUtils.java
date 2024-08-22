@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.flink.autoci.e2e;
+package org.apache.doris.flink.container;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.doris.flink.exception.DorisRuntimeException;
@@ -36,9 +36,9 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-public class E2EContainerUtils {
+public class ContainerUtils {
 
-    protected static void executeSQLStatement(Connection connection, Logger logger, String... sql) {
+    public static void executeSQLStatement(Connection connection, Logger logger, String... sql) {
         if (Objects.isNull(sql) || sql.length == 0) {
             return;
         }
@@ -54,9 +54,9 @@ public class E2EContainerUtils {
         }
     }
 
-    protected static String loadFileContent(String resourcePath) {
+    public static String loadFileContent(String resourcePath) {
         try (InputStream stream =
-                E2EContainerUtils.class.getClassLoader().getResourceAsStream(resourcePath)) {
+                ContainerUtils.class.getClassLoader().getResourceAsStream(resourcePath)) {
             return new BufferedReader(new InputStreamReader(Objects.requireNonNull(stream)))
                     .lines()
                     .collect(Collectors.joining("\n"));
@@ -65,15 +65,15 @@ public class E2EContainerUtils {
         }
     }
 
-    protected static List<String> parseFileArgs(String resourcePath) {
-        String fileContent = E2EContainerUtils.loadFileContent(resourcePath);
+    public static List<String> parseFileArgs(String resourcePath) {
+        String fileContent = ContainerUtils.loadFileContent(resourcePath);
         String[] args = fileContent.split("\n");
         List<String> argList = new ArrayList<>();
         for (String arg : args) {
             String[] split = arg.trim().split("\\s+");
             List<String> stringList =
                     Arrays.stream(split)
-                            .map(E2EContainerUtils::removeQuotes)
+                            .map(ContainerUtils::removeQuotes)
                             .collect(Collectors.toList());
             argList.addAll(stringList);
         }
@@ -93,7 +93,7 @@ public class E2EContainerUtils {
         return str;
     }
 
-    protected static String[] parseFileContentSQL(String resourcePath) {
+    public static String[] parseFileContentSQL(String resourcePath) {
         String fileContent = loadFileContent(resourcePath);
         return Arrays.stream(fileContent.split(";")).map(String::trim).toArray(String[]::new);
     }
