@@ -46,6 +46,9 @@ public class MysqlType {
     private static final String INT = "INT";
     private static final String INT_UNSIGNED = "INT UNSIGNED";
     private static final String INT_UNSIGNED_ZEROFILL = "INT UNSIGNED ZEROFILL";
+    private static final String INTEGER = "INTEGER";
+    private static final String INTEGER_UNSIGNED = "INTEGER UNSIGNED";
+    private static final String INTEGER_UNSIGNED_ZEROFILL = "INTEGER UNSIGNED ZEROFILL";
     private static final String BIGINT = "BIGINT";
     private static final String SERIAL = "SERIAL";
     private static final String BIGINT_UNSIGNED = "BIGINT UNSIGNED";
@@ -108,11 +111,14 @@ public class MysqlType {
             case SMALLINT_UNSIGNED:
             case SMALLINT_UNSIGNED_ZEROFILL:
             case INT:
+            case INTEGER:
             case MEDIUMINT:
             case YEAR:
                 return DorisType.INT;
             case INT_UNSIGNED:
             case INT_UNSIGNED_ZEROFILL:
+            case INTEGER_UNSIGNED:
+            case INTEGER_UNSIGNED_ZEROFILL:
             case MEDIUMINT_UNSIGNED:
             case MEDIUMINT_UNSIGNED_ZEROFILL:
             case BIGINT:
