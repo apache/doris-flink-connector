@@ -85,7 +85,7 @@ public class DorisSinkITCase extends AbstractITCaseService {
         Thread.sleep(10000);
         List<String> expected = Arrays.asList("doris,1");
         String query = String.format("select name,age from %s.%s order by 1", DATABASE, TABLE_CSV);
-        ContainerUtils.checkResult(getDorisQueryConnection(), expected, query, 2);
+        ContainerUtils.checkResult(getDorisQueryConnection(), LOG, expected, query, 2);
     }
 
     @Test
@@ -123,7 +123,7 @@ public class DorisSinkITCase extends AbstractITCaseService {
         Thread.sleep(10000);
         List<String> expected = Arrays.asList("doris1,1", "doris2,2");
         String query = String.format("select name,age from %s.%s order by 1", DATABASE, TABLE_JSON);
-        ContainerUtils.checkResult(getDorisQueryConnection(), expected, query, 2);
+        ContainerUtils.checkResult(getDorisQueryConnection(), LOG, expected, query, 2);
     }
 
     private void submitJob(
@@ -189,7 +189,7 @@ public class DorisSinkITCase extends AbstractITCaseService {
         List<String> expected = Arrays.asList("doris,1", "flink,2");
         String query =
                 String.format("select name,age from %s.%s order by 1", DATABASE, TABLE_JSON_TBL);
-        ContainerUtils.checkResult(getDorisQueryConnection(), expected, query, 2);
+        ContainerUtils.checkResult(getDorisQueryConnection(), LOG, expected, query, 2);
     }
 
     @Test
@@ -236,7 +236,7 @@ public class DorisSinkITCase extends AbstractITCaseService {
         String query =
                 String.format(
                         "select name,age from %s.%s order by 1", DATABASE, TABLE_CSV_BATCH_TBL);
-        ContainerUtils.checkResult(getDorisQueryConnection(), expected, query, 2);
+        ContainerUtils.checkResult(getDorisQueryConnection(), LOG, expected, query, 2);
     }
 
     @Test
@@ -276,7 +276,7 @@ public class DorisSinkITCase extends AbstractITCaseService {
         String query =
                 String.format(
                         "select name,age from %s.%s order by 1", DATABASE, TABLE_CSV_BATCH_DS);
-        ContainerUtils.checkResult(getDorisQueryConnection(), expected, query, 2);
+        ContainerUtils.checkResult(getDorisQueryConnection(), LOG, expected, query, 2);
     }
 
     @Test
@@ -325,7 +325,7 @@ public class DorisSinkITCase extends AbstractITCaseService {
         String query =
                 String.format(
                         "select name,age from %s.%s order by 1", DATABASE, TABLE_GROUP_COMMIT);
-        ContainerUtils.checkResult(getDorisQueryConnection(), expected, query, 2);
+        ContainerUtils.checkResult(getDorisQueryConnection(), LOG, expected, query, 2);
     }
 
     @Test
@@ -366,7 +366,7 @@ public class DorisSinkITCase extends AbstractITCaseService {
         List<String> expected = Arrays.asList("doris,1", "flink,2");
         String query =
                 String.format("select name,age from %s.%s order by 1", DATABASE, TABLE_GZ_FORMAT);
-        ContainerUtils.checkResult(getDorisQueryConnection(), expected, query, 2);
+        ContainerUtils.checkResult(getDorisQueryConnection(), LOG, expected, query, 2);
     }
 
     @Test
@@ -426,7 +426,7 @@ public class DorisSinkITCase extends AbstractITCaseService {
                 Arrays.asList("1,0", "1,1", "2,0", "2,1", "3,0", "3,1", "4,0", "4,1", "5,0", "5,1");
         String query =
                 String.format("select id,task_id from %s.%s order by 1,2", DATABASE, TABLE_CSV_JM);
-        ContainerUtils.checkResult(getDorisQueryConnection(), expected, query, 2);
+        ContainerUtils.checkResult(getDorisQueryConnection(), LOG, expected, query, 2);
     }
 
     @Test
@@ -483,7 +483,7 @@ public class DorisSinkITCase extends AbstractITCaseService {
                 Arrays.asList("1,0", "1,1", "2,0", "2,1", "3,0", "3,1", "4,0", "4,1", "5,0", "5,1");
         String query =
                 String.format("select id,task_id from %s.%s order by 1,2", DATABASE, TABLE_CSV_TM);
-        ContainerUtils.checkResult(getDorisQueryConnection(), expected, query, 2);
+        ContainerUtils.checkResult(getDorisQueryConnection(), LOG, expected, query, 2);
     }
 
     private void sleepMs(long millis) {

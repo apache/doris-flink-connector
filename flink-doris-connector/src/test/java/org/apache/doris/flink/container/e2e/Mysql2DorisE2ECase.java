@@ -116,7 +116,7 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
                     Arrays.asList("doris_1,1", "doris_2,2", "doris_3,3", "doris_5,5");
             String sql1 =
                     "select * from ( select * from test_e2e_mysql.tbl1 union all select * from test_e2e_mysql.tbl2 union all select * from test_e2e_mysql.tbl3 union all select * from test_e2e_mysql.tbl5) res order by 1";
-            ContainerUtils.checkResult(getDorisQueryConnection(), expected, sql1, 2);
+            ContainerUtils.checkResult(getDorisQueryConnection(), LOG, expected, sql1, 2);
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
@@ -155,7 +155,7 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
         Thread.sleep(20000);
         List<String> autoAddResult = Arrays.asList("doris_4_1,4", "doris_4_2,4");
         String autoAddSql = "select * from test_e2e_mysql.auto_add order by 1";
-        ContainerUtils.checkResult(getDorisQueryConnection(), autoAddResult, autoAddSql, 2);
+        ContainerUtils.checkResult(getDorisQueryConnection(), LOG, autoAddResult, autoAddSql, 2);
 
         // incremental data
         LOG.info("starting to increment data.");
@@ -179,7 +179,7 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
         String incrementDataSql =
                 "select * from ( select * from test_e2e_mysql.tbl1 union all select * from test_e2e_mysql.tbl2 union all select * from test_e2e_mysql.tbl3 union all select * from test_e2e_mysql.auto_add) res order by 1";
         ContainerUtils.checkResult(
-                getDorisQueryConnection(), incrementDataExpected, incrementDataSql, 2);
+                getDorisQueryConnection(), LOG, incrementDataExpected, incrementDataSql, 2);
 
         // schema change
         LOG.info("starting to mock schema change.");
@@ -194,7 +194,7 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
                 Arrays.asList("doris_4_1,null", "doris_4_3,null", "doris_4_4,c1_val");
         String schemaChangeSql = "select * from test_e2e_mysql.auto_add order by 1";
         ContainerUtils.checkResult(
-                getDorisQueryConnection(), schemaChangeExpected, schemaChangeSql, 2);
+                getDorisQueryConnection(), LOG, schemaChangeExpected, schemaChangeSql, 2);
         cancelCurrentE2EJob(jobName);
     }
 
@@ -226,7 +226,7 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
         List<String> createTableExpected = Arrays.asList("doris_1,1", "doris_2,2", "doris_3,3");
         String createTableSql = "select * from test_e2e_mysql.add_tbl order by 1";
         ContainerUtils.checkResult(
-                getDorisQueryConnection(), createTableExpected, createTableSql, 2);
+                getDorisQueryConnection(), LOG, createTableExpected, createTableSql, 2);
         cancelCurrentE2EJob(jobName);
     }
 
@@ -256,7 +256,7 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
                 Arrays.asList("doris_1,null", "doris_1_1,null", "doris_1_1_1,c1_val");
         String schemaChangeSql = "select * from test_e2e_mysql.tbl1 order by 1";
         ContainerUtils.checkResult(
-                getDorisQueryConnection(), schemaChangeExpected, schemaChangeSql, 2);
+                getDorisQueryConnection(), LOG, schemaChangeExpected, schemaChangeSql, 2);
     }
 
     private void addIncrementalData() {
@@ -283,7 +283,7 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
                         "doris_1,18", "doris_1_1,10", "doris_2_1,11", "doris_3,3", "doris_3_1,12");
         String sql2 =
                 "select * from ( select * from test_e2e_mysql.tbl1 union all select * from test_e2e_mysql.tbl2 union all select * from test_e2e_mysql.tbl3 ) res order by 1";
-        ContainerUtils.checkResult(getDorisQueryConnection(), expected2, sql2, 2);
+        ContainerUtils.checkResult(getDorisQueryConnection(), LOG, expected2, sql2, 2);
     }
 
     @Test
@@ -320,7 +320,7 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
                         "doris_5,5");
         String sql =
                 "select * from ( select * from test_e2e_mysql.tbl1 union all select * from test_e2e_mysql.tbl2 union all select * from test_e2e_mysql.tbl3 union all select * from test_e2e_mysql.tbl5) res order by 1";
-        ContainerUtils.checkResult(getDorisQueryConnection(), expected, sql, 2);
+        ContainerUtils.checkResult(getDorisQueryConnection(), LOG, expected, sql, 2);
         cancelCurrentE2EJob(jobName);
     }
 }

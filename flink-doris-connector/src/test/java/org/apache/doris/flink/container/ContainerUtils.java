@@ -99,7 +99,11 @@ public class ContainerUtils {
     }
 
     public static void checkResult(
-            Connection connection, List<String> expected, String query, int columnSize) {
+            Connection connection,
+            Logger logger,
+            List<String> expected,
+            String query,
+            int columnSize) {
         List<String> actual = new ArrayList<>();
         try (Statement statement = connection.createStatement()) {
             ResultSet sinkResultSet = statement.executeQuery(query);
@@ -116,6 +120,11 @@ public class ContainerUtils {
                 actual.add(StringUtils.join(row, ","));
             }
         } catch (SQLException e) {
+            logger.info(
+                    "Failed to check query result. expected={}, actual={}",
+                    String.join(",", expected),
+                    String.join(",", actual),
+                    e);
             throw new DorisRuntimeException(e);
         }
         Assert.assertArrayEquals(expected.toArray(), actual.toArray());
