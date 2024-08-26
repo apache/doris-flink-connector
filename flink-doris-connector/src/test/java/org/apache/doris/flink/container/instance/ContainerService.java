@@ -25,7 +25,7 @@ public interface ContainerService {
 
     void startContainer();
 
-    boolean isAlive();
+    boolean isRunning();
 
     Connection getQueryConnection();
 

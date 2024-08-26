@@ -99,8 +99,8 @@ public class DorisContainer implements ContainerService {
     }
 
     @Override
-    public boolean isAlive() {
-        return dorisContainer.isRunning() && dorisContainer.isHealthy();
+    public boolean isRunning() {
+        return dorisContainer.isRunning();
     }
 
     @Override

@@ -37,8 +37,8 @@ public abstract class AbstractContainerTestBase {
     }
 
     private static void initDorisContainer() {
-        if (Objects.nonNull(dorisContainerService) && dorisContainerService.isAlive()) {
-            LOG.info("The doris container has been started and is alive status.");
+        if (Objects.nonNull(dorisContainerService) && dorisContainerService.isRunning()) {
+            LOG.info("The doris container has been started and is running status.");
             return;
         }
         dorisContainerService = new DorisContainer();
