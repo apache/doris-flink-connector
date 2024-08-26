@@ -415,11 +415,13 @@ public class DorisSinkITCase extends AbstractITCaseService {
         triggerFailover(
                 FailoverType.JM, jobID, miniClusterResource.getMiniCluster(), () -> sleepMs(100));
 
+        LOG.info("Waiting the JobManagerFailoverSink job to be finished. jobId={}", jobID);
         waitForJobStatus(
                 jobClient,
                 Collections.singletonList(FINISHED),
                 Deadline.fromNow(Duration.ofSeconds(120)));
 
+        LOG.info("Will check job manager failover sink result.");
         List<String> expected =
                 Arrays.asList("1,0", "1,1", "2,0", "2,1", "3,0", "3,1", "4,0", "4,1", "5,0", "5,1");
         String query =
@@ -470,11 +472,13 @@ public class DorisSinkITCase extends AbstractITCaseService {
         triggerFailover(
                 FailoverType.TM, jobID, miniClusterResource.getMiniCluster(), () -> sleepMs(100));
 
+        LOG.info("Waiting the TaskManagerFailoverSink job to be finished. jobId={}", jobID);
         waitForJobStatus(
                 jobClient,
                 Collections.singletonList(FINISHED),
                 Deadline.fromNow(Duration.ofSeconds(120)));
 
+        LOG.info("Will check task manager failover sink result.");
         List<String> expected =
                 Arrays.asList("1,0", "1,1", "2,0", "2,1", "3,0", "3,1", "4,0", "4,1", "5,0", "5,1");
         String query =
