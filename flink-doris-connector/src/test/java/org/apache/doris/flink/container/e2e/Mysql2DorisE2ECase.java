@@ -59,22 +59,6 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
         List<String> argList = ContainerUtils.parseFileArgs(resourcePath);
         String[] args = setMysql2DorisDefaultConfig(argList).toArray(new String[0]);
         submitE2EJob(jobName, args);
-        verifyInitializeResult();
-    }
-
-    private void verifyInitializeResult() {
-        // wait 2 times checkpoint
-        try {
-            Thread.sleep(20000);
-            LOG.info("Start to verify init result.");
-            List<String> expected =
-                    Arrays.asList("doris_1,1", "doris_2,2", "doris_3,3", "doris_5,5");
-            String sql1 =
-                    "select * from ( select * from test_e2e_mysql.tbl1 union all select * from test_e2e_mysql.tbl2 union all select * from test_e2e_mysql.tbl3 union all select * from test_e2e_mysql.tbl5) res order by 1";
-            ContainerUtils.checkResult(getDorisQueryConnection(), LOG, expected, sql1, 2);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
     }
 
     private void initMysqlEnvironment(String sourcePath) {
@@ -102,11 +86,19 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
     }
 
     @Test
-    public void testMySQL2Doris() {
+    public void testMySQL2Doris() throws Exception {
         initEnvironment("container/e2e/mysql2doris/testMySQL2Doris_init.sql");
         String jobName = "testMySQL2Doris";
         String resourcePath = "container/e2e/mysql2doris/testMySQL2Doris.txt";
         startMysql2DorisJob(jobName, resourcePath);
+
+        // wait 2 times checkpoint
+        Thread.sleep(20000);
+        LOG.info("Start to verify init result.");
+        List<String> expected = Arrays.asList("doris_1,1", "doris_2,2", "doris_3,3", "doris_5,5");
+        String sql1 =
+                "select * from ( select * from test_e2e_mysql.tbl1 union all select * from test_e2e_mysql.tbl2 union all select * from test_e2e_mysql.tbl3 union all select * from test_e2e_mysql.tbl5) res order by 1";
+        ContainerUtils.checkResult(getDorisQueryConnection(), LOG, expected, sql1, 2);
 
         addIncrementalData();
         verifyIncrementalDataResult();
@@ -121,6 +113,14 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
         initEnvironment("container/e2e/mysql2doris/testAutoAddTable_init.sql");
         String jobName = "testAutoAddTable";
         startMysql2DorisJob(jobName, "container/e2e/mysql2doris/testAutoAddTable.txt");
+
+        // wait 2 times checkpoint
+        Thread.sleep(20000);
+        LOG.info("Start to verify init result.");
+        List<String> expected = Arrays.asList("doris_1,1", "doris_2,2", "doris_3,3", "doris_5,5");
+        String sql1 =
+                "select * from ( select * from test_e2e_mysql.tbl1 union all select * from test_e2e_mysql.tbl2 union all select * from test_e2e_mysql.tbl3 union all select * from test_e2e_mysql.tbl5) res order by 1";
+        ContainerUtils.checkResult(getDorisQueryConnection(), LOG, expected, sql1, 2);
 
         // auto add table
         LOG.info("starting to create auto_add table.");
@@ -185,6 +185,14 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
         String jobName = "testMySQL2DorisSQLParse";
         String resourcePath = "container/e2e/mysql2doris/testMySQL2DorisSQLParse.txt";
         startMysql2DorisJob(jobName, resourcePath);
+
+        // wait 2 times checkpoint
+        Thread.sleep(20000);
+        LOG.info("Start to verify init result.");
+        List<String> expected = Arrays.asList("doris_1,1", "doris_2,2", "doris_3,3", "doris_5,5");
+        String sql1 =
+                "select * from ( select * from test_e2e_mysql.tbl1 union all select * from test_e2e_mysql.tbl2 union all select * from test_e2e_mysql.tbl3 union all select * from test_e2e_mysql.tbl5) res order by 1";
+        ContainerUtils.checkResult(getDorisQueryConnection(), LOG, expected, sql1, 2);
 
         addIncrementalData();
         verifyIncrementalDataResult();
@@ -269,10 +277,18 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
     }
 
     @Test
-    public void testMySQL2DorisByDefault() {
+    public void testMySQL2DorisByDefault() throws Exception {
         initEnvironment("container/e2e/mysql2doris/testMySQL2DorisByDefault_init.sql");
         String jobName = "testMySQL2DorisByDefault";
         startMysql2DorisJob(jobName, "container/e2e/mysql2doris/testMySQL2DorisByDefault.txt");
+
+        // wait 2 times checkpoint
+        Thread.sleep(20000);
+        LOG.info("Start to verify init result.");
+        List<String> expected = Arrays.asList("doris_1,1", "doris_2,2", "doris_3,3", "doris_5,5");
+        String sql1 =
+                "select * from ( select * from test_e2e_mysql.tbl1 union all select * from test_e2e_mysql.tbl2 union all select * from test_e2e_mysql.tbl3 union all select * from test_e2e_mysql.tbl5) res order by 1";
+        ContainerUtils.checkResult(getDorisQueryConnection(), LOG, expected, sql1, 2);
 
         addIncrementalData();
         verifyIncrementalDataResult();
@@ -284,6 +300,15 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
         initEnvironment("container/e2e/mysql2doris/testMySQL2DorisEnableDelete_init.sql");
         String jobName = "testMySQL2DorisEnableDelete";
         startMysql2DorisJob(jobName, "container/e2e/mysql2doris/testMySQL2DorisEnableDelete.txt");
+
+        // wait 2 times checkpoint
+        Thread.sleep(20000);
+        LOG.info("Start to verify init result.");
+        List<String> initExpected =
+                Arrays.asList("doris_1,1", "doris_2,2", "doris_3,3", "doris_5,5");
+        String sql1 =
+                "select * from ( select * from test_e2e_mysql.tbl1 union all select * from test_e2e_mysql.tbl2 union all select * from test_e2e_mysql.tbl3 union all select * from test_e2e_mysql.tbl5) res order by 1";
+        ContainerUtils.checkResult(getDorisQueryConnection(), LOG, initExpected, sql1, 2);
 
         addIncrementalData();
         ContainerUtils.executeSQLStatement(
