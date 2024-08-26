@@ -122,16 +122,20 @@ public abstract class AbstractITCaseService extends AbstractContainerTestBase {
 
     protected static void restartTaskManager(MiniCluster miniCluster, Runnable afterFailAction)
             throws Exception {
+        LOG.info("flink cluster will terminate task manager.");
         miniCluster.terminateTaskManager(0).get();
         afterFailAction.run();
+        LOG.info("flink cluster will start task manager.");
         miniCluster.startTaskManager();
     }
 
     protected static void triggerJobManagerFailover(
             JobID jobId, MiniCluster miniCluster, Runnable afterFailAction) throws Exception {
+        LOG.info("flink cluster will revoke job master leadership. jobId={}", jobId);
         final HaLeadershipControl haLeadershipControl = miniCluster.getHaLeadershipControl().get();
         haLeadershipControl.revokeJobMasterLeadership(jobId).get();
         afterFailAction.run();
+        LOG.info("flink cluster will grant job master leadership. jobId={}", jobId);
         haLeadershipControl.grantJobMasterLeadership(jobId).get();
     }
 }
