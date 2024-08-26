@@ -1,3 +1,4 @@
+CREATE DATABASE if NOT EXISTS test_e2e_mysql;
 DROP TABLE IF EXISTS test_e2e_mysql.tbl1;
 CREATE TABLE test_e2e_mysql.tbl1 (
     `name` varchar(256) primary key,
