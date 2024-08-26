@@ -29,11 +29,14 @@ import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.function.SupplierWithException;
 
 import org.junit.Rule;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.concurrent.TimeoutException;
 
 public abstract class AbstractITCaseService extends AbstractContainerTestBase {
+    private static final Logger LOG = LoggerFactory.getLogger(AbstractITCaseService.class);
 
     protected static void waitForJobStatus(
             JobClient client, List<JobStatus> expectedStatus, Deadline deadline) throws Exception {
@@ -102,6 +105,7 @@ public abstract class AbstractITCaseService extends AbstractContainerTestBase {
     protected static void triggerFailover(
             FailoverType type, JobID jobId, MiniCluster miniCluster, Runnable afterFailAction)
             throws Exception {
+        LOG.info("Will job trigger failover. type={}, jobId={}", type, jobId);
         switch (type) {
             case TM:
                 restartTaskManager(miniCluster, afterFailAction);
