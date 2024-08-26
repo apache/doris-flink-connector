@@ -372,7 +372,7 @@ public class DorisSinkITCase extends AbstractITCaseService {
     @Test
     public void testJobManagerFailoverSink() throws Exception {
         LOG.info("start to test JobManagerFailoverSink.");
-        initializeTable(TABLE_CSV_JM);
+        initializeFailoverTable(TABLE_CSV_JM);
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(2);
         env.enableCheckpointing(10000);
@@ -432,7 +432,7 @@ public class DorisSinkITCase extends AbstractITCaseService {
     @Test
     public void testTaskManagerFailoverSink() throws Exception {
         LOG.info("start to test TaskManagerFailoverSink.");
-        initializeTable(TABLE_CSV_TM);
+        initializeFailoverTable(TABLE_CSV_TM);
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(2);
         env.enableCheckpointing(10000);
@@ -504,6 +504,23 @@ public class DorisSinkITCase extends AbstractITCaseService {
                                 + "`name` varchar(256),\n"
                                 + "`age` int\n"
                                 + ") DISTRIBUTED BY HASH(`name`) BUCKETS 1\n"
+                                + "PROPERTIES (\n"
+                                + "\"replication_num\" = \"1\"\n"
+                                + ")\n",
+                        DATABASE, table));
+    }
+
+    private void initializeFailoverTable(String table) {
+        ContainerUtils.executeSQLStatement(
+                getDorisQueryConnection(),
+                LOG,
+                String.format("CREATE DATABASE IF NOT EXISTS %s", DATABASE),
+                String.format("DROP TABLE IF EXISTS %s.%s", DATABASE, table),
+                String.format(
+                        "CREATE TABLE %s.%s ( \n"
+                                + "`id` int,\n"
+                                + "`task_id` int\n"
+                                + ") DISTRIBUTED BY HASH(`id`) BUCKETS 1\n"
                                 + "PROPERTIES (\n"
                                 + "\"replication_num\" = \"1\"\n"
                                 + ")\n",
