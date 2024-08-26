@@ -146,11 +146,11 @@ public class Doris2DorisE2ECase extends AbstractE2EService {
     private void initializeDorisTable() {
         String[] sourceInitSql =
                 ContainerUtils.parseFileContentSQL(
-                        "container.e2e/doris2doris/test_doris2doris_source_test_tbl.sql");
+                        "container/e2e/doris2doris/test_doris2doris_source_test_tbl.sql");
         ContainerUtils.executeSQLStatement(getDorisQueryConnection(), LOG, sourceInitSql);
         String[] sinkInitSql =
                 ContainerUtils.parseFileContentSQL(
-                        "container.e2e/doris2doris/test_doris2doris_sink_test_tbl.sql");
+                        "container/e2e/doris2doris/test_doris2doris_sink_test_tbl.sql");
         ContainerUtils.executeSQLStatement(getDorisQueryConnection(), LOG, sinkInitSql);
         LOG.info("Initialization of doris table successful.");
     }

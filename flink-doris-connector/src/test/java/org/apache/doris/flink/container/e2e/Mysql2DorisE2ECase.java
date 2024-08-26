@@ -103,9 +103,9 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
 
     @Test
     public void testMySQL2Doris() {
-        initEnvironment("container.e2e/mysql2doris/testMySQL2Doris_init.sql");
+        initEnvironment("container/e2e/mysql2doris/testMySQL2Doris_init.sql");
         String jobName = "testMySQL2Doris";
-        String resourcePath = "container.e2e/mysql2doris/testMySQL2Doris.txt";
+        String resourcePath = "container/e2e/mysql2doris/testMySQL2Doris.txt";
         startMysql2DorisJob(jobName, resourcePath);
 
         addIncrementalData();
@@ -118,9 +118,9 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
 
     @Test
     public void testAutoAddTable() throws InterruptedException {
-        initEnvironment("container.e2e/mysql2doris/testAutoAddTable_init.sql");
+        initEnvironment("container/e2e/mysql2doris/testAutoAddTable_init.sql");
         String jobName = "testAutoAddTable";
-        startMysql2DorisJob(jobName, "container.e2e/mysql2doris/testAutoAddTable.txt");
+        startMysql2DorisJob(jobName, "container/e2e/mysql2doris/testAutoAddTable.txt");
 
         // auto add table
         LOG.info("starting to create auto_add table.");
@@ -181,9 +181,9 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
 
     @Test
     public void testMySQL2DorisSQLParse() throws Exception {
-        initEnvironment("container.e2e/mysql2doris/testMySQL2DorisSQLParse_init.sql");
+        initEnvironment("container/e2e/mysql2doris/testMySQL2DorisSQLParse_init.sql");
         String jobName = "testMySQL2DorisSQLParse";
-        String resourcePath = "container.e2e/mysql2doris/testMySQL2DorisSQLParse.txt";
+        String resourcePath = "container/e2e/mysql2doris/testMySQL2DorisSQLParse.txt";
         startMysql2DorisJob(jobName, resourcePath);
 
         addIncrementalData();
@@ -270,9 +270,9 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
 
     @Test
     public void testMySQL2DorisByDefault() {
-        initEnvironment("container.e2e/mysql2doris/testMySQL2DorisByDefault_init.sql");
+        initEnvironment("container/e2e/mysql2doris/testMySQL2DorisByDefault_init.sql");
         String jobName = "testMySQL2DorisByDefault";
-        startMysql2DorisJob(jobName, "container.e2e/mysql2doris/testMySQL2DorisByDefault.txt");
+        startMysql2DorisJob(jobName, "container/e2e/mysql2doris/testMySQL2DorisByDefault.txt");
 
         addIncrementalData();
         verifyIncrementalDataResult();
@@ -281,9 +281,9 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
 
     @Test
     public void testMySQL2DorisEnableDelete() throws Exception {
-        initEnvironment("container.e2e/mysql2doris/testMySQL2DorisEnableDelete_init.sql");
+        initEnvironment("container/e2e/mysql2doris/testMySQL2DorisEnableDelete_init.sql");
         String jobName = "testMySQL2DorisEnableDelete";
-        startMysql2DorisJob(jobName, "container.e2e/mysql2doris/testMySQL2DorisEnableDelete.txt");
+        startMysql2DorisJob(jobName, "container/e2e/mysql2doris/testMySQL2DorisEnableDelete.txt");
 
         addIncrementalData();
         ContainerUtils.executeSQLStatement(
