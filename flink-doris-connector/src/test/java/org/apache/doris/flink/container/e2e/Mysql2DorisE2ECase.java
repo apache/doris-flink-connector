@@ -19,7 +19,6 @@ package org.apache.doris.flink.container.e2e;
 
 import org.apache.doris.flink.container.AbstractE2EService;
 import org.apache.doris.flink.container.ContainerUtils;
-import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.apache.doris.flink.tools.cdc.DatabaseSyncConfig;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -100,11 +99,44 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
                 "select * from ( select * from test_e2e_mysql.tbl1 union all select * from test_e2e_mysql.tbl2 union all select * from test_e2e_mysql.tbl3 union all select * from test_e2e_mysql.tbl5) res order by 1";
         ContainerUtils.checkResult(getDorisQueryConnection(), LOG, expected, sql1, 2);
 
-        addIncrementalData();
-        verifyIncrementalDataResult();
+        // add incremental data
+        ContainerUtils.executeSQLStatement(
+                getMySQLQueryConnection(),
+                LOG,
+                "insert into test_e2e_mysql.tbl1 values ('doris_1_1',10)",
+                "insert into test_e2e_mysql.tbl2 values ('doris_2_1',11)",
+                "insert into test_e2e_mysql.tbl3 values ('doris_3_1',12)",
+                "update test_e2e_mysql.tbl1 set age=18 where name='doris_1'",
+                "delete from test_e2e_mysql.tbl2 where name='doris_2'");
+        Thread.sleep(20000);
 
-        tbl1SchemaChange();
-        verifyTbl1SchemaChange();
+        LOG.info("Start to verify incremental data result.");
+        List<String> expected2 =
+                Arrays.asList(
+                        "doris_1,18", "doris_1_1,10", "doris_2_1,11", "doris_3,3", "doris_3_1,12");
+        String sql2 =
+                "select * from ( select * from test_e2e_mysql.tbl1 union all select * from test_e2e_mysql.tbl2 union all select * from test_e2e_mysql.tbl3 ) res order by 1";
+        ContainerUtils.checkResult(getDorisQueryConnection(), LOG, expected2, sql2, 2);
+
+        // mock schema change
+        LOG.info("start to schema change in mysql.");
+        ContainerUtils.executeSQLStatement(
+                getMySQLQueryConnection(),
+                LOG,
+                "alter table test_e2e_mysql.tbl1 add column c1 varchar(128)",
+                "alter table test_e2e_mysql.tbl1 drop column age");
+        Thread.sleep(10000);
+        ContainerUtils.executeSQLStatement(
+                getMySQLQueryConnection(),
+                LOG,
+                "insert into test_e2e_mysql.tbl1  values ('doris_1_1_1','c1_val')");
+        Thread.sleep(20000);
+        LOG.info("verify tal1 schema change.");
+        List<String> schemaChangeExpected =
+                Arrays.asList("doris_1,null", "doris_1_1,null", "doris_1_1_1,c1_val");
+        String schemaChangeSql = "select * from test_e2e_mysql.tbl1 order by 1";
+        ContainerUtils.checkResult(
+                getDorisQueryConnection(), LOG, schemaChangeExpected, schemaChangeSql, 2);
         cancelCurrentE2EJob(jobName);
     }
 
@@ -140,10 +172,14 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
 
         // incremental data
         LOG.info("starting to increment data.");
-        addIncrementalData();
         ContainerUtils.executeSQLStatement(
                 getMySQLQueryConnection(),
                 LOG,
+                "insert into test_e2e_mysql.tbl1 values ('doris_1_1',10)",
+                "insert into test_e2e_mysql.tbl2 values ('doris_2_1',11)",
+                "insert into test_e2e_mysql.tbl3 values ('doris_3_1',12)",
+                "update test_e2e_mysql.tbl1 set age=18 where name='doris_1'",
+                "delete from test_e2e_mysql.tbl2 where name='doris_2'",
                 "insert into test_e2e_mysql.auto_add values ('doris_4_3',43)",
                 "delete from test_e2e_mysql.auto_add where name='doris_4_2'",
                 "update test_e2e_mysql.auto_add set age=41 where name='doris_4_1'");
@@ -194,11 +230,43 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
                 "select * from ( select * from test_e2e_mysql.tbl1 union all select * from test_e2e_mysql.tbl2 union all select * from test_e2e_mysql.tbl3 union all select * from test_e2e_mysql.tbl5) res order by 1";
         ContainerUtils.checkResult(getDorisQueryConnection(), LOG, expected, sql1, 2);
 
-        addIncrementalData();
-        verifyIncrementalDataResult();
+        // add incremental data
+        ContainerUtils.executeSQLStatement(
+                getMySQLQueryConnection(),
+                LOG,
+                "insert into test_e2e_mysql.tbl1 values ('doris_1_1',10)",
+                "insert into test_e2e_mysql.tbl2 values ('doris_2_1',11)",
+                "insert into test_e2e_mysql.tbl3 values ('doris_3_1',12)",
+                "update test_e2e_mysql.tbl1 set age=18 where name='doris_1'",
+                "delete from test_e2e_mysql.tbl2 where name='doris_2'");
+        Thread.sleep(20000);
 
-        tbl1SchemaChange();
-        verifyTbl1SchemaChange();
+        LOG.info("Start to verify incremental data result.");
+        List<String> expected2 =
+                Arrays.asList(
+                        "doris_1,18", "doris_1_1,10", "doris_2_1,11", "doris_3,3", "doris_3_1,12");
+        String sql2 =
+                "select * from ( select * from test_e2e_mysql.tbl1 union all select * from test_e2e_mysql.tbl2 union all select * from test_e2e_mysql.tbl3 ) res order by 1";
+        ContainerUtils.checkResult(getDorisQueryConnection(), LOG, expected2, sql2, 2);
+
+        // mock schema change
+        ContainerUtils.executeSQLStatement(
+                getMySQLQueryConnection(),
+                LOG,
+                "alter table test_e2e_mysql.tbl1 add column c1 varchar(128)",
+                "alter table test_e2e_mysql.tbl1 drop column age");
+        Thread.sleep(10000);
+        ContainerUtils.executeSQLStatement(
+                getMySQLQueryConnection(),
+                LOG,
+                "insert into test_e2e_mysql.tbl1  values ('doris_1_1_1','c1_val')");
+        Thread.sleep(20000);
+        LOG.info("verify tal1 schema change.");
+        List<String> schemaChangeExpected =
+                Arrays.asList("doris_1,null", "doris_1_1,null", "doris_1_1_1,c1_val");
+        String schemaChangeSql = "select * from test_e2e_mysql.tbl1 order by 1";
+        ContainerUtils.checkResult(
+                getDorisQueryConnection(), LOG, schemaChangeExpected, schemaChangeSql, 2);
 
         // mock create table
         LOG.info("start to create table in mysql.");
@@ -220,62 +288,6 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
         cancelCurrentE2EJob(jobName);
     }
 
-    private void tbl1SchemaChange() {
-        // mock schema change
-        LOG.info("start to schema change in mysql.");
-        try {
-            ContainerUtils.executeSQLStatement(
-                    getMySQLQueryConnection(),
-                    LOG,
-                    "alter table test_e2e_mysql.tbl1 add column c1 varchar(128)",
-                    "alter table test_e2e_mysql.tbl1 drop column age");
-            Thread.sleep(20000);
-            ContainerUtils.executeSQLStatement(
-                    getMySQLQueryConnection(),
-                    LOG,
-                    "insert into test_e2e_mysql.tbl1  values ('doris_1_1_1','c1_val')");
-            Thread.sleep(20000);
-        } catch (InterruptedException e) {
-            throw new DorisRuntimeException(e);
-        }
-    }
-
-    private void verifyTbl1SchemaChange() {
-        LOG.info("verify tal1 schema change.");
-        List<String> schemaChangeExpected =
-                Arrays.asList("doris_1,null", "doris_1_1,null", "doris_1_1_1,c1_val");
-        String schemaChangeSql = "select * from test_e2e_mysql.tbl1 order by 1";
-        ContainerUtils.checkResult(
-                getDorisQueryConnection(), LOG, schemaChangeExpected, schemaChangeSql, 2);
-    }
-
-    private void addIncrementalData() {
-        // add incremental data
-        try {
-            ContainerUtils.executeSQLStatement(
-                    getMySQLQueryConnection(),
-                    LOG,
-                    "insert into test_e2e_mysql.tbl1 values ('doris_1_1',10)",
-                    "insert into test_e2e_mysql.tbl2 values ('doris_2_1',11)",
-                    "insert into test_e2e_mysql.tbl3 values ('doris_3_1',12)",
-                    "update test_e2e_mysql.tbl1 set age=18 where name='doris_1'",
-                    "delete from test_e2e_mysql.tbl2 where name='doris_2'");
-            Thread.sleep(20000);
-        } catch (InterruptedException e) {
-            throw new DorisRuntimeException(e);
-        }
-    }
-
-    private void verifyIncrementalDataResult() {
-        LOG.info("Start to verify incremental data result.");
-        List<String> expected2 =
-                Arrays.asList(
-                        "doris_1,18", "doris_1_1,10", "doris_2_1,11", "doris_3,3", "doris_3_1,12");
-        String sql2 =
-                "select * from ( select * from test_e2e_mysql.tbl1 union all select * from test_e2e_mysql.tbl2 union all select * from test_e2e_mysql.tbl3 ) res order by 1";
-        ContainerUtils.checkResult(getDorisQueryConnection(), LOG, expected2, sql2, 2);
-    }
-
     @Test
     public void testMySQL2DorisByDefault() throws Exception {
         initEnvironment("container/e2e/mysql2doris/testMySQL2DorisByDefault_init.sql");
@@ -290,8 +302,24 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
                 "select * from ( select * from test_e2e_mysql.tbl1 union all select * from test_e2e_mysql.tbl2 union all select * from test_e2e_mysql.tbl3 union all select * from test_e2e_mysql.tbl5) res order by 1";
         ContainerUtils.checkResult(getDorisQueryConnection(), LOG, expected, sql1, 2);
 
-        addIncrementalData();
-        verifyIncrementalDataResult();
+        // add incremental data
+        ContainerUtils.executeSQLStatement(
+                getMySQLQueryConnection(),
+                LOG,
+                "insert into test_e2e_mysql.tbl1 values ('doris_1_1',10)",
+                "insert into test_e2e_mysql.tbl2 values ('doris_2_1',11)",
+                "insert into test_e2e_mysql.tbl3 values ('doris_3_1',12)",
+                "update test_e2e_mysql.tbl1 set age=18 where name='doris_1'",
+                "delete from test_e2e_mysql.tbl2 where name='doris_2'");
+        Thread.sleep(20000);
+
+        LOG.info("Start to verify incremental data result.");
+        List<String> expected2 =
+                Arrays.asList(
+                        "doris_1,18", "doris_1_1,10", "doris_2_1,11", "doris_3,3", "doris_3_1,12");
+        String sql2 =
+                "select * from ( select * from test_e2e_mysql.tbl1 union all select * from test_e2e_mysql.tbl2 union all select * from test_e2e_mysql.tbl3 ) res order by 1";
+        ContainerUtils.checkResult(getDorisQueryConnection(), LOG, expected2, sql2, 2);
         cancelCurrentE2EJob(jobName);
     }
 
@@ -310,10 +338,15 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
                 "select * from ( select * from test_e2e_mysql.tbl1 union all select * from test_e2e_mysql.tbl2 union all select * from test_e2e_mysql.tbl3 union all select * from test_e2e_mysql.tbl5) res order by 1";
         ContainerUtils.checkResult(getDorisQueryConnection(), LOG, initExpected, sql1, 2);
 
-        addIncrementalData();
+        // add incremental data
         ContainerUtils.executeSQLStatement(
                 getMySQLQueryConnection(),
                 LOG,
+                "insert into test_e2e_mysql.tbl1 values ('doris_1_1',10)",
+                "insert into test_e2e_mysql.tbl2 values ('doris_2_1',11)",
+                "insert into test_e2e_mysql.tbl3 values ('doris_3_1',12)",
+                "update test_e2e_mysql.tbl1 set age=18 where name='doris_1'",
+                "delete from test_e2e_mysql.tbl2 where name='doris_2'",
                 "delete from test_e2e_mysql.tbl3 where name='doris_3'",
                 "delete from test_e2e_mysql.tbl5 where name='doris_5'");
 
