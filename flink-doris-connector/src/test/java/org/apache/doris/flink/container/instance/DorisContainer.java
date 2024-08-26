@@ -99,6 +99,11 @@ public class DorisContainer implements ContainerService {
     }
 
     @Override
+    public boolean isAlive() {
+        return dorisContainer.isRunning() && dorisContainer.isHealthy();
+    }
+
+    @Override
     public Connection getQueryConnection() {
         LOG.info("Try to get query connection from doris.");
         String jdbcUrl = String.format(JDBC_URL, dorisContainer.getHost());

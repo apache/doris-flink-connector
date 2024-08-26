@@ -60,8 +60,8 @@ public abstract class AbstractE2EService extends AbstractContainerTestBase {
     }
 
     private static void initMySQLContainer() {
-        if (Objects.nonNull(mysqlContainerService)) {
-            LOG.info("The MySQL container has been started and will be used directly.");
+        if (Objects.nonNull(mysqlContainerService) && mysqlContainerService.isAlive()) {
+            LOG.info("The MySQL container has been started and is alive status.");
             return;
         }
         mysqlContainerService = new MySQLContainer();

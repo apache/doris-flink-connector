@@ -25,6 +25,8 @@ public interface ContainerService {
 
     void startContainer();
 
+    boolean isAlive();
+
     Connection getQueryConnection();
 
     String getInstanceHost();

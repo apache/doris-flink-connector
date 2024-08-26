@@ -58,6 +58,11 @@ public class MySQLContainer implements ContainerService {
     }
 
     @Override
+    public boolean isAlive() {
+        return mysqlcontainer.isRunning() && mysqlcontainer.isHealthy();
+    }
+
+    @Override
     public String getInstanceHost() {
         return mysqlcontainer.getHost();
     }
