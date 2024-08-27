@@ -81,7 +81,7 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
                 "DROP TABLE IF EXISTS test_e2e_mysql.tbl5");
     }
 
-    private synchronized void initEnvironment(String jobName, String mysqlSourcePath) {
+    private void initEnvironment(String jobName, String mysqlSourcePath) {
         synchronized (LOCK) {
             while (e2eJobIsRunning()) {
                 try {
