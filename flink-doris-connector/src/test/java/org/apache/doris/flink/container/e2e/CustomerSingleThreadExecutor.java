@@ -34,7 +34,7 @@ import java.util.concurrent.TimeUnit;
 public class CustomerSingleThreadExecutor {
     private static final Logger LOG = LoggerFactory.getLogger(CustomerSingleThreadExecutor.class);
     private final ThreadPoolExecutor executor;
-    private final long timeoutMillis = TimeUnit.HOURS.toMillis(1);
+    private final long timeoutMillis = TimeUnit.MINUTES.toMillis(10);
     private String currentJobName;
     private Future<?> currentJob;
 
