@@ -20,6 +20,7 @@ package org.apache.doris.flink.container.e2e;
 import org.apache.doris.flink.container.AbstractE2EService;
 import org.apache.doris.flink.container.ContainerUtils;
 import org.apache.doris.flink.tools.cdc.DatabaseSyncConfig;
+import org.junit.After;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,6 +33,7 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
     private static final String DATABASE = "test_e2e_mysql";
     private static final String CREATE_DATABASE = "CREATE DATABASE IF NOT EXISTS " + DATABASE;
     private static final String MYSQL_CONF = "--" + DatabaseSyncConfig.MYSQL_CONF;
+    private final Object lock = new Object();
 
     private List<String> setMysql2DorisDefaultConfig(List<String> argList) {
         // set default mysql config
@@ -79,16 +81,29 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
                 "DROP TABLE IF EXISTS test_e2e_mysql.tbl5");
     }
 
-    private void initEnvironment(String mysqlSourcePath) {
-        initMysqlEnvironment(mysqlSourcePath);
-        initDorisEnvironment();
+    private synchronized void initEnvironment(String jobName, String mysqlSourcePath) {
+        synchronized (lock) {
+            while (e2eJobIsRunning()) {
+                try {
+                    lock.wait();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+            LOG.info(
+                    "start to init mysql to doris environment. jobName={}, mysqlSourcePath={}",
+                    jobName,
+                    mysqlSourcePath);
+            initMysqlEnvironment(mysqlSourcePath);
+            initDorisEnvironment();
+        }
     }
 
     @Test
     public void testMySQL2Doris() throws Exception {
-        initEnvironment("container/e2e/mysql2doris/testMySQL2Doris_init.sql");
         String jobName = "testMySQL2Doris";
         String resourcePath = "container/e2e/mysql2doris/testMySQL2Doris.txt";
+        initEnvironment(jobName, "container/e2e/mysql2doris/testMySQL2Doris_init.sql");
         startMysql2DorisJob(jobName, resourcePath);
 
         // wait 2 times checkpoint
@@ -142,8 +157,8 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
 
     @Test
     public void testAutoAddTable() throws InterruptedException {
-        initEnvironment("container/e2e/mysql2doris/testAutoAddTable_init.sql");
         String jobName = "testAutoAddTable";
+        initEnvironment(jobName, "container/e2e/mysql2doris/testAutoAddTable_init.sql");
         startMysql2DorisJob(jobName, "container/e2e/mysql2doris/testAutoAddTable.txt");
 
         // wait 2 times checkpoint
@@ -217,9 +232,9 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
 
     @Test
     public void testMySQL2DorisSQLParse() throws Exception {
-        initEnvironment("container/e2e/mysql2doris/testMySQL2DorisSQLParse_init.sql");
         String jobName = "testMySQL2DorisSQLParse";
         String resourcePath = "container/e2e/mysql2doris/testMySQL2DorisSQLParse.txt";
+        initEnvironment(jobName, "container/e2e/mysql2doris/testMySQL2DorisSQLParse_init.sql");
         startMysql2DorisJob(jobName, resourcePath);
 
         // wait 2 times checkpoint
@@ -290,8 +305,8 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
 
     @Test
     public void testMySQL2DorisByDefault() throws Exception {
-        initEnvironment("container/e2e/mysql2doris/testMySQL2DorisByDefault_init.sql");
         String jobName = "testMySQL2DorisByDefault";
+        initEnvironment(jobName, "container/e2e/mysql2doris/testMySQL2DorisByDefault_init.sql");
         startMysql2DorisJob(jobName, "container/e2e/mysql2doris/testMySQL2DorisByDefault.txt");
 
         // wait 2 times checkpoint
@@ -325,8 +340,8 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
 
     @Test
     public void testMySQL2DorisEnableDelete() throws Exception {
-        initEnvironment("container/e2e/mysql2doris/testMySQL2DorisEnableDelete_init.sql");
         String jobName = "testMySQL2DorisEnableDelete";
+        initEnvironment(jobName, "container/e2e/mysql2doris/testMySQL2DorisEnableDelete_init.sql");
         startMysql2DorisJob(jobName, "container/e2e/mysql2doris/testMySQL2DorisEnableDelete.txt");
 
         // wait 2 times checkpoint
@@ -364,5 +379,16 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
                 "select * from ( select * from test_e2e_mysql.tbl1 union all select * from test_e2e_mysql.tbl2 union all select * from test_e2e_mysql.tbl3 union all select * from test_e2e_mysql.tbl5) res order by 1";
         ContainerUtils.checkResult(getDorisQueryConnection(), LOG, expected, sql, 2);
         cancelCurrentE2EJob(jobName);
+    }
+
+    @After
+    public void close() {
+        notifyJobCompletion();
+    }
+
+    private void notifyJobCompletion() {
+        synchronized (lock) {
+            lock.notifyAll();
+        }
     }
 }

@@ -95,6 +95,10 @@ public class CustomerSingleThreadExecutor {
         return currentJob;
     }
 
+    public boolean isRunning() {
+        return currentJob != null || !currentJob.isDone() || !currentJob.isCancelled();
+    }
+
     /**
      * Cancels the currently running job if its name matches the provided job name. The job is
      * interrupted if it is currently running.
