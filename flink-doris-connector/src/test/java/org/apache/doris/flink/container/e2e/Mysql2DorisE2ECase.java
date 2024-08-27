@@ -33,7 +33,7 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
     private static final String DATABASE = "test_e2e_mysql";
     private static final String CREATE_DATABASE = "CREATE DATABASE IF NOT EXISTS " + DATABASE;
     private static final String MYSQL_CONF = "--" + DatabaseSyncConfig.MYSQL_CONF;
-    private final Object lock = new Object();
+    private static final Object LOCK = new Object();
 
     private List<String> setMysql2DorisDefaultConfig(List<String> argList) {
         // set default mysql config
@@ -82,10 +82,10 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
     }
 
     private synchronized void initEnvironment(String jobName, String mysqlSourcePath) {
-        synchronized (lock) {
+        synchronized (LOCK) {
             while (e2eJobIsRunning()) {
                 try {
-                    lock.wait();
+                    LOCK.wait();
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 }
@@ -387,8 +387,8 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
     }
 
     private void notifyJobCompletion() {
-        synchronized (lock) {
-            lock.notifyAll();
+        synchronized (LOCK) {
+            LOCK.notifyAll();
         }
     }
 }
