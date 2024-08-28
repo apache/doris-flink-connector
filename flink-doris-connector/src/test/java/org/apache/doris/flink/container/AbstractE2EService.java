@@ -104,10 +104,6 @@ public abstract class AbstractE2EService extends AbstractContainerTestBase {
                 });
     }
 
-    protected boolean e2eJobIsRunning() {
-        return singleThreadExecutor.isRunning();
-    }
-
     protected void cancelCurrentE2EJob(String jobName) {
         LOG.info("{} e2e job will cancel", jobName);
         singleThreadExecutor.cancelCurrentJob(jobName);

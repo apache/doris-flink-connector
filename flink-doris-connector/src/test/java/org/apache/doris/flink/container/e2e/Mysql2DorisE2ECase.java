@@ -21,6 +21,7 @@ import org.apache.doris.flink.container.AbstractE2EService;
 import org.apache.doris.flink.container.ContainerUtils;
 import org.apache.doris.flink.tools.cdc.DatabaseSyncConfig;
 import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,10 +33,16 @@ import java.util.concurrent.TimeUnit;
 
 public class Mysql2DorisE2ECase extends AbstractE2EService {
     private static final Logger LOG = LoggerFactory.getLogger(Mysql2DorisE2ECase.class);
-    private static final CountDownLatch countDownLatch = new CountDownLatch(1);
+    private static final CountDownLatch LATCH = new CountDownLatch(1);
     private static final String DATABASE = "test_e2e_mysql";
     private static final String CREATE_DATABASE = "CREATE DATABASE IF NOT EXISTS " + DATABASE;
     private static final String MYSQL_CONF = "--" + DatabaseSyncConfig.MYSQL_CONF;
+
+    @Before
+    public void setUp() throws InterruptedException {
+        // Await the release of the latch in setup to ensure sequential execution
+        LATCH.await(10, TimeUnit.MINUTES);
+    }
 
     private List<String> setMysql2DorisDefaultConfig(List<String> argList) {
         // set default mysql config
@@ -83,11 +90,7 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
                 "DROP TABLE IF EXISTS test_e2e_mysql.tbl5");
     }
 
-    private void initEnvironment(String jobName, String mysqlSourcePath)
-            throws InterruptedException {
-        if (!countDownLatch.await(10, TimeUnit.MINUTES)) {
-            LOG.warn("Timeout while waiting for previous job to finish.");
-        }
+    private void initEnvironment(String jobName, String mysqlSourcePath) {
         LOG.info(
                 "start to init mysql to doris environment. jobName={}, mysqlSourcePath={}",
                 jobName,
@@ -380,6 +383,6 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
 
     @After
     public void close() {
-        countDownLatch.countDown();
+        LATCH.countDown();
     }
 }

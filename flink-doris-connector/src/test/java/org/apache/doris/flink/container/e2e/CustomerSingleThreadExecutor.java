@@ -96,27 +96,6 @@ public class CustomerSingleThreadExecutor {
     }
 
     /**
-     * Checks if the current job is still running.
-     *
-     * <p>This method first checks if `currentJob` is `null`. If it is `null`, it logs a warning and
-     * returns `false`, indicating that the job is not running. If `currentJob` is initialized, the
-     * method checks if the job is neither completed nor canceled to determine if it is still
-     * running.
-     *
-     * <p>
-     *
-     * @return `true` if `currentJob` is not `null` and the job is neither done nor canceled;
-     *     otherwise, returns `false`.
-     */
-    public boolean isRunning() {
-        if (currentJob == null) {
-            LOG.warn("currentJob is null");
-            return false;
-        }
-        return !currentJob.isDone() && !currentJob.isCancelled();
-    }
-
-    /**
      * Cancels the currently running job if its name matches the provided job name. The job is
      * interrupted if it is currently running.
      *
