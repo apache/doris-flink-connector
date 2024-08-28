@@ -41,7 +41,7 @@ public class CustomerSingleThreadExecutor {
     public CustomerSingleThreadExecutor() {
         this.executor =
                 new ThreadPoolExecutor(
-                        1, 10, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
+                        10, 10, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
     }
 
     /**
@@ -53,7 +53,7 @@ public class CustomerSingleThreadExecutor {
      * @return A Future representing the pending completion of the job.
      */
     public synchronized Future<?> submitJob(String jobName, Runnable job) {
-        // Wait for the current task to complete, with a timeout of 1 hour
+        // Wait for the current task to complete, with a timeout of 10 minuter
         long startTime = System.currentTimeMillis();
         while (currentJob != null && (!currentJob.isDone() || !currentJob.isCancelled())) {
             try {
