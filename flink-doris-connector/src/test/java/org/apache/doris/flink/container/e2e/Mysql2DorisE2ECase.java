@@ -27,13 +27,15 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 public class Mysql2DorisE2ECase extends AbstractE2EService {
     private static final Logger LOG = LoggerFactory.getLogger(Mysql2DorisE2ECase.class);
+    private static final CountDownLatch countDownLatch = new CountDownLatch(1);
     private static final String DATABASE = "test_e2e_mysql";
     private static final String CREATE_DATABASE = "CREATE DATABASE IF NOT EXISTS " + DATABASE;
     private static final String MYSQL_CONF = "--" + DatabaseSyncConfig.MYSQL_CONF;
-    private static final Object LOCK = new Object();
 
     private List<String> setMysql2DorisDefaultConfig(List<String> argList) {
         // set default mysql config
@@ -63,13 +65,13 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
     }
 
     private void initMysqlEnvironment(String sourcePath) {
-        LOG.info("start to init mysql environment.");
+        LOG.info("Initializing MySQL environment.");
         ContainerUtils.executeSQLStatement(
                 getMySQLQueryConnection(), LOG, ContainerUtils.parseFileContentSQL(sourcePath));
     }
 
     private void initDorisEnvironment() {
-        LOG.info("start to init doris environment.");
+        LOG.info("Initializing Doris environment.");
         ContainerUtils.executeSQLStatement(getDorisQueryConnection(), LOG, CREATE_DATABASE);
         ContainerUtils.executeSQLStatement(
                 getDorisQueryConnection(),
@@ -81,22 +83,17 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
                 "DROP TABLE IF EXISTS test_e2e_mysql.tbl5");
     }
 
-    private void initEnvironment(String jobName, String mysqlSourcePath) {
-        synchronized (LOCK) {
-            while (e2eJobIsRunning()) {
-                try {
-                    LOCK.wait();
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                }
-            }
-            LOG.info(
-                    "start to init mysql to doris environment. jobName={}, mysqlSourcePath={}",
-                    jobName,
-                    mysqlSourcePath);
-            initMysqlEnvironment(mysqlSourcePath);
-            initDorisEnvironment();
+    private void initEnvironment(String jobName, String mysqlSourcePath)
+            throws InterruptedException {
+        if (!countDownLatch.await(10, TimeUnit.MINUTES)) {
+            LOG.warn("Timeout while waiting for previous job to finish.");
         }
+        LOG.info(
+                "start to init mysql to doris environment. jobName={}, mysqlSourcePath={}",
+                jobName,
+                mysqlSourcePath);
+        initMysqlEnvironment(mysqlSourcePath);
+        initDorisEnvironment();
     }
 
     @Test
@@ -383,12 +380,6 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
 
     @After
     public void close() {
-        notifyJobCompletion();
-    }
-
-    private void notifyJobCompletion() {
-        synchronized (LOCK) {
-            LOCK.notifyAll();
-        }
+        countDownLatch.countDown();
     }
 }
