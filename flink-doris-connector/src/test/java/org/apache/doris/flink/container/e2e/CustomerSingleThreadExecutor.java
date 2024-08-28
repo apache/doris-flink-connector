@@ -41,7 +41,7 @@ public class CustomerSingleThreadExecutor {
     public CustomerSingleThreadExecutor() {
         this.executor =
                 new ThreadPoolExecutor(
-                        1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
+                        1, 10, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
     }
 
     /**
@@ -62,7 +62,7 @@ public class CustomerSingleThreadExecutor {
 
                 if (remainingTime <= 0) {
                     LOG.warn(
-                            "Current job exceeded the maximum timeout of 1 hour and will be canceled. jobName={}",
+                            "Current job exceeded the maximum timeout of 10 minuter and will be canceled. jobName={}",
                             currentJobName);
                     cancelCurrentJob(currentJobName);
                     break;
