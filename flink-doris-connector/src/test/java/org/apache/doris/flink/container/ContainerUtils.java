@@ -127,6 +127,10 @@ public class ContainerUtils {
                     e);
             throw new DorisRuntimeException(e);
         }
+        logger.info(
+                "checking test result. expected={}, actual={}",
+                String.join(",", expected),
+                String.join(",", actual));
         Assert.assertArrayEquals(expected.toArray(), actual.toArray());
     }
 }
