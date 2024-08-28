@@ -41,7 +41,7 @@ public class CustomerSingleThreadExecutor {
     public CustomerSingleThreadExecutor() {
         this.executor =
                 new ThreadPoolExecutor(
-                        10, 10, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
+                        1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
     }
 
     /**
