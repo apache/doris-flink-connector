@@ -36,12 +36,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.Semaphore;
 
 public abstract class AbstractE2EService extends AbstractContainerTestBase {
     private static final Logger LOG = LoggerFactory.getLogger(AbstractE2EService.class);
     private static ContainerService mysqlContainerService;
     private static final CustomerSingleThreadExecutor singleThreadExecutor =
             new CustomerSingleThreadExecutor();
+    protected static final Semaphore SEMAPHORE = new Semaphore(1);
     protected static final String SINK_CONF = "--" + DatabaseSyncConfig.SINK_CONF;
     protected static final String DORIS_DATABASE = "--database";
     protected static final String HOSTNAME = "hostname";

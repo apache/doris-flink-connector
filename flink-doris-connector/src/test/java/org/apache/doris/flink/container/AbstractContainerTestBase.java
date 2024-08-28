@@ -32,7 +32,7 @@ public abstract class AbstractContainerTestBase {
 
     @BeforeClass
     public static void initContainers() {
-        LOG.info("Trying to start auto ci containers.");
+        LOG.info("Trying to start doris containers.");
         initDorisContainer();
     }
 
@@ -77,7 +77,7 @@ public abstract class AbstractContainerTestBase {
     }
 
     public static void closeContainers() {
-        LOG.info("Starting to close auto ci containers.");
+        LOG.info("Starting to close containers.");
         closeDorisContainer();
     }
 

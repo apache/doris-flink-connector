@@ -28,20 +28,18 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.Semaphore;
 
 public class Mysql2DorisE2ECase extends AbstractE2EService {
     private static final Logger LOG = LoggerFactory.getLogger(Mysql2DorisE2ECase.class);
-    private static final Semaphore SEMAPHORE = new Semaphore(1);
     private static final String DATABASE = "test_e2e_mysql";
     private static final String CREATE_DATABASE = "CREATE DATABASE IF NOT EXISTS " + DATABASE;
     private static final String MYSQL_CONF = "--" + DatabaseSyncConfig.MYSQL_CONF;
 
     @Before
     public void setUp() throws InterruptedException {
-        LOG.info("Attempting to acquire semaphore.");
+        LOG.info("Mysql2DorisE2ECase attempting to acquire semaphore.");
         SEMAPHORE.acquire();
-        LOG.info("Semaphore acquired.");
+        LOG.info("Mysql2DorisE2ECase semaphore acquired.");
     }
 
     private List<String> setMysql2DorisDefaultConfig(List<String> argList) {
@@ -386,7 +384,7 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
         try {
             // Ensure that semaphore is always released
         } finally {
-            LOG.info("Releasing semaphore.");
+            LOG.info("Mysql2DorisE2ECase releasing semaphore.");
             SEMAPHORE.release();
         }
     }
