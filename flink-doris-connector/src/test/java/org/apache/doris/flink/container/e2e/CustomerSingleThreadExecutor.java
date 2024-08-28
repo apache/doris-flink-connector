@@ -17,7 +17,6 @@
 
 package org.apache.doris.flink.container.e2e;
 
-import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,28 +52,31 @@ public class CustomerSingleThreadExecutor {
      * @return A Future representing the pending completion of the job.
      */
     public synchronized Future<?> submitJob(String jobName, Runnable job) {
-        // Wait for the current task to complete, with a timeout of 10 minuter
-        long startTime = System.currentTimeMillis();
-        while (currentJob != null && (!currentJob.isDone() || !currentJob.isCancelled())) {
-            try {
-                long elapsed = System.currentTimeMillis() - startTime;
-                long remainingTime = timeoutMillis - elapsed;
-
-                if (remainingTime <= 0) {
-                    LOG.warn(
-                            "Current job exceeded the maximum timeout of 10 minuter and will be canceled. jobName={}",
-                            currentJobName);
-                    cancelCurrentJob(currentJobName);
-                    break;
-                }
-
-                wait(remainingTime);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new DorisRuntimeException(
-                        "Thread was interrupted while waiting for the current job to complete.", e);
-            }
-        }
+        //        // Wait for the current task to complete, with a timeout of 10 minuter
+        //        long startTime = System.currentTimeMillis();
+        //        while (currentJob != null && (!currentJob.isDone() || !currentJob.isCancelled()))
+        // {
+        //            try {
+        //                long elapsed = System.currentTimeMillis() - startTime;
+        //                long remainingTime = timeoutMillis - elapsed;
+        //
+        //                if (remainingTime <= 0) {
+        //                    LOG.warn(
+        //                            "Current job exceeded the maximum timeout of 10 minuter and
+        // will be canceled. jobName={}",
+        //                            currentJobName);
+        //                    cancelCurrentJob(currentJobName);
+        //                    break;
+        //                }
+        //
+        //                wait(remainingTime);
+        //            } catch (InterruptedException e) {
+        //                Thread.currentThread().interrupt();
+        //                throw new DorisRuntimeException(
+        //                        "Thread was interrupted while waiting for the current job to
+        // complete.", e);
+        //            }
+        //        }
 
         LOG.info("Submitting a new job. jobName={}", jobName);
         currentJob =
