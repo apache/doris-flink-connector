@@ -271,7 +271,7 @@ public class DorisSourceITCase extends DorisTestBase {
 
     @Test
     public void testTableSourceFilterWithUnionAll() throws Exception {
-        initializeTable(TABLE_READ_TBL_PUSH_DOWN);
+        initializeTable(TABLE_READ_TBL_PUSH_DOWN_WITH_UNION_ALL);
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
         final StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
