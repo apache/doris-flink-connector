@@ -79,7 +79,7 @@ public class DorisSourceITCase extends DorisTestBase {
                 actual.add(iterator.next().toString());
             }
         }
-        List<String> expected = Arrays.asList("[doris, 18]", "[flink, 10]");
+        List<String> expected = Arrays.asList("[doris, 18]", "[flink, 10]", "[apache, 12]");
         Assert.assertArrayEquals(actual.toArray(), expected.toArray());
     }
 
@@ -104,7 +104,7 @@ public class DorisSourceITCase extends DorisTestBase {
                 actual.add(iterator.next().toString());
             }
         }
-        List<String> expected = Arrays.asList("[doris, 18]", "[flink, 10]");
+        List<String> expected = Arrays.asList("[doris, 18]", "[flink, 10]", "[apache, 12]");
         Assert.assertArrayEquals(actual.toArray(), expected.toArray());
     }
 
@@ -138,7 +138,7 @@ public class DorisSourceITCase extends DorisTestBase {
                 actual.add(iterator.next().toString());
             }
         }
-        String[] expected = new String[] {"+I[doris, 18]", "+I[flink, 10]", "+I[apache, 10]"};
+        String[] expected = new String[] {"+I[doris, 18]", "+I[flink, 10]", "+I[apache, 12]"};
         Assert.assertArrayEquals(expected, actual.toArray());
 
         // fitler query
@@ -184,7 +184,7 @@ public class DorisSourceITCase extends DorisTestBase {
                 actual.add(iterator.next().toString());
             }
         }
-        String[] expected = new String[] {"+I[doris, 18]", "+I[flink, 10]", "+I[apache, 10]"};
+        String[] expected = new String[] {"+I[doris, 18]", "+I[flink, 10]", "+I[apache, 12]"};
         Assert.assertArrayEquals(expected, actual.toArray());
     }
 
@@ -230,7 +230,7 @@ public class DorisSourceITCase extends DorisTestBase {
                 actual.add(iterator.next().toString());
             }
         }
-        String[] expected = new String[] {"+I[doris, 18]", "+I[flink, 10]", "+I[apache, 10]"};
+        String[] expected = new String[] {"+I[doris, 18]", "+I[flink, 10]", "+I[apache, 12]"};
         Assert.assertArrayEquals(expected, actual.toArray());
     }
 
@@ -244,6 +244,7 @@ public class DorisSourceITCase extends DorisTestBase {
         String sourceDDL =
                 String.format(
                         "CREATE TABLE doris_source ("
+                                + " name STRING,"
                                 + " age INT"
                                 + ") WITH ("
                                 + " 'connector' = 'doris',"
