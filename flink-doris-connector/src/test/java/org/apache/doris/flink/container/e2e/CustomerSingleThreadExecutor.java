@@ -17,6 +17,7 @@
 
 package org.apache.doris.flink.container.e2e;
 
+import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,19 +25,22 @@ import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * A thread pool executor that ensures only one job is executed at a time.
- *
- * <p>If a job is running, new jobs will wait in the queue until the current job is completed.
+ * A custom single-threaded executor service that manages the execution of jobs in a single thread.
+ * It allows submitting a job, cancelling a currently running job, and shutting down the executor.
  */
 public class CustomerSingleThreadExecutor {
     private static final Logger LOG = LoggerFactory.getLogger(CustomerSingleThreadExecutor.class);
     private final ThreadPoolExecutor executor;
-    private final long timeoutMillis = TimeUnit.MINUTES.toMillis(10);
-    private String currentJobName;
-    private Future<?> currentJob;
+    private final AtomicReference<String> currentJobName = new AtomicReference<>();
+    private final AtomicReference<Future<?>> currentJob = new AtomicReference<>();
 
+    /**
+     * Constructs a new {@code CustomerSingleThreadExecutor} instance with a single-threaded
+     * executor service.
+     */
     public CustomerSingleThreadExecutor() {
         this.executor =
                 new ThreadPoolExecutor(
@@ -44,57 +48,23 @@ public class CustomerSingleThreadExecutor {
     }
 
     /**
-     * Submits a job to the executor. If there is already a job running, the new job will wait in
-     * the queue until the current job is completed or the current job times out.
+     * Submits a new job for execution.
      *
-     * @param jobName The name of the job to be submitted.
-     * @param job The Runnable representing the job.
-     * @return A Future representing the pending completion of the job.
+     * @param jobName The name of the job being submitted.
+     * @param job The {@link Runnable} job to be executed.
+     * @return A {@link Future} representing the pending results of the job.
      */
-    public synchronized Future<?> submitJob(String jobName, Runnable job) {
-        //        // Wait for the current task to complete, with a timeout of 10 minuter
-        //        long startTime = System.currentTimeMillis();
-        //        while (currentJob != null && (!currentJob.isDone() || !currentJob.isCancelled()))
-        // {
-        //            try {
-        //                long elapsed = System.currentTimeMillis() - startTime;
-        //                long remainingTime = timeoutMillis - elapsed;
-        //
-        //                if (remainingTime <= 0) {
-        //                    LOG.warn(
-        //                            "Current job exceeded the maximum timeout of 10 minuter and
-        // will be canceled. jobName={}",
-        //                            currentJobName);
-        //                    cancelCurrentJob(currentJobName);
-        //                    break;
-        //                }
-        //
-        //                wait(remainingTime);
-        //            } catch (InterruptedException e) {
-        //                Thread.currentThread().interrupt();
-        //                throw new DorisRuntimeException(
-        //                        "Thread was interrupted while waiting for the current job to
-        // complete.", e);
-        //            }
-        //        }
-
-        LOG.info("Submitting a new job. jobName={}", jobName);
-        currentJob =
-                executor.submit(
-                        () -> {
-                            try {
-                                job.run();
-                            } finally {
-                                synchronized (this) {
-                                    // Only notify when the job has been cancelled
-                                    if (currentJob.isCancelled() || currentJob.isDone()) {
-                                        notifyAll();
-                                    }
-                                }
-                            }
-                        });
-        currentJobName = jobName;
-        return currentJob;
+    public Future<?> submitJob(String jobName, Runnable job) {
+        try {
+            LOG.info("Submitting a new job. jobName={}", jobName);
+            Future<?> future = executor.submit(job);
+            currentJob.set(future);
+            currentJobName.set(jobName);
+            return future;
+        } catch (Exception e) {
+            LOG.error("Failed to submit job. jobName={}", jobName, e);
+            throw new DorisRuntimeException(e);
+        }
     }
 
     /**
@@ -103,9 +73,20 @@ public class CustomerSingleThreadExecutor {
      *
      * @param jobName The name of the job to be cancelled.
      */
-    public synchronized void cancelCurrentJob(String jobName) {
-        if (currentJob != null && !currentJob.isDone() && currentJobName.equals(jobName)) {
-            currentJob.cancel(true);
+    public void cancelCurrentJob(String jobName) {
+        String currentName = currentJobName.get();
+        Future<?> currentFuture = currentJob.get();
+
+        if (currentFuture != null && !currentFuture.isDone() && jobName.equals(currentName)) {
+            LOG.info("Cancelling the current job. jobName={}", jobName);
+            boolean cancelled = currentFuture.cancel(true);
+            if (cancelled) {
+                LOG.info("Job successfully cancelled. jobName={}", jobName);
+            } else {
+                LOG.info("Job cancellation failed. jobName={}", jobName);
+            }
+        } else {
+            LOG.info("No matching job to cancel or job already completed. jobName={}", jobName);
         }
     }
 
