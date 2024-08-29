@@ -101,12 +101,12 @@ public class DorisSource<OUT>
             SplitEnumeratorContext<DorisSourceSplit> context) throws Exception {
         List<DorisSourceSplit> dorisSourceSplits = new ArrayList<>();
         if (!resolvedFilterQuery.isEmpty()) {
-            String collect = String.join(" AND ", resolvedFilterQuery);
+            String filterQuery = String.join(" AND ", resolvedFilterQuery);
             if (StringUtils.isNullOrWhitespaceOnly(readOptions.getFilterQuery())) {
-                readOptions.setFilterQuery(collect);
+                readOptions.setFilterQuery(filterQuery);
             } else {
                 readOptions.setFilterQuery(
-                        String.join(" AND ", readOptions.getFilterQuery(), collect));
+                        String.join(" AND ", readOptions.getFilterQuery(), filterQuery));
             }
         }
         List<PartitionDefinition> partitions =
@@ -161,7 +161,7 @@ public class DorisSource<OUT>
         // Boundedness
         private Boundedness boundedness;
         private DorisDeserializationSchema<OUT> deserializer;
-        private List<String> resolvedFilterQuery;
+        private List<String> resolvedFilterQuery = new ArrayList<>();
 
         DorisSourceBuilder() {
             boundedness = Boundedness.BOUNDED;

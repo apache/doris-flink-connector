@@ -50,6 +50,8 @@ public class DorisSourceITCase extends DorisTestBase {
     static final String TABLE_READ_TBL_OLD_API = "tbl_read_tbl_old_api";
     static final String TABLE_READ_TBL_ALL_OPTIONS = "tbl_read_tbl_all_options";
     static final String TABLE_READ_TBL_PUSH_DOWN = "tbl_read_tbl_push_down";
+    static final String TABLE_READ_TBL_PUSH_DOWN_WITH_UNION_ALL =
+            "tbl_read_tbl_push_down_with_union_all";
 
     @Test
     public void testSource() throws Exception {
@@ -67,7 +69,6 @@ public class DorisSourceITCase extends DorisTestBase {
         DorisSource<List<?>> source =
                 DorisSource.<List<?>>builder()
                         .setDorisOptions(dorisBuilder.build())
-                        .setResolvedFilterQuery(new ArrayList<>())
                         .setDeserializer(new SimpleListDeserializationSchema())
                         .build();
         List<String> actual = new ArrayList<>();
@@ -137,7 +138,7 @@ public class DorisSourceITCase extends DorisTestBase {
                 actual.add(iterator.next().toString());
             }
         }
-        String[] expected = new String[] {"+I[doris, 18]", "+I[flink, 10]"};
+        String[] expected = new String[] {"+I[doris, 18]", "+I[flink, 10]", "+I[apache, 10]"};
         Assert.assertArrayEquals(expected, actual.toArray());
 
         // fitler query
@@ -183,7 +184,7 @@ public class DorisSourceITCase extends DorisTestBase {
                 actual.add(iterator.next().toString());
             }
         }
-        String[] expected = new String[] {"+I[doris, 18]", "+I[flink, 10]"};
+        String[] expected = new String[] {"+I[doris, 18]", "+I[flink, 10]", "+I[apache, 10]"};
         Assert.assertArrayEquals(expected, actual.toArray());
     }
 
@@ -229,7 +230,7 @@ public class DorisSourceITCase extends DorisTestBase {
                 actual.add(iterator.next().toString());
             }
         }
-        String[] expected = new String[] {"+I[doris, 18]", "+I[flink, 10]"};
+        String[] expected = new String[] {"+I[doris, 18]", "+I[flink, 10]", "+I[apache, 10]"};
         Assert.assertArrayEquals(expected, actual.toArray());
     }
 
@@ -268,6 +269,45 @@ public class DorisSourceITCase extends DorisTestBase {
         Assert.assertArrayEquals(expected, actual.toArray());
     }
 
+    @Test
+    public void testTableSourceFilterWithUnionAll() throws Exception {
+        initializeTable(TABLE_READ_TBL_PUSH_DOWN);
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(1);
+        final StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
+
+        String sourceDDL =
+                String.format(
+                        "CREATE TABLE doris_source ("
+                                + " age INT"
+                                + ") WITH ("
+                                + " 'connector' = 'doris',"
+                                + " 'fenodes' = '%s',"
+                                + " 'table.identifier' = '%s',"
+                                + " 'username' = '%s',"
+                                + " 'password' = '%s'"
+                                + ")",
+                        getFenodes(),
+                        DATABASE + "." + TABLE_READ_TBL_PUSH_DOWN_WITH_UNION_ALL,
+                        USERNAME,
+                        PASSWORD);
+        tEnv.executeSql(sourceDDL);
+        TableResult tableResult =
+                tEnv.executeSql(
+                        "SELECT * FROM doris_source where age = '18'"
+                                + " UNION ALL "
+                                + "SELECT * FROM doris_source where age = '10'");
+
+        List<String> actual = new ArrayList<>();
+        try (CloseableIterator<Row> iterator = tableResult.collect()) {
+            while (iterator.hasNext()) {
+                actual.add(iterator.next().toString());
+            }
+        }
+        String[] expected = new String[] {"+I[doris, 18]", "+I[flink, 10]"};
+        Assert.assertArrayEquals(expected, actual.toArray());
+    }
+
     private void initializeTable(String table) throws Exception {
         try (Connection connection =
                         DriverManager.getConnection(
@@ -289,6 +329,8 @@ public class DorisSourceITCase extends DorisTestBase {
                     String.format("insert into %s.%s  values ('doris',18)", DATABASE, table));
             statement.execute(
                     String.format("insert into %s.%s  values ('flink',10)", DATABASE, table));
+            statement.execute(
+                    String.format("insert into %s.%s  values ('apache',12)", DATABASE, table));
         }
     }
 }
