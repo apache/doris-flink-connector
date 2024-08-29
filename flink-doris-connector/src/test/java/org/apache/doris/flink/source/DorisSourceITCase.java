@@ -67,6 +67,7 @@ public class DorisSourceITCase extends DorisTestBase {
         DorisSource<List<?>> source =
                 DorisSource.<List<?>>builder()
                         .setDorisOptions(dorisBuilder.build())
+                        .setResolvedFilterQuery(new ArrayList<>())
                         .setDeserializer(new SimpleListDeserializationSchema())
                         .build();
         List<String> actual = new ArrayList<>();
