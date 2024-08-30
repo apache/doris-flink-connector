@@ -296,9 +296,9 @@ public class DorisSourceITCase extends DorisTestBase {
         tEnv.executeSql(sourceDDL);
         TableResult tableResult =
                 tEnv.executeSql(
-                        "SELECT * FROM doris_source where age = '18'"
+                        "  select * from ( SELECT * FROM doris_source where age = '18'"
                                 + " UNION ALL "
-                                + "SELECT * FROM doris_source where age = '10'");
+                                + "SELECT * FROM doris_source where age = '10' ) ua order by age asc ");
 
         List<String> actual = new ArrayList<>();
         try (CloseableIterator<Row> iterator = tableResult.collect()) {
@@ -306,7 +306,7 @@ public class DorisSourceITCase extends DorisTestBase {
                 actual.add(iterator.next().toString());
             }
         }
-        String[] expected = new String[] {"+I[doris, 18]", "+I[flink, 10]"};
+        String[] expected = new String[] {"+I[flink, 10]", "+I[doris, 18]"};
         Assert.assertArrayEquals(expected, actual.toArray());
     }
 
