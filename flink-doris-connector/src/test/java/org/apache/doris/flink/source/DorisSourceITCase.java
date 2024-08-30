@@ -296,9 +296,9 @@ public class DorisSourceITCase extends DorisTestBase {
         tEnv.executeSql(sourceDDL);
         TableResult tableResult =
                 tEnv.executeSql(
-                        "  select * from ( SELECT * FROM doris_source where age = '18'"
+                        "  SELECT * FROM doris_source where age = '18'"
                                 + " UNION ALL "
-                                + "SELECT * FROM doris_source where age = '10' ) ua order by age asc ");
+                                + "SELECT * FROM doris_source where age = '10'  ");
 
         List<String> actual = new ArrayList<>();
         try (CloseableIterator<Row> iterator = tableResult.collect()) {
