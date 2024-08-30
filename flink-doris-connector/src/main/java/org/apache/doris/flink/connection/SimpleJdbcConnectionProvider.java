@@ -42,7 +42,7 @@ public class SimpleJdbcConnectionProvider implements JdbcConnectionProvider, Ser
 
     @Override
     public Connection getOrEstablishConnection() throws ClassNotFoundException, SQLException {
-        if (connection != null && !connection.isClosed() && connection.isValid(10000)) {
+        if (connection != null && !connection.isClosed() && connection.isValid(10)) {
             return connection;
         }
         try {
