@@ -280,6 +280,7 @@ public class DorisSourceITCase extends DorisTestBase {
         String sourceDDL =
                 String.format(
                         "CREATE TABLE doris_source ("
+                                + " name STRING,"
                                 + " age INT"
                                 + ") WITH ("
                                 + " 'connector' = 'doris',"
