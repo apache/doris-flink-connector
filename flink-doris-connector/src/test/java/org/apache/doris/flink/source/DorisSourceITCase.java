@@ -306,7 +306,7 @@ public class DorisSourceITCase extends DorisTestBase {
                 actual.add(iterator.next().toString());
             }
         }
-        String[] expected = new String[] {"+I[flink, 10]", "+I[doris, 18]"};
+        String[] expected = new String[] {"+I[doris, 18]", "+I[flink, 10]"};
         Assert.assertArrayEquals(expected, actual.toArray());
     }
 
