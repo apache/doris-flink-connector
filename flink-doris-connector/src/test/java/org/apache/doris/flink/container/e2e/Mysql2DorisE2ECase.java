@@ -39,6 +39,7 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
     public void setUp() throws InterruptedException {
         LOG.info("Mysql2DorisE2ECase attempting to acquire semaphore.");
         SEMAPHORE.acquire();
+        Thread.sleep(60000);
         LOG.info("Mysql2DorisE2ECase semaphore acquired.");
     }
 
