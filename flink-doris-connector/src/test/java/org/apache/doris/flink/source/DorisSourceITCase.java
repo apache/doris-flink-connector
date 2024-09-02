@@ -51,7 +51,8 @@ public class DorisSourceITCase extends AbstractITCaseService {
     private static final String TABLE_READ_TBL_OLD_API = "tbl_read_tbl_old_api";
     private static final String TABLE_READ_TBL_ALL_OPTIONS = "tbl_read_tbl_all_options";
     private static final String TABLE_READ_TBL_PUSH_DOWN = "tbl_read_tbl_push_down";
-    private static final String TABLE_READ_TBL_PUSH_DOWN_WITH_UNION_ALL = "tbl_read_tbl_push_down_with_union_all";
+    private static final String TABLE_READ_TBL_PUSH_DOWN_WITH_UNION_ALL =
+            "tbl_read_tbl_push_down_with_union_all";
 
     @Test
     public void testSource() throws Exception {
