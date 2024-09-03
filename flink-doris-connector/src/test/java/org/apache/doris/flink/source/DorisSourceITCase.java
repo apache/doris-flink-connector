@@ -81,7 +81,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
             }
         }
         List<String> expected = Arrays.asList("[doris, 18]", "[flink, 10]", "[apache, 12]");
-        Assert.assertArrayEquals(actual.toArray(), expected.toArray());
+        checkResult("testSource", expected.toArray(), actual.toArray());
     }
 
     @Test
@@ -106,7 +106,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
             }
         }
         List<String> expected = Arrays.asList("[doris, 18]", "[flink, 10]", "[apache, 12]");
-        Assert.assertArrayEquals(actual.toArray(), expected.toArray());
+        checkResult("testOldSourceApi", expected.toArray(), actual.toArray());
     }
 
     @Test
@@ -155,7 +155,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
             }
         }
         String[] expectedFilter = new String[] {"+I[doris, 18]"};
-        Assert.assertArrayEquals(expectedFilter, actualFilter.toArray());
+        checkResult("testTableSource", expectedFilter, actualFilter.toArray());
     }
 
     @Test
@@ -192,7 +192,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
             }
         }
         String[] expected = new String[] {"+I[doris, 18]", "+I[flink, 10]", "+I[apache, 12]"};
-        Assert.assertArrayEquals(expected, actual.toArray());
+        checkResult("testTableSourceOldApi", expected, actual.toArray());
     }
 
     @Test
@@ -238,7 +238,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
             }
         }
         String[] expected = new String[] {"+I[doris, 18]", "+I[flink, 10]", "+I[apache, 12]"};
-        Assert.assertArrayEquals(expected, actual.toArray());
+        checkResult("testTableSourceAllOptions", expected, actual.toArray());
     }
 
     @Test
@@ -276,7 +276,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
             }
         }
         String[] expected = new String[] {"+I[18]"};
-        Assert.assertArrayEquals(expected, actual.toArray());
+        checkResult("testTableSourceFilterAndProjectionPushDown", expected, actual.toArray());
     }
 
     @Test
@@ -316,7 +316,16 @@ public class DorisSourceITCase extends AbstractITCaseService {
             }
         }
         String[] expected = new String[] {"+I[doris, 18]", "+I[flink, 10]"};
-        Assert.assertArrayEquals(expected, actual.toArray());
+        checkResult("testTableSourceFilterWithUnionAll", expected, actual.toArray());
+    }
+
+    private void checkResult(String testName, Object[] expected, Object[] actual) {
+        LOG.info(
+                "Checking DorisSourceITCase result. testName={}, actual={}, expected={}",
+                testName,
+                actual,
+                expected);
+        Assert.assertArrayEquals(expected, actual);
     }
 
     private void initializeTable(String table) {
