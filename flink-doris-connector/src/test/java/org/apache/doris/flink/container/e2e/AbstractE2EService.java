@@ -15,13 +15,14 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.flink.container;
+package org.apache.doris.flink.container.e2e;
 
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
-import org.apache.doris.flink.container.e2e.CustomerSingleThreadExecutor;
+import org.apache.doris.flink.container.AbstractContainerTestBase;
 import org.apache.doris.flink.container.instance.ContainerService;
 import org.apache.doris.flink.container.instance.MySQLContainer;
 import org.apache.doris.flink.exception.DorisRuntimeException;
@@ -41,8 +42,7 @@ import java.util.concurrent.Semaphore;
 public abstract class AbstractE2EService extends AbstractContainerTestBase {
     private static final Logger LOG = LoggerFactory.getLogger(AbstractE2EService.class);
     private static ContainerService mysqlContainerService;
-    private static final CustomerSingleThreadExecutor singleThreadExecutor =
-            new CustomerSingleThreadExecutor();
+    private static JobClient jobClient;
     protected static final Semaphore SEMAPHORE = new Semaphore(1);
     protected static final String SINK_CONF = "--" + DatabaseSyncConfig.SINK_CONF;
     protected static final String DORIS_DATABASE = "--database";
@@ -92,23 +92,24 @@ public abstract class AbstractE2EService extends AbstractContainerTestBase {
     }
 
     protected void submitE2EJob(String jobName, String[] args) {
-        singleThreadExecutor.submitJob(
-                jobName,
-                () -> {
-                    try {
-                        LOG.info("{} e2e job will submit to start.", jobName);
-                        CdcTools.setStreamExecutionEnvironmentForTesting(configFlinkEnvironment());
-                        CdcTools.main(args);
-                        Thread.sleep(10000);
-                    } catch (Exception e) {
-                        throw new DorisRuntimeException(e);
-                    }
-                });
+        try {
+            LOG.info("{} e2e job will submit to start. ", jobName);
+            CdcTools.setStreamExecutionEnvironmentForTesting(configFlinkEnvironment());
+            CdcTools.main(args);
+            jobClient = CdcTools.getJobClient();
+            if (Objects.isNull(jobClient)) {
+                LOG.warn("Failed get flink job client. jobName={}", jobName);
+                throw new DorisRuntimeException("Failed get flink job client. jobName=" + jobName);
+            }
+        } catch (Exception e) {
+            LOG.warn("Failed to submit e2e job. jobName={}", jobName);
+            throw new DorisRuntimeException(e);
+        }
     }
 
-    protected void cancelCurrentE2EJob(String jobName) {
+    protected void cancelE2EJob(String jobName) {
         LOG.info("{} e2e job will cancel", jobName);
-        singleThreadExecutor.cancelCurrentJob(jobName);
+        jobClient.cancel();
     }
 
     private StreamExecutionEnvironment configFlinkEnvironment() {
@@ -148,7 +149,6 @@ public abstract class AbstractE2EService extends AbstractContainerTestBase {
         if (Objects.isNull(mysqlContainerService)) {
             return;
         }
-        singleThreadExecutor.shutdown();
         mysqlContainerService.close();
         LOG.info("Mysql container was closed.");
     }

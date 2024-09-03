@@ -24,7 +24,6 @@ import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
 
-import org.apache.doris.flink.container.AbstractE2EService;
 import org.apache.doris.flink.container.ContainerUtils;
 import org.junit.After;
 import org.junit.Assert;
@@ -47,7 +46,6 @@ public class Doris2DorisE2ECase extends AbstractE2EService {
     public void setUp() throws InterruptedException {
         LOG.info("Doris2DorisE2ECase attempting to acquire semaphore.");
         SEMAPHORE.acquire();
-        Thread.sleep(60000);
         LOG.info("Doris2DorisE2ECase semaphore acquired.");
     }
 

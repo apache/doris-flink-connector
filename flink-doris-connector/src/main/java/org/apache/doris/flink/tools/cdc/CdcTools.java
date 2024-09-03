@@ -20,6 +20,7 @@ package org.apache.doris.flink.tools.cdc;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.utils.MultipleParameterTool;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
@@ -43,6 +44,7 @@ public class CdcTools {
     private static final List<String> EMPTY_KEYS =
             Collections.singletonList(DatabaseSyncConfig.PASSWORD);
     private static StreamExecutionEnvironment flinkEnvironmentForTesting;
+    private static JobClient jobClient;
 
     public static void main(String[] args) throws Exception {
         System.out.println("Input args: " + Arrays.asList(args) + ".\n");
@@ -179,7 +181,16 @@ public class CdcTools {
                             config.getString(
                                     DatabaseSyncConfig.DATABASE_NAME, DatabaseSyncConfig.DB));
         }
-        env.execute(jobName);
+        if (Objects.nonNull(flinkEnvironmentForTesting)) {
+            jobClient = env.executeAsync();
+        } else {
+            env.execute(jobName);
+        }
+    }
+
+    @VisibleForTesting
+    public static JobClient getJobClient() {
+        return jobClient;
     }
 
     // Only for testing, please do not use it in actual environment

@@ -17,7 +17,6 @@
 
 package org.apache.doris.flink.container.e2e;
 
-import org.apache.doris.flink.container.AbstractE2EService;
 import org.apache.doris.flink.container.ContainerUtils;
 import org.apache.doris.flink.tools.cdc.DatabaseSyncConfig;
 import org.junit.After;
@@ -39,7 +38,6 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
     public void setUp() throws InterruptedException {
         LOG.info("Mysql2DorisE2ECase attempting to acquire semaphore.");
         SEMAPHORE.acquire();
-        Thread.sleep(60000);
         LOG.info("Mysql2DorisE2ECase semaphore acquired.");
     }
 
@@ -151,7 +149,7 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
         String schemaChangeSql = "select * from test_e2e_mysql.tbl1 order by 1";
         ContainerUtils.checkResult(
                 getDorisQueryConnection(), LOG, schemaChangeExpected, schemaChangeSql, 2);
-        cancelCurrentE2EJob(jobName);
+        cancelE2EJob(jobName);
     }
 
     @Test
@@ -226,7 +224,7 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
         String schemaChangeSql = "select * from test_e2e_mysql.auto_add order by 1";
         ContainerUtils.checkResult(
                 getDorisQueryConnection(), LOG, schemaChangeExpected, schemaChangeSql, 2);
-        cancelCurrentE2EJob(jobName);
+        cancelE2EJob(jobName);
     }
 
     @Test
@@ -299,7 +297,7 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
         String createTableSql = "select * from test_e2e_mysql.add_tbl order by 1";
         ContainerUtils.checkResult(
                 getDorisQueryConnection(), LOG, createTableExpected, createTableSql, 2);
-        cancelCurrentE2EJob(jobName);
+        cancelE2EJob(jobName);
     }
 
     @Test
@@ -334,7 +332,7 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
         String sql2 =
                 "select * from ( select * from test_e2e_mysql.tbl1 union all select * from test_e2e_mysql.tbl2 union all select * from test_e2e_mysql.tbl3 ) res order by 1";
         ContainerUtils.checkResult(getDorisQueryConnection(), LOG, expected2, sql2, 2);
-        cancelCurrentE2EJob(jobName);
+        cancelE2EJob(jobName);
     }
 
     @Test
@@ -377,7 +375,7 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
         String sql =
                 "select * from ( select * from test_e2e_mysql.tbl1 union all select * from test_e2e_mysql.tbl2 union all select * from test_e2e_mysql.tbl3 union all select * from test_e2e_mysql.tbl5) res order by 1";
         ContainerUtils.checkResult(getDorisQueryConnection(), LOG, expected, sql, 2);
-        cancelCurrentE2EJob(jobName);
+        cancelE2EJob(jobName);
     }
 
     @After
