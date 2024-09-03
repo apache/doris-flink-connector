@@ -17,8 +17,6 @@
 
 package org.apache.doris.flink.cfg;
 
-import org.apache.flink.util.Preconditions;
-
 import java.io.Serializable;
 import java.util.Objects;
 
@@ -278,9 +276,6 @@ public class DorisReadOptions implements Serializable {
         }
 
         public DorisReadOptions build() {
-            Preconditions.checkArgument(
-                    requestBatchSize >= 1 && requestBatchSize <= 65535,
-                    "batchSize should be between 1 and 65535");
             return new DorisReadOptions(
                     readFields,
                     filterQuery,
