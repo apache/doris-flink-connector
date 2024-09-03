@@ -158,6 +158,7 @@ public abstract class DatabaseSync {
             System.out.println("Create table finished.");
             System.exit(0);
         }
+        LOG.info("table mapping: {}", tableMapping);
         config.setString(TABLE_NAME_OPTIONS, getSyncTableList(syncTables));
         DataStreamSource<String> streamSource = buildCdcSource(env);
         if (singleSink) {

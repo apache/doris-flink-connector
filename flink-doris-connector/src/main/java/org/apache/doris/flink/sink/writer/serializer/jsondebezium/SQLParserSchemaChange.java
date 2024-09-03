@@ -83,7 +83,7 @@ public class SQLParserSchemaChange extends JsonDebeziumSchemaChange {
                     String dorisTbl = getCreateTableIdentifier(recordRoot);
                     changeContext.getTableMapping().put(cdcTbl, dorisTbl);
                     this.tableMapping = changeContext.getTableMapping();
-                    LOG.info("create table ddl status: {}", status);
+                    LOG.info("create table ddl status: {}, add tableMapping {},{}", status, cdcTbl, dorisTbl);
                 }
             } else if (eventType.equals(EventType.ALTER)) {
                 Tuple2<String, String> dorisTableTuple = getDorisTableTuple(recordRoot);
