@@ -202,7 +202,7 @@ public class DorisSinkITCase extends AbstractITCaseService {
 
         String sinkDDL =
                 String.format(
-                        "CREATE TABLE doris_sink ("
+                        "CREATE TABLE doris_sink_batch ("
                                 + " name STRING,"
                                 + " age INT"
                                 + ") WITH ("
@@ -229,7 +229,7 @@ public class DorisSinkITCase extends AbstractITCaseService {
                         getDorisUsername(),
                         getDorisPassword());
         tEnv.executeSql(sinkDDL);
-        tEnv.executeSql("INSERT INTO doris_sink SELECT 'doris',1 union all SELECT 'flink',2");
+        tEnv.executeSql("INSERT INTO doris_sink_batch SELECT 'doris',1 union all SELECT 'flink',2");
 
         Thread.sleep(20000);
         List<String> expected = Arrays.asList("doris,1", "flink,2");

@@ -17,6 +17,7 @@
 
 package org.apache.doris.flink.container.e2e;
 
+import org.apache.doris.flink.container.AbstractE2EService;
 import org.apache.doris.flink.container.ContainerUtils;
 import org.apache.doris.flink.tools.cdc.DatabaseSyncConfig;
 import org.junit.After;

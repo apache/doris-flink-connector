@@ -15,14 +15,13 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.flink.container.e2e;
+package org.apache.doris.flink.container;
 
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
-import org.apache.doris.flink.container.AbstractContainerTestBase;
 import org.apache.doris.flink.container.instance.ContainerService;
 import org.apache.doris.flink.container.instance.MySQLContainer;
 import org.apache.doris.flink.exception.DorisRuntimeException;
