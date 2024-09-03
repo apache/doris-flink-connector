@@ -50,11 +50,6 @@ public class MySQLContainer implements ContainerService {
         LOG.info("Starting MySQL container.");
         Startables.deepStart(Stream.of(mysqlcontainer)).join();
         LOG.info("MySQL Container was started.");
-        try {
-            Thread.sleep(20000);
-        } catch (InterruptedException e) {
-            throw new DorisRuntimeException(e);
-        }
     }
 
     @Override

@@ -167,7 +167,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
 
         String sourceDDL =
                 String.format(
-                        "CREATE TABLE doris_source ("
+                        "CREATE TABLE doris_source_old_api ("
                                 + " name STRING,"
                                 + " age INT"
                                 + ") WITH ("
@@ -183,7 +183,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
                         getDorisUsername(),
                         getDorisPassword());
         tEnv.executeSql(sourceDDL);
-        TableResult tableResult = tEnv.executeSql("SELECT * FROM doris_source");
+        TableResult tableResult = tEnv.executeSql("SELECT * FROM doris_source_old_api");
 
         List<String> actual = new ArrayList<>();
         try (CloseableIterator<Row> iterator = tableResult.collect()) {
@@ -204,7 +204,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
 
         String sourceDDL =
                 String.format(
-                        "CREATE TABLE doris_source ("
+                        "CREATE TABLE doris_source_all_options ("
                                 + " name STRING,"
                                 + " age INT"
                                 + ") WITH ("
@@ -229,7 +229,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
                         getDorisUsername(),
                         getDorisPassword());
         tEnv.executeSql(sourceDDL);
-        TableResult tableResult = tEnv.executeSql("SELECT * FROM doris_source");
+        TableResult tableResult = tEnv.executeSql("SELECT * FROM doris_source_all_options");
 
         List<String> actual = new ArrayList<>();
         try (CloseableIterator<Row> iterator = tableResult.collect()) {
@@ -250,7 +250,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
 
         String sourceDDL =
                 String.format(
-                        "CREATE TABLE doris_source ("
+                        "CREATE TABLE doris_source_filter_and_projection_push_down ("
                                 + " name STRING,"
                                 + " age INT"
                                 + ") WITH ("
@@ -265,7 +265,9 @@ public class DorisSourceITCase extends AbstractITCaseService {
                         getDorisUsername(),
                         getDorisPassword());
         tEnv.executeSql(sourceDDL);
-        TableResult tableResult = tEnv.executeSql("SELECT age FROM doris_source where age = '18'");
+        TableResult tableResult =
+                tEnv.executeSql(
+                        "SELECT age FROM doris_source_filter_and_projection_push_down where age = '18'");
 
         List<String> actual = new ArrayList<>();
         try (CloseableIterator<Row> iterator = tableResult.collect()) {
@@ -286,7 +288,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
 
         String sourceDDL =
                 String.format(
-                        "CREATE TABLE doris_source ("
+                        "CREATE TABLE doris_source_filter_with_union_all ("
                                 + " name STRING,"
                                 + " age INT"
                                 + ") WITH ("
@@ -303,9 +305,9 @@ public class DorisSourceITCase extends AbstractITCaseService {
         tEnv.executeSql(sourceDDL);
         TableResult tableResult =
                 tEnv.executeSql(
-                        "  SELECT * FROM doris_source where age = '18'"
+                        "  SELECT * FROM doris_source_filter_with_union_all where age = '18'"
                                 + " UNION ALL "
-                                + "SELECT * FROM doris_source where age = '10'  ");
+                                + "SELECT * FROM doris_source_filter_with_union_all where age = '10'  ");
 
         List<String> actual = new ArrayList<>();
         try (CloseableIterator<Row> iterator = tableResult.collect()) {
