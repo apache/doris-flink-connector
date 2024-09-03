@@ -307,7 +307,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
                 tEnv.executeSql(
                         "  SELECT * FROM doris_source_filter_with_union_all where age = '18'"
                                 + " UNION ALL "
-                                + "SELECT * FROM doris_source_filter_with_union_all where age = '10'  ");
+                                + "SELECT * FROM doris_source_filter_with_union_all where age = '10'  order by age");
 
         List<String> actual = new ArrayList<>();
         try (CloseableIterator<Row> iterator = tableResult.collect()) {
