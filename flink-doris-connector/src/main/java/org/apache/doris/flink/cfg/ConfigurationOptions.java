@@ -42,7 +42,8 @@ public interface ConfigurationOptions {
     Integer DORIS_TABLET_SIZE_MIN = 1;
 
     String DORIS_BATCH_SIZE = "doris.batch.size";
-    Integer DORIS_BATCH_SIZE_DEFAULT = 1024;
+    Integer DORIS_BATCH_SIZE_DEFAULT = 4064;
+    Integer DORIS_BATCH_SIZE_MAX = 65535;
 
     String DORIS_EXEC_MEM_LIMIT = "doris.exec.mem.limit";
     Long DORIS_EXEC_MEM_LIMIT_DEFAULT = 8589934592L;

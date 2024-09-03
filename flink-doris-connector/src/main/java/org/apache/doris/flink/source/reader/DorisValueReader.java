@@ -45,6 +45,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_BATCH_SIZE_DEFAULT;
+import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_BATCH_SIZE_MAX;
 import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_DEFAULT_CLUSTER;
 import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_DESERIALIZE_ARROW_ASYNC_DEFAULT;
 import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_DESERIALIZE_QUEUE_SIZE_DEFAULT;
@@ -130,7 +131,7 @@ public class DorisValueReader extends ValueReader implements AutoCloseable {
         Integer batchSize =
                 readOptions.getRequestBatchSize() == null
                         ? DORIS_BATCH_SIZE_DEFAULT
-                        : readOptions.getRequestBatchSize();
+                        : Math.min(readOptions.getRequestBatchSize(), DORIS_BATCH_SIZE_MAX);
         Integer queryDorisTimeout =
                 readOptions.getRequestQueryTimeoutS() == null
                         ? DORIS_REQUEST_QUERY_TIMEOUT_S_DEFAULT

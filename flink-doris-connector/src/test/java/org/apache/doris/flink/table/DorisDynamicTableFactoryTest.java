@@ -53,7 +53,7 @@ public class DorisDynamicTableFactoryTest {
         Map<String, String> properties = getAllOptions();
         properties.put("doris.request.query.timeout", "21600s");
         properties.put("doris.request.tablet.size", "1");
-        properties.put("doris.batch.size", "1024");
+        properties.put("doris.batch.size", "4064");
         properties.put("doris.exec.mem.limit", "8192mb");
         properties.put("doris.deserialize.arrow.async", "false");
         properties.put("doris.deserialize.queue.size", "64");
@@ -118,7 +118,7 @@ public class DorisDynamicTableFactoryTest {
         Map<String, String> properties = getAllOptions();
         properties.put("doris.request.query.timeout", "21600s");
         properties.put("doris.request.tablet.size", "1");
-        properties.put("doris.batch.size", "1024");
+        properties.put("doris.batch.size", "4064");
         properties.put("doris.exec.mem.limit", "8192mb");
         properties.put("doris.deserialize.arrow.async", "false");
         properties.put("doris.deserialize.queue.size", "64");
