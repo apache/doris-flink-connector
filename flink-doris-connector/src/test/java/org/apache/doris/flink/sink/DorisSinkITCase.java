@@ -26,18 +26,19 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.doris.flink.DorisTestBase;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
+import org.apache.doris.flink.container.AbstractITCaseService;
+import org.apache.doris.flink.container.ContainerUtils;
+import org.apache.doris.flink.sink.DorisSink.Builder;
 import org.apache.doris.flink.sink.batch.DorisBatchSink;
 import org.apache.doris.flink.sink.writer.serializer.SimpleStringSerializer;
 import org.apache.doris.flink.utils.MockSource;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.Statement;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
@@ -51,7 +52,8 @@ import static org.apache.flink.api.common.JobStatus.FINISHED;
 import static org.apache.flink.api.common.JobStatus.RUNNING;
 
 /** DorisSink ITCase with csv and arrow format. */
-public class DorisSinkITCase extends DorisTestBase {
+public class DorisSinkITCase extends AbstractITCaseService {
+    private static final Logger LOG = LoggerFactory.getLogger(DorisSinkITCase.class);
     static final String DATABASE = "test_sink";
     static final String TABLE_CSV = "tbl_csv";
     static final String TABLE_JSON = "tbl_json";
@@ -70,12 +72,20 @@ public class DorisSinkITCase extends DorisTestBase {
         properties.setProperty("column_separator", ",");
         properties.setProperty("line_delimiter", "\n");
         properties.setProperty("format", "csv");
-        submitJob(TABLE_CSV, properties, new String[] {"doris,1"});
+        DorisExecutionOptions.Builder executionBuilder = DorisExecutionOptions.builder();
+        executionBuilder.setLabelPrefix(UUID.randomUUID().toString()).setStreamLoadProp(properties);
+        DorisOptions.Builder dorisBuilder = DorisOptions.builder();
+        dorisBuilder
+                .setFenodes(getFenodes())
+                .setTableIdentifier(DATABASE + "." + TABLE_CSV)
+                .setUsername(getDorisUsername())
+                .setPassword(getDorisPassword());
+        submitJob(dorisBuilder.build(), executionBuilder.build(), new String[] {"doris,1"});
 
         Thread.sleep(10000);
         List<String> expected = Arrays.asList("doris,1");
         String query = String.format("select name,age from %s.%s order by 1", DATABASE, TABLE_CSV);
-        checkResult(expected, query, 2);
+        ContainerUtils.checkResult(getDorisQueryConnection(), LOG, expected, query, 2);
     }
 
     @Test
@@ -93,9 +103,18 @@ public class DorisSinkITCase extends DorisTestBase {
         row2.put("name", "doris2");
         row2.put("age", 2);
 
+        DorisExecutionOptions.Builder executionBuilder = DorisExecutionOptions.builder();
+        executionBuilder.setLabelPrefix(UUID.randomUUID().toString()).setStreamLoadProp(properties);
+        DorisOptions.Builder dorisBuilder = DorisOptions.builder();
+        dorisBuilder
+                .setFenodes(getFenodes())
+                .setTableIdentifier(DATABASE + "." + TABLE_JSON)
+                .setUsername(getDorisUsername())
+                .setPassword(getDorisPassword());
+
         submitJob(
-                TABLE_JSON,
-                properties,
+                dorisBuilder.build(),
+                executionBuilder.build(),
                 new String[] {
                     new ObjectMapper().writeValueAsString(row1),
                     new ObjectMapper().writeValueAsString(row2)
@@ -104,28 +123,21 @@ public class DorisSinkITCase extends DorisTestBase {
         Thread.sleep(10000);
         List<String> expected = Arrays.asList("doris1,1", "doris2,2");
         String query = String.format("select name,age from %s.%s order by 1", DATABASE, TABLE_JSON);
-        checkResult(expected, query, 2);
+        ContainerUtils.checkResult(getDorisQueryConnection(), LOG, expected, query, 2);
     }
 
-    public void submitJob(String table, Properties properties, String[] records) throws Exception {
+    private void submitJob(
+            DorisOptions dorisOptions, DorisExecutionOptions executionOptions, String[] records)
+            throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
-        DorisSink.Builder<String> builder = DorisSink.builder();
+        Builder<String> builder = DorisSink.builder();
         final DorisReadOptions.Builder readOptionBuilder = DorisReadOptions.builder();
 
-        DorisOptions.Builder dorisBuilder = DorisOptions.builder();
-        dorisBuilder
-                .setFenodes(getFenodes())
-                .setTableIdentifier(DATABASE + "." + table)
-                .setUsername(USERNAME)
-                .setPassword(PASSWORD);
-        DorisExecutionOptions.Builder executionBuilder = DorisExecutionOptions.builder();
-        executionBuilder.setLabelPrefix(UUID.randomUUID().toString()).setStreamLoadProp(properties);
-
         builder.setDorisReadOptions(readOptionBuilder.build())
-                .setDorisExecutionOptions(executionBuilder.build())
+                .setDorisExecutionOptions(executionOptions)
                 .setSerializer(new SimpleStringSerializer())
-                .setDorisOptions(dorisBuilder.build());
+                .setDorisOptions(dorisOptions);
 
         env.fromElements(records).sinkTo(builder.build());
         env.execute();
@@ -168,8 +180,8 @@ public class DorisSinkITCase extends DorisTestBase {
                         getFenodes(),
                         getBenodes(),
                         DATABASE + "." + TABLE_JSON_TBL,
-                        USERNAME,
-                        PASSWORD);
+                        getDorisUsername(),
+                        getDorisPassword());
         tEnv.executeSql(sinkDDL);
         tEnv.executeSql("INSERT INTO doris_sink SELECT 'doris',1 union all SELECT 'flink',2");
 
@@ -177,7 +189,7 @@ public class DorisSinkITCase extends DorisTestBase {
         List<String> expected = Arrays.asList("doris,1", "flink,2");
         String query =
                 String.format("select name,age from %s.%s order by 1", DATABASE, TABLE_JSON_TBL);
-        checkResult(expected, query, 2);
+        ContainerUtils.checkResult(getDorisQueryConnection(), LOG, expected, query, 2);
     }
 
     @Test
@@ -190,7 +202,7 @@ public class DorisSinkITCase extends DorisTestBase {
 
         String sinkDDL =
                 String.format(
-                        "CREATE TABLE doris_sink ("
+                        "CREATE TABLE doris_sink_batch ("
                                 + " name STRING,"
                                 + " age INT"
                                 + ") WITH ("
@@ -214,17 +226,17 @@ public class DorisSinkITCase extends DorisTestBase {
                                 + ")",
                         getFenodes(),
                         DATABASE + "." + TABLE_CSV_BATCH_TBL,
-                        USERNAME,
-                        PASSWORD);
+                        getDorisUsername(),
+                        getDorisPassword());
         tEnv.executeSql(sinkDDL);
-        tEnv.executeSql("INSERT INTO doris_sink SELECT 'doris',1 union all SELECT 'flink',2");
+        tEnv.executeSql("INSERT INTO doris_sink_batch SELECT 'doris',1 union all SELECT 'flink',2");
 
         Thread.sleep(20000);
         List<String> expected = Arrays.asList("doris,1", "flink,2");
         String query =
                 String.format(
                         "select name,age from %s.%s order by 1", DATABASE, TABLE_CSV_BATCH_TBL);
-        checkResult(expected, query, 2);
+        ContainerUtils.checkResult(getDorisQueryConnection(), LOG, expected, query, 2);
     }
 
     @Test
@@ -238,8 +250,8 @@ public class DorisSinkITCase extends DorisTestBase {
         dorisBuilder
                 .setFenodes(getFenodes())
                 .setTableIdentifier(DATABASE + "." + TABLE_CSV_BATCH_DS)
-                .setUsername(USERNAME)
-                .setPassword(PASSWORD);
+                .setUsername(getDorisUsername())
+                .setPassword(getDorisPassword());
         Properties properties = new Properties();
         properties.setProperty("column_separator", ",");
         properties.setProperty("line_delimiter", "\n");
@@ -264,7 +276,7 @@ public class DorisSinkITCase extends DorisTestBase {
         String query =
                 String.format(
                         "select name,age from %s.%s order by 1", DATABASE, TABLE_CSV_BATCH_DS);
-        checkResult(expected, query, 2);
+        ContainerUtils.checkResult(getDorisQueryConnection(), LOG, expected, query, 2);
     }
 
     @Test
@@ -302,8 +314,8 @@ public class DorisSinkITCase extends DorisTestBase {
                                 + ")",
                         getFenodes(),
                         DATABASE + "." + TABLE_GROUP_COMMIT,
-                        USERNAME,
-                        PASSWORD);
+                        getDorisUsername(),
+                        getDorisPassword());
         tEnv.executeSql(sinkDDL);
         tEnv.executeSql(
                 "INSERT INTO doris_group_commit_sink SELECT 'doris',1 union all  SELECT 'group_commit',2 union all  SELECT 'flink',3");
@@ -313,8 +325,7 @@ public class DorisSinkITCase extends DorisTestBase {
         String query =
                 String.format(
                         "select name,age from %s.%s order by 1", DATABASE, TABLE_GROUP_COMMIT);
-        //
-        checkResult(expected, query, 2);
+        ContainerUtils.checkResult(getDorisQueryConnection(), LOG, expected, query, 2);
     }
 
     @Test
@@ -345,8 +356,8 @@ public class DorisSinkITCase extends DorisTestBase {
                                 + ")",
                         getFenodes(),
                         DATABASE + "." + TABLE_GZ_FORMAT,
-                        USERNAME,
-                        PASSWORD);
+                        getDorisUsername(),
+                        getDorisPassword());
         tEnv.executeSql(sinkDDL);
         tEnv.executeSql(
                 "INSERT INTO doris_gz_format_sink SELECT 'doris',1 union all  SELECT 'flink',2");
@@ -355,12 +366,12 @@ public class DorisSinkITCase extends DorisTestBase {
         List<String> expected = Arrays.asList("doris,1", "flink,2");
         String query =
                 String.format("select name,age from %s.%s order by 1", DATABASE, TABLE_GZ_FORMAT);
-        //
-        checkResult(expected, query, 2);
+        ContainerUtils.checkResult(getDorisQueryConnection(), LOG, expected, query, 2);
     }
 
     @Test
     public void testJobManagerFailoverSink() throws Exception {
+        LOG.info("start to test JobManagerFailoverSink.");
         initializeFailoverTable(TABLE_CSV_JM);
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(2);
@@ -374,8 +385,8 @@ public class DorisSinkITCase extends DorisTestBase {
         dorisBuilder
                 .setFenodes(getFenodes())
                 .setTableIdentifier(DATABASE + "." + TABLE_CSV_JM)
-                .setUsername(USERNAME)
-                .setPassword(PASSWORD);
+                .setUsername(getDorisUsername())
+                .setPassword(getDorisPassword());
         DorisExecutionOptions.Builder executionBuilder = DorisExecutionOptions.builder();
         Properties properties = new Properties();
         properties.setProperty("column_separator", ",");
@@ -404,20 +415,23 @@ public class DorisSinkITCase extends DorisTestBase {
         triggerFailover(
                 FailoverType.JM, jobID, miniClusterResource.getMiniCluster(), () -> sleepMs(100));
 
+        LOG.info("Waiting the JobManagerFailoverSink job to be finished. jobId={}", jobID);
         waitForJobStatus(
                 jobClient,
                 Collections.singletonList(FINISHED),
                 Deadline.fromNow(Duration.ofSeconds(120)));
 
+        LOG.info("Will check job manager failover sink result.");
         List<String> expected =
                 Arrays.asList("1,0", "1,1", "2,0", "2,1", "3,0", "3,1", "4,0", "4,1", "5,0", "5,1");
         String query =
                 String.format("select id,task_id from %s.%s order by 1,2", DATABASE, TABLE_CSV_JM);
-        checkResult(expected, query, 2);
+        ContainerUtils.checkResult(getDorisQueryConnection(), LOG, expected, query, 2);
     }
 
     @Test
     public void testTaskManagerFailoverSink() throws Exception {
+        LOG.info("start to test TaskManagerFailoverSink.");
         initializeFailoverTable(TABLE_CSV_TM);
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(2);
@@ -431,8 +445,8 @@ public class DorisSinkITCase extends DorisTestBase {
         dorisBuilder
                 .setFenodes(getFenodes())
                 .setTableIdentifier(DATABASE + "." + TABLE_CSV_TM)
-                .setUsername(USERNAME)
-                .setPassword(PASSWORD);
+                .setUsername(getDorisUsername())
+                .setPassword(getDorisPassword());
         DorisExecutionOptions.Builder executionBuilder = DorisExecutionOptions.builder();
         Properties properties = new Properties();
         properties.setProperty("column_separator", ",");
@@ -458,16 +472,18 @@ public class DorisSinkITCase extends DorisTestBase {
         triggerFailover(
                 FailoverType.TM, jobID, miniClusterResource.getMiniCluster(), () -> sleepMs(100));
 
+        LOG.info("Waiting the TaskManagerFailoverSink job to be finished. jobId={}", jobID);
         waitForJobStatus(
                 jobClient,
                 Collections.singletonList(FINISHED),
                 Deadline.fromNow(Duration.ofSeconds(120)));
 
+        LOG.info("Will check task manager failover sink result.");
         List<String> expected =
                 Arrays.asList("1,0", "1,1", "2,0", "2,1", "3,0", "3,1", "4,0", "4,1", "5,0", "5,1");
         String query =
                 String.format("select id,task_id from %s.%s order by 1,2", DATABASE, TABLE_CSV_TM);
-        checkResult(expected, query, 2);
+        ContainerUtils.checkResult(getDorisQueryConnection(), LOG, expected, query, 2);
     }
 
     private void sleepMs(long millis) {
@@ -477,43 +493,37 @@ public class DorisSinkITCase extends DorisTestBase {
         }
     }
 
-    private void initializeTable(String table) throws Exception {
-        try (Connection connection =
-                        DriverManager.getConnection(
-                                String.format(URL, DORIS_CONTAINER.getHost()), USERNAME, PASSWORD);
-                Statement statement = connection.createStatement()) {
-            statement.execute(String.format("CREATE DATABASE IF NOT EXISTS %s", DATABASE));
-            statement.execute(String.format("DROP TABLE IF EXISTS %s.%s", DATABASE, table));
-            statement.execute(
-                    String.format(
-                            "CREATE TABLE %s.%s ( \n"
-                                    + "`name` varchar(256),\n"
-                                    + "`age` int\n"
-                                    + ") DISTRIBUTED BY HASH(`name`) BUCKETS 1\n"
-                                    + "PROPERTIES (\n"
-                                    + "\"replication_num\" = \"1\"\n"
-                                    + ")\n",
-                            DATABASE, table));
-        }
+    private void initializeTable(String table) {
+        ContainerUtils.executeSQLStatement(
+                getDorisQueryConnection(),
+                LOG,
+                String.format("CREATE DATABASE IF NOT EXISTS %s", DATABASE),
+                String.format("DROP TABLE IF EXISTS %s.%s", DATABASE, table),
+                String.format(
+                        "CREATE TABLE %s.%s ( \n"
+                                + "`name` varchar(256),\n"
+                                + "`age` int\n"
+                                + ") DISTRIBUTED BY HASH(`name`) BUCKETS 1\n"
+                                + "PROPERTIES (\n"
+                                + "\"replication_num\" = \"1\"\n"
+                                + ")\n",
+                        DATABASE, table));
     }
 
-    private void initializeFailoverTable(String table) throws Exception {
-        try (Connection connection =
-                        DriverManager.getConnection(
-                                String.format(URL, DORIS_CONTAINER.getHost()), USERNAME, PASSWORD);
-                Statement statement = connection.createStatement()) {
-            statement.execute(String.format("CREATE DATABASE IF NOT EXISTS %s", DATABASE));
-            statement.execute(String.format("DROP TABLE IF EXISTS %s.%s", DATABASE, table));
-            statement.execute(
-                    String.format(
-                            "CREATE TABLE %s.%s ( \n"
-                                    + "`id` int,\n"
-                                    + "`task_id` int\n"
-                                    + ") DISTRIBUTED BY HASH(`id`) BUCKETS 1\n"
-                                    + "PROPERTIES (\n"
-                                    + "\"replication_num\" = \"1\"\n"
-                                    + ")\n",
-                            DATABASE, table));
-        }
+    private void initializeFailoverTable(String table) {
+        ContainerUtils.executeSQLStatement(
+                getDorisQueryConnection(),
+                LOG,
+                String.format("CREATE DATABASE IF NOT EXISTS %s", DATABASE),
+                String.format("DROP TABLE IF EXISTS %s.%s", DATABASE, table),
+                String.format(
+                        "CREATE TABLE %s.%s ( \n"
+                                + "`id` int,\n"
+                                + "`task_id` int\n"
+                                + ") DISTRIBUTED BY HASH(`id`) BUCKETS 1\n"
+                                + "PROPERTIES (\n"
+                                + "\"replication_num\" = \"1\"\n"
+                                + ")\n",
+                        DATABASE, table));
     }
 }

@@ -1,0 +1,5 @@
+mysql-sync-database
+    --including-tables "tbl.*|auto_add"
+    --table-conf replication_num=1
+    --single-sink true
+    --ignore-default-value true

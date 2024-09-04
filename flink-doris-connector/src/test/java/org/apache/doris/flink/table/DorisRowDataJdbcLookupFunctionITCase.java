@@ -26,15 +26,15 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Collector;
 
 import com.google.common.cache.Cache;
-import org.apache.doris.flink.DorisTestBase;
 import org.apache.doris.flink.cfg.DorisLookupOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
+import org.apache.doris.flink.container.AbstractITCaseService;
+import org.apache.doris.flink.container.ContainerUtils;
 import org.junit.Before;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -43,45 +43,43 @@ import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertEquals;
 
-public class DorisRowDataJdbcLookupFunctionITCase extends DorisTestBase {
+public class DorisRowDataJdbcLookupFunctionITCase extends AbstractITCaseService {
+    private static final Logger LOG =
+            LoggerFactory.getLogger(DorisRowDataJdbcLookupFunctionITCase.class);
 
     private static final String LOOKUP_TABLE = "test.t_lookup_table";
 
-    private static String[] fieldNames = new String[] {"id1", "id2", "c_string", "c_double"};
-    private static DataType[] fieldDataTypes =
+    private static final String[] fieldNames = new String[] {"id1", "id2", "c_string", "c_double"};
+    private static final DataType[] fieldDataTypes =
             new DataType[] {
                 DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING(), DataTypes.DOUBLE()
             };
-    private static String[] lookupKeys = new String[] {"id1", "id2"};
-    private static int[] keyIndexs = new int[] {0, 1};
+    private static final String[] lookupKeys = new String[] {"id1", "id2"};
+    private static final int[] keyIndexs = new int[] {0, 1};
 
     @Before
     public void setUp() throws Exception {
-        try (Connection connection =
-                        DriverManager.getConnection(
-                                String.format(URL, DORIS_CONTAINER.getHost()), USERNAME, PASSWORD);
-                Statement statement = connection.createStatement()) {
-            statement.execute(String.format("CREATE DATABASE IF NOT EXISTS %s", "test"));
-            statement.execute(String.format("DROP TABLE IF EXISTS %s", LOOKUP_TABLE));
-            statement.execute(
-                    String.format(
-                            "CREATE TABLE %s ( \n"
-                                    + "`id1` int,\n"
-                                    + "`id2` varchar(128),\n"
-                                    + "`c_string` string,\n"
-                                    + "`c_double` double\n"
-                                    + ") DISTRIBUTED BY HASH(`id1`) BUCKETS 1\n"
-                                    + "PROPERTIES (\n"
-                                    + "\"replication_num\" = \"1\"\n"
-                                    + ")\n",
-                            LOOKUP_TABLE));
-            statement.execute(
-                    String.format(
-                            "insert into %s  values (1,'A','zhangsanA',1.12),"
-                                    + "(1,'A','zhangsanA-1',11.12),"
-                                    + "(2,'B','zhangsanB',2.12),(4,'D','zhangsanD',4.12)",
-                            LOOKUP_TABLE));
-        }
+        ContainerUtils.executeSQLStatement(
+                getDorisQueryConnection(),
+                LOG,
+                String.format("CREATE DATABASE IF NOT EXISTS %s", "test"),
+                String.format("DROP TABLE IF EXISTS %s", LOOKUP_TABLE),
+                String.format(
+                        "CREATE TABLE %s ( \n"
+                                + "`id1` int,\n"
+                                + "`id2` varchar(128),\n"
+                                + "`c_string` string,\n"
+                                + "`c_double` double\n"
+                                + ") DISTRIBUTED BY HASH(`id1`) BUCKETS 1\n"
+                                + "PROPERTIES (\n"
+                                + "\"replication_num\" = \"1\"\n"
+                                + ")\n",
+                        LOOKUP_TABLE),
+                String.format(
+                        "insert into %s  values (1,'A','zhangsanA',1.12),"
+                                + "(1,'A','zhangsanA-1',11.12),"
+                                + "(2,'B','zhangsanB',2.12),(4,'D','zhangsanD',4.12)",
+                        LOOKUP_TABLE));
     }
 
     @Test
@@ -167,9 +165,9 @@ public class DorisRowDataJdbcLookupFunctionITCase extends DorisTestBase {
                 DorisOptions.builder()
                         .setFenodes(getFenodes())
                         .setTableIdentifier(LOOKUP_TABLE)
-                        .setJdbcUrl(getJdbcUrl())
-                        .setUsername(USERNAME)
-                        .setPassword(PASSWORD)
+                        .setJdbcUrl(getDorisQueryUrl())
+                        .setUsername(getDorisUsername())
+                        .setPassword(getDorisPassword())
                         .build();
 
         DorisRowDataJdbcLookupFunction lookupFunction =

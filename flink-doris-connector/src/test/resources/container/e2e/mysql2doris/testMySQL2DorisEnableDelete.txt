@@ -1,0 +1,5 @@
+mysql-sync-database
+    --including-tables "tbl1|tbl2|tbl3|tbl5"
+    --table-conf replication_num=1
+    --sink-conf sink.enable-delete=false
+    --sink-conf sink.check-interval=5000

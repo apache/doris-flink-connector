@@ -40,8 +40,8 @@ import org.apache.flink.types.RowKind;
 import org.apache.flink.util.CollectionUtil;
 
 import com.google.common.collect.Lists;
-import org.apache.doris.flink.DorisTestBase;
 import org.apache.doris.flink.cfg.DorisConnectionOptions;
+import org.apache.doris.flink.container.AbstractITCaseService;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Ignore;
@@ -62,40 +62,14 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 /** Class for unit tests to run on catalogs. */
-public class DorisCatalogITCase extends DorisTestBase {
+public class DorisCatalogITCase extends AbstractITCaseService {
     private static final String TEST_CATALOG_NAME = "doris_catalog";
-    private static final String TEST_FENODES = getFenodes();
-    private static final String TEST_JDBCURL = getJdbcUrl();
-    private static final String TEST_USERNAME = USERNAME;
-    private static final String TEST_PWD = PASSWORD;
-    //    private static final String TEST_FENODES = "127.0.0.1:8030";
-    //    private static final String TEST_JDBCURL = "jdbc:mysql://127.0.0.1:9030";
-    //    private static final String TEST_USERNAME = "root";
-    //    private static final String TEST_PWD = "";
     private static final String TEST_DB = "catalog_db";
     private static final String TEST_TABLE = "t_all_types";
     private static final String TEST_TABLE_SINK = "t_all_types_sink";
     private static final String TEST_TABLE_SINK_GROUPBY = "t_all_types_sink_groupby";
 
-    protected static final Schema TABLE_SCHEMA =
-            Schema.newBuilder()
-                    .column("id", DataTypes.STRING())
-                    .column("c_boolean", DataTypes.BOOLEAN())
-                    .column("c_char", DataTypes.CHAR(1))
-                    .column("c_date", DataTypes.DATE())
-                    .column("c_datetime", DataTypes.TIMESTAMP(0))
-                    .column("c_decimal", DataTypes.DECIMAL(10, 2))
-                    .column("c_double", DataTypes.DOUBLE())
-                    .column("c_float", DataTypes.FLOAT())
-                    .column("c_int", DataTypes.INT())
-                    .column("c_bigint", DataTypes.BIGINT())
-                    .column("c_largeint", DataTypes.STRING())
-                    .column("c_smallint", DataTypes.SMALLINT())
-                    .column("c_string", DataTypes.STRING())
-                    .column("c_tinyint", DataTypes.TINYINT())
-                    .build();
-
-    protected static final TableSchema TABLE_SCHEMA_1 =
+    private static final TableSchema TABLE_SCHEMA =
             TableSchema.builder()
                     .field("id", new AtomicDataType(new VarCharType(false, 128)))
                     .field("c_boolean", DataTypes.BOOLEAN())
@@ -162,10 +136,10 @@ public class DorisCatalogITCase extends DorisTestBase {
                     TableNotExistException, DatabaseNotExistException {
         DorisConnectionOptions connectionOptions =
                 new DorisConnectionOptions.DorisConnectionOptionsBuilder()
-                        .withFenodes(TEST_FENODES)
-                        .withJdbcUrl(TEST_JDBCURL)
-                        .withUsername(TEST_USERNAME)
-                        .withPassword(TEST_PWD)
+                        .withFenodes(getFenodes())
+                        .withJdbcUrl(getDorisQueryUrl())
+                        .withUsername(getDorisUsername())
+                        .withPassword(getDorisPassword())
                         .build();
 
         Map<String, String> props = new HashMap<>();
@@ -272,7 +246,7 @@ public class DorisCatalogITCase extends DorisTestBase {
         CatalogBaseTable table = catalog.getTable(new ObjectPath(TEST_DB, TEST_TABLE));
         Schema actual = table.getUnresolvedSchema();
         assertEquals(
-                TABLE_SCHEMA_1.getFieldNames(),
+                TABLE_SCHEMA.getFieldNames(),
                 actual.getColumns().stream().map(Schema.UnresolvedColumn::getName).toArray());
     }
 
@@ -308,7 +282,7 @@ public class DorisCatalogITCase extends DorisTestBase {
     public void testCreateTable() throws TableAlreadyExistException, DatabaseNotExistException {
         CatalogTableImpl catalogTable =
                 new CatalogTableImpl(
-                        TABLE_SCHEMA_1,
+                        TABLE_SCHEMA,
                         new HashMap<String, String>() {
                             {
                                 put("connector", "doris-1");
@@ -425,7 +399,7 @@ public class DorisCatalogITCase extends DorisTestBase {
 
     private static CatalogTable createTable() {
         return new CatalogTableImpl(
-                TABLE_SCHEMA_1,
+                TABLE_SCHEMA,
                 new HashMap<String, String>() {
                     {
                         put("connector", "doris");
