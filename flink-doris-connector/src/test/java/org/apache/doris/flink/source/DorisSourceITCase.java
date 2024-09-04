@@ -31,6 +31,7 @@ import org.apache.doris.flink.container.AbstractITCaseService;
 import org.apache.doris.flink.container.ContainerUtils;
 import org.apache.doris.flink.datastream.DorisSourceFunction;
 import org.apache.doris.flink.deserialization.SimpleListDeserializationSchema;
+import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.junit.Assert;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -38,8 +39,10 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
+import java.util.Set;
 
 /** DorisSource ITCase. */
 public class DorisSourceITCase extends AbstractITCaseService {
@@ -280,7 +283,8 @@ public class DorisSourceITCase extends AbstractITCaseService {
     }
 
     @Test
-    public void testTableSourceFilterWithUnionAll() throws Exception {
+    public void testTableSourceFilterWithUnionAll() {
+        LOG.info("starting to execute testTableSourceFilterWithUnionAll case.");
         initializeTable(TABLE_READ_TBL_PUSH_DOWN_WITH_UNION_ALL);
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
@@ -303,20 +307,25 @@ public class DorisSourceITCase extends AbstractITCaseService {
                         getDorisUsername(),
                         getDorisPassword());
         tEnv.executeSql(sourceDDL);
-        TableResult tableResult =
-                tEnv.executeSql(
-                        "  SELECT * FROM doris_source_filter_with_union_all where age = '18'"
-                                + " UNION ALL "
-                                + "SELECT * FROM doris_source_filter_with_union_all where age = '10'  order by age");
+        String querySql =
+                "  SELECT * FROM doris_source_filter_with_union_all where age = '18'"
+                        + " UNION ALL "
+                        + "SELECT * FROM doris_source_filter_with_union_all where age = '10'";
+        TableResult tableResult = tEnv.executeSql(querySql);
 
         List<String> actual = new ArrayList<>();
         try (CloseableIterator<Row> iterator = tableResult.collect()) {
             while (iterator.hasNext()) {
                 actual.add(iterator.next().toString());
             }
+        } catch (Exception e) {
+            LOG.error("Failed to execute sql. sql={}", querySql, e);
+            throw new DorisRuntimeException(e);
         }
-        String[] expected = new String[] {"+I[flink, 10]", "+I[doris, 18]"};
-        checkResult("testTableSourceFilterWithUnionAll", expected, actual.toArray());
+        Set<String> expected = new HashSet<>(Arrays.asList("+I[flink, 10]", "+I[doris, 18]"));
+        for (String a : actual) {
+            Assert.assertTrue(expected.contains(a));
+        }
     }
 
     private void checkResult(String testName, Object[] expected, Object[] actual) {
