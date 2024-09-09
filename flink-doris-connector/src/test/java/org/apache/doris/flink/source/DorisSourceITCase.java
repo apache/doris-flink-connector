@@ -21,9 +21,12 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.runtime.minicluster.RpcServiceSharing;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
 
@@ -34,6 +37,7 @@ import org.apache.doris.flink.container.ContainerUtils;
 import org.apache.doris.flink.datastream.DorisSourceFunction;
 import org.apache.doris.flink.deserialization.SimpleListDeserializationSchema;
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,6 +62,16 @@ public class DorisSourceITCase extends AbstractITCaseService {
             "tbl_read_tbl_push_down_with_union_all";
     static final String TABLE_CSV_JM = "tbl_csv_jm_source";
     static final String TABLE_CSV_TM = "tbl_csv_tm_source";
+
+    @Rule
+    public final MiniClusterWithClientResource miniClusterResource =
+            new MiniClusterWithClientResource(
+                    new MiniClusterResourceConfiguration.Builder()
+                            .setNumberTaskManagers(1)
+                            .setNumberSlotsPerTaskManager(2)
+                            .setRpcServiceSharing(RpcServiceSharing.DEDICATED)
+                            .withHaLeadershipControl()
+                            .build());
 
     @Test
     public void testSource() throws Exception {
@@ -377,8 +391,8 @@ public class DorisSourceITCase extends AbstractITCaseService {
     }
 
     @Test
-    public void testTaskManagerFailoverSink() throws Exception {
-        LOG.info("start to test TaskManagerFailoverSink.");
+    public void testTaskManagerFailoverSounce() throws Exception {
+        LOG.info("start to test TaskManagerFailoverSource.");
         initializeTable(TABLE_CSV_TM);
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
@@ -419,7 +433,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
         }
 
         checkResultInAnyOrder(
-                "testTaskManagerFailoverSink",
+                "testTaskManagerFailoverSource",
                 expectedSnapshotData.toArray(),
                 fetchRows(iterator, expectedSnapshotData.size()).toArray());
     }
