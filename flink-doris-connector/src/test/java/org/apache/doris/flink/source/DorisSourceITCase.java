@@ -17,8 +17,10 @@
 
 package org.apache.doris.flink.source;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
@@ -40,6 +42,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
@@ -56,13 +59,15 @@ public class DorisSourceITCase extends AbstractITCaseService {
     private static final String TABLE_READ_TBL_PUSH_DOWN = "tbl_read_tbl_push_down";
     private static final String TABLE_READ_TBL_PUSH_DOWN_WITH_UNION_ALL =
             "tbl_read_tbl_push_down_with_union_all";
+    static final String TABLE_CSV_JM = "tbl_csv_jm_source";
+    static final String TABLE_CSV_TM = "tbl_csv_tm_source";
 
     @Test
     public void testSource() throws Exception {
         initializeTable(TABLE_READ);
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
-
+        env.setParallelism(DEFAULT_PARALLELISM);
         DorisOptions.Builder dorisBuilder = DorisOptions.builder();
         dorisBuilder
                 .setFenodes(getFenodes())
@@ -91,6 +96,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
     public void testOldSourceApi() throws Exception {
         initializeTable(TABLE_READ_OLD_API);
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(DEFAULT_PARALLELISM);
         Properties properties = new Properties();
         properties.put("fenodes", getFenodes());
         properties.put("username", getDorisUsername());
@@ -116,7 +122,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
     public void testTableSource() throws Exception {
         initializeTable(TABLE_READ_TBL);
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setParallelism(1);
+        env.setParallelism(DEFAULT_PARALLELISM);
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
         final StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
@@ -165,7 +171,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
     public void testTableSourceOldApi() throws Exception {
         initializeTable(TABLE_READ_TBL_OLD_API);
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setParallelism(1);
+        env.setParallelism(DEFAULT_PARALLELISM);
         final StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
         String sourceDDL =
@@ -202,7 +208,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
     public void testTableSourceAllOptions() throws Exception {
         initializeTable(TABLE_READ_TBL_ALL_OPTIONS);
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setParallelism(1);
+        env.setParallelism(DEFAULT_PARALLELISM);
         final StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
         String sourceDDL =
@@ -248,7 +254,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
     public void testTableSourceFilterAndProjectionPushDown() throws Exception {
         initializeTable(TABLE_READ_TBL_PUSH_DOWN);
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setParallelism(1);
+        env.setParallelism(DEFAULT_PARALLELISM);
         final StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
         String sourceDDL =
@@ -287,7 +293,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
         LOG.info("starting to execute testTableSourceFilterWithUnionAll case.");
         initializeTable(TABLE_READ_TBL_PUSH_DOWN_WITH_UNION_ALL);
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setParallelism(1);
+        env.setParallelism(DEFAULT_PARALLELISM);
         final StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
         String sourceDDL =
@@ -328,6 +334,98 @@ public class DorisSourceITCase extends AbstractITCaseService {
         }
     }
 
+    @Test
+    public void testJobManagerFailoverSource() throws Exception {
+        LOG.info("start to test JobManagerFailoverSource.");
+        initializeTable(TABLE_CSV_JM);
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(DEFAULT_PARALLELISM);
+        env.enableCheckpointing(10000);
+        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 0));
+        StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
+        String sourceDDL =
+                String.format(
+                        "CREATE TABLE doris_source_jm ("
+                                + " name STRING,"
+                                + " age INT"
+                                + ") WITH ("
+                                + " 'connector' = 'doris',"
+                                + " 'fenodes' = '%s',"
+                                + " 'table.identifier' = '%s',"
+                                + " 'username' = '%s',"
+                                + " 'password' = '%s'"
+                                + ")",
+                        getFenodes(),
+                        DATABASE + "." + TABLE_CSV_JM,
+                        getDorisUsername(),
+                        getDorisPassword());
+        tEnv.executeSql(sourceDDL);
+        TableResult tableResult = tEnv.executeSql("select * from doris_source_jm");
+        CloseableIterator<Row> iterator = tableResult.collect();
+        JobID jobId = tableResult.getJobClient().get().getJobID();
+        List<String> expectedSnapshotData = new ArrayList<>();
+        expectedSnapshotData.addAll(
+                Arrays.asList("+I[doris, 18]", "+I[flink, 10]", "+I[apache, 12]"));
+
+        if (iterator.hasNext()) {
+            LOG.info("trigger jobmanager failover...");
+            triggerFailover(
+                    FailoverType.JM,
+                    jobId,
+                    miniClusterResource.getMiniCluster(),
+                    () -> sleepMs(100));
+        }
+
+        assertEqualsInAnyOrder(
+                expectedSnapshotData, fetchRows(iterator, expectedSnapshotData.size()));
+    }
+
+    @Test
+    public void testTaskManagerFailoverSink() throws Exception {
+        LOG.info("start to test TaskManagerFailoverSink.");
+        initializeTable(TABLE_CSV_TM);
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(DEFAULT_PARALLELISM);
+        env.enableCheckpointing(10000);
+        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 0));
+        StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
+        String sourceDDL =
+                String.format(
+                        "CREATE TABLE doris_source_tm ("
+                                + " name STRING,"
+                                + " age INT"
+                                + ") WITH ("
+                                + " 'connector' = 'doris',"
+                                + " 'fenodes' = '%s',"
+                                + " 'table.identifier' = '%s',"
+                                + " 'username' = '%s',"
+                                + " 'password' = '%s'"
+                                + ")",
+                        getFenodes(),
+                        DATABASE + "." + TABLE_CSV_TM,
+                        getDorisUsername(),
+                        getDorisPassword());
+        tEnv.executeSql(sourceDDL);
+        TableResult tableResult = tEnv.executeSql("select * from doris_source_tm");
+        CloseableIterator<Row> iterator = tableResult.collect();
+        JobID jobId = tableResult.getJobClient().get().getJobID();
+        List<String> expectedSnapshotData = new ArrayList<>();
+        expectedSnapshotData.addAll(
+                Arrays.asList("+I[doris, 18]", "+I[flink, 10]", "+I[apache, 12]"));
+
+        if (iterator.hasNext()) {
+            LOG.info("trigger taskmanager failover...");
+            triggerFailover(
+                    FailoverType.TM,
+                    jobId,
+                    miniClusterResource.getMiniCluster(),
+                    () -> sleepMs(100));
+        }
+
+        assertEqualsInAnyOrder(
+                expectedSnapshotData, fetchRows(iterator, expectedSnapshotData.size()));
+    }
+
     private void checkResult(String testName, Object[] expected, Object[] actual) {
         LOG.info(
                 "Checking DorisSourceITCase result. testName={}, actual={}, expected={}",
@@ -347,7 +445,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
                         "CREATE TABLE %s.%s ( \n"
                                 + "`name` varchar(256),\n"
                                 + "`age` int\n"
-                                + ") DISTRIBUTED BY HASH(`name`) BUCKETS 1\n"
+                                + ") DISTRIBUTED BY HASH(`name`) BUCKETS 10\n"
                                 + "PROPERTIES (\n"
                                 + "\"replication_num\" = \"1\"\n"
                                 + ")\n",
@@ -355,5 +453,15 @@ public class DorisSourceITCase extends AbstractITCaseService {
                 String.format("insert into %s.%s  values ('doris',18)", DATABASE, table),
                 String.format("insert into %s.%s  values ('flink',10)", DATABASE, table),
                 String.format("insert into %s.%s  values ('apache',12)", DATABASE, table));
+    }
+
+    private static List<String> fetchRows(Iterator<Row> iter, int size) {
+        List<String> rows = new ArrayList<>(size);
+        while (size > 0 && iter.hasNext()) {
+            Row row = iter.next();
+            rows.add(row.toString());
+            size--;
+        }
+        return rows;
     }
 }

@@ -138,4 +138,11 @@ public abstract class AbstractITCaseService extends AbstractContainerTestBase {
         LOG.info("flink cluster will grant job master leadership. jobId={}", jobId);
         haLeadershipControl.grantJobMasterLeadership(jobId).get();
     }
+
+    protected void sleepMs(long millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException ignored) {
+        }
+    }
 }

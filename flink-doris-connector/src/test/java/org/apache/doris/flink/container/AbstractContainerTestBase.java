@@ -24,11 +24,18 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
+import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
+
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public abstract class AbstractContainerTestBase {
     private static final Logger LOG = LoggerFactory.getLogger(AbstractContainerTestBase.class);
     private static ContainerService dorisContainerService;
+    public static final int DEFAULT_PARALLELISM = 2;
 
     @BeforeClass
     public static void initContainers() {
@@ -87,5 +94,21 @@ public abstract class AbstractContainerTestBase {
         }
         dorisContainerService.close();
         LOG.info("Doris container was closed.");
+    }
+
+    // ------------------------------------------------------------------------
+    //  test utilities
+    // ------------------------------------------------------------------------
+    public static void assertEqualsInAnyOrder(List<String> expected, List<String> actual) {
+        assertTrue(expected != null && actual != null);
+        assertEqualsInOrder(
+                expected.stream().sorted().collect(Collectors.toList()),
+                actual.stream().sorted().collect(Collectors.toList()));
+    }
+
+    public static void assertEqualsInOrder(List<String> expected, List<String> actual) {
+        assertTrue(expected != null && actual != null);
+        assertEquals(expected.size(), actual.size());
+        assertArrayEquals(expected.toArray(new String[0]), actual.toArray(new String[0]));
     }
 }

@@ -55,7 +55,7 @@ public class Doris2DorisE2ECase extends AbstractE2EService {
         LOG.info("Start executing the test case of doris to doris.");
         initializeDorisTable();
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setParallelism(1);
+        env.setParallelism(2);
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
         final StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 

@@ -131,6 +131,7 @@ public class DorisSinkITCase extends AbstractITCaseService {
             throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+        env.setParallelism(DEFAULT_PARALLELISM);
         Builder<String> builder = DorisSink.builder();
         final DorisReadOptions.Builder readOptionBuilder = DorisReadOptions.builder();
 
@@ -147,7 +148,7 @@ public class DorisSinkITCase extends AbstractITCaseService {
     public void testTableSinkJsonFormat() throws Exception {
         initializeTable(TABLE_JSON_TBL);
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setParallelism(1);
+        env.setParallelism(DEFAULT_PARALLELISM);
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
         final StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
@@ -196,7 +197,7 @@ public class DorisSinkITCase extends AbstractITCaseService {
     public void testTableBatch() throws Exception {
         initializeTable(TABLE_CSV_BATCH_TBL);
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setParallelism(1);
+        env.setParallelism(DEFAULT_PARALLELISM);
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
         final StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
@@ -244,6 +245,7 @@ public class DorisSinkITCase extends AbstractITCaseService {
         initializeTable(TABLE_CSV_BATCH_DS);
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+        env.setParallelism(DEFAULT_PARALLELISM);
         DorisBatchSink.Builder<String> builder = DorisBatchSink.builder();
 
         DorisOptions.Builder dorisBuilder = DorisOptions.builder();
@@ -283,7 +285,7 @@ public class DorisSinkITCase extends AbstractITCaseService {
     public void testTableGroupCommit() throws Exception {
         initializeTable(TABLE_GROUP_COMMIT);
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setParallelism(1);
+        env.setParallelism(DEFAULT_PARALLELISM);
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
         final StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
@@ -332,7 +334,7 @@ public class DorisSinkITCase extends AbstractITCaseService {
     public void testTableGzFormat() throws Exception {
         initializeTable(TABLE_GZ_FORMAT);
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setParallelism(1);
+        env.setParallelism(DEFAULT_PARALLELISM);
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
         final StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
@@ -374,7 +376,7 @@ public class DorisSinkITCase extends AbstractITCaseService {
         LOG.info("start to test JobManagerFailoverSink.");
         initializeFailoverTable(TABLE_CSV_JM);
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setParallelism(2);
+        env.setParallelism(DEFAULT_PARALLELISM);
         env.enableCheckpointing(10000);
         env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 0));
 
@@ -434,7 +436,7 @@ public class DorisSinkITCase extends AbstractITCaseService {
         LOG.info("start to test TaskManagerFailoverSink.");
         initializeFailoverTable(TABLE_CSV_TM);
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setParallelism(2);
+        env.setParallelism(DEFAULT_PARALLELISM);
         env.enableCheckpointing(10000);
         env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 0));
 
@@ -484,13 +486,6 @@ public class DorisSinkITCase extends AbstractITCaseService {
         String query =
                 String.format("select id,task_id from %s.%s order by 1,2", DATABASE, TABLE_CSV_TM);
         ContainerUtils.checkResult(getDorisQueryConnection(), LOG, expected, query, 2);
-    }
-
-    private void sleepMs(long millis) {
-        try {
-            Thread.sleep(millis);
-        } catch (InterruptedException ignored) {
-        }
     }
 
     private void initializeTable(String table) {
