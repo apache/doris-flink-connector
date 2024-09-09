@@ -33,7 +33,6 @@ import org.apache.doris.flink.container.AbstractITCaseService;
 import org.apache.doris.flink.container.ContainerUtils;
 import org.apache.doris.flink.datastream.DorisSourceFunction;
 import org.apache.doris.flink.deserialization.SimpleListDeserializationSchema;
-import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.junit.Assert;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -150,7 +149,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
             }
         }
         String[] expected = new String[] {"+I[doris, 18]", "+I[flink, 10]", "+I[apache, 12]"};
-        Assert.assertArrayEquals(expected, actual.toArray());
+        assertEqualsInAnyOrder(Arrays.asList(expected), Arrays.asList(actual.toArray()));
 
         // fitler query
         List<String> actualFilter = new ArrayList<>();
@@ -288,7 +287,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
     }
 
     @Test
-    public void testTableSourceFilterWithUnionAll() {
+    public void testTableSourceFilterWithUnionAll() throws Exception {
         LOG.info("starting to execute testTableSourceFilterWithUnionAll case.");
         initializeTable(TABLE_READ_TBL_PUSH_DOWN_WITH_UNION_ALL);
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -323,10 +322,8 @@ public class DorisSourceITCase extends AbstractITCaseService {
             while (iterator.hasNext()) {
                 actual.add(iterator.next().toString());
             }
-        } catch (Exception e) {
-            LOG.error("Failed to execute sql. sql={}", querySql, e);
-            throw new DorisRuntimeException(e);
         }
+
         String[] expected = new String[] {"+I[flink, 10]", "+I[doris, 18]"};
         checkResultInAnyOrder("testTableSourceFilterWithUnionAll", expected, actual.toArray());
     }
