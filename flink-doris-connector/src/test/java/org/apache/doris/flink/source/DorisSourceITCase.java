@@ -334,7 +334,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
         initializeTable(TABLE_CSV_JM);
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
-        env.enableCheckpointing(10000);
+        env.enableCheckpointing(200L);
         env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 0));
         StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
         String sourceDDL =
@@ -382,7 +382,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
         initializeTable(TABLE_CSV_TM);
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
-        env.enableCheckpointing(10000);
+        env.enableCheckpointing(200L);
         env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 0));
         StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
         String sourceDDL =

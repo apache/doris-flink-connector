@@ -89,7 +89,7 @@ public class DorisSourceSplitReader implements SplitReader<List, DorisSourceSpli
 
     @Override
     public void handleSplitsChanges(SplitsChange<DorisSourceSplit> splitsChange) {
-        LOG.debug("Handling split change {}", splitsChange);
+        LOG.info("Handling split change {}", splitsChange);
         splits.addAll(splitsChange.splits());
     }
 
