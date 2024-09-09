@@ -41,11 +41,9 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
-import java.util.Set;
 
 /** DorisSource ITCase. */
 public class DorisSourceITCase extends AbstractITCaseService {
@@ -89,7 +87,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
             }
         }
         List<String> expected = Arrays.asList("[doris, 18]", "[flink, 10]", "[apache, 12]");
-        checkResult("testSource", expected.toArray(), actual.toArray());
+        checkResultInAnyOrder("testSource", expected.toArray(), actual.toArray());
     }
 
     @Test
@@ -115,7 +113,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
             }
         }
         List<String> expected = Arrays.asList("[doris, 18]", "[flink, 10]", "[apache, 12]");
-        checkResult("testOldSourceApi", expected.toArray(), actual.toArray());
+        checkResultInAnyOrder("testOldSourceApi", expected.toArray(), actual.toArray());
     }
 
     @Test
@@ -164,7 +162,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
             }
         }
         String[] expectedFilter = new String[] {"+I[doris, 18]"};
-        checkResult("testTableSource", expectedFilter, actualFilter.toArray());
+        checkResultInAnyOrder("testTableSource", expectedFilter, actualFilter.toArray());
     }
 
     @Test
@@ -201,7 +199,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
             }
         }
         String[] expected = new String[] {"+I[doris, 18]", "+I[flink, 10]", "+I[apache, 12]"};
-        checkResult("testTableSourceOldApi", expected, actual.toArray());
+        checkResultInAnyOrder("testTableSourceOldApi", expected, actual.toArray());
     }
 
     @Test
@@ -247,7 +245,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
             }
         }
         String[] expected = new String[] {"+I[doris, 18]", "+I[flink, 10]", "+I[apache, 12]"};
-        checkResult("testTableSourceAllOptions", expected, actual.toArray());
+        checkResultInAnyOrder("testTableSourceAllOptions", expected, actual.toArray());
     }
 
     @Test
@@ -285,7 +283,8 @@ public class DorisSourceITCase extends AbstractITCaseService {
             }
         }
         String[] expected = new String[] {"+I[18]"};
-        checkResult("testTableSourceFilterAndProjectionPushDown", expected, actual.toArray());
+        checkResultInAnyOrder(
+                "testTableSourceFilterAndProjectionPushDown", expected, actual.toArray());
     }
 
     @Test
@@ -328,10 +327,8 @@ public class DorisSourceITCase extends AbstractITCaseService {
             LOG.error("Failed to execute sql. sql={}", querySql, e);
             throw new DorisRuntimeException(e);
         }
-        Set<String> expected = new HashSet<>(Arrays.asList("+I[flink, 10]", "+I[doris, 18]"));
-        for (String a : actual) {
-            Assert.assertTrue(expected.contains(a));
-        }
+        String[] expected = new String[] {"+I[flink, 10]", "+I[doris, 18]"};
+        checkResultInAnyOrder("testTableSourceFilterWithUnionAll", expected, actual.toArray());
     }
 
     @Test
@@ -376,8 +373,10 @@ public class DorisSourceITCase extends AbstractITCaseService {
                     () -> sleepMs(100));
         }
 
-        assertEqualsInAnyOrder(
-                expectedSnapshotData, fetchRows(iterator, expectedSnapshotData.size()));
+        checkResultInAnyOrder(
+                "testJobManagerFailoverSource",
+                expectedSnapshotData.toArray(),
+                fetchRows(iterator, expectedSnapshotData.size()).toArray());
     }
 
     @Test
@@ -422,8 +421,10 @@ public class DorisSourceITCase extends AbstractITCaseService {
                     () -> sleepMs(100));
         }
 
-        assertEqualsInAnyOrder(
-                expectedSnapshotData, fetchRows(iterator, expectedSnapshotData.size()));
+        checkResultInAnyOrder(
+                "testTaskManagerFailoverSink",
+                expectedSnapshotData.toArray(),
+                fetchRows(iterator, expectedSnapshotData.size()).toArray());
     }
 
     private void checkResult(String testName, Object[] expected, Object[] actual) {
@@ -433,6 +434,15 @@ public class DorisSourceITCase extends AbstractITCaseService {
                 actual,
                 expected);
         Assert.assertArrayEquals(expected, actual);
+    }
+
+    private void checkResultInAnyOrder(String testName, Object[] expected, Object[] actual) {
+        LOG.info(
+                "Checking DorisSourceITCase result. testName={}, actual={}, expected={}",
+                testName,
+                actual,
+                expected);
+        assertEqualsInAnyOrder(Arrays.asList(expected), Arrays.asList(actual));
     }
 
     private void initializeTable(String table) {

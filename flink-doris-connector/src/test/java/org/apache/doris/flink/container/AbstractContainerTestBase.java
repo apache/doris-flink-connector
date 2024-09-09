@@ -99,16 +99,16 @@ public abstract class AbstractContainerTestBase {
     // ------------------------------------------------------------------------
     //  test utilities
     // ------------------------------------------------------------------------
-    public static void assertEqualsInAnyOrder(List<String> expected, List<String> actual) {
+    public static void assertEqualsInAnyOrder(List<Object> expected, List<Object> actual) {
         assertTrue(expected != null && actual != null);
         assertEqualsInOrder(
                 expected.stream().sorted().collect(Collectors.toList()),
                 actual.stream().sorted().collect(Collectors.toList()));
     }
 
-    public static void assertEqualsInOrder(List<String> expected, List<String> actual) {
+    public static void assertEqualsInOrder(List<Object> expected, List<Object> actual) {
         assertTrue(expected != null && actual != null);
         assertEquals(expected.size(), actual.size());
-        assertArrayEquals(expected.toArray(new String[0]), actual.toArray(new String[0]));
+        assertArrayEquals(expected.toArray(new Object[0]), actual.toArray(new Object[0]));
     }
 }
