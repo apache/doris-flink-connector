@@ -85,7 +85,7 @@ public class DorisSourceEnumerator
 
     @Override
     public void addReader(int subtaskId) {
-        // do nothing
+        LOG.info("Doris Source Enumerator adds reader: {}", subtaskId);
     }
 
     @Override
