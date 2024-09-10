@@ -74,12 +74,22 @@ public class DorisSourceSplitReader implements SplitReader<List, DorisSourceSpli
             throw new IOException("Cannot fetch from another split - no split remaining");
         }
         currentSplitId = nextSplit.splitId();
+        LOG.info("Fetch a new split {}", nextSplit);
         valueReader =
                 ValueReader.createReader(
                         nextSplit.getPartitionDefinition(), options, readOptions, LOG);
     }
 
     private DorisSplitRecords finishSplit() {
+        if (valueReader != null) {
+            try {
+                valueReader.close();
+            } catch (Exception e) {
+                LOG.warn("Error while closing value reader: {}", e.getMessage());
+            }
+            valueReader = null;
+        }
+
         final DorisSplitRecords finishRecords = DorisSplitRecords.finishedSplit(currentSplitId);
         currentSplitId = null;
         return finishRecords;
@@ -87,7 +97,7 @@ public class DorisSourceSplitReader implements SplitReader<List, DorisSourceSpli
 
     @Override
     public void handleSplitsChanges(SplitsChange<DorisSourceSplit> splitsChange) {
-        LOG.debug("Handling split change {}", splitsChange);
+        LOG.info("Handling split change {}", splitsChange);
         splits.addAll(splitsChange.splits());
     }
 

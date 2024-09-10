@@ -27,6 +27,8 @@ import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.source.split.DorisSourceSplit;
 import org.apache.doris.flink.source.split.DorisSourceSplitState;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Map;
@@ -35,6 +37,8 @@ import java.util.Map;
 public class DorisSourceReader<T>
         extends SingleThreadMultiplexSourceReaderBase<
                 List, T, DorisSourceSplit, DorisSourceSplitState> {
+
+    private static final Logger LOG = LoggerFactory.getLogger(DorisSourceReader.class);
 
     public DorisSourceReader(
             DorisOptions options,
@@ -64,6 +68,7 @@ public class DorisSourceReader<T>
 
     @Override
     protected DorisSourceSplitState initializedState(DorisSourceSplit split) {
+        LOG.info("Initialized reader state for split: {}", split);
         return new DorisSourceSplitState(split);
     }
 
