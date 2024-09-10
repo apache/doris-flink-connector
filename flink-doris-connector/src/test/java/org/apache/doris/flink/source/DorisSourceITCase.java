@@ -383,6 +383,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
         }
         List<String> actual = fetchRows(iterator);
         LOG.info("actual data: {}, expected: {}", actual, expectedData);
+        Assert.assertTrue(actual.size() >= expectedData.size());
         Assert.assertTrue(actual.containsAll(expectedData));
     }
 
@@ -461,6 +462,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
 
         List<String> actual = fetchRows(iterator);
         LOG.info("actual data: {}, expected: {}", actual, expectedData);
+        Assert.assertTrue(actual.size() >= expectedData.size());
         Assert.assertTrue(actual.containsAll(expectedData));
     }
 
