@@ -125,6 +125,7 @@ public class DorisSource<OUT>
             SplitEnumeratorContext<DorisSourceSplit> context, PendingSplitsCheckpoint checkpoint)
             throws Exception {
         Collection<DorisSourceSplit> splits = checkpoint.getSplits();
+        LOG.info("Restore splits from checkpoint, size {}, splits {}", splits.size(), splits);
         DorisSplitAssigner splitAssigner = new SimpleSplitAssigner(splits);
         return new DorisSourceEnumerator(context, splitAssigner);
     }

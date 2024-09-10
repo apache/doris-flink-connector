@@ -52,6 +52,7 @@ public class SimpleSplitAssigner implements DorisSplitAssigner {
 
     @Override
     public PendingSplitsCheckpoint snapshotState(long checkpointId) {
+        LOG.info("Snapshot splits {} for checkpoint {}", splits, checkpointId);
         return new PendingSplitsCheckpoint(splits);
     }
 
