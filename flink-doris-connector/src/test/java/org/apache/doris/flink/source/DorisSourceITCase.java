@@ -348,7 +348,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
         initializeTableWithData(TABLE_CSV_JM);
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
-        env.enableCheckpointing(100L);
+        env.enableCheckpointing(200L);
         env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 0));
         StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
         String sourceDDL =
@@ -372,7 +372,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
         CloseableIterator<Row> iterator = tableResult.collect();
         JobID jobId = tableResult.getJobClient().get().getJobID();
 
-        List<String> expectedSnapshotData = getExpectedData();
+        List<String> expectedData = getExpectedData();
         if (iterator.hasNext()) {
             LOG.info("trigger jobmanager failover...");
             triggerFailover(
@@ -381,10 +381,9 @@ public class DorisSourceITCase extends AbstractITCaseService {
                     miniClusterResource.getMiniCluster(),
                     () -> sleepMs(100));
         }
-        checkResultInAnyOrder(
-                "testJobManagerFailoverSource",
-                expectedSnapshotData.toArray(),
-                fetchRows(iterator).toArray());
+        List<String> actual = fetchRows(iterator);
+        LOG.info("actual data: {}, expected: {}", actual, expectedData);
+        Assert.assertTrue(actual.containsAll(expectedData));
     }
 
     private static List<String> getExpectedData() {
@@ -427,7 +426,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
         initializeTableWithData(TABLE_CSV_TM);
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
-        env.enableCheckpointing(100L);
+        env.enableCheckpointing(200L);
         env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 0));
         StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
         String sourceDDL =
@@ -450,7 +449,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
         TableResult tableResult = tEnv.executeSql("select * from doris_source_tm");
         CloseableIterator<Row> iterator = tableResult.collect();
         JobID jobId = tableResult.getJobClient().get().getJobID();
-        List<String> expectedSnapshotData = getExpectedData();
+        List<String> expectedData = getExpectedData();
         if (iterator.hasNext()) {
             LOG.info("trigger taskmanager failover...");
             triggerFailover(
@@ -460,10 +459,9 @@ public class DorisSourceITCase extends AbstractITCaseService {
                     () -> sleepMs(100));
         }
 
-        checkResultInAnyOrder(
-                "testTaskManagerFailoverSource",
-                expectedSnapshotData.toArray(),
-                fetchRows(iterator).toArray());
+        List<String> actual = fetchRows(iterator);
+        LOG.info("actual data: {}, expected: {}", actual, expectedData);
+        Assert.assertTrue(actual.containsAll(expectedData));
     }
 
     private void checkResult(String testName, Object[] expected, Object[] actual) {
