@@ -371,10 +371,8 @@ public class DorisSourceITCase extends AbstractITCaseService {
         TableResult tableResult = tEnv.executeSql("select * from doris_source_jm");
         CloseableIterator<Row> iterator = tableResult.collect();
         JobID jobId = tableResult.getJobClient().get().getJobID();
-        List<String> expectedSnapshotData = new ArrayList<>();
-        expectedSnapshotData.addAll(
-                Arrays.asList("+I[doris, 18]", "+I[flink, 10]", "+I[apache, 12]"));
 
+        List<String> expectedSnapshotData = getExpectedData();
         if (iterator.hasNext()) {
             LOG.info("trigger jobmanager failover...");
             triggerFailover(
@@ -383,11 +381,44 @@ public class DorisSourceITCase extends AbstractITCaseService {
                     miniClusterResource.getMiniCluster(),
                     () -> sleepMs(100));
         }
-
         checkResultInAnyOrder(
                 "testJobManagerFailoverSource",
                 expectedSnapshotData.toArray(),
-                fetchRows(iterator, expectedSnapshotData.size()).toArray());
+                fetchRows(iterator).toArray());
+    }
+
+    private static List<String> getExpectedData() {
+        String[] expected =
+                new String[] {
+                    "+I[101, 1]",
+                    "+I[102, 1]",
+                    "+I[103, 1]",
+                    "+I[201, 2]",
+                    "+I[202, 2]",
+                    "+I[203, 2]",
+                    "+I[301, 3]",
+                    "+I[302, 3]",
+                    "+I[303, 3]",
+                    "+I[401, 4]",
+                    "+I[402, 4]",
+                    "+I[403, 4]",
+                    "+I[501, 5]",
+                    "+I[502, 5]",
+                    "+I[503, 5]",
+                    "+I[601, 6]",
+                    "+I[602, 6]",
+                    "+I[603, 6]",
+                    "+I[701, 7]",
+                    "+I[702, 7]",
+                    "+I[703, 7]",
+                    "+I[801, 8]",
+                    "+I[802, 8]",
+                    "+I[803, 8]",
+                    "+I[901, 9]",
+                    "+I[902, 9]",
+                    "+I[903, 9]"
+                };
+        return Arrays.asList(expected);
     }
 
     @Test
@@ -419,10 +450,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
         TableResult tableResult = tEnv.executeSql("select * from doris_source_tm");
         CloseableIterator<Row> iterator = tableResult.collect();
         JobID jobId = tableResult.getJobClient().get().getJobID();
-        List<String> expectedSnapshotData = new ArrayList<>();
-        expectedSnapshotData.addAll(
-                Arrays.asList("+I[doris, 18]", "+I[flink, 10]", "+I[apache, 12]"));
-
+        List<String> expectedSnapshotData = getExpectedData();
         if (iterator.hasNext()) {
             LOG.info("trigger taskmanager failover...");
             triggerFailover(
@@ -435,7 +463,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
         checkResultInAnyOrder(
                 "testTaskManagerFailoverSource",
                 expectedSnapshotData.toArray(),
-                fetchRows(iterator, expectedSnapshotData.size()).toArray());
+                fetchRows(iterator).toArray());
     }
 
     private void checkResult(String testName, Object[] expected, Object[] actual) {
@@ -491,7 +519,6 @@ public class DorisSourceITCase extends AbstractITCaseService {
                                 + "\"replication_num\" = \"1\"\n"
                                 + ")\n",
                         DATABASE, table),
-                String.format("insert into %s.%s  values ('1',1),('2',2),('3',3)", DATABASE, table),
                 String.format(
                         "insert into %s.%s  values ('101',1),('102',1),('103',1)", DATABASE, table),
                 String.format(
@@ -513,12 +540,11 @@ public class DorisSourceITCase extends AbstractITCaseService {
                         DATABASE, table));
     }
 
-    private static List<String> fetchRows(Iterator<Row> iter, int size) {
-        List<String> rows = new ArrayList<>(size);
-        while (size > 0 && iter.hasNext()) {
+    private static List<String> fetchRows(Iterator<Row> iter) {
+        List<String> rows = new ArrayList<>();
+        while (iter.hasNext()) {
             Row row = iter.next();
             rows.add(row.toString());
-            size--;
         }
         return rows;
     }
