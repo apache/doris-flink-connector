@@ -89,11 +89,9 @@ public class DorisSourceSplitReader implements SplitReader<List, DorisSourceSpli
             }
             valueReader = null;
         }
-        LOG.info("Finished split {}", currentSplitId);
 
         final DorisSplitRecords finishRecords = DorisSplitRecords.finishedSplit(currentSplitId);
         currentSplitId = null;
-        LOG.info("After Finished split {}, {} ", currentSplitId, finishRecords.finishedSplits());
         return finishRecords;
     }
 
