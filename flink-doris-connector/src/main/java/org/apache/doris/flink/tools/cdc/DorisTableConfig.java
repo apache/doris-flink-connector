@@ -26,8 +26,11 @@ import java.util.Map;
 import java.util.Objects;
 
 public class DorisTableConfig implements Serializable {
-    private static final String LIGHT_SCHEMA_CHANGE = "light_schema_change";
+    public static final String LIGHT_SCHEMA_CHANGE = "light_schema_change";
     // PROPERTIES parameter in doris table creation statement. such as: replication_num=1.
+    public static final String REPLICATION_NUM = "replication_num";
+    public static final String TABLE_BUCKETS = "table-buckets";
+
     private final Map<String, String> tableProperties;
     // The specific parameters extracted from --table-conf need to be parsed and integrated into the
     // doris table creation statement. such as: table-buckets="tbl1:10,tbl2:20,a.*:30,b.*:40,.*:50".
@@ -48,10 +51,9 @@ public class DorisTableConfig implements Serializable {
         if (!tableConfig.containsKey(LIGHT_SCHEMA_CHANGE)) {
             tableConfig.put(LIGHT_SCHEMA_CHANGE, Boolean.toString(true));
         }
-        if (tableConfig.containsKey(DatabaseSyncConfig.TABLE_BUCKETS)) {
-            this.tableBuckets =
-                    buildTableBucketMap(tableConfig.get(DatabaseSyncConfig.TABLE_BUCKETS));
-            tableConfig.remove(DatabaseSyncConfig.TABLE_BUCKETS);
+        if (tableConfig.containsKey(TABLE_BUCKETS)) {
+            this.tableBuckets = buildTableBucketMap(tableConfig.get(TABLE_BUCKETS));
+            tableConfig.remove(TABLE_BUCKETS);
         }
         tableProperties = tableConfig;
     }
