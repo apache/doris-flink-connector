@@ -69,8 +69,6 @@ public class DatabaseSyncConfig {
     public static final String SINGLE_SINK = "single-sink";
     ////////// doris-table-conf //////////
     public static final String TABLE_CONF = "table-conf";
-    public static final String REPLICATION_NUM = "replication_num";
-    public static final String TABLE_BUCKETS = "table-buckets";
 
     ////////// date-converter-conf //////////
     public static final String CONVERTERS = "converters";
