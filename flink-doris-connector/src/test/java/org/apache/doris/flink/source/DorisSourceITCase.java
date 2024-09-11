@@ -36,6 +36,7 @@ import org.apache.doris.flink.container.AbstractITCaseService;
 import org.apache.doris.flink.container.ContainerUtils;
 import org.apache.doris.flink.datastream.DorisSourceFunction;
 import org.apache.doris.flink.deserialization.SimpleListDeserializationSchema;
+import org.apache.doris.flink.table.DorisConfigOptions;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -143,7 +144,9 @@ public class DorisSourceITCase extends AbstractITCaseService {
                                 + " name STRING,"
                                 + " age INT"
                                 + ") WITH ("
-                                + " 'connector' = 'doris',"
+                                + " 'connector' = '"
+                                + DorisConfigOptions.IDENTIFIER
+                                + "',"
                                 + " 'fenodes' = '%s',"
                                 + " 'table.identifier' = '%s',"
                                 + " 'username' = '%s',"
@@ -191,7 +194,9 @@ public class DorisSourceITCase extends AbstractITCaseService {
                                 + " name STRING,"
                                 + " age INT"
                                 + ") WITH ("
-                                + " 'connector' = 'doris',"
+                                + " 'connector' = '"
+                                + DorisConfigOptions.IDENTIFIER
+                                + "',"
                                 + " 'fenodes' = '%s',"
                                 + " 'table.identifier' = '%s',"
                                 + " 'source.use-old-api' = 'true',"
@@ -228,7 +233,9 @@ public class DorisSourceITCase extends AbstractITCaseService {
                                 + " name STRING,"
                                 + " age INT"
                                 + ") WITH ("
-                                + " 'connector' = 'doris',"
+                                + " 'connector' = '"
+                                + DorisConfigOptions.IDENTIFIER
+                                + "',"
                                 + " 'fenodes' = '%s',"
                                 + " 'table.identifier' = '%s',"
                                 + " 'source.use-old-api' = 'true',"
@@ -274,7 +281,9 @@ public class DorisSourceITCase extends AbstractITCaseService {
                                 + " name STRING,"
                                 + " age INT"
                                 + ") WITH ("
-                                + " 'connector' = 'doris',"
+                                + " 'connector' = '"
+                                + DorisConfigOptions.IDENTIFIER
+                                + "',"
                                 + " 'fenodes' = '%s',"
                                 + " 'table.identifier' = '%s',"
                                 + " 'username' = '%s',"
@@ -314,7 +323,9 @@ public class DorisSourceITCase extends AbstractITCaseService {
                                 + " name STRING,"
                                 + " age INT"
                                 + ") WITH ("
-                                + " 'connector' = 'doris',"
+                                + " 'connector' = '"
+                                + DorisConfigOptions.IDENTIFIER
+                                + "',"
                                 + " 'fenodes' = '%s',"
                                 + " 'table.identifier' = '%s',"
                                 + " 'username' = '%s',"
@@ -357,7 +368,9 @@ public class DorisSourceITCase extends AbstractITCaseService {
                                 + " name STRING,"
                                 + " age INT"
                                 + ") WITH ("
-                                + " 'connector' = 'doris',"
+                                + " 'connector' = '"
+                                + DorisConfigOptions.IDENTIFIER
+                                + "',"
                                 + " 'fenodes' = '%s',"
                                 + " 'table.identifier' = '%s',"
                                 + " 'username' = '%s',"
@@ -436,7 +449,9 @@ public class DorisSourceITCase extends AbstractITCaseService {
                                 + " name STRING,"
                                 + " age INT"
                                 + ") WITH ("
-                                + " 'connector' = 'doris',"
+                                + " 'connector' = '"
+                                + DorisConfigOptions.IDENTIFIER
+                                + "',"
                                 + " 'fenodes' = '%s',"
                                 + " 'table.identifier' = '%s',"
                                 + " 'username' = '%s',"

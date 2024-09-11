@@ -42,6 +42,7 @@ import org.apache.flink.util.CollectionUtil;
 import com.google.common.collect.Lists;
 import org.apache.doris.flink.cfg.DorisConnectionOptions;
 import org.apache.doris.flink.container.AbstractITCaseService;
+import org.apache.doris.flink.table.DorisConfigOptions;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Ignore;
@@ -402,7 +403,7 @@ public class DorisCatalogITCase extends AbstractITCaseService {
                 TABLE_SCHEMA,
                 new HashMap<String, String>() {
                     {
-                        put("connector", "doris");
+                        put("connector", DorisConfigOptions.IDENTIFIER);
                         put("table.properties.replication_num", "1");
                     }
                 },

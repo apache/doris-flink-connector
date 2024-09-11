@@ -239,7 +239,7 @@ public class DorisDynamicTableFactoryTest {
 
     private Map<String, String> getAllOptions() {
         Map<String, String> options = new HashMap<>();
-        options.put("connector", "doris");
+        options.put("connector", DorisConfigOptions.IDENTIFIER);
         options.put("fenodes", "127.0.0.1:8030");
         options.put("benodes", "127.0.0.1:8040");
         options.put("jdbc-url", "jdbc:mysql://127.0.0.1:9030");

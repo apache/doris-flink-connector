@@ -20,6 +20,7 @@ package org.apache.doris.flink.catalog;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.factories.FactoryUtil;
 
+import org.apache.doris.flink.table.DorisConfigOptions;
 import org.junit.Test;
 
 import java.util.HashMap;
@@ -33,7 +34,7 @@ public class DorisCatalogFactoryTest {
     @Test
     public void testCreateCatalog() {
         final Map<String, String> options = new HashMap<>();
-        options.put("type", "doris");
+        options.put("type", DorisConfigOptions.IDENTIFIER);
         options.put("jdbc-url", "jdbc:mysql://127.0.0.1:9030");
         options.put("fenodes", "127.0.0.1:8030");
         options.put("default-database", "doris_db");

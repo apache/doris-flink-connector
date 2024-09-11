@@ -26,6 +26,7 @@ import org.apache.flink.util.CloseableIterator;
 
 import org.apache.doris.flink.container.AbstractContainerTestBase;
 import org.apache.doris.flink.container.ContainerUtils;
+import org.apache.doris.flink.table.DorisConfigOptions;
 import org.junit.Assert;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -72,7 +73,9 @@ public class Doris2DorisE2ECase extends AbstractContainerTestBase {
                                 + "c16  ROW<name String, age int>, \n"
                                 + "c17  STRING \n"
                                 + ") WITH ("
-                                + " 'connector' = 'doris',"
+                                + " 'connector' = '"
+                                + DorisConfigOptions.IDENTIFIER
+                                + "',"
                                 + " 'fenodes' = '%s',"
                                 + " 'table.identifier' = '%s',"
                                 + " 'sink.label-prefix' = '"
@@ -109,7 +112,9 @@ public class Doris2DorisE2ECase extends AbstractContainerTestBase {
                                 + "c16  ROW<name String, age int>, \n"
                                 + "c17  STRING \n"
                                 + ") WITH ("
-                                + " 'connector' = 'doris',"
+                                + " 'connector' = '"
+                                + DorisConfigOptions.IDENTIFIER
+                                + "',"
                                 + " 'fenodes' = '%s',"
                                 + " 'sink.label-prefix' = '"
                                 + UUID.randomUUID()
