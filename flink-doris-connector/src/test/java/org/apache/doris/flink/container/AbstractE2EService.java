@@ -113,6 +113,7 @@ public abstract class AbstractE2EService extends AbstractContainerTestBase {
 
     private StreamExecutionEnvironment configFlinkEnvironment() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(DEFAULT_PARALLELISM);
         Map<String, String> flinkMap = new HashMap<>();
         flinkMap.put("execution.checkpointing.interval", "10s");
         flinkMap.put("pipeline.operator-chaining", "false");

@@ -17,11 +17,16 @@
 
 package org.apache.doris.flink.source;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.runtime.minicluster.RpcServiceSharing;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
 
@@ -31,18 +36,17 @@ import org.apache.doris.flink.container.AbstractITCaseService;
 import org.apache.doris.flink.container.ContainerUtils;
 import org.apache.doris.flink.datastream.DorisSourceFunction;
 import org.apache.doris.flink.deserialization.SimpleListDeserializationSchema;
-import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
-import java.util.Set;
 
 /** DorisSource ITCase. */
 public class DorisSourceITCase extends AbstractITCaseService {
@@ -56,13 +60,25 @@ public class DorisSourceITCase extends AbstractITCaseService {
     private static final String TABLE_READ_TBL_PUSH_DOWN = "tbl_read_tbl_push_down";
     private static final String TABLE_READ_TBL_PUSH_DOWN_WITH_UNION_ALL =
             "tbl_read_tbl_push_down_with_union_all";
+    static final String TABLE_CSV_JM = "tbl_csv_jm_source";
+    static final String TABLE_CSV_TM = "tbl_csv_tm_source";
+
+    @Rule
+    public final MiniClusterWithClientResource miniClusterResource =
+            new MiniClusterWithClientResource(
+                    new MiniClusterResourceConfiguration.Builder()
+                            .setNumberTaskManagers(1)
+                            .setNumberSlotsPerTaskManager(2)
+                            .setRpcServiceSharing(RpcServiceSharing.DEDICATED)
+                            .withHaLeadershipControl()
+                            .build());
 
     @Test
     public void testSource() throws Exception {
         initializeTable(TABLE_READ);
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
-
+        env.setParallelism(DEFAULT_PARALLELISM);
         DorisOptions.Builder dorisBuilder = DorisOptions.builder();
         dorisBuilder
                 .setFenodes(getFenodes())
@@ -84,13 +100,14 @@ public class DorisSourceITCase extends AbstractITCaseService {
             }
         }
         List<String> expected = Arrays.asList("[doris, 18]", "[flink, 10]", "[apache, 12]");
-        checkResult("testSource", expected.toArray(), actual.toArray());
+        checkResultInAnyOrder("testSource", expected.toArray(), actual.toArray());
     }
 
     @Test
     public void testOldSourceApi() throws Exception {
         initializeTable(TABLE_READ_OLD_API);
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(DEFAULT_PARALLELISM);
         Properties properties = new Properties();
         properties.put("fenodes", getFenodes());
         properties.put("username", getDorisUsername());
@@ -109,14 +126,14 @@ public class DorisSourceITCase extends AbstractITCaseService {
             }
         }
         List<String> expected = Arrays.asList("[doris, 18]", "[flink, 10]", "[apache, 12]");
-        checkResult("testOldSourceApi", expected.toArray(), actual.toArray());
+        checkResultInAnyOrder("testOldSourceApi", expected.toArray(), actual.toArray());
     }
 
     @Test
     public void testTableSource() throws Exception {
         initializeTable(TABLE_READ_TBL);
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setParallelism(1);
+        env.setParallelism(DEFAULT_PARALLELISM);
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
         final StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
@@ -146,7 +163,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
             }
         }
         String[] expected = new String[] {"+I[doris, 18]", "+I[flink, 10]", "+I[apache, 12]"};
-        Assert.assertArrayEquals(expected, actual.toArray());
+        assertEqualsInAnyOrder(Arrays.asList(expected), Arrays.asList(actual.toArray()));
 
         // fitler query
         List<String> actualFilter = new ArrayList<>();
@@ -158,14 +175,14 @@ public class DorisSourceITCase extends AbstractITCaseService {
             }
         }
         String[] expectedFilter = new String[] {"+I[doris, 18]"};
-        checkResult("testTableSource", expectedFilter, actualFilter.toArray());
+        checkResultInAnyOrder("testTableSource", expectedFilter, actualFilter.toArray());
     }
 
     @Test
     public void testTableSourceOldApi() throws Exception {
         initializeTable(TABLE_READ_TBL_OLD_API);
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setParallelism(1);
+        env.setParallelism(DEFAULT_PARALLELISM);
         final StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
         String sourceDDL =
@@ -195,14 +212,14 @@ public class DorisSourceITCase extends AbstractITCaseService {
             }
         }
         String[] expected = new String[] {"+I[doris, 18]", "+I[flink, 10]", "+I[apache, 12]"};
-        checkResult("testTableSourceOldApi", expected, actual.toArray());
+        checkResultInAnyOrder("testTableSourceOldApi", expected, actual.toArray());
     }
 
     @Test
     public void testTableSourceAllOptions() throws Exception {
         initializeTable(TABLE_READ_TBL_ALL_OPTIONS);
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setParallelism(1);
+        env.setParallelism(DEFAULT_PARALLELISM);
         final StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
         String sourceDDL =
@@ -241,14 +258,14 @@ public class DorisSourceITCase extends AbstractITCaseService {
             }
         }
         String[] expected = new String[] {"+I[doris, 18]", "+I[flink, 10]", "+I[apache, 12]"};
-        checkResult("testTableSourceAllOptions", expected, actual.toArray());
+        checkResultInAnyOrder("testTableSourceAllOptions", expected, actual.toArray());
     }
 
     @Test
     public void testTableSourceFilterAndProjectionPushDown() throws Exception {
         initializeTable(TABLE_READ_TBL_PUSH_DOWN);
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setParallelism(1);
+        env.setParallelism(DEFAULT_PARALLELISM);
         final StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
         String sourceDDL =
@@ -279,15 +296,16 @@ public class DorisSourceITCase extends AbstractITCaseService {
             }
         }
         String[] expected = new String[] {"+I[18]"};
-        checkResult("testTableSourceFilterAndProjectionPushDown", expected, actual.toArray());
+        checkResultInAnyOrder(
+                "testTableSourceFilterAndProjectionPushDown", expected, actual.toArray());
     }
 
     @Test
-    public void testTableSourceFilterWithUnionAll() {
+    public void testTableSourceFilterWithUnionAll() throws Exception {
         LOG.info("starting to execute testTableSourceFilterWithUnionAll case.");
         initializeTable(TABLE_READ_TBL_PUSH_DOWN_WITH_UNION_ALL);
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setParallelism(1);
+        env.setParallelism(DEFAULT_PARALLELISM);
         final StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
         String sourceDDL =
@@ -318,14 +336,134 @@ public class DorisSourceITCase extends AbstractITCaseService {
             while (iterator.hasNext()) {
                 actual.add(iterator.next().toString());
             }
-        } catch (Exception e) {
-            LOG.error("Failed to execute sql. sql={}", querySql, e);
-            throw new DorisRuntimeException(e);
         }
-        Set<String> expected = new HashSet<>(Arrays.asList("+I[flink, 10]", "+I[doris, 18]"));
-        for (String a : actual) {
-            Assert.assertTrue(expected.contains(a));
+
+        String[] expected = new String[] {"+I[flink, 10]", "+I[doris, 18]"};
+        checkResultInAnyOrder("testTableSourceFilterWithUnionAll", expected, actual.toArray());
+    }
+
+    @Test
+    public void testJobManagerFailoverSource() throws Exception {
+        LOG.info("start to test JobManagerFailoverSource.");
+        initializeTableWithData(TABLE_CSV_JM);
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(DEFAULT_PARALLELISM);
+        env.enableCheckpointing(200L);
+        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 0));
+        StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
+        String sourceDDL =
+                String.format(
+                        "CREATE TABLE doris_source_jm ("
+                                + " name STRING,"
+                                + " age INT"
+                                + ") WITH ("
+                                + " 'connector' = 'doris',"
+                                + " 'fenodes' = '%s',"
+                                + " 'table.identifier' = '%s',"
+                                + " 'username' = '%s',"
+                                + " 'password' = '%s'"
+                                + ")",
+                        getFenodes(),
+                        DATABASE + "." + TABLE_CSV_JM,
+                        getDorisUsername(),
+                        getDorisPassword());
+        tEnv.executeSql(sourceDDL);
+        TableResult tableResult = tEnv.executeSql("select * from doris_source_jm");
+        CloseableIterator<Row> iterator = tableResult.collect();
+        JobID jobId = tableResult.getJobClient().get().getJobID();
+
+        List<String> expectedData = getExpectedData();
+        if (iterator.hasNext()) {
+            LOG.info("trigger jobmanager failover...");
+            triggerFailover(
+                    FailoverType.JM,
+                    jobId,
+                    miniClusterResource.getMiniCluster(),
+                    () -> sleepMs(100));
         }
+        List<String> actual = fetchRows(iterator);
+        LOG.info("actual data: {}, expected: {}", actual, expectedData);
+        Assert.assertTrue(actual.size() >= expectedData.size());
+        Assert.assertTrue(actual.containsAll(expectedData));
+    }
+
+    private static List<String> getExpectedData() {
+        String[] expected =
+                new String[] {
+                    "+I[101, 1]",
+                    "+I[102, 1]",
+                    "+I[103, 1]",
+                    "+I[201, 2]",
+                    "+I[202, 2]",
+                    "+I[203, 2]",
+                    "+I[301, 3]",
+                    "+I[302, 3]",
+                    "+I[303, 3]",
+                    "+I[401, 4]",
+                    "+I[402, 4]",
+                    "+I[403, 4]",
+                    "+I[501, 5]",
+                    "+I[502, 5]",
+                    "+I[503, 5]",
+                    "+I[601, 6]",
+                    "+I[602, 6]",
+                    "+I[603, 6]",
+                    "+I[701, 7]",
+                    "+I[702, 7]",
+                    "+I[703, 7]",
+                    "+I[801, 8]",
+                    "+I[802, 8]",
+                    "+I[803, 8]",
+                    "+I[901, 9]",
+                    "+I[902, 9]",
+                    "+I[903, 9]"
+                };
+        return Arrays.asList(expected);
+    }
+
+    @Test
+    public void testTaskManagerFailoverSource() throws Exception {
+        LOG.info("start to test TaskManagerFailoverSource.");
+        initializeTableWithData(TABLE_CSV_TM);
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(DEFAULT_PARALLELISM);
+        env.enableCheckpointing(200L);
+        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 0));
+        StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
+        String sourceDDL =
+                String.format(
+                        "CREATE TABLE doris_source_tm ("
+                                + " name STRING,"
+                                + " age INT"
+                                + ") WITH ("
+                                + " 'connector' = 'doris',"
+                                + " 'fenodes' = '%s',"
+                                + " 'table.identifier' = '%s',"
+                                + " 'username' = '%s',"
+                                + " 'password' = '%s'"
+                                + ")",
+                        getFenodes(),
+                        DATABASE + "." + TABLE_CSV_TM,
+                        getDorisUsername(),
+                        getDorisPassword());
+        tEnv.executeSql(sourceDDL);
+        TableResult tableResult = tEnv.executeSql("select * from doris_source_tm");
+        CloseableIterator<Row> iterator = tableResult.collect();
+        JobID jobId = tableResult.getJobClient().get().getJobID();
+        List<String> expectedData = getExpectedData();
+        if (iterator.hasNext()) {
+            LOG.info("trigger taskmanager failover...");
+            triggerFailover(
+                    FailoverType.TM,
+                    jobId,
+                    miniClusterResource.getMiniCluster(),
+                    () -> sleepMs(100));
+        }
+
+        List<String> actual = fetchRows(iterator);
+        LOG.info("actual data: {}, expected: {}", actual, expectedData);
+        Assert.assertTrue(actual.size() >= expectedData.size());
+        Assert.assertTrue(actual.containsAll(expectedData));
     }
 
     private void checkResult(String testName, Object[] expected, Object[] actual) {
@@ -335,6 +473,15 @@ public class DorisSourceITCase extends AbstractITCaseService {
                 actual,
                 expected);
         Assert.assertArrayEquals(expected, actual);
+    }
+
+    private void checkResultInAnyOrder(String testName, Object[] expected, Object[] actual) {
+        LOG.info(
+                "Checking DorisSourceITCase result. testName={}, actual={}, expected={}",
+                testName,
+                actual,
+                expected);
+        assertEqualsInAnyOrder(Arrays.asList(expected), Arrays.asList(actual));
     }
 
     private void initializeTable(String table) {
@@ -347,7 +494,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
                         "CREATE TABLE %s.%s ( \n"
                                 + "`name` varchar(256),\n"
                                 + "`age` int\n"
-                                + ") DISTRIBUTED BY HASH(`name`) BUCKETS 1\n"
+                                + ") DISTRIBUTED BY HASH(`name`) BUCKETS 10\n"
                                 + "PROPERTIES (\n"
                                 + "\"replication_num\" = \"1\"\n"
                                 + ")\n",
@@ -355,5 +502,50 @@ public class DorisSourceITCase extends AbstractITCaseService {
                 String.format("insert into %s.%s  values ('doris',18)", DATABASE, table),
                 String.format("insert into %s.%s  values ('flink',10)", DATABASE, table),
                 String.format("insert into %s.%s  values ('apache',12)", DATABASE, table));
+    }
+
+    private void initializeTableWithData(String table) {
+        ContainerUtils.executeSQLStatement(
+                getDorisQueryConnection(),
+                LOG,
+                String.format("CREATE DATABASE IF NOT EXISTS %s", DATABASE),
+                String.format("DROP TABLE IF EXISTS %s.%s", DATABASE, table),
+                String.format(
+                        "CREATE TABLE %s.%s ( \n"
+                                + "`name` varchar(256),\n"
+                                + "`age` int\n"
+                                + ") DISTRIBUTED BY HASH(`name`) BUCKETS 10\n"
+                                + "PROPERTIES (\n"
+                                + "\"replication_num\" = \"1\"\n"
+                                + ")\n",
+                        DATABASE, table),
+                String.format(
+                        "insert into %s.%s  values ('101',1),('102',1),('103',1)", DATABASE, table),
+                String.format(
+                        "insert into %s.%s  values ('201',2),('202',2),('203',2)", DATABASE, table),
+                String.format(
+                        "insert into %s.%s  values ('301',3),('302',3),('303',3)", DATABASE, table),
+                String.format(
+                        "insert into %s.%s  values ('401',4),('402',4),('403',4)", DATABASE, table),
+                String.format(
+                        "insert into %s.%s  values ('501',5),('502',5),('503',5)", DATABASE, table),
+                String.format(
+                        "insert into %s.%s  values ('601',6),('602',6),('603',6)", DATABASE, table),
+                String.format(
+                        "insert into %s.%s  values ('701',7),('702',7),('703',7)", DATABASE, table),
+                String.format(
+                        "insert into %s.%s  values ('801',8),('802',8),('803',8)", DATABASE, table),
+                String.format(
+                        "insert into %s.%s  values ('901',9),('902',9),('903',9)",
+                        DATABASE, table));
+    }
+
+    private static List<String> fetchRows(Iterator<Row> iter) {
+        List<String> rows = new ArrayList<>();
+        while (iter.hasNext()) {
+            Row row = iter.next();
+            rows.add(row.toString());
+        }
+        return rows;
     }
 }

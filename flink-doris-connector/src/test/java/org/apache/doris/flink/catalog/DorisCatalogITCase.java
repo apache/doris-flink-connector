@@ -146,7 +146,7 @@ public class DorisCatalogITCase extends AbstractITCaseService {
         props.put("sink.enable-2pc", "false");
         catalog = new DorisCatalog(TEST_CATALOG_NAME, connectionOptions, TEST_DB, props);
         this.tEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
-        tEnv.getConfig().set(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1);
+        tEnv.getConfig().set(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, DEFAULT_PARALLELISM);
         // Use doris catalog.
         tEnv.registerCatalog(TEST_CATALOG_NAME, catalog);
         tEnv.useCatalog(TEST_CATALOG_NAME);
