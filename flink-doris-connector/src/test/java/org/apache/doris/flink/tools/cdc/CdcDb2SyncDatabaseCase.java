@@ -65,8 +65,8 @@ public class CdcDb2SyncDatabaseCase {
         Configuration sinkConf = Configuration.fromMap(sinkConfig);
 
         Map<String, String> tableConfig = new HashMap<>();
-        tableConfig.put(DatabaseSyncConfig.REPLICATION_NUM, "1");
-        tableConfig.put(DatabaseSyncConfig.TABLE_BUCKETS, "tbl1:10,tbl2:20,a.*:30,b.*:40,.*:50");
+        tableConfig.put(DorisTableConfig.REPLICATION_NUM, "1");
+        tableConfig.put(DorisTableConfig.TABLE_BUCKETS, "tbl1:10,tbl2:20,a.*:30,b.*:40,.*:50");
         String includingTables = "FULL_TYPES";
         String excludingTables = null;
         String multiToOneOrigin = null;

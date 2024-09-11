@@ -68,8 +68,8 @@ public class CdcMongoSyncDatabaseCase {
         Configuration sinkConf = Configuration.fromMap(sinkConfig);
 
         Map<String, String> tableConfig = new HashMap<>();
-        tableConfig.put(DatabaseSyncConfig.REPLICATION_NUM, "1");
-        tableConfig.put(DatabaseSyncConfig.TABLE_BUCKETS, ".*:1");
+        tableConfig.put(DorisTableConfig.REPLICATION_NUM, "1");
+        tableConfig.put(DorisTableConfig.TABLE_BUCKETS, ".*:1");
         String includingTables = "cdc_test";
         String excludingTables = "";
         String multiToOneOrigin = "a_.*|b_.*";
