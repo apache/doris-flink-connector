@@ -17,14 +17,15 @@
 
 package org.apache.doris.flink.container.e2e;
 
-import org.apache.doris.flink.container.AbstractContainerTestBase;
-import org.apache.doris.flink.container.ContainerUtils;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
+
+import org.apache.doris.flink.container.AbstractContainerTestBase;
+import org.apache.doris.flink.container.ContainerUtils;
 import org.junit.Assert;
 import org.junit.Test;
 import org.slf4j.Logger;
