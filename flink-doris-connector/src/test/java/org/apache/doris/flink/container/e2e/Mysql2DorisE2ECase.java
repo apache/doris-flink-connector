@@ -54,6 +54,8 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
         argList.add(PASSWORD + "=" + getMySQLPassword());
         argList.add(MYSQL_CONF);
         argList.add(DATABASE_NAME + "=" + DATABASE);
+        // argList.add(MYSQL_CONF);
+        // argList.add("server-time-zone=UTC");
 
         // set doris database
         argList.add(DORIS_DATABASE);
