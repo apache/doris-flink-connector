@@ -108,7 +108,8 @@ public class BackendUtil {
             int responseCode = connection.getResponseCode();
             String responseMessage = connection.getResponseMessage();
             connection.disconnect();
-            if (200 == responseCode) {
+            if (responseCode < 500) {
+                // code greater than 500 means a server-side exception.
                 return true;
             }
             LOG.warn(
