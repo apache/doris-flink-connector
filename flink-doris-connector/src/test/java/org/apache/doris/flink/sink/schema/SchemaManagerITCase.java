@@ -17,7 +17,9 @@
 
 package org.apache.doris.flink.sink.schema;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.doris.flink.catalog.doris.DataModel;
+import org.apache.doris.flink.catalog.doris.DorisSchemaFactory;
 import org.apache.doris.flink.catalog.doris.FieldSchema;
 import org.apache.doris.flink.catalog.doris.TableSchema;
 import org.apache.doris.flink.cfg.DorisOptions;
@@ -57,7 +59,7 @@ public class SchemaManagerITCase extends AbstractITCaseService {
         schemaChangeManager = new SchemaChangeManager(options);
     }
 
-    private void initDorisSchemaChangeTable(String table) {
+    private void initDorisSchemaChangeTable(String table, String defaultValue) {
         ContainerUtils.executeSQLStatement(
                 getDorisQueryConnection(),
                 LOG,
@@ -67,17 +69,22 @@ public class SchemaManagerITCase extends AbstractITCaseService {
                         "CREATE TABLE %s.%s ( \n"
                                 + "`id` varchar(32),\n"
                                 + "`age` int\n"
+                                + (StringUtils.isNotBlank(defaultValue)
+                                        ? " DEFAULT "
+                                                + DorisSchemaFactory.quoteDefaultValue(defaultValue)
+                                        : "")
                                 + ") DISTRIBUTED BY HASH(`id`) BUCKETS 1\n"
                                 + "PROPERTIES (\n"
                                 + "\"replication_num\" = \"1\"\n"
                                 + ")\n",
-                        DATABASE, table));
+                        DATABASE,
+                        table));
     }
 
     @Test
     public void testAddColumn() throws IOException, IllegalArgumentException {
         String addColumnTbls = "add_column";
-        initDorisSchemaChangeTable(addColumnTbls);
+        initDorisSchemaChangeTable(addColumnTbls, null);
         FieldSchema field = new FieldSchema("c1", "int", "");
         schemaChangeManager.addColumn(DATABASE, addColumnTbls, field);
         boolean exists = schemaChangeManager.addColumn(DATABASE, addColumnTbls, field);
@@ -91,7 +98,7 @@ public class SchemaManagerITCase extends AbstractITCaseService {
     public void testAddColumnWithChineseComment()
             throws IOException, IllegalArgumentException, InterruptedException {
         String addColumnTbls = "add_column";
-        initDorisSchemaChangeTable(addColumnTbls);
+        initDorisSchemaChangeTable(addColumnTbls, null);
 
         // add a column by UTF-8 encoding
         String addColumnName = "col_with_comment1";
@@ -147,7 +154,7 @@ public class SchemaManagerITCase extends AbstractITCaseService {
     @Test
     public void testDropColumn() throws IOException, IllegalArgumentException {
         String dropColumnTbls = "drop_column";
-        initDorisSchemaChangeTable(dropColumnTbls);
+        initDorisSchemaChangeTable(dropColumnTbls, null);
         schemaChangeManager.dropColumn(DATABASE, dropColumnTbls, "age");
         boolean success = schemaChangeManager.dropColumn(DATABASE, dropColumnTbls, "age");
         Assert.assertTrue(success);
@@ -159,7 +166,7 @@ public class SchemaManagerITCase extends AbstractITCaseService {
     @Test
     public void testRenameColumn() throws IOException, IllegalArgumentException {
         String renameColumnTbls = "rename_column";
-        initDorisSchemaChangeTable(renameColumnTbls);
+        initDorisSchemaChangeTable(renameColumnTbls, null);
         schemaChangeManager.renameColumn(DATABASE, renameColumnTbls, "age", "age1");
         boolean exists = schemaChangeManager.checkColumnExists(DATABASE, renameColumnTbls, "age1");
         Assert.assertTrue(exists);
@@ -171,7 +178,7 @@ public class SchemaManagerITCase extends AbstractITCaseService {
     @Test
     public void testModifyColumnComment() throws IOException, IllegalArgumentException {
         String modifyColumnCommentTbls = "modify_column_comment";
-        initDorisSchemaChangeTable(modifyColumnCommentTbls);
+        initDorisSchemaChangeTable(modifyColumnCommentTbls, null);
         String columnName = "age";
         String newComment = "new comment of age";
         schemaChangeManager.modifyColumnComment(
@@ -187,7 +194,7 @@ public class SchemaManagerITCase extends AbstractITCaseService {
         String modifyColumnTbls = "modify_column_type";
         String columnName = "age";
         String newColumnType = "bigint";
-        initDorisSchemaChangeTable(modifyColumnTbls);
+        initDorisSchemaChangeTable(modifyColumnTbls, null);
         FieldSchema field = new FieldSchema(columnName, newColumnType, "");
         schemaChangeManager.modifyColumnDataType(DATABASE, modifyColumnTbls, field);
 
@@ -200,7 +207,7 @@ public class SchemaManagerITCase extends AbstractITCaseService {
     public void testModifyColumnTypeAndComment()
             throws IOException, IllegalArgumentException, InterruptedException {
         String modifyColumnTbls = "modify_column_type_and_comment";
-        initDorisSchemaChangeTable(modifyColumnTbls);
+        initDorisSchemaChangeTable(modifyColumnTbls, null);
         String columnName = "age";
         String newColumnType = "bigint";
         String newComment = "new comment of age";
@@ -237,5 +244,50 @@ public class SchemaManagerITCase extends AbstractITCaseService {
 
         Thread.sleep(3_000);
         Assert.assertNotNull(schemaChangeManager.getTableSchema(databaseName, tableName));
+    }
+
+    @Test
+    public void testModifyColumnTypeWithoutDefault()
+            throws IOException, IllegalArgumentException, InterruptedException {
+        String modifyColumnTbls = "modify_column_type_without_default_value";
+        String columnName = "age";
+        String newColumnType = "bigint";
+        initDorisSchemaChangeTable(modifyColumnTbls, "18");
+        FieldSchema field = new FieldSchema(columnName, newColumnType, null, "");
+        schemaChangeManager.modifyColumnDataType(DATABASE, modifyColumnTbls, field);
+
+        Thread.sleep(3_000);
+        String columnType = getColumnType(modifyColumnTbls, columnName);
+        Assert.assertEquals(newColumnType, columnType.toLowerCase());
+    }
+
+    @Test
+    public void testModifyColumnTypeWithDefault()
+            throws IOException, IllegalArgumentException, InterruptedException {
+        String modifyColumnTbls = "modify_column_type_with_default_value";
+        String columnName = "age";
+        String newColumnType = "bigint";
+        initDorisSchemaChangeTable(modifyColumnTbls, "18");
+        FieldSchema field = new FieldSchema(columnName, newColumnType, "18", "");
+        schemaChangeManager.modifyColumnDataType(DATABASE, modifyColumnTbls, field);
+
+        Thread.sleep(3_000);
+        String columnType = getColumnType(modifyColumnTbls, columnName);
+        Assert.assertEquals(newColumnType, columnType.toLowerCase());
+    }
+
+    @Test
+    public void testModifyColumnTypeWithDefaultAndChange()
+            throws IOException, IllegalArgumentException, InterruptedException {
+        String modifyColumnTbls = "modify_column_type_with_default_value_and_change";
+        String columnName = "age";
+        String newColumnType = "bigint";
+        initDorisSchemaChangeTable(modifyColumnTbls, "18");
+        FieldSchema field = new FieldSchema(columnName, newColumnType, "19", "new comment");
+        schemaChangeManager.modifyColumnDataType(DATABASE, modifyColumnTbls, field);
+
+        Thread.sleep(3_000);
+        String columnType = getColumnType(modifyColumnTbls, columnName);
+        Assert.assertEquals(newColumnType, columnType.toLowerCase());
     }
 }

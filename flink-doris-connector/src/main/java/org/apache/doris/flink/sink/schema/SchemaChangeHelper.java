@@ -44,6 +44,7 @@ public class SchemaChangeHelper {
     private static final String CREATE_DATABASE_DDL = "CREATE DATABASE IF NOT EXISTS %s";
     private static final String MODIFY_TYPE_DDL = "ALTER TABLE %s MODIFY COLUMN %s %s";
     private static final String MODIFY_COMMENT_DDL = "ALTER TABLE %s MODIFY COLUMN %s COMMENT '%s'";
+    private static final String SHOW_FULL_COLUMN_DDL = "SHOW FULL COLUMNS FROM `%s`.`%s`";
 
     public static void compareSchema(
             Map<String, FieldSchema> updateFiledSchemaMap,
@@ -166,6 +167,7 @@ public class SchemaChangeHelper {
         String columnName = fieldSchema.getName();
         String dataType = fieldSchema.getTypeString();
         String comment = fieldSchema.getComment();
+        String defaultValue = fieldSchema.getDefaultValue();
         StringBuilder modifyDDL =
                 new StringBuilder(
                         String.format(
@@ -173,6 +175,11 @@ public class SchemaChangeHelper {
                                 DorisSchemaFactory.quoteTableIdentifier(tableIdentifier),
                                 DorisSchemaFactory.identifier(columnName),
                                 dataType));
+        if (StringUtils.isNotBlank(defaultValue)) {
+            modifyDDL
+                    .append(" DEFAULT ")
+                    .append(DorisSchemaFactory.quoteDefaultValue(defaultValue));
+        }
         commentColumn(modifyDDL, comment);
         return modifyDDL.toString();
     }
@@ -181,6 +188,10 @@ public class SchemaChangeHelper {
         if (StringUtils.isNotEmpty(comment)) {
             ddl.append(" COMMENT '").append(DorisSchemaFactory.quoteComment(comment)).append("'");
         }
+    }
+
+    public static String buildShowFullColumnDDL(String database, String table) {
+        return String.format(SHOW_FULL_COLUMN_DDL, database, table);
     }
 
     public static List<DDLSchema> getDdlSchemas() {
