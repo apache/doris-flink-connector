@@ -29,6 +29,8 @@ public interface ContainerService {
 
     Connection getQueryConnection();
 
+    String getJdbcUrl();
+
     String getInstanceHost();
 
     Integer getMappedPort(int originalPort);

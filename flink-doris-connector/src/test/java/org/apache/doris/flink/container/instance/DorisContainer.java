@@ -116,6 +116,11 @@ public class DorisContainer implements ContainerService {
     }
 
     @Override
+    public String getJdbcUrl() {
+        return String.format(JDBC_URL, dorisContainer.getHost());
+    }
+
+    @Override
     public String getInstanceHost() {
         return dorisContainer.getHost();
     }
