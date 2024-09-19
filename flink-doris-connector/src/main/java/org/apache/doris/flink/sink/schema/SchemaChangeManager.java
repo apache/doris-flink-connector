@@ -257,10 +257,10 @@ public class SchemaChangeManager implements Serializable {
     }
 
     /** execute sql in doris. */
-    public String executeThenReturnResponse(String ddl, String database)
+    private String executeThenReturnResponse(String ddl, String database)
             throws IOException, IllegalArgumentException {
         if (StringUtils.isNullOrWhitespaceOnly(ddl)) {
-            return null;
+            throw new IllegalArgumentException("ddl can not be null or empty string!");
         }
         LOG.info("Execute SQL: {}", ddl);
         HttpPost httpPost = buildHttpPost(ddl, database);
