@@ -27,6 +27,7 @@ import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.util.StringUtils;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
@@ -63,6 +64,7 @@ public class DorisSinkITCase extends AbstractITCaseService {
     static final String TABLE_CSV = "tbl_csv";
     static final String TABLE_JSON = "tbl_json";
     static final String TABLE_JSON_TBL = "tbl_json_tbl";
+    static final String TABLE_TBL_AUTO_REDIRECT = "tbl_tbl_auto_redirect";
     static final String TABLE_CSV_BATCH_TBL = "tbl_csv_batch_tbl";
     static final String TABLE_CSV_BATCH_DS = "tbl_csv_batch_DS";
     static final String TABLE_GROUP_COMMIT = "tbl_group_commit";
@@ -177,8 +179,6 @@ public class DorisSinkITCase extends AbstractITCaseService {
                                 + DorisConfigOptions.IDENTIFIER
                                 + "',"
                                 + " 'fenodes' = '%s',"
-                                + " 'benodes' = '%s',"
-                                + " 'auto-redirect' = 'false',"
                                 + " 'table.identifier' = '%s',"
                                 + " 'username' = '%s',"
                                 + " 'password' = '%s',"
@@ -196,8 +196,53 @@ public class DorisSinkITCase extends AbstractITCaseService {
                                 + "'"
                                 + ")",
                         getFenodes(),
-                        getBenodes(),
                         DATABASE + "." + TABLE_JSON_TBL,
+                        getDorisUsername(),
+                        getDorisPassword());
+        tEnv.executeSql(sinkDDL);
+        tEnv.executeSql("INSERT INTO doris_sink SELECT 'doris',1 union all SELECT 'flink',2");
+
+        Thread.sleep(10000);
+        List<String> expected = Arrays.asList("doris,1", "flink,2");
+        String query =
+                String.format("select name,age from %s.%s order by 1", DATABASE, TABLE_JSON_TBL);
+        ContainerUtils.checkResult(getDorisQueryConnection(), LOG, expected, query, 2);
+    }
+
+    @Test
+    public void testTableSinkAutoRedirectFalse() throws Exception {
+        if (StringUtils.isNullOrWhitespaceOnly(getBenodes())) {
+            LOG.info("benodes is empty, skip the test.");
+            return;
+        }
+        initializeTable(TABLE_TBL_AUTO_REDIRECT);
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(DEFAULT_PARALLELISM);
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+        final StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
+
+        String sinkDDL =
+                String.format(
+                        "CREATE TABLE doris_sink ("
+                                + " name STRING,"
+                                + " age INT"
+                                + ") WITH ("
+                                + " 'connector' = '"
+                                + DorisConfigOptions.IDENTIFIER
+                                + "',"
+                                + " 'fenodes' = '%s',"
+                                + " 'benodes' = '%s',"
+                                + " 'auto-redirect' = 'false',"
+                                + " 'table.identifier' = '%s',"
+                                + " 'username' = '%s',"
+                                + " 'password' = '%s',"
+                                + " 'sink.label-prefix' = 'doris_sink"
+                                + UUID.randomUUID()
+                                + "'"
+                                + ")",
+                        getFenodes(),
+                        getBenodes(),
+                        DATABASE + "." + TABLE_TBL_AUTO_REDIRECT,
                         getDorisUsername(),
                         getDorisPassword());
         tEnv.executeSql(sinkDDL);

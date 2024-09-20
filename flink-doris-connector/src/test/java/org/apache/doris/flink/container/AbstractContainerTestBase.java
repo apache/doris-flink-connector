@@ -19,6 +19,7 @@ package org.apache.doris.flink.container;
 
 import org.apache.doris.flink.container.instance.ContainerService;
 import org.apache.doris.flink.container.instance.DorisContainer;
+import org.apache.doris.flink.container.instance.DorisCustomerContainer;
 import org.junit.BeforeClass;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,7 +49,8 @@ public abstract class AbstractContainerTestBase {
             LOG.info("The doris container has been started and is running status.");
             return;
         }
-        dorisContainerService = new DorisContainer();
+        Boolean customerEnv = Boolean.valueOf(System.getProperty("customer_env", "false"));
+        dorisContainerService = customerEnv ? new DorisCustomerContainer() : new DorisContainer();
         dorisContainerService.startContainer();
         LOG.info("Doris container was started.");
     }
@@ -74,9 +76,7 @@ public abstract class AbstractContainerTestBase {
     }
 
     protected String getDorisQueryUrl() {
-        return String.format(
-                "jdbc:mysql://%s:%s",
-                getDorisInstanceHost(), dorisContainerService.getMappedPort(9030));
+        return dorisContainerService.getJdbcUrl();
     }
 
     protected String getDorisInstanceHost() {

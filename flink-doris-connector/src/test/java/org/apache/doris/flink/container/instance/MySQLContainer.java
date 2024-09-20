@@ -93,6 +93,11 @@ public class MySQLContainer implements ContainerService {
     }
 
     @Override
+    public String getJdbcUrl() {
+        return mysqlcontainer.getJdbcUrl();
+    }
+
+    @Override
     public void close() {
         LOG.info("Stopping MySQL container.");
         mysqlcontainer.stop();
