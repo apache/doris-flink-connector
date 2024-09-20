@@ -23,6 +23,7 @@ import org.apache.flink.util.StringUtils;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.NullNode;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.doris.flink.catalog.doris.DorisSystem;
 import org.apache.doris.flink.catalog.doris.FieldSchema;
@@ -123,11 +124,30 @@ public class SchemaChangeManager implements Serializable {
             throws IOException, IllegalArgumentException {
         if (!checkColumnExists(database, table, field.getName())) {
             LOG.warn(
-                    "The column {} is not exists in table {}, can not modify it type",
+                    "The column {} is not exists in table {}, can not modify it's type",
                     field.getName(),
                     table);
             return false;
         }
+
+        String ddl = SchemaChangeHelper.buildShowFullColumnDDL(database, table);
+        String defaultValue = getDefaultValue(ddl, database, field.getName());
+        if (!StringUtils.isNullOrWhitespaceOnly(field.getDefaultValue())) {
+            // Can not change default value
+            if (!field.getDefaultValue().equals(defaultValue)) {
+                LOG.warn(
+                        "Column:{} can not change default value from {} to {}, fallback it",
+                        field.getName(),
+                        defaultValue,
+                        field.getDefaultValue());
+                field.setDefaultValue(defaultValue);
+            }
+        } else {
+            // If user does not give a default value, need fill it from
+            // original table schema to avoid change type failed if default value exists
+            field.setDefaultValue(defaultValue);
+        }
+
         // If user does not give a comment, need fill it from
         // original table schema to avoid miss comment
         if (StringUtils.isNullOrWhitespaceOnly(field.getComment())) {
@@ -214,15 +234,42 @@ public class SchemaChangeManager implements Serializable {
         }
     }
 
+    private String getDefaultValue(String ddl, String database, String column)
+            throws IOException, IllegalArgumentException {
+        String responseEntity = executeThenReturnResponse(ddl, database);
+        JsonNode responseNode = objectMapper.readTree(responseEntity);
+        String code = responseNode.get("code").asText("-1");
+        if (code.equals("0")) {
+            JsonNode data = responseNode.get("data").get("data");
+            for (JsonNode node : data) {
+                if (node.get(0).asText().equals(column)) {
+                    JsonNode defaultValueNode = node.get(5);
+                    return (defaultValueNode instanceof NullNode)
+                            ? null
+                            : defaultValueNode.asText();
+                }
+            }
+            return null;
+        } else {
+            throw new DorisSchemaChangeException(
+                    "Failed to get default value, response: " + responseEntity);
+        }
+    }
+
     /** execute sql in doris. */
-    public boolean execute(String ddl, String database)
+    private String executeThenReturnResponse(String ddl, String database)
             throws IOException, IllegalArgumentException {
         if (StringUtils.isNullOrWhitespaceOnly(ddl)) {
-            return false;
+            throw new IllegalArgumentException("ddl can not be null or empty string!");
         }
         LOG.info("Execute SQL: {}", ddl);
         HttpPost httpPost = buildHttpPost(ddl, database);
-        String responseEntity = handleResponse(httpPost);
+        return handleResponse(httpPost);
+    }
+
+    public boolean execute(String ddl, String database)
+            throws IOException, IllegalArgumentException {
+        String responseEntity = executeThenReturnResponse(ddl, database);
         return handleSchemaChange(responseEntity);
     }
 
