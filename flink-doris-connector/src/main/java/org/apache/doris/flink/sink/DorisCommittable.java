@@ -26,7 +26,7 @@ public class DorisCommittable implements DorisAbstractCommittable {
     private final long txnID;
 
     public DorisCommittable(String hostPort, String db, long txnID) {
-        this.hostPort = hostPort;
+        this.hostPort = (hostPort.startsWith("http") ? "" : "http://") + hostPort;
         this.db = db;
         this.txnID = txnID;
     }

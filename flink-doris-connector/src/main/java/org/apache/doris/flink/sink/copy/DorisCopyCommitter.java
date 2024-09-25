@@ -44,7 +44,7 @@ import java.util.Map;
 
 public class DorisCopyCommitter implements Committer<DorisCopyCommittable>, Closeable {
     private static final Logger LOG = LoggerFactory.getLogger(DorisCopyCommitter.class);
-    private static final String commitPattern = "http://%s/copy/query";
+    private static final String commitPattern = "%s/copy/query";
     private static final int SUCCESS = 0;
     private static final String FAIL = "1";
     private ObjectMapper objectMapper = new ObjectMapper();

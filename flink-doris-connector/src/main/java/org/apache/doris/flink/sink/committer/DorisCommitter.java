@@ -52,7 +52,7 @@ import static org.apache.doris.flink.sink.LoadStatus.SUCCESS;
 /** The committer to commit transaction. */
 public class DorisCommitter implements Committer<DorisCommittable>, Closeable {
     private static final Logger LOG = LoggerFactory.getLogger(DorisCommitter.class);
-    private static final String commitPattern = "http://%s/api/%s/_stream_load_2pc";
+    private static final String commitPattern = "%s/api/%s/_stream_load_2pc";
     private final CloseableHttpClient httpClient;
     private final DorisOptions dorisOptions;
     private final DorisReadOptions dorisReadOptions;
