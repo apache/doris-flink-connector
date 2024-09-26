@@ -396,7 +396,8 @@ public class DorisSourceITCase extends AbstractITCaseService {
         }
 
         String[] expected = new String[] {"+I[flink, 10]", "+I[doris, 18]"};
-        checkResultInAnyOrder("testTableSourceFilterWithUnionAllNotEqualFilter", expected, actual.toArray());
+        checkResultInAnyOrder(
+                "testTableSourceFilterWithUnionAllNotEqualFilter", expected, actual.toArray());
     }
 
     @Test

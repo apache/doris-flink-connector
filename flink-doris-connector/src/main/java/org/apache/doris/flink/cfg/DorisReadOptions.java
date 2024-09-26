@@ -187,7 +187,7 @@ public class DorisReadOptions implements Serializable {
                 flightSqlPort);
     }
 
-    public DorisReadOptions copy(){
+    public DorisReadOptions copy() {
         return new DorisReadOptions(
                 readFields,
                 filterQuery,
