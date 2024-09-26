@@ -63,6 +63,8 @@ public class DorisSourceITCase extends AbstractITCaseService {
             "tbl_read_tbl_push_down_with_union_all";
     static final String TABLE_CSV_JM = "tbl_csv_jm_source";
     static final String TABLE_CSV_TM = "tbl_csv_tm_source";
+    private static final String TABLE_READ_TBL_PUSH_DOWN_WITH_UNION_ALL_NOT_EQ_FILTER =
+            "tbl_read_tbl_push_down_with_union_all_not_eq_filter";
 
     @Rule
     public final MiniClusterWithClientResource miniClusterResource =
@@ -351,6 +353,50 @@ public class DorisSourceITCase extends AbstractITCaseService {
 
         String[] expected = new String[] {"+I[flink, 10]", "+I[doris, 18]"};
         checkResultInAnyOrder("testTableSourceFilterWithUnionAll", expected, actual.toArray());
+    }
+
+    @Test
+    public void testTableSourceFilterWithUnionAllNotEqualFilter() throws Exception {
+        LOG.info("starting to execute testTableSourceFilterWithUnionAllNotEqualFilter case.");
+        initializeTable(TABLE_READ_TBL_PUSH_DOWN_WITH_UNION_ALL_NOT_EQ_FILTER);
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(DEFAULT_PARALLELISM);
+        final StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
+
+        String sourceDDL =
+                String.format(
+                        "CREATE TABLE doris_source_filter_with_union_all ("
+                                + " name STRING,"
+                                + " age INT"
+                                + ") WITH ("
+                                + " 'connector' = '"
+                                + DorisConfigOptions.IDENTIFIER
+                                + "',"
+                                + " 'fenodes' = '%s',"
+                                + " 'table.identifier' = '%s',"
+                                + " 'username' = '%s',"
+                                + " 'password' = '%s'"
+                                + ")",
+                        getFenodes(),
+                        DATABASE + "." + TABLE_READ_TBL_PUSH_DOWN_WITH_UNION_ALL_NOT_EQ_FILTER,
+                        getDorisUsername(),
+                        getDorisPassword());
+        tEnv.executeSql(sourceDDL);
+        String querySql =
+                "  SELECT * FROM doris_source_filter_with_union_all where name = 'doris'"
+                        + " UNION ALL "
+                        + "SELECT * FROM doris_source_filter_with_union_all where name in ('error','flink')";
+        TableResult tableResult = tEnv.executeSql(querySql);
+
+        List<String> actual = new ArrayList<>();
+        try (CloseableIterator<Row> iterator = tableResult.collect()) {
+            while (iterator.hasNext()) {
+                actual.add(iterator.next().toString());
+            }
+        }
+
+        String[] expected = new String[] {"+I[flink, 10]", "+I[doris, 18]"};
+        checkResultInAnyOrder("testTableSourceFilterWithUnionAllNotEqualFilter", expected, actual.toArray());
     }
 
     @Test

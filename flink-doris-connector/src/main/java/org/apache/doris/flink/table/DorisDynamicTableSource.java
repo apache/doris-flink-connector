@@ -166,9 +166,10 @@ public final class DorisDynamicTableSource
 
     @Override
     public DynamicTableSource copy() {
+        // filterQuery/readFields of readOption may be overwritten in union all sql
         DorisDynamicTableSource newSource =
                 new DorisDynamicTableSource(
-                        options, readOptions, lookupOptions, physicalSchema, physicalRowDataType);
+                        options, readOptions.copy(), lookupOptions, physicalSchema, physicalRowDataType);
         newSource.resolvedFilterQuery = new ArrayList<>(this.resolvedFilterQuery);
         return newSource;
     }
