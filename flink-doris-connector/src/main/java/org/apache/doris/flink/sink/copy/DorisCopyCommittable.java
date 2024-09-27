@@ -26,7 +26,7 @@ public class DorisCopyCommittable implements DorisAbstractCommittable {
     private final String copySQL;
 
     public DorisCopyCommittable(String hostPort, String copySQL) {
-        this.hostPort = hostPort;
+        this.hostPort = (hostPort.startsWith("http") ? "" : "http://") + hostPort;
         this.copySQL = copySQL;
     }
 

@@ -85,7 +85,7 @@ public class TestDorisWriter {
         Collection<DorisCommittable> committableList = dorisWriter.prepareCommit();
         Assert.assertEquals(1, committableList.size());
         DorisCommittable dorisCommittable = committableList.stream().findFirst().get();
-        Assert.assertEquals("local:8040", dorisCommittable.getHostPort());
+        Assert.assertEquals("http://local:8040", dorisCommittable.getHostPort());
         Assert.assertEquals("db", dorisCommittable.getDb());
         Assert.assertEquals(2, dorisCommittable.getTxnID());
         Assert.assertFalse(dorisWriter.isLoading());
