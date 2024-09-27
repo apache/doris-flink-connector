@@ -187,6 +187,24 @@ public class DorisReadOptions implements Serializable {
                 flightSqlPort);
     }
 
+    public DorisReadOptions copy() {
+        return new DorisReadOptions(
+                readFields,
+                filterQuery,
+                requestTabletSize,
+                requestConnectTimeoutMs,
+                requestReadTimeoutMs,
+                requestQueryTimeoutS,
+                requestRetries,
+                requestBatchSize,
+                execMemLimit,
+                deserializeQueueSize,
+                deserializeArrowAsync,
+                useOldApi,
+                useFlightSql,
+                flightSqlPort);
+    }
+
     /** Builder of {@link DorisReadOptions}. */
     public static class Builder {
 
