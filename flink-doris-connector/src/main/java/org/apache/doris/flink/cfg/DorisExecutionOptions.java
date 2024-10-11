@@ -292,51 +292,112 @@ public class DorisExecutionOptions implements Serializable {
         private WriteMode writeMode = WriteMode.STREAM_LOAD;
         private boolean ignoreCommitError = false;
 
+        /**
+         * Sets the checkInterval to check exception with the interval while loading, The default is
+         * 0, disabling the checker thread.
+         *
+         * @param checkInterval
+         * @return this DorisExecutionOptions.builder.
+         */
         public Builder setCheckInterval(Integer checkInterval) {
             this.checkInterval = checkInterval;
             return this;
         }
 
+        /**
+         * Sets the maxRetries to load data. In batch mode, this parameter is the number of stream
+         * load retries, In non-batch mode, this parameter is the number of retries in the commit
+         * phase.
+         *
+         * @param maxRetries
+         * @return this DorisExecutionOptions.builder.
+         */
         public Builder setMaxRetries(Integer maxRetries) {
             this.maxRetries = maxRetries;
             return this;
         }
 
+        /**
+         * Sets the buffer size to cache data for stream load. Only valid in non-batch mode.
+         *
+         * @param bufferSize
+         * @return this DorisExecutionOptions.builder.
+         */
         public Builder setBufferSize(int bufferSize) {
             this.bufferSize = bufferSize;
             return this;
         }
 
+        /**
+         * Sets the buffer count to cache data for stream load. Only valid in non-batch mode.
+         *
+         * @param bufferCount
+         * @return this DorisExecutionOptions.builder.
+         */
         public Builder setBufferCount(int bufferCount) {
             this.bufferCount = bufferCount;
             return this;
         }
 
+        /**
+         * Sets the unique label prefix for stream load.
+         *
+         * @param labelPrefix
+         * @return this DorisExecutionOptions.builder.
+         */
         public Builder setLabelPrefix(String labelPrefix) {
             this.labelPrefix = labelPrefix;
             return this;
         }
 
+        /**
+         * Sets whether to use cache for stream load. Only valid in non-batch mode.
+         *
+         * @param useCache
+         * @return this DorisExecutionOptions.builder.
+         */
         public Builder setUseCache(boolean useCache) {
             this.useCache = useCache;
             return this;
         }
 
+        /**
+         * Sets the properties for stream load.
+         *
+         * @param streamLoadProp
+         * @return this DorisExecutionOptions.builder.
+         */
         public Builder setStreamLoadProp(Properties streamLoadProp) {
             this.streamLoadProp = streamLoadProp;
             return this;
         }
 
+        /**
+         * Sets whether to perform the deletion operation for stream load.
+         *
+         * @param enableDelete
+         * @return this DorisExecutionOptions.builder.
+         */
         public Builder setDeletable(Boolean enableDelete) {
             this.enableDelete = enableDelete;
             return this;
         }
 
+        /**
+         * Sets whether to disable 2pc(two-phase commit) for stream load.
+         *
+         * @return this DorisExecutionOptions.builder.
+         */
         public Builder disable2PC() {
             this.enable2PC = false;
             return this;
         }
 
+        /**
+         * Sets whether to force 2pc on. The default uniq model will turn off 2pc.
+         *
+         * @return this DorisExecutionOptions.builder.
+         */
         public Builder enable2PC() {
             this.enable2PC = true;
             // Force open 2pc
@@ -344,6 +405,12 @@ public class DorisExecutionOptions implements Serializable {
             return this;
         }
 
+        /**
+         * Set whether to use batch mode to stream load.
+         *
+         * @param enableBatchMode
+         * @return this DorisExecutionOptions.builder.
+         */
         public Builder setBatchMode(Boolean enableBatchMode) {
             this.enableBatchMode = enableBatchMode;
             if (enableBatchMode.equals(Boolean.TRUE)) {
@@ -352,41 +419,89 @@ public class DorisExecutionOptions implements Serializable {
             return this;
         }
 
+        /**
+         * Set queue size in batch mode.
+         *
+         * @param flushQueueSize
+         * @return this DorisExecutionOptions.builder.
+         */
         public Builder setFlushQueueSize(int flushQueueSize) {
             this.flushQueueSize = flushQueueSize;
             return this;
         }
 
+        /**
+         * Set the flush interval mills for stream load in batch mode.
+         *
+         * @param bufferFlushIntervalMs
+         * @return this DorisExecutionOptions.builder.
+         */
         public Builder setBufferFlushIntervalMs(long bufferFlushIntervalMs) {
             this.bufferFlushIntervalMs = bufferFlushIntervalMs;
             return this;
         }
 
+        /**
+         * Set the max flush rows for stream load in batch mode.
+         *
+         * @param bufferFlushMaxRows
+         * @return this DorisExecutionOptions.builder.
+         */
         public Builder setBufferFlushMaxRows(int bufferFlushMaxRows) {
             this.bufferFlushMaxRows = bufferFlushMaxRows;
             return this;
         }
 
+        /**
+         * Set the max flush bytes for stream load in batch mode.
+         *
+         * @param bufferFlushMaxBytes
+         * @return this DorisExecutionOptions.builder.
+         */
         public Builder setBufferFlushMaxBytes(int bufferFlushMaxBytes) {
             this.bufferFlushMaxBytes = bufferFlushMaxBytes;
             return this;
         }
 
+        /**
+         * Set Whether to ignore the ignore updateBefore event.
+         *
+         * @param ignoreUpdateBefore
+         * @return this DorisExecutionOptions.builder.
+         */
         public Builder setIgnoreUpdateBefore(boolean ignoreUpdateBefore) {
             this.ignoreUpdateBefore = ignoreUpdateBefore;
             return this;
         }
 
+        /**
+         * Set the writing mode, only supports STREAM_LOAD and STREAM_LOAD_BATCH
+         *
+         * @param writeMode
+         * @return this DorisExecutionOptions.builder.
+         */
         public Builder setWriteMode(WriteMode writeMode) {
             this.writeMode = writeMode;
             return this;
         }
 
+        /**
+         * Set whether to ignore commit failure errors. This is only valid in non-batch mode 2pc.
+         * When ignored, data loss may occur.
+         *
+         * @param ignoreCommitError
+         * @return this DorisExecutionOptions.builder.
+         */
         public Builder setIgnoreCommitError(boolean ignoreCommitError) {
             this.ignoreCommitError = ignoreCommitError;
             return this;
         }
 
+        /**
+         * Build the {@link DorisExecutionOptions}.
+         *
+         * @return a DorisExecutionOptions with the settings made for this builder.
+         */
         public DorisExecutionOptions build() {
             // If format=json is set but read_json_by_line is not set, record may not be written.
             if (streamLoadProp != null

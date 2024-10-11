@@ -161,26 +161,56 @@ public class DorisSink<IN>
         private DorisExecutionOptions dorisExecutionOptions;
         private DorisRecordSerializer<IN> serializer;
 
+        /**
+         * Sets the DorisOptions for the DorisSink.
+         *
+         * @param dorisOptions the common options of the doris cluster.
+         * @return this DorisSink.Builder.
+         */
         public Builder<IN> setDorisOptions(DorisOptions dorisOptions) {
             this.dorisOptions = dorisOptions;
             return this;
         }
 
+        /**
+         * Sets the DorisReadOptions for the DorisSink.
+         *
+         * @param dorisReadOptions the read options of the DorisSink.
+         * @return this DorisSink.Builder.
+         */
         public Builder<IN> setDorisReadOptions(DorisReadOptions dorisReadOptions) {
             this.dorisReadOptions = dorisReadOptions;
             return this;
         }
 
+        /**
+         * Sets the DorisExecutionOptions for the DorisSink.
+         *
+         * @param dorisExecutionOptions the execution options of the DorisSink.
+         * @return this DorisSink.Builder.
+         */
         public Builder<IN> setDorisExecutionOptions(DorisExecutionOptions dorisExecutionOptions) {
             this.dorisExecutionOptions = dorisExecutionOptions;
             return this;
         }
 
+        /**
+         * Sets the {@link DorisRecordSerializer serializer} that transforms incoming records to
+         * DorisRecord
+         *
+         * @param serializer
+         * @return this DorisSink.Builder.
+         */
         public Builder<IN> setSerializer(DorisRecordSerializer<IN> serializer) {
             this.serializer = serializer;
             return this;
         }
 
+        /**
+         * Build the {@link DorisSink}.
+         *
+         * @return a DorisSink with the settings made for this builder.
+         */
         public DorisSink<IN> build() {
             Preconditions.checkNotNull(dorisOptions);
             Preconditions.checkNotNull(dorisExecutionOptions);
