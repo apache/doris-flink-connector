@@ -56,10 +56,13 @@ public class LabelGenerator {
         String label = String.format("%s_%s_%s_%s", labelPrefix, tableIdentifier, subtaskId, chkId);
         if (enable2PC) {
             return label;
-        } else if (LABEL_PATTERN.matcher(label).matches()) {
-            return label + "_" + UUID.randomUUID();
         } else {
-            return String.format("%s_%s_%s_%s", labelPrefix, subtaskId, chkId, UUID.randomUUID());
+            label = label + "_" + UUID.randomUUID();
+            if (LABEL_PATTERN.matcher(label).matches()) {
+                return label;
+            } else {
+                return labelPrefix + "_" + subtaskId + "_" + chkId + "_" + UUID.randomUUID();
+            }
         }
     }
 
