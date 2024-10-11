@@ -101,47 +101,89 @@ public class DorisOptions extends DorisConnectionOptions {
         private boolean autoRedirect = true;
         private String tableIdentifier;
 
-        /** required, tableIdentifier. */
+        /**
+         * Sets the tableIdentifier for the DorisOptions.
+         *
+         * @param tableIdentifier Doris's database name and table name, such as db.tbl
+         * @return this DorisOptions.builder.
+         */
         public Builder setTableIdentifier(String tableIdentifier) {
             this.tableIdentifier = tableIdentifier;
             return this;
         }
 
-        /** optional, user name. */
+        /**
+         * Sets the username of doris cluster.
+         *
+         * @param username Doris cluster username
+         * @return this DorisOptions.builder.
+         */
         public Builder setUsername(String username) {
             this.username = username;
             return this;
         }
 
-        /** optional, password. */
+        /**
+         * Sets the password of doris cluster.
+         *
+         * @param password Doris cluster password
+         * @return this DorisOptions.builder.
+         */
         public Builder setPassword(String password) {
             this.password = password;
             return this;
         }
 
-        /** required, Frontend Http Rest url. */
+        /**
+         * Sets the doris frontend http rest url, such as 127.0.0.1:8030,127.0.0.2:8030
+         *
+         * @param fenodes
+         * @return this DorisOptions.builder.
+         */
         public Builder setFenodes(String fenodes) {
             this.fenodes = fenodes;
             return this;
         }
 
-        /** optional, Backend Http Port. */
+        /**
+         * Sets the doris backend http rest url, such as 127.0.0.1:8040,127.0.0.2:8040
+         *
+         * @param benodes
+         * @return this DorisOptions.builder.
+         */
         public Builder setBenodes(String benodes) {
             this.benodes = benodes;
             return this;
         }
 
-        /** not required, fe jdbc url, for lookup query. */
+        /**
+         * Sets the doris fe jdbc url for lookup query, such as jdbc:mysql://127.0.0.1:9030
+         *
+         * @param jdbcUrl
+         * @return this DorisOptions.builder.
+         */
         public Builder setJdbcUrl(String jdbcUrl) {
             this.jdbcUrl = jdbcUrl;
             return this;
         }
 
+        /**
+         * Sets the autoRedirect for DorisOptions. If true, stream load will be written directly to
+         * fe. If false, it will first get the be list and write directly to be.
+         *
+         * @param autoRedirect
+         * @return this DorisOptions.builder.
+         */
         public Builder setAutoRedirect(boolean autoRedirect) {
             this.autoRedirect = autoRedirect;
             return this;
         }
 
+        /**
+         * Build the {@link DorisOptions}.
+         *
+         * @return a DorisOptions with the settings made for this builder.
+         */
         public DorisOptions build() {
             checkNotNull(fenodes, "No fenodes supplied.");
             // multi table load, don't need check

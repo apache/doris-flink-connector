@@ -223,76 +223,169 @@ public class DorisReadOptions implements Serializable {
         private Boolean useFlightSql = false;
         private Integer flightSqlPort;
 
+        /**
+         * Sets the readFields for doris table to push down projection, such as name,age.
+         *
+         * @param readFields
+         * @return this DorisReadOptions.builder.
+         */
         public Builder setReadFields(String readFields) {
             this.readFields = readFields;
             return this;
         }
 
+        /**
+         * Sets the filterQuery for doris table to push down filter, such as name,age.
+         *
+         * @param filterQuery
+         * @return this DorisReadOptions.builder.
+         */
         public Builder setFilterQuery(String filterQuery) {
             this.filterQuery = filterQuery;
             return this;
         }
 
+        /**
+         * Sets the requestTabletSize for DorisReadOptions. The number of Doris Tablets
+         * corresponding to a Partition, the smaller this value is set, the more Partitions will be
+         * generated. This improves the parallelism on the Flink side, but at the same time puts
+         * more pressure on Doris.
+         *
+         * @param requestTabletSize
+         * @return this DorisReadOptions.builder.
+         */
         public Builder setRequestTabletSize(Integer requestTabletSize) {
             this.requestTabletSize = requestTabletSize;
             return this;
         }
 
+        /**
+         * Sets the request connect timeout for DorisReadOptions.
+         *
+         * @param requestConnectTimeoutMs
+         * @return this DorisReadOptions.builder.
+         */
         public Builder setRequestConnectTimeoutMs(Integer requestConnectTimeoutMs) {
             this.requestConnectTimeoutMs = requestConnectTimeoutMs;
             return this;
         }
 
+        /**
+         * Sets the request read timeout for DorisReadOptions.
+         *
+         * @param requestReadTimeoutMs
+         * @return this DorisReadOptions.builder.
+         */
         public Builder setRequestReadTimeoutMs(Integer requestReadTimeoutMs) {
             this.requestReadTimeoutMs = requestReadTimeoutMs;
             return this;
         }
 
+        /**
+         * Sets the timeout time for querying Doris for DorisReadOptions.
+         *
+         * @param requesQueryTimeoutS
+         * @return this DorisReadOptions.builder.
+         */
         public Builder setRequestQueryTimeoutS(Integer requesQueryTimeoutS) {
             this.requestQueryTimeoutS = requesQueryTimeoutS;
             return this;
         }
 
+        /**
+         * Sets the number of retries to send requests to Doris for DorisReadOptions.
+         *
+         * @param requestRetries
+         * @return this DorisReadOptions.builder.
+         */
         public Builder setRequestRetries(Integer requestRetries) {
             this.requestRetries = requestRetries;
             return this;
         }
 
+        /**
+         * Sets the read batch size for DorisReadOptions.
+         *
+         * @param requestBatchSize
+         * @return this DorisReadOptions.builder.
+         */
         public Builder setRequestBatchSize(Integer requestBatchSize) {
             this.requestBatchSize = requestBatchSize;
             return this;
         }
 
+        /**
+         * Sets the Memory limit for a single query for DorisReadOptions.
+         *
+         * @param execMemLimit
+         * @return this DorisReadOptions.builder.
+         */
         public Builder setExecMemLimit(Long execMemLimit) {
             this.execMemLimit = execMemLimit;
             return this;
         }
 
+        /**
+         * Sets the Asynchronous conversion of internal processing queue in Arrow format
+         *
+         * @param deserializeQueueSize
+         * @return this DorisReadOptions.builder.
+         */
         public Builder setDeserializeQueueSize(Integer deserializeQueueSize) {
             this.deserializeQueueSize = deserializeQueueSize;
             return this;
         }
 
+        /**
+         * Sets Whether to support asynchronous conversion of Arrow format to RowBatch needed for
+         * connector iterations.
+         *
+         * @param deserializeArrowAsync
+         * @return this DorisReadOptions.builder.
+         */
         public Builder setDeserializeArrowAsync(Boolean deserializeArrowAsync) {
             this.deserializeArrowAsync = deserializeArrowAsync;
             return this;
         }
 
-        public Builder setUseFlightSql(Boolean useFlightSql) {
-            this.useFlightSql = useFlightSql;
-            return this;
-        }
-
+        /**
+         * Whether to use the legacy source api
+         *
+         * @param useOldApi
+         * @return this DorisReadOptions.builder.
+         */
         public Builder setUseOldApi(Boolean useOldApi) {
             this.useOldApi = useOldApi;
             return this;
         }
 
+        /**
+         * Whether to use arrow flight sql for query, only supports Doris2.1 and above
+         *
+         * @param useFlightSql
+         * @return this DorisReadOptions.builder.
+         */
+        public Builder setUseFlightSql(Boolean useFlightSql) {
+            this.useFlightSql = useFlightSql;
+            return this;
+        }
+
+        /**
+         * Sets the flight sql port for DorisReadOptions.
+         *
+         * @param flightSqlPort
+         * @return this DorisReadOptions.builder.
+         */
         public Builder setFlightSqlPort(Integer flightSqlPort) {
             this.flightSqlPort = flightSqlPort;
             return this;
         }
 
+        /**
+         * Build the {@link DorisReadOptions}.
+         *
+         * @return a DorisReadOptions with the settings made for this builder.
+         */
         public DorisReadOptions build() {
             return new DorisReadOptions(
                     readFields,

@@ -168,21 +168,40 @@ public class DorisSource<OUT>
             boundedness = Boundedness.BOUNDED;
         }
 
+        /**
+         * Sets the DorisOptions for the DorisSource.
+         *
+         * @param options the common options of the doris cluster.
+         * @return this DorisSourceBuilder.
+         */
         public DorisSourceBuilder<OUT> setDorisOptions(DorisOptions options) {
             this.options = options;
             return this;
         }
 
+        /**
+         * Sets the DorisReadOptions for the DorisSource.
+         *
+         * @param readOptions the read options of the DorisSource.
+         * @return this DorisSourceBuilder.
+         */
         public DorisSourceBuilder<OUT> setDorisReadOptions(DorisReadOptions readOptions) {
             this.readOptions = readOptions;
             return this;
         }
 
+        /** Sets the Boundedness for the DorisSource, Currently only BOUNDED is supported. */
         public DorisSourceBuilder<OUT> setBoundedness(Boundedness boundedness) {
             this.boundedness = boundedness;
             return this;
         }
 
+        /**
+         * Sets the {@link DorisDeserializationSchema deserializer} of the Record for DorisSource.
+         *
+         * @param deserializer the deserializer for Doris Record.
+         * @return this DorisSourceBuilder.
+         */
         public DorisSourceBuilder<OUT> setDeserializer(
                 DorisDeserializationSchema<OUT> deserializer) {
             this.deserializer = deserializer;
@@ -194,6 +213,11 @@ public class DorisSource<OUT>
             return this;
         }
 
+        /**
+         * Build the {@link DorisSource}.
+         *
+         * @return a DorisSource with the settings made for this builder.
+         */
         public DorisSource<OUT> build() {
             if (readOptions == null) {
                 readOptions = DorisReadOptions.builder().build();
