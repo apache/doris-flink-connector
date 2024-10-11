@@ -91,8 +91,8 @@ public class RestService implements Serializable {
     private static final String BACKENDS_V2 = "/api/backends?is_alive=true";
     private static final String FE_LOGIN = "/rest/v1/login";
     private static final ObjectMapper objectMapper = new ObjectMapper();
-    private static final String TABLE_SCHEMA_API = "http://%s/api/%s/%s/_schema";
-    private static final String QUERY_PLAN_API = "http://%s/api/%s/%s/_query_plan";
+    private static final String TABLE_SCHEMA_API = "%s/api/%s/%s/_schema";
+    private static final String QUERY_PLAN_API = "%s/api/%s/%s/_query_plan";
 
     /**
      * send request to Doris FE and get response json string.
@@ -131,6 +131,7 @@ public class RestService implements Serializable {
                 RequestConfig.custom()
                         .setConnectTimeout(connectTimeout)
                         .setSocketTimeout(socketTimeout)
+                        .setRedirectsEnabled(true)
                         .build();
 
         request.setConfig(requestConfig);
@@ -310,6 +311,9 @@ public class RestService implements Serializable {
         Collections.shuffle(nodes);
         for (String feNode : nodes) {
             String host = feNode.trim();
+            if (!host.startsWith("http://") && !host.startsWith("https://")) {
+                host = "http://" + host;
+            }
             if (BackendUtil.tryHttpConnection(host)) {
                 return host;
             }
@@ -359,7 +363,10 @@ public class RestService implements Serializable {
 
         for (String feNode : feNodeList) {
             try {
-                String beUrl = "http://" + feNode + BACKENDS_V2;
+                if (!feNode.startsWith("http://") && !feNode.startsWith("https://")) {
+                    feNode = "http://" + feNode;
+                }
+                String beUrl = feNode + BACKENDS_V2;
                 HttpGet httpGet = new HttpGet(beUrl);
                 String response = send(options, readOptions, httpGet, logger);
                 logger.info("Backend Info:{}", response);
@@ -387,8 +394,7 @@ public class RestService implements Serializable {
     private static List<BackendRowV2> convert(List<String> feNodeList) {
         List<BackendRowV2> nodeList = new ArrayList<>();
         for (String node : feNodeList) {
-            String[] split = node.split(":");
-            nodeList.add(BackendRowV2.of(split[0], Integer.valueOf(split[1]), true));
+            nodeList.add(BackendRowV2.ofUrl(node, true));
         }
         return nodeList;
     }

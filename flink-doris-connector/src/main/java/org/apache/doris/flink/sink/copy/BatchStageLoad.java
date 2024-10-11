@@ -67,7 +67,7 @@ public class BatchStageLoad implements Serializable {
     private static final Logger LOG = LoggerFactory.getLogger(BatchStageLoad.class);
     private final LabelGenerator labelGenerator;
     private final byte[] lineDelimiter;
-    private static final String UPLOAD_URL_PATTERN = "http://%s/copy/upload";
+    private static final String UPLOAD_URL_PATTERN = "%s/copy/upload";
     private static final String LINE_DELIMITER_KEY_WITH_PRETIX = "file.line_delimiter";
     private String uploadUrl;
     private String hostPort;
@@ -96,7 +96,9 @@ public class BatchStageLoad implements Serializable {
         this.password = dorisOptions.getPassword();
         this.loadProps = executionOptions.getStreamLoadProp();
         this.labelGenerator = labelGenerator;
-        this.hostPort = dorisOptions.getFenodes();
+        this.hostPort =
+                (dorisOptions.getFenodes().startsWith("http") ? "" : "http://")
+                        + dorisOptions.getFenodes();
         this.uploadUrl = String.format(UPLOAD_URL_PATTERN, hostPort);
         this.fileNum = new AtomicInteger();
         this.lineDelimiter =

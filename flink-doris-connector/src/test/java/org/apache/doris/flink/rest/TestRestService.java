@@ -122,12 +122,12 @@ public class TestRestService {
 
     @Test
     public void testChoiceFe() throws Exception {
-        String validFes = "1,2,3";
+        String validFes = "1,http://2,https://3";
         String fe = RestService.randomEndpoint(validFes, logger);
         List<String> feNodes = new ArrayList<>(3);
-        feNodes.add("1");
-        feNodes.add("2");
-        feNodes.add("3");
+        feNodes.add("http://1");
+        feNodes.add("http://2");
+        feNodes.add("https://3");
         Assert.assertTrue(feNodes.contains(fe));
 
         String emptyFes = "";
@@ -416,7 +416,7 @@ public class TestRestService {
     public void testGetBackendsV2() {
         DorisOptions options =
                 DorisOptions.builder()
-                        .setFenodes("127.0.0.1:1,127.0.0.1:2")
+                        .setFenodes("https://127.0.0.1:1,http://127.0.0.1:2,127.0.0.1:3")
                         .setAutoRedirect(false)
                         .build();
         DorisReadOptions readOptions = DorisReadOptions.defaults();

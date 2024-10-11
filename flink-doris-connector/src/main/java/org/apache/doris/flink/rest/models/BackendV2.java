@@ -52,6 +52,9 @@ public class BackendV2 {
         }
 
         public void setIp(String ip) {
+            if (!ip.startsWith("http://") && !ip.startsWith("https://")) {
+                ip = "http://" + ip;
+            }
             this.ip = ip;
         }
 
@@ -81,6 +84,14 @@ public class BackendV2 {
             rowV2.setHttpPort(httpPort);
             rowV2.setAlive(alive);
             return rowV2;
+        }
+
+        public static BackendRowV2 ofUrl(String url, boolean alive) {
+            int lastColon = url.lastIndexOf(":");
+            return BackendRowV2.of(
+                    url.substring(0, lastColon),
+                    Integer.valueOf(url.substring(lastColon + 1)),
+                    alive);
         }
     }
 }
