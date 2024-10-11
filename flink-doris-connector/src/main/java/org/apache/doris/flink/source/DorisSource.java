@@ -27,7 +27,6 @@ import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
-import org.apache.flink.util.StringUtils;
 
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
@@ -65,18 +64,14 @@ public class DorisSource<OUT>
     private final Boundedness boundedness;
     private final DorisDeserializationSchema<OUT> deserializer;
 
-    private final List<String> resolvedFilterQuery;
-
     public DorisSource(
             DorisOptions options,
             DorisReadOptions readOptions,
             Boundedness boundedness,
-            List<String> resolvedFilterQuery,
             DorisDeserializationSchema<OUT> deserializer) {
         this.options = options;
         this.readOptions = readOptions;
         this.boundedness = boundedness;
-        this.resolvedFilterQuery = resolvedFilterQuery;
         this.deserializer = deserializer;
     }
 
@@ -100,15 +95,6 @@ public class DorisSource<OUT>
     public SplitEnumerator<DorisSourceSplit, PendingSplitsCheckpoint> createEnumerator(
             SplitEnumeratorContext<DorisSourceSplit> context) throws Exception {
         List<DorisSourceSplit> dorisSourceSplits = new ArrayList<>();
-        if (!resolvedFilterQuery.isEmpty()) {
-            String filterQuery = String.join(" AND ", resolvedFilterQuery);
-            if (StringUtils.isNullOrWhitespaceOnly(readOptions.getFilterQuery())) {
-                readOptions.setFilterQuery(filterQuery);
-            } else {
-                readOptions.setFilterQuery(
-                        String.join(" AND ", readOptions.getFilterQuery(), filterQuery));
-            }
-        }
         List<PartitionDefinition> partitions =
                 RestService.findPartitions(options, readOptions, LOG);
         for (int index = 0; index < partitions.size(); index++) {
@@ -162,7 +148,6 @@ public class DorisSource<OUT>
         // Boundedness
         private Boundedness boundedness;
         private DorisDeserializationSchema<OUT> deserializer;
-        private List<String> resolvedFilterQuery = new ArrayList<>();
 
         DorisSourceBuilder() {
             boundedness = Boundedness.BOUNDED;
@@ -189,17 +174,11 @@ public class DorisSource<OUT>
             return this;
         }
 
-        public DorisSourceBuilder<OUT> setResolvedFilterQuery(List<String> resolvedFilterQuery) {
-            this.resolvedFilterQuery = resolvedFilterQuery;
-            return this;
-        }
-
         public DorisSource<OUT> build() {
             if (readOptions == null) {
                 readOptions = DorisReadOptions.builder().build();
             }
-            return new DorisSource<>(
-                    options, readOptions, boundedness, resolvedFilterQuery, deserializer);
+            return new DorisSource<>(options, readOptions, boundedness, deserializer);
         }
     }
 }
