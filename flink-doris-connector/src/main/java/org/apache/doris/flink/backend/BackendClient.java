@@ -134,7 +134,11 @@ public class BackendClient {
      * @throws ConnectedFailedException throw if cannot connect to Doris BE
      */
     public TScanOpenResult openScanner(TScanOpenParams openParams) {
-        logger.debug("OpenScanner to '{}', parameter is '{}'.", routing, openParams);
+        logger.info(
+                "OpenScanner to '{}', table is '{}', tablets is '{}'",
+                routing,
+                openParams.table,
+                openParams.tablet_ids);
         if (!isConnected) {
             open();
         }
@@ -161,7 +165,10 @@ public class BackendClient {
                 ex = e;
             }
         }
-        logger.error(ErrorMessages.CONNECT_FAILED_MESSAGE, routing);
+        logger.error(
+                "Connect to doris {} failed, to open scanner for tablet {}",
+                routing,
+                openParams.tablet_ids);
         throw new ConnectedFailedException(routing.toString(), ex);
     }
 
