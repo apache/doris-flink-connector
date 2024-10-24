@@ -45,9 +45,9 @@ public class SimpleSplitAssigner implements DorisSplitAssigner {
     }
 
     @Override
-    public void addSplits(Collection<DorisSourceSplit> splits) {
-        LOG.info("Adding splits: {}", splits);
-        splits.addAll(splits);
+    public void addSplits(Collection<DorisSourceSplit> newSplits) {
+        LOG.info("Adding splits: {}", newSplits);
+        splits.addAll(newSplits);
     }
 
     @Override

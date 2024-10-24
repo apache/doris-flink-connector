@@ -39,4 +39,15 @@ public class DorisTableInputSplit implements InputSplit, java.io.Serializable {
     public int getSplitNumber() {
         return splitNumber;
     }
+
+    @Override
+    public String toString() {
+        return String.format(
+                "DorisTableInputSplit: %s.%s,id=%s,be=%s,tablets=%s",
+                partition.getDatabase(),
+                partition.getTable(),
+                splitNumber,
+                partition.getBeAddress(),
+                partition.getTabletIds());
+    }
 }

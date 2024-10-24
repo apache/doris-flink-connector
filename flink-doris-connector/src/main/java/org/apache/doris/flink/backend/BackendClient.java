@@ -134,19 +134,16 @@ public class BackendClient {
      * @throws ConnectedFailedException throw if cannot connect to Doris BE
      */
     public TScanOpenResult openScanner(TScanOpenParams openParams) {
-        logger.info(
-                "OpenScanner to '{}', table is '{}', tablets is '{}'",
-                routing,
-                openParams.table,
-                openParams.tablet_ids);
+        logger.debug("OpenScanner to '{}', parameter is '{}'.", routing, openParams);
         if (!isConnected) {
             open();
         }
         TException ex = null;
+        TScanOpenResult result = null;
         for (int attempt = 0; attempt < retries; ++attempt) {
             logger.debug("Attempt {} to openScanner {}.", attempt, routing);
             try {
-                TScanOpenResult result = client.openScanner(openParams);
+                result = client.openScanner(openParams);
                 if (result == null) {
                     logger.warn("Open scanner result from {} is null.", routing);
                     continue;
@@ -159,16 +156,29 @@ public class BackendClient {
                             result.getStatus().getErrorMsgs());
                     continue;
                 }
+                logger.info(
+                        "OpenScanner success for Doris BE '{}' with contextId '{}' for tablets '{}'.",
+                        routing,
+                        result.getContextId(),
+                        openParams.tablet_ids);
                 return result;
             } catch (TException e) {
                 logger.warn("Open scanner from {} failed.", routing, e);
                 ex = e;
             }
         }
-        logger.error(
-                "Connect to doris {} failed, to open scanner for tablet {}",
-                routing,
-                openParams.tablet_ids);
+        if (result != null && (TStatusCode.OK != (result.getStatus().getStatusCode()))) {
+            logger.error(
+                    ErrorMessages.DORIS_INTERNAL_FAIL_MESSAGE,
+                    routing,
+                    result.getStatus().getStatusCode(),
+                    result.getStatus().getErrorMsgs());
+            throw new DorisInternalException(
+                    routing.toString(),
+                    result.getStatus().getStatusCode(),
+                    result.getStatus().getErrorMsgs());
+        }
+        logger.error(ErrorMessages.CONNECT_FAILED_MESSAGE, routing);
         throw new ConnectedFailedException(routing.toString(), ex);
     }
 
@@ -251,7 +261,10 @@ public class BackendClient {
                 logger.warn("Close scanner from {} failed.", routing, e);
             }
         }
-        logger.info("CloseScanner to Doris BE '{}' success.", routing);
+        logger.info(
+                "CloseScanner to Doris BE '{}' success for contextId {} ",
+                routing,
+                closeParams.getContextId());
         close();
     }
 }
