@@ -34,7 +34,7 @@ public abstract class ValueReader {
             DorisReadOptions readOptions,
             Logger logger)
             throws DorisException {
-        logger.info("create reader for partition: {}", partition);
+        logger.info("create reader for partition: {}", partition.toStringWithoutPlan());
         if (readOptions.getUseFlightSql()) {
             return new DorisFlightValueReader(
                     partition,

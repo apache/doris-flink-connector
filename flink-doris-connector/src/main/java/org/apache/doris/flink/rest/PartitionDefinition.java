@@ -144,4 +144,20 @@ public class PartitionDefinition implements Serializable, Comparable<PartitionDe
                 + '\''
                 + '}';
     }
+
+    public String toStringWithoutPlan() {
+        return "PartitionDefinition{"
+                + "database='"
+                + database
+                + '\''
+                + ", table='"
+                + table
+                + '\''
+                + ", beAddress='"
+                + beAddress
+                + '\''
+                + ", tabletIds="
+                + tabletIds
+                + '}';
+    }
 }

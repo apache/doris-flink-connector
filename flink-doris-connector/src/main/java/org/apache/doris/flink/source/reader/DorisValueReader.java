@@ -182,6 +182,11 @@ public class DorisValueReader extends ValueReader implements AutoCloseable {
                                         } catch (InterruptedException e) {
                                             throw new DorisRuntimeException(e);
                                         }
+                                    } else {
+                                        LOG.info(
+                                                "Async scan finished , tablets: {}, offset: {}",
+                                                partition.getTabletIds(),
+                                                offset);
                                     }
                                 }
                             } finally {
@@ -245,6 +250,11 @@ public class DorisValueReader extends ValueReader implements AutoCloseable {
                     eos.set(nextResult.isEos());
                     if (!eos.get()) {
                         rowBatch = new RowBatch(nextResult, schema).readArrow();
+                    } else {
+                        LOG.info(
+                                "Scan finished, tablets: {}, offset: {}",
+                                partition.getTabletIds(),
+                                offset);
                     }
                 }
                 hasNext = !eos.get();
