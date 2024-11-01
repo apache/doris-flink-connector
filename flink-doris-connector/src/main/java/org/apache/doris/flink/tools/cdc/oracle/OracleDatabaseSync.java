@@ -164,11 +164,16 @@ public class OracleDatabaseSync extends DatabaseSync {
         Preconditions.checkNotNull(databaseName, "database-name in oracle is required");
         Preconditions.checkNotNull(schemaName, "schema-name in oracle is required");
         String tableName = config.get(OracleSourceOptions.TABLE_NAME);
-        // When debezium incrementally reads, it will be judged based on regexp_like.
-        // When the regular length exceeds 512, an error will be reported,
-        // like ORA-12733: regular expression too long
-        if (tableName.length() > 512) {
-            tableName = StringUtils.isNullOrWhitespaceOnly(includingTables) ? ".*" : tableName;
+        // When debezium incrementally reads (refer LogMinerQueryBuilder.listOfPatternsToSql),
+        // it will be judged based on regexp_like. When the regular length exceeds 512, an error
+        // will be reported, like ORA-12733: regular expression too long
+        if (tableName.length() > 450) {
+            // REGEXP_LIKE('^SCHEMA.(TBL1|TBL2)$')
+            if (StringUtils.isNullOrWhitespaceOnly(excludingTables)
+                    && (StringUtils.isNullOrWhitespaceOnly(includingTables)
+                            || ".*".equals(includingTables))) {
+                tableName = ".*";
+            }
         }
 
         String url = config.get(OracleSourceOptions.URL);
