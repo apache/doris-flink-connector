@@ -198,6 +198,7 @@ public class DorisBatchStreamLoad implements Serializable {
             lock.lock();
             try {
                 while (currentCacheBytes.get() >= maxBlockedBytes) {
+                    checkFlushException();
                     LOG.info(
                             "Cache full, waiting for flush, currentBytes: {}, maxBlockedBytes: {}",
                             currentCacheBytes.get(),
@@ -486,11 +487,22 @@ public class DorisBatchStreamLoad implements Serializable {
                                 putBuilder.setLabel(label + "_" + retry);
                                 reason = respContent.getMessage();
                             } else {
-                                String errMsg =
-                                        String.format(
-                                                "stream load error: %s, see more in %s",
-                                                respContent.getMessage(),
-                                                respContent.getErrorURL());
+                                String errMsg = null;
+                                if (StringUtils.isBlank(respContent.getMessage())
+                                        && StringUtils.isBlank(respContent.getErrorURL())) {
+                                    // sometimes stream load will not return message
+                                    errMsg =
+                                            String.format(
+                                                    "stream load error, response is %s",
+                                                    loadResult);
+                                    throw new DorisBatchLoadException(errMsg);
+                                } else {
+                                    errMsg =
+                                            String.format(
+                                                    "stream load error: %s, see more in %s",
+                                                    respContent.getMessage(),
+                                                    respContent.getErrorURL());
+                                }
                                 throw new DorisBatchLoadException(errMsg);
                             }
                         }
