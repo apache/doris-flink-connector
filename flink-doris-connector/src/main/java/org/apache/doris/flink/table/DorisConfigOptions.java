@@ -150,7 +150,7 @@ public class DorisConfigOptions {
             ConfigOptions.key("doris.exec.mem.limit")
                     .memoryType()
                     .defaultValue(MemorySize.parse(DORIS_EXEC_MEM_LIMIT_DEFAULT_STR))
-                    .withDescription("Memory limit for a single query. The default is 2048mb.");
+                    .withDescription("Memory limit for a single query. The default is 8192mb.");
     public static final ConfigOption<Boolean> SOURCE_USE_OLD_API =
             ConfigOptions.key("source.use-old-api")
                     .booleanType()
