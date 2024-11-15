@@ -254,6 +254,10 @@ public class DorisBatchStreamLoad implements Serializable {
     }
 
     private synchronized boolean flush(String bufferKey, boolean waitUtilDone) {
+        if (bufferMap.isEmpty()) {
+            // bufferMap may have been flushed by other threads
+            return false;
+        }
         if (null == bufferKey) {
             boolean flush = false;
             for (String key : bufferMap.keySet()) {
@@ -270,7 +274,7 @@ public class DorisBatchStreamLoad implements Serializable {
         } else if (bufferMap.containsKey(bufferKey)) {
             flushBuffer(bufferKey);
         } else {
-            throw new DorisBatchLoadException("buffer not found for key: " + bufferKey);
+            LOG.warn("buffer not found for key: {}, may be already flushed.", bufferKey);
         }
         if (waitUtilDone) {
             waitAsyncLoadFinish();
@@ -281,6 +285,7 @@ public class DorisBatchStreamLoad implements Serializable {
     private synchronized void flushBuffer(String bufferKey) {
         BatchRecordBuffer buffer = bufferMap.get(bufferKey);
         buffer.setLabelName(labelGenerator.generateBatchLabel(buffer.getTable()));
+        LOG.debug("flush buffer for key {} with label {}", bufferKey, buffer.getLabelName());
         putRecordToFlushQueue(buffer);
         bufferMap.remove(bufferKey);
     }
