@@ -2,18 +2,27 @@ package org.apache.doris.flink.lookup;
 
 import org.apache.doris.flink.container.AbstractITCaseService;
 import org.apache.doris.flink.container.ContainerUtils;
-import org.apache.doris.flink.source.DorisSourceITCase;
 import org.apache.doris.flink.table.DorisConfigOptions;
-import org.apache.flink.api.common.RuntimeExecutionMode;
+import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+import org.apache.flink.types.Row;
+import org.apache.flink.util.CloseableIterator;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
 public class DorisLookupTableITCase extends AbstractITCaseService {
 
-    private static final Logger LOG = LoggerFactory.getLogger(DorisSourceITCase.class);
+    private static final Logger LOG = LoggerFactory.getLogger(DorisLookupTableITCase.class);
     private static final String DATABASE = "test_lookup";
     private static final String TABLE_READ_TBL = "tbl_read_tbl";
 
@@ -22,19 +31,15 @@ public class DorisLookupTableITCase extends AbstractITCaseService {
         initializeTable(TABLE_READ_TBL);
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
-        env.setRuntimeMode(RuntimeExecutionMode.STREAMING);
+        DataStreamSource<Integer> sourceStream = env.<Integer>fromElements(1, 2, 3, 4);
         final StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
-        String datagenDDL = "CREATE TABLE datagen (" +
-                " `id` INT," +
-                " `proctime` AS PROCTIME()" +
-                ") WITH (" +
-                " 'connector' = 'datagen'," +
-                " 'rows-per-second' = '1'," +
-                " 'fields.id.kind' = 'random'," +
-                " 'fields.id.min' = '1'," +
-                " 'fields.id.max' = '10'" +
-                ")";
-        tEnv.executeSql(datagenDDL);
+        Schema schema = Schema.newBuilder()
+                .column("f0", DataTypes.INT())
+                .columnByExpression("proctime", "PROCTIME()")
+                .build();
+        Table table = tEnv.fromDataStream(sourceStream, schema);
+        tEnv.createTemporaryView("source", table);
+
         String lookupDDL = String.format("CREATE TABLE `doris_lookup`(" +
                         "  `id` INTEGER," +
                         "  `tinyintColumn` TINYINT," +
@@ -56,13 +61,22 @@ public class DorisLookupTableITCase extends AbstractITCaseService {
                 getDorisUsername(),
                 getDorisPassword());
         tEnv.executeSql(lookupDDL);
-        tEnv.executeSql("select datagen.id," +
+        TableResult tableResult = tEnv.executeSql("select source.f0," +
                 "tinyintColumn," +
                 "smallintColumn," +
                 "bigintColumn" +
-                " from `datagen`" +
-                " inner join `doris_lookup` FOR SYSTEM_TIME AS OF datagen.proctime on datagen.id = doris_lookup.id").print();
-        env.execute("Flink doris lookup test");
+                " from `source`" +
+                " inner join `doris_lookup` FOR SYSTEM_TIME AS OF source.proctime on source.f0 = doris_lookup.id");
+
+        List<String> actual = new ArrayList<>();
+        try (CloseableIterator<Row> iterator = tableResult.collect()) {
+            while (iterator.hasNext()) {
+                actual.add(iterator.next().toString());
+            }
+        }
+
+        String[] expected = new String[]{"+I[1, 97, 27479, 8670353564751764000]", "+I[2, 79, 17119, -4381380624467725000]", "+I[3, -106, -14878, 1466614815449373200]"};
+        assertEqualsInAnyOrder(Arrays.asList(expected), Arrays.asList(actual.toArray()));
     }
 
     private void initializeTable(String table) {
