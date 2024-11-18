@@ -28,10 +28,10 @@ public class DorisLookupTableITCase extends AbstractITCaseService {
 
     @Test
     public void testLookupTable() throws Exception {
-        initializeTable(TABLE_READ_TBL);
+        initializeTable();
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
-        DataStreamSource<Integer> sourceStream = env.<Integer>fromElements(1, 2, 3, 4);
+        DataStreamSource<Integer> sourceStream = env.fromElements(1, 2, 3, 4);
         final StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
         Schema schema =
                 Schema.newBuilder()
@@ -91,12 +91,14 @@ public class DorisLookupTableITCase extends AbstractITCaseService {
         assertEqualsInAnyOrder(Arrays.asList(expected), Arrays.asList(actual.toArray()));
     }
 
-    private void initializeTable(String table) {
+    private void initializeTable() {
         ContainerUtils.executeSQLStatement(
                 getDorisQueryConnection(),
                 LOG,
                 String.format("CREATE DATABASE IF NOT EXISTS %s", DATABASE),
-                String.format("DROP TABLE IF EXISTS %s.%s", DATABASE, table),
+                String.format(
+                        "DROP TABLE IF EXISTS %s.%s",
+                        DATABASE, DorisLookupTableITCase.TABLE_READ_TBL),
                 String.format(
                         "CREATE TABLE %s.%s ( \n"
                                 + "`id` int(11),\n"
@@ -107,15 +109,15 @@ public class DorisLookupTableITCase extends AbstractITCaseService {
                                 + "PROPERTIES (\n"
                                 + "\"replication_num\" = \"1\"\n"
                                 + ")\n",
-                        DATABASE, table),
+                        DATABASE, DorisLookupTableITCase.TABLE_READ_TBL),
                 String.format(
                         "insert into %s.%s  values (1,97,27479,8670353564751764000)",
-                        DATABASE, table),
+                        DATABASE, DorisLookupTableITCase.TABLE_READ_TBL),
                 String.format(
                         "insert into %s.%s  values (2,79,17119,-4381380624467725000)",
-                        DATABASE, table),
+                        DATABASE, DorisLookupTableITCase.TABLE_READ_TBL),
                 String.format(
                         "insert into %s.%s  values (3,-106,-14878,1466614815449373200)",
-                        DATABASE, table));
+                        DATABASE, DorisLookupTableITCase.TABLE_READ_TBL));
     }
 }

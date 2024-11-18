@@ -17,14 +17,13 @@
 
 package org.apache.doris.flink.lookup;
 
-import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.table.types.DataType;
-
 import org.apache.doris.flink.cfg.DorisLookupOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.connection.JdbcConnectionProvider;
 import org.apache.doris.flink.connection.SimpleJdbcConnectionProvider;
 import org.apache.doris.flink.exception.DorisRuntimeException;
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.table.types.DataType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
