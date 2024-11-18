@@ -40,6 +40,49 @@ import java.util.Properties;
 public class DorisSinkExample {
 
     public static void main(String[] args) throws Exception {
+        JSONFormatWrite();
+    }
+
+    public static void JSONFormatWrite() throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(1);
+        env.enableCheckpointing(30000);
+        DorisSink.Builder<String> builder = DorisSink.builder();
+
+        DorisOptions dorisOptions =
+                DorisOptions.builder()
+                        .setFenodes("127.0.0.1:8030")
+                        .setTableIdentifier("test.student")
+                        .setUsername("root")
+                        .setPassword("")
+                        .build();
+
+        Properties properties = new Properties();
+        properties.setProperty("read_json_by_line", "true");
+        properties.setProperty("format", "json");
+
+        DorisExecutionOptions executionOptions =
+                DorisExecutionOptions.builder()
+                        .setLabelPrefix("label-doris")
+                        .setDeletable(false)
+                        .setBatchMode(true)
+                        .setStreamLoadProp(properties)
+                        .build();
+
+        builder.setDorisReadOptions(DorisReadOptions.builder().build())
+                .setDorisExecutionOptions(executionOptions)
+                .setSerializer(new SimpleStringSerializer())
+                .setDorisOptions(dorisOptions);
+
+        List<String> data = new ArrayList<>();
+        data.add("{\"id\":3,\"name\":\"Michael\",\"age\":28}");
+        data.add("{\"id\":4,\"name\":\"David\",\"age\":38}");
+
+        env.fromCollection(data).sinkTo(builder.build());
+        env.execute("doris test");
+    }
+
+    public static void CSVFormatWrite() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
@@ -49,24 +92,13 @@ public class DorisSinkExample {
                         CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
         env.setRestartStrategy(RestartStrategies.fixedDelayRestart(5, Time.milliseconds(30000)));
         DorisSink.Builder<String> builder = DorisSink.builder();
-        final DorisReadOptions.Builder readOptionBuilder = DorisReadOptions.builder();
-        readOptionBuilder
-                .setDeserializeArrowAsync(false)
-                .setDeserializeQueueSize(64)
-                .setExecMemLimit(2147483648L)
-                .setRequestQueryTimeoutS(3600)
-                .setRequestBatchSize(1000)
-                .setRequestConnectTimeoutMs(10000)
-                .setRequestReadTimeoutMs(10000)
-                .setRequestRetries(3)
-                .setRequestTabletSize(1024 * 1024);
         Properties properties = new Properties();
         properties.setProperty("column_separator", ",");
         properties.setProperty("line_delimiter", "\n");
         properties.setProperty("format", "csv");
         DorisOptions.Builder dorisBuilder = DorisOptions.builder();
         dorisBuilder
-                .setFenodes("127.0.0.1:8040")
+                .setFenodes("127.0.0.1:8030")
                 .setTableIdentifier("db.table")
                 .setUsername("test")
                 .setPassword("test");
@@ -77,7 +109,7 @@ public class DorisSinkExample {
                 .setBufferSize(8 * 1024)
                 .setBufferCount(3);
 
-        builder.setDorisReadOptions(readOptionBuilder.build())
+        builder.setDorisReadOptions(DorisReadOptions.builder().build())
                 .setDorisExecutionOptions(executionBuilder.build())
                 .setSerializer(new SimpleStringSerializer())
                 .setDorisOptions(dorisBuilder.build());
