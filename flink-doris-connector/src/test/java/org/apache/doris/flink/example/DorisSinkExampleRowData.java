@@ -17,13 +17,8 @@
 
 package org.apache.doris.flink.example;
 
-import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.functions.FlatMapFunction;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.common.time.Time;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.GenericRowData;
@@ -45,40 +40,37 @@ public class DorisSinkExampleRowData {
 
     public static void main(String[] args) throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
-        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
         env.enableCheckpointing(10000);
         env.setParallelism(1);
-        env.getCheckpointConfig()
-                .enableExternalizedCheckpoints(
-                        CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(5, Time.milliseconds(30000)));
+
         DorisSink.Builder<RowData> builder = DorisSink.builder();
 
         Properties properties = new Properties();
         properties.setProperty("column_separator", ",");
         properties.setProperty("line_delimiter", "\n");
-        // properties.setProperty("read_json_by_line", "true");
-        // properties.setProperty("format", "json");
+        properties.setProperty("format", "csv");
         DorisOptions.Builder dorisBuilder = DorisOptions.builder();
         dorisBuilder
                 .setFenodes("127.0.0.1:8030")
-                .setTableIdentifier("db.tbl")
+                .setTableIdentifier("test.students")
                 .setUsername("root")
                 .setPassword("");
         DorisExecutionOptions.Builder executionBuilder = DorisExecutionOptions.builder();
-        executionBuilder.setLabelPrefix(UUID.randomUUID().toString()).setStreamLoadProp(properties);
+        executionBuilder
+                .setLabelPrefix(UUID.randomUUID().toString())
+                .setDeletable(false)
+                .setStreamLoadProp(properties);
 
         // flink rowdata‘s schema
-        String[] fields = {"name", "age"};
-        DataType[] types = {DataTypes.VARCHAR(256), DataTypes.INT()};
+        String[] fields = {"id", "name", "age"};
+        DataType[] types = {DataTypes.INT(), DataTypes.VARCHAR(256), DataTypes.INT()};
 
         builder.setDorisExecutionOptions(executionBuilder.build())
                 .setSerializer(
                         RowDataSerializer.builder() // serialize according to rowdata
-                                .setType(LoadConstants.CSV) // .setType(LoadConstants.CSV)
+                                .setType(LoadConstants.CSV)
                                 .setFieldDelimiter(",")
-                                .setFieldNames(fields) // .setFieldDelimiter(",")
+                                .setFieldNames(fields)
                                 .setFieldType(types)
                                 .build())
                 .setDorisOptions(dorisBuilder.build());
@@ -91,16 +83,17 @@ public class DorisSinkExampleRowData {
                                     @Override
                                     public void flatMap(String s, Collector<RowData> out)
                                             throws Exception {
-                                        GenericRowData genericRowData = new GenericRowData(2);
+                                        GenericRowData genericRowData = new GenericRowData(3);
+                                        genericRowData.setField(0, 1);
                                         genericRowData.setField(
-                                                0, StringData.fromString("beijing"));
-                                        genericRowData.setField(1, 123);
+                                                1, StringData.fromString("Michael"));
+                                        genericRowData.setField(2, 18);
                                         out.collect(genericRowData);
 
-                                        GenericRowData genericRowData2 = new GenericRowData(2);
-                                        genericRowData2.setField(
-                                                0, StringData.fromString("shanghai"));
-                                        genericRowData2.setField(1, 1234);
+                                        GenericRowData genericRowData2 = new GenericRowData(3);
+                                        genericRowData2.setField(0, 2);
+                                        genericRowData2.setField(1, StringData.fromString("David"));
+                                        genericRowData2.setField(2, 38);
                                         out.collect(genericRowData2);
                                     }
                                 });

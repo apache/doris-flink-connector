@@ -17,38 +17,26 @@
 
 package org.apache.doris.flink.example;
 
+import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
 
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
-import org.apache.doris.flink.sink.batch.DorisBatchSink;
+import org.apache.doris.flink.sink.DorisSink;
 import org.apache.doris.flink.sink.batch.RecordWithMeta;
 import org.apache.doris.flink.sink.writer.serializer.RecordWithMetaSerializer;
 
+import java.util.Arrays;
 import java.util.Properties;
-import java.util.UUID;
 
 public class DorisSinkMultiTableExample {
     public static void main(String[] args) throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
+        env.enableCheckpointing(15000);
 
-        DorisBatchSink.Builder<RecordWithMeta> builder = DorisBatchSink.builder();
-        final DorisReadOptions.Builder readOptionBuilder = DorisReadOptions.builder();
-
-        readOptionBuilder
-                .setDeserializeArrowAsync(false)
-                .setDeserializeQueueSize(64)
-                .setExecMemLimit(2147483648L)
-                .setRequestQueryTimeoutS(3600)
-                .setRequestBatchSize(1000)
-                .setRequestConnectTimeoutMs(10000)
-                .setRequestReadTimeoutMs(10000)
-                .setRequestRetries(3)
-                .setRequestTabletSize(1024 * 1024);
-
+        DorisSink.Builder<RecordWithMeta> builder = DorisSink.builder();
         Properties properties = new Properties();
         properties.setProperty("column_separator", ",");
         properties.setProperty("line_delimiter", "\n");
@@ -56,7 +44,7 @@ public class DorisSinkMultiTableExample {
         DorisOptions.Builder dorisBuilder = DorisOptions.builder();
         dorisBuilder
                 .setFenodes("127.0.0.1:8030")
-                .setTableIdentifier("test.test_flink_tmp")
+                .setTableIdentifier("")
                 .setUsername("root")
                 .setPassword("");
 
@@ -66,21 +54,24 @@ public class DorisSinkMultiTableExample {
                 .setLabelPrefix("label")
                 .setStreamLoadProp(properties)
                 .setDeletable(false)
-                .setBufferFlushMaxBytes(8 * 1024)
-                .setBufferFlushMaxRows(10)
+                .setBatchMode(true)
+                .setBufferFlushMaxBytes(10 * 1024 * 1024)
+                .setBufferFlushMaxRows(10000)
                 .setBufferFlushIntervalMs(1000 * 10);
 
-        builder.setDorisReadOptions(readOptionBuilder.build())
+        builder.setDorisReadOptions(DorisReadOptions.builder().build())
                 .setDorisExecutionOptions(executionBuilder.build())
                 .setDorisOptions(dorisBuilder.build())
                 .setSerializer(new RecordWithMetaSerializer());
 
-        // RecordWithMeta record = new RecordWithMeta("test", "test_flink_tmp1", "wangwu,1");
-        // RecordWithMeta record1 = new RecordWithMeta("test", "test_flink_tmp", "wangwu,1");
-        // DataStreamSource<RecordWithMeta> stringDataStreamSource = env.fromCollection(
-        // Arrays.asList(record, record1));
-        // stringDataStreamSource.sinkTo(builder.build());
+        RecordWithMeta record = new RecordWithMeta("test", "test_flink_tmp1", "wangwu,1");
+        RecordWithMeta record1 = new RecordWithMeta("test", "test_flink_tmp", "wangwu,1");
+        DataStreamSource<RecordWithMeta> stringDataStreamSource =
+                env.fromCollection(Arrays.asList(record, record1));
+        stringDataStreamSource.sinkTo(builder.build());
 
+        /*
+        // mock unbounded streaming source
         env.addSource(
                         new SourceFunction<RecordWithMeta>() {
                             private Long id = 1000000L;
@@ -92,16 +83,22 @@ public class DorisSinkMultiTableExample {
                                     RecordWithMeta record =
                                             new RecordWithMeta(
                                                     "test",
+                                                    "test_flink_tmp",
+                                                    UUID.randomUUID() + ",1");
+                                    out.collect(record);
+                                    record =
+                                            new RecordWithMeta(
+                                                    "test",
                                                     "test_flink_tmp1",
                                                     UUID.randomUUID() + ",1");
                                     out.collect(record);
                                     record =
                                             new RecordWithMeta(
                                                     "test",
-                                                    "test_flink_tmp",
+                                                    "test_flink_tmp2",
                                                     UUID.randomUUID() + ",1");
                                     out.collect(record);
-                                    Thread.sleep(3000);
+                                    Thread.sleep(1000);
                                 }
                             }
 
@@ -109,7 +106,7 @@ public class DorisSinkMultiTableExample {
                             public void cancel() {}
                         })
                 .sinkTo(builder.build());
-
+         **/
         env.execute("doris multi table test");
     }
 }
