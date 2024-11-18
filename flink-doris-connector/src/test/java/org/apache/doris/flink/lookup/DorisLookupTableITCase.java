@@ -33,40 +33,47 @@ public class DorisLookupTableITCase extends AbstractITCaseService {
         env.setParallelism(DEFAULT_PARALLELISM);
         DataStreamSource<Integer> sourceStream = env.<Integer>fromElements(1, 2, 3, 4);
         final StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
-        Schema schema = Schema.newBuilder()
-                .column("f0", DataTypes.INT())
-                .columnByExpression("proctime", "PROCTIME()")
-                .build();
+        Schema schema =
+                Schema.newBuilder()
+                        .column("f0", DataTypes.INT())
+                        .columnByExpression("proctime", "PROCTIME()")
+                        .build();
         Table table = tEnv.fromDataStream(sourceStream, schema);
         tEnv.createTemporaryView("source", table);
 
-        String lookupDDL = String.format("CREATE TABLE `doris_lookup`(" +
-                        "  `id` INTEGER," +
-                        "  `tinyintColumn` TINYINT," +
-                        "  `smallintColumn` SMALLINT," +
-                        "  `bigintColumn` BIGINT," +
-                        "  PRIMARY KEY (`id`) NOT ENFORCED" +
-                        ")  WITH (" +
-                        "'connector' = '" + DorisConfigOptions.IDENTIFIER + "'," +
-                        "'fenodes' = '%s'," +
-                        "'jdbc-url' = '%s'," +
-                        "'table.identifier' = '%s'," +
-                        "'username' = '%s'," +
-                        "'password' = '%s'," +
-                        "'lookup.cache.max-rows' = '100'" +
-                        ")",
-                getFenodes(),
-                getDorisQueryUrl(),
-                DATABASE + "." + TABLE_READ_TBL,
-                getDorisUsername(),
-                getDorisPassword());
+        String lookupDDL =
+                String.format(
+                        "CREATE TABLE `doris_lookup`("
+                                + "  `id` INTEGER,"
+                                + "  `tinyintColumn` TINYINT,"
+                                + "  `smallintColumn` SMALLINT,"
+                                + "  `bigintColumn` BIGINT,"
+                                + "  PRIMARY KEY (`id`) NOT ENFORCED"
+                                + ")  WITH ("
+                                + "'connector' = '"
+                                + DorisConfigOptions.IDENTIFIER
+                                + "',"
+                                + "'fenodes' = '%s',"
+                                + "'jdbc-url' = '%s',"
+                                + "'table.identifier' = '%s',"
+                                + "'username' = '%s',"
+                                + "'password' = '%s',"
+                                + "'lookup.cache.max-rows' = '100'"
+                                + ")",
+                        getFenodes(),
+                        getDorisQueryUrl(),
+                        DATABASE + "." + TABLE_READ_TBL,
+                        getDorisUsername(),
+                        getDorisPassword());
         tEnv.executeSql(lookupDDL);
-        TableResult tableResult = tEnv.executeSql("select source.f0," +
-                "tinyintColumn," +
-                "smallintColumn," +
-                "bigintColumn" +
-                " from `source`" +
-                " inner join `doris_lookup` FOR SYSTEM_TIME AS OF source.proctime on source.f0 = doris_lookup.id");
+        TableResult tableResult =
+                tEnv.executeSql(
+                        "select source.f0,"
+                                + "tinyintColumn,"
+                                + "smallintColumn,"
+                                + "bigintColumn"
+                                + " from `source`"
+                                + " inner join `doris_lookup` FOR SYSTEM_TIME AS OF source.proctime on source.f0 = doris_lookup.id");
 
         List<String> actual = new ArrayList<>();
         try (CloseableIterator<Row> iterator = tableResult.collect()) {
@@ -75,7 +82,12 @@ public class DorisLookupTableITCase extends AbstractITCaseService {
             }
         }
 
-        String[] expected = new String[]{"+I[1, 97, 27479, 8670353564751764000]", "+I[2, 79, 17119, -4381380624467725000]", "+I[3, -106, -14878, 1466614815449373200]"};
+        String[] expected =
+                new String[] {
+                    "+I[1, 97, 27479, 8670353564751764000]",
+                    "+I[2, 79, 17119, -4381380624467725000]",
+                    "+I[3, -106, -14878, 1466614815449373200]"
+                };
         assertEqualsInAnyOrder(Arrays.asList(expected), Arrays.asList(actual.toArray()));
     }
 
@@ -96,8 +108,14 @@ public class DorisLookupTableITCase extends AbstractITCaseService {
                                 + "\"replication_num\" = \"1\"\n"
                                 + ")\n",
                         DATABASE, table),
-                String.format("insert into %s.%s  values (1,97,27479,8670353564751764000)", DATABASE, table),
-                String.format("insert into %s.%s  values (2,79,17119,-4381380624467725000)", DATABASE, table),
-                String.format("insert into %s.%s  values (3,-106,-14878,1466614815449373200)", DATABASE, table));
+                String.format(
+                        "insert into %s.%s  values (1,97,27479,8670353564751764000)",
+                        DATABASE, table),
+                String.format(
+                        "insert into %s.%s  values (2,79,17119,-4381380624467725000)",
+                        DATABASE, table),
+                String.format(
+                        "insert into %s.%s  values (3,-106,-14878,1466614815449373200)",
+                        DATABASE, table));
     }
 }
