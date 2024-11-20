@@ -178,7 +178,7 @@ public class DorisBatchStreamLoad implements Serializable {
      * @param record
      * @throws IOException
      */
-    public synchronized void writeRecord(String database, String table, byte[] record) {
+    public void writeRecord(String database, String table, byte[] record) {
         checkFlushException();
         String bufferKey = getTableIdentifier(database, table);
 
@@ -228,15 +228,15 @@ public class DorisBatchStreamLoad implements Serializable {
         }
     }
 
-    public synchronized boolean bufferFullFlush(String bufferKey) {
+    public boolean bufferFullFlush(String bufferKey) {
         return doFlush(bufferKey, false, true);
     }
 
-    public synchronized boolean intervalFlush() {
+    public boolean intervalFlush() {
         return doFlush(null, false, false);
     }
 
-    public synchronized boolean checkpointFlush() {
+    public boolean checkpointFlush() {
         return doFlush(null, true, false);
     }
 
@@ -254,6 +254,10 @@ public class DorisBatchStreamLoad implements Serializable {
     }
 
     private synchronized boolean flush(String bufferKey, boolean waitUtilDone) {
+        if (bufferMap.isEmpty()) {
+            // bufferMap may have been flushed by other threads
+            return false;
+        }
         if (null == bufferKey) {
             boolean flush = false;
             for (String key : bufferMap.keySet()) {
@@ -270,7 +274,7 @@ public class DorisBatchStreamLoad implements Serializable {
         } else if (bufferMap.containsKey(bufferKey)) {
             flushBuffer(bufferKey);
         } else {
-            throw new DorisBatchLoadException("buffer not found for key: " + bufferKey);
+            LOG.warn("buffer not found for key: {}, may be already flushed.", bufferKey);
         }
         if (waitUtilDone) {
             waitAsyncLoadFinish();
@@ -281,6 +285,7 @@ public class DorisBatchStreamLoad implements Serializable {
     private synchronized void flushBuffer(String bufferKey) {
         BatchRecordBuffer buffer = bufferMap.get(bufferKey);
         buffer.setLabelName(labelGenerator.generateBatchLabel(buffer.getTable()));
+        LOG.debug("flush buffer for key {} with label {}", bufferKey, buffer.getLabelName());
         putRecordToFlushQueue(buffer);
         bufferMap.remove(bufferKey);
     }
@@ -407,11 +412,6 @@ public class DorisBatchStreamLoad implements Serializable {
                             }
                             load(bf.getLabelName(), bf);
                         }
-                    }
-
-                    if (flushQueue.size() < flushQueueSize) {
-                        // Avoid waiting for 2 rounds of intervalMs
-                        doFlush(null, false, false);
                     }
                 } catch (Exception e) {
                     LOG.error("worker running error", e);
