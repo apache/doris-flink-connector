@@ -18,6 +18,7 @@
 package org.apache.doris.flink.lookup;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.table.types.DataType;
 
 import org.apache.doris.flink.cfg.DorisLookupOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
@@ -200,8 +201,10 @@ public class Worker implements Runnable {
                     try (ResultSet rs = ps.executeQuery()) {
                         while (rs.next()) {
                             Record record = new Record(schema);
-                            for (int index = 0; index < schema.getFieldTypes().length; index++) {
-                                record.setObject(index, rs.getObject(index + 1));
+                            DataType[] fieldTypes = schema.getFieldTypes();
+                            for (int index = 0; index < fieldTypes.length; index++) {
+                                Class<?> conversionClass = fieldTypes[index].getConversionClass();
+                                record.setObject(index, rs.getObject(index + 1, conversionClass));
                             }
                             List<Record> records =
                                     resultRecordMap.computeIfAbsent(
