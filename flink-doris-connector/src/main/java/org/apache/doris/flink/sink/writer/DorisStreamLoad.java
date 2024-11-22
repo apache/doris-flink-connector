@@ -268,7 +268,14 @@ public class DorisStreamLoad implements Serializable {
         if (statusCode == 200 && response.getEntity() != null) {
             String loadResult = EntityUtils.toString(response.getEntity());
             LOG.info("load Result {}", loadResult);
-            return OBJECT_MAPPER.readValue(loadResult, RespContent.class);
+            RespContent respContent = OBJECT_MAPPER.readValue(loadResult, RespContent.class);
+            if (respContent == null
+                    || respContent.getLabel() == null
+                    || respContent.getTxnId() == null) {
+                throw new DorisRuntimeException("Response error : " + loadResult);
+            } else {
+                return respContent;
+            }
         }
         throw new StreamLoadException("stream load error: " + response.getStatusLine().toString());
     }
