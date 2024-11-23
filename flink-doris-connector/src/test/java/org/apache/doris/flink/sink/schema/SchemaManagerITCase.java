@@ -226,8 +226,22 @@ public class SchemaManagerITCase extends AbstractITCaseService {
     public void testCreateTableWhenDatabaseNotExists()
             throws IOException, IllegalArgumentException, InterruptedException {
         String databaseName = DATABASE + "_" + Integer.toUnsignedString(new Random().nextInt(), 36);
-        String tableName = "auto_create_database";
+        createTableWhenDatabaseNotExists(databaseName);
+    }
 
+    @Test
+    public void testCreateTableWhenDatabaseNotExistsAndContainsSpecialSymbol()
+            throws IOException, IllegalArgumentException, InterruptedException {
+        String databaseName =
+                DATABASE.replace("_", "-")
+                        + "_"
+                        + Integer.toUnsignedString(new Random().nextInt(), 36);
+        createTableWhenDatabaseNotExists(databaseName);
+    }
+
+    public void createTableWhenDatabaseNotExists(String databaseName)
+            throws IOException, IllegalArgumentException, InterruptedException {
+        String tableName = "auto_create_database";
         TableSchema tableSchema = new TableSchema();
         tableSchema.setDatabase(databaseName);
         tableSchema.setTable(tableName);
@@ -240,6 +254,7 @@ public class SchemaManagerITCase extends AbstractITCaseService {
         Map<String, String> tableProperties = new HashMap<>();
         tableProperties.put("replication_num", "1");
         tableSchema.setProperties(tableProperties);
+
         schemaChangeManager.createTable(tableSchema);
 
         Thread.sleep(3_000);

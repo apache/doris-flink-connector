@@ -150,7 +150,7 @@ public class SchemaChangeHelper {
     }
 
     public static String buildCreateDatabaseDDL(String database) {
-        return String.format(CREATE_DATABASE_DDL, database);
+        return String.format(CREATE_DATABASE_DDL, DorisSchemaFactory.identifier(database));
     }
 
     public static String buildModifyColumnCommentDDL(
