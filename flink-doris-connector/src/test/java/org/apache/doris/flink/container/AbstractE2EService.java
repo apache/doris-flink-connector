@@ -32,6 +32,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -95,6 +96,9 @@ public abstract class AbstractE2EService extends AbstractContainerTestBase {
             LOG.info("{} e2e job will submit to start. ", jobName);
             CdcTools.setStreamExecutionEnvironmentForTesting(configFlinkEnvironment());
             CdcTools.main(args);
+            if (Arrays.asList(args).contains("--create-table-only")) {
+                return;
+            }
             jobClient = CdcTools.getJobClient();
             if (Objects.isNull(jobClient)) {
                 LOG.warn("Failed get flink job client. jobName={}", jobName);

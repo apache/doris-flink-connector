@@ -113,7 +113,7 @@ public abstract class DatabaseSync {
         this.converter = new TableNameConverter(tablePrefix, tableSuffix, multiToOneRulesPattern);
     }
 
-    public void build() throws Exception {
+    public boolean build() throws Exception {
         DorisConnectionOptions options = getDorisConnectionOptions();
         DorisSystem dorisSystem = new DorisSystem(options);
 
@@ -156,7 +156,7 @@ public abstract class DatabaseSync {
         }
         if (createTableOnly) {
             System.out.println("Create table finished.");
-            System.exit(0);
+            return false;
         }
         LOG.info("table mapping: {}", tableMapping);
         config.setString(TABLE_NAME_OPTIONS, getSyncTableList(syncTables));
@@ -181,6 +181,7 @@ public abstract class DatabaseSync {
                         .uid(uidName);
             }
         }
+        return true;
     }
 
     /**

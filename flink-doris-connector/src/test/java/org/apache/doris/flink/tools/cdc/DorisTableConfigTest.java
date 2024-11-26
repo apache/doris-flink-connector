@@ -17,6 +17,8 @@
 
 package org.apache.doris.flink.tools.cdc;
 
+import org.apache.flink.api.java.tuple.Tuple2;
+
 import org.junit.Before;
 import org.junit.Test;
 
@@ -42,5 +44,15 @@ public class DorisTableConfigTest {
         assertEquals(30, tableBucketsMap.get("a.*").intValue());
         assertEquals(40, tableBucketsMap.get("b.*").intValue());
         assertEquals(50, tableBucketsMap.get(".*").intValue());
+    }
+
+    @Test
+    public void buildTablePartitionMapTest() {
+        String tablePartitions = "tbl1:dt_col_d:day,tbl2:dt_col_w:week,tbl3:dt_col_m:month";
+        Map<String, Tuple2<String, String>> tablePartitionMap =
+                dorisTableConfig.buildTablePartitionMap(tablePartitions);
+        assertEquals(Tuple2.of("dt_col_d", "day"), tablePartitionMap.get("tbl1"));
+        assertEquals(Tuple2.of("dt_col_w", "week"), tablePartitionMap.get("tbl2"));
+        assertEquals(Tuple2.of("dt_col_m", "month"), tablePartitionMap.get("tbl3"));
     }
 }

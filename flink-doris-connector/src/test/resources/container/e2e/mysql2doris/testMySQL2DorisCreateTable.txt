@@ -1,0 +1,6 @@
+mysql-sync-database
+    --including-tables "create_tbl_.*"
+    --create-table-only
+    --table-conf table-buckets=create_tbl_uniq:10,create_tbl_from_uniqindex.*:30
+    --table-conf table-partitions=create_tbl_part_uniq:create_dtime:day,create_tbl_part_dup:create_dtime:month
+    --table-conf replication_num=1

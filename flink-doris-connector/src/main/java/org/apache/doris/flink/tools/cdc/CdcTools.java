@@ -172,7 +172,12 @@ public class CdcTools {
                 .setIgnoreIncompatible(ignoreIncompatible)
                 .setSchemaChangeMode(schemaChangeMode)
                 .create();
-        databaseSync.build();
+
+        boolean needExecute = databaseSync.build();
+        if (!needExecute) {
+            // create table only
+            return;
+        }
         if (StringUtils.isNullOrWhitespaceOnly(jobName)) {
             jobName =
                     String.format(
