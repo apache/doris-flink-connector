@@ -114,7 +114,7 @@ public class MongoDBDatabaseSync extends DatabaseSync {
                     throw new IllegalStateException("No documents in collection to infer schema");
                 }
 
-                long totalDocuments = collection.countDocuments();
+                long totalDocuments = collection.estimatedDocumentCount();
                 long sampleSize = (long) Math.ceil(totalDocuments * samplePercent);
                 ArrayList<Document> documents = sampleData(collection, sampleSize);
                 MongoDBSchema mongoDBSchema =
