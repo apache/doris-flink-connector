@@ -23,7 +23,7 @@ import org.junit.Test;
 public class TestLabelGenerator {
 
     private static String UUID_REGEX_WITHOUT_LINE =
-            "[0-9a-f]{8}[0-9a-f]{4}[0-9a-f]{4}[0-9a-f]{4}[0-9a-f]{12}";
+            "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 
     @Test
     public void generateTableLabelTest() {
