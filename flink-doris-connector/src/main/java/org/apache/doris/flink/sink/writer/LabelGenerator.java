@@ -54,11 +54,17 @@ public class LabelGenerator {
     public String generateTableLabel(long chkId) {
         Preconditions.checkState(tableIdentifier != null);
         String label = String.format("%s_%s_%s_%s", labelPrefix, tableIdentifier, subtaskId, chkId);
+
+        String uuid = UUID.randomUUID().toString().replace("-", "");
+        if (!enable2PC) {
+            label = label + "_" + uuid;
+        }
+
         if (LABEL_PATTERN.matcher(label).matches()) {
+            // The unicode table name or length exceeds the limit
             return label;
         }
-        // The unicode table name or length exceeds the limit
-        String uuid = UUID.randomUUID().toString().replace("-", "");
+
         if (enable2PC) {
             // In 2pc, replace uuid with the table name. This will cause some txns to fail to be
             // aborted when aborting.
