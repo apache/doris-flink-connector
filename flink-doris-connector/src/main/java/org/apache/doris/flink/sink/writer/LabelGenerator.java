@@ -54,22 +54,26 @@ public class LabelGenerator {
     public String generateTableLabel(long chkId) {
         Preconditions.checkState(tableIdentifier != null);
         String label = String.format("%s_%s_%s_%s", labelPrefix, tableIdentifier, subtaskId, chkId);
-        if (enable2PC) {
+        if (LABEL_PATTERN.matcher(label).matches()) {
             return label;
+        }
+        // The unicode table name or length exceeds the limit
+        String uuid = UUID.randomUUID().toString().replace("-", "");
+        if (enable2PC) {
+            // In 2pc, replace uuid with the table name. This will cause some txns to fail to be
+            // aborted when aborting.
+            // Later, the label needs to be stored in the state and aborted through label
+            return String.format("%s_%s_%s_%s", labelPrefix, uuid, subtaskId, chkId);
         } else {
-            label = label + "_" + UUID.randomUUID();
-            if (LABEL_PATTERN.matcher(label).matches()) {
-                return label;
-            } else {
-                return labelPrefix + "_" + subtaskId + "_" + chkId + "_" + UUID.randomUUID();
-            }
+            return String.format("%s_%s_%s_%s", labelPrefix, subtaskId, chkId, uuid);
         }
     }
 
     public String generateBatchLabel(String table) {
-        String label = String.format("%s_%s_%s", labelPrefix, table, UUID.randomUUID());
+        String uuid = UUID.randomUUID().toString().replace("-", "");
+        String label = String.format("%s_%s_%s", labelPrefix, table, uuid);
         if (!LABEL_PATTERN.matcher(label).matches()) {
-            return labelPrefix + "_" + UUID.randomUUID();
+            return labelPrefix + "_" + uuid;
         }
         return label;
     }

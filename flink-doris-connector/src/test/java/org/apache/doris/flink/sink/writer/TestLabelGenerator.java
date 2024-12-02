@@ -22,8 +22,8 @@ import org.junit.Test;
 
 public class TestLabelGenerator {
 
-    private static String UUID_REGEX =
-            "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
+    private static String UUID_REGEX_WITHOUT_LINE =
+            "[0-9a-f]{8}[0-9a-f]{4}[0-9a-f]{4}[0-9a-f]{4}[0-9a-f]{12}";
 
     @Test
     public void generateTableLabelTest() {
@@ -39,30 +39,35 @@ public class TestLabelGenerator {
                         "db.tabletabletabletabletabletabletabletabletabletabletabletabletabletabletabletabletabletabletabletabletabletabletabletabletabletable",
                         0);
         label = labelGenerator.generateTableLabel(1);
-        Assert.assertTrue(label.matches("test001_0_1_" + UUID_REGEX));
+        Assert.assertTrue(label.matches("test001_0_1_" + UUID_REGEX_WITHOUT_LINE));
 
         // mock table name chinese
         labelGenerator = new LabelGenerator("test001", false, "数据库.数据表", 0);
         label = labelGenerator.generateTableLabel(1);
-        Assert.assertTrue(label.matches("test001_0_1_" + UUID_REGEX));
+        Assert.assertTrue(label.matches("test001_0_1_" + UUID_REGEX_WITHOUT_LINE));
+
+        // mock table name chinese and 2pc
+        labelGenerator = new LabelGenerator("test001", true, "数据库.数据表", 0);
+        label = labelGenerator.generateTableLabel(1);
+        Assert.assertTrue(label.matches("test001_" + UUID_REGEX_WITHOUT_LINE + "_0_1"));
     }
 
     @Test
     public void generateBatchLabelTest() {
         LabelGenerator labelGenerator = new LabelGenerator("test001", false);
         String label = labelGenerator.generateBatchLabel("table");
-        Assert.assertTrue(label.matches("test001_table_" + UUID_REGEX));
+        Assert.assertTrue(label.matches("test001_table_" + UUID_REGEX_WITHOUT_LINE));
 
         // mock label length more than 128
         labelGenerator = new LabelGenerator("test001", false);
         label =
                 labelGenerator.generateBatchLabel(
                         "tabletabletabletabletabletabletabletabletabletabletabletabletabletabletabletabletabletabletabletabletabletabletabletabletabletable");
-        Assert.assertTrue(label.matches("test001_" + UUID_REGEX));
+        Assert.assertTrue(label.matches("test001_" + UUID_REGEX_WITHOUT_LINE));
 
         // mock table name chinese
         labelGenerator = new LabelGenerator("test001", false);
         label = labelGenerator.generateBatchLabel("数据库.数据表");
-        Assert.assertTrue(label.matches("test001_" + UUID_REGEX));
+        Assert.assertTrue(label.matches("test001_" + UUID_REGEX_WITHOUT_LINE));
     }
 }
