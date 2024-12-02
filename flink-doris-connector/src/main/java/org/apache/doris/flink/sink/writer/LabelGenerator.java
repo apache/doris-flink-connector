@@ -55,9 +55,8 @@ public class LabelGenerator {
         Preconditions.checkState(tableIdentifier != null);
         String label = String.format("%s_%s_%s_%s", labelPrefix, tableIdentifier, subtaskId, chkId);
 
-        String uuid = UUID.randomUUID().toString().replace("-", "");
         if (!enable2PC) {
-            label = label + "_" + uuid;
+            label = label + "_" + UUID.randomUUID();
         }
 
         if (LABEL_PATTERN.matcher(label).matches()) {
@@ -69,14 +68,14 @@ public class LabelGenerator {
             // In 2pc, replace uuid with the table name. This will cause some txns to fail to be
             // aborted when aborting.
             // Later, the label needs to be stored in the state and aborted through label
-            return String.format("%s_%s_%s_%s", labelPrefix, uuid, subtaskId, chkId);
+            return String.format("%s_%s_%s_%s", labelPrefix, UUID.randomUUID(), subtaskId, chkId);
         } else {
-            return String.format("%s_%s_%s_%s", labelPrefix, subtaskId, chkId, uuid);
+            return String.format("%s_%s_%s_%s", labelPrefix, subtaskId, chkId, UUID.randomUUID());
         }
     }
 
     public String generateBatchLabel(String table) {
-        String uuid = UUID.randomUUID().toString().replace("-", "");
+        String uuid = UUID.randomUUID().toString();
         String label = String.format("%s_%s_%s", labelPrefix, table, uuid);
         if (!LABEL_PATTERN.matcher(label).matches()) {
             return labelPrefix + "_" + uuid;
