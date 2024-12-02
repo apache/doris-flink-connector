@@ -21,11 +21,14 @@ import org.apache.doris.flink.container.AbstractE2EService;
 import org.apache.doris.flink.container.ContainerUtils;
 import org.apache.doris.flink.tools.cdc.DatabaseSyncConfig;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.sql.ResultSet;
+import java.sql.Statement;
 import java.util.Arrays;
 import java.util.List;
 
@@ -379,6 +382,58 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
                 "select * from ( select * from test_e2e_mysql.tbl1 union all select * from test_e2e_mysql.tbl2 union all select * from test_e2e_mysql.tbl3 union all select * from test_e2e_mysql.tbl5) res order by 1";
         ContainerUtils.checkResult(getDorisQueryConnection(), LOG, expected, sql, 2);
         cancelE2EJob(jobName);
+    }
+
+    @Test
+    public void testMySQL2DorisCreateTableOnly() throws Exception {
+        String jobName = "testMySQL2DorisCreateTableOnly";
+        initEnvironment(jobName, "container/e2e/mysql2doris/testMySQL2DorisCreateTable_init.sql");
+        startMysql2DorisJob(jobName, "container/e2e/mysql2doris/testMySQL2DorisCreateTable.txt");
+
+        String createTblSQL = getCreateTableSQL(DATABASE, "create_tbl_uniq");
+        Assert.assertTrue(createTblSQL.contains("UNIQUE KEY(`id`)"));
+        Assert.assertTrue(createTblSQL.contains("BUCKETS 10"));
+
+        createTblSQL = getCreateTableSQL(DATABASE, "create_tbl_dup");
+        Assert.assertTrue(createTblSQL.contains("DUPLICATE KEY(`id`, `name`)"));
+        Assert.assertTrue(createTblSQL.contains("BUCKETS AUTO"));
+
+        createTblSQL = getCreateTableSQL(DATABASE, "create_tbl_from_uniqindex");
+        Assert.assertTrue(createTblSQL.contains("UNIQUE KEY(`name`)"));
+        Assert.assertTrue(createTblSQL.contains("BUCKETS 30"));
+
+        createTblSQL = getCreateTableSQL(DATABASE, "create_tbl_from_uniqindex2");
+        Assert.assertTrue(
+                createTblSQL.contains("UNIQUE KEY(`id`, `name`)")
+                        || createTblSQL.contains("UNIQUE KEY(`id`, `age`)"));
+        Assert.assertTrue(createTblSQL.contains("BUCKETS 30"));
+
+        createTblSQL = getCreateTableSQL(DATABASE, "create_tbl_from_multiindex");
+        Assert.assertTrue(createTblSQL.contains("UNIQUE KEY(`id`)"));
+        Assert.assertTrue(createTblSQL.contains("BUCKETS AUTO"));
+
+        /*
+        The auto partition behavior of doris 2.1.0 to 2.1.4 has changed, temporarily skipped
+        createTblSQL = getCreateTableSQL(DATABASE, "create_tbl_part_uniq");
+        Assert.assertTrue(createTblSQL.contains("UNIQUE KEY(`id`, `create_dtime`)"));
+        Assert.assertTrue(createTblSQL.contains("BUCKETS AUTO"));
+
+        createTblSQL = getCreateTableSQL(DATABASE, "create_tbl_part_dup");
+        Assert.assertTrue(createTblSQL.contains("DUPLICATE KEY(`id`, `create_dtime`, `name`)"));
+        Assert.assertTrue(createTblSQL.contains("BUCKETS AUTO"));
+         */
+    }
+
+    private String getCreateTableSQL(String database, String table) throws Exception {
+        Statement statement = getDorisQueryConnection().createStatement();
+        ResultSet resultSet =
+                statement.executeQuery(String.format("SHOW CREATE TABLE %s.%s", database, table));
+        while (resultSet.next()) {
+            String createTblSql = resultSet.getString(2);
+            LOG.info("Create table sql: {}", createTblSql.replace("\n", ""));
+            return createTblSql;
+        }
+        throw new RuntimeException("Table not exist " + table);
     }
 
     @After

@@ -18,6 +18,7 @@
 package org.apache.doris.flink.tools.cdc;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.java.tuple.Tuple2;
 
 import java.io.Serializable;
 import java.util.HashMap;
@@ -30,11 +31,14 @@ public class DorisTableConfig implements Serializable {
     // PROPERTIES parameter in doris table creation statement. such as: replication_num=1.
     public static final String REPLICATION_NUM = "replication_num";
     public static final String TABLE_BUCKETS = "table-buckets";
+    public static final String TABLE_PARTITIONS = "table-partitions";
 
     private final Map<String, String> tableProperties;
     // The specific parameters extracted from --table-conf need to be parsed and integrated into the
     // doris table creation statement. such as: table-buckets="tbl1:10,tbl2:20,a.*:30,b.*:40,.*:50".
     private Map<String, Integer> tableBuckets;
+    // table:partitionColumn:interval
+    private Map<String, Tuple2<String, String>> tablePartitions;
 
     // Only for testing
     @VisibleForTesting
@@ -55,6 +59,11 @@ public class DorisTableConfig implements Serializable {
             this.tableBuckets = buildTableBucketMap(tableConfig.get(TABLE_BUCKETS));
             tableConfig.remove(TABLE_BUCKETS);
         }
+        if (tableConfig.containsKey(TABLE_PARTITIONS)) {
+            this.tablePartitions = buildTablePartitionMap(tableConfig.get(TABLE_PARTITIONS));
+            tableConfig.remove(TABLE_PARTITIONS);
+        }
+
         tableProperties = tableConfig;
     }
 
@@ -64,6 +73,10 @@ public class DorisTableConfig implements Serializable {
 
     public Map<String, String> getTableProperties() {
         return tableProperties;
+    }
+
+    public Map<String, Tuple2<String, String>> getTablePartitions() {
+        return tablePartitions;
     }
 
     /**
@@ -82,5 +95,24 @@ public class DorisTableConfig implements Serializable {
                     tableBucketArray[0].trim(), Integer.parseInt(tableBucketArray[1].trim()));
         }
         return tableBucketsMap;
+    }
+
+    /**
+     * Build table partition Map.
+     *
+     * @param tablePartitions the string of tablePartitions,
+     *     eg:tbl1:dt_column:month,tb2:dt_column:day
+     * @return The table name and buckets map. The key is table name, the value is partition column
+     *     and interval.
+     */
+    @VisibleForTesting
+    public Map<String, Tuple2<String, String>> buildTablePartitionMap(String tablePartitions) {
+        Map<String, Tuple2<String, String>> tablePartitionMap = new LinkedHashMap<>();
+        String[] tablePartitionArray = tablePartitions.split(",");
+        for (String tablePartition : tablePartitionArray) {
+            String[] tp = tablePartition.split(":");
+            tablePartitionMap.put(tp[0].trim(), Tuple2.of(tp[1].trim(), tp[2].trim()));
+        }
+        return tablePartitionMap;
     }
 }

@@ -17,6 +17,8 @@
 
 package org.apache.doris.flink.catalog.doris;
 
+import org.apache.flink.api.java.tuple.Tuple2;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -32,8 +34,10 @@ public class TableSchema {
     private DataModel model = DataModel.DUPLICATE;
     private List<String> distributeKeys = new ArrayList<>();
     private Map<String, String> properties = new HashMap<>();
-
     private Integer tableBuckets;
+
+    // Currently only supports auto partition, eg: DATE_TRUNC(column,interval)
+    private Tuple2<String, String> partitionInfo;
 
     public String getDatabase() {
         return database;
@@ -105,6 +109,14 @@ public class TableSchema {
 
     public Integer getTableBuckets() {
         return tableBuckets;
+    }
+
+    public Tuple2<String, String> getPartitionInfo() {
+        return partitionInfo;
+    }
+
+    public void setPartitionInfo(Tuple2<String, String> partitionInfo) {
+        this.partitionInfo = partitionInfo;
     }
 
     @Override

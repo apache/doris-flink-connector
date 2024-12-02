@@ -23,6 +23,7 @@ import org.apache.flink.util.StringUtils;
 
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections.MapUtils;
+import org.apache.commons.lang3.ObjectUtils;
 import org.apache.doris.flink.exception.CreateTableException;
 import org.apache.doris.flink.tools.cdc.DorisTableConfig;
 
@@ -63,6 +64,10 @@ public class DorisSchemaFactory {
             tableSchema.setProperties(dorisTableConfig.getTableProperties());
             tableSchema.setTableBuckets(
                     parseTableSchemaBuckets(dorisTableConfig.getTableBuckets(), table));
+            if (ObjectUtils.isNotEmpty(dorisTableConfig.getTablePartitions())
+                    && dorisTableConfig.getTablePartitions().containsKey(table)) {
+                tableSchema.setPartitionInfo(dorisTableConfig.getTablePartitions().get(table));
+            }
         }
         return tableSchema;
     }
@@ -123,16 +128,29 @@ public class DorisSchemaFactory {
                 throw new CreateTableException("key " + key + " not found in column list");
             }
             FieldSchema field = fields.get(key);
-            buildColumn(sb, field, true);
+            buildColumn(sb, field, true, false);
+        }
+
+        // append partition column, auto partition column must be in keys
+        if (schema.getPartitionInfo() != null) {
+            String partitionCol = schema.getPartitionInfo().f0;
+            FieldSchema field = fields.get(partitionCol);
+            buildColumn(sb, field, true, true);
         }
 
         // append values
         for (Map.Entry<String, FieldSchema> entry : fields.entrySet()) {
+            // skip key column
             if (keys.contains(entry.getKey())) {
                 continue;
             }
+            // skip partition column
+            if (schema.getPartitionInfo() != null
+                    && entry.getKey().equals(schema.getPartitionInfo().f0)) {
+                continue;
+            }
             FieldSchema field = entry.getValue();
-            buildColumn(sb, field, false);
+            buildColumn(sb, field, false, false);
         }
         sb = sb.deleteCharAt(sb.length() - 1);
         sb.append(" ) ");
@@ -140,13 +158,28 @@ public class DorisSchemaFactory {
         if (DataModel.UNIQUE.equals(schema.getModel())) {
             sb.append(schema.getModel().name())
                     .append(" KEY(")
-                    .append(String.join(",", identifier(schema.getKeys())))
-                    .append(")");
+                    .append(String.join(",", identifier(schema.getKeys())));
+
+            if (schema.getPartitionInfo() != null) {
+                sb.append(",").append(identifier(schema.getPartitionInfo().f0));
+            }
+
+            sb.append(")");
         }
 
         // append table comment
         if (!StringUtils.isNullOrWhitespaceOnly(schema.getTableComment())) {
             sb.append(" COMMENT '").append(quoteComment(schema.getTableComment())).append("' ");
+        }
+
+        // append partition info if exists
+        if (schema.getPartitionInfo() != null) {
+            sb.append(" AUTO PARTITION BY RANGE ")
+                    .append(
+                            String.format(
+                                    "(date_trunc(`%s`, '%s'))",
+                                    schema.getPartitionInfo().f0, schema.getPartitionInfo().f1))
+                    .append("()");
         }
 
         // append distribute key
@@ -165,6 +198,7 @@ public class DorisSchemaFactory {
         } else {
             sb.append(" BUCKETS AUTO ");
         }
+
         // append properties
         int index = 0;
         for (Map.Entry<String, String> entry : properties.entrySet()) {
@@ -186,12 +220,18 @@ public class DorisSchemaFactory {
         return sb.toString();
     }
 
-    private static void buildColumn(StringBuilder sql, FieldSchema field, boolean isKey) {
+    private static void buildColumn(
+            StringBuilder sql, FieldSchema field, boolean isKey, boolean autoPartitionCol) {
         String fieldType = field.getTypeString();
         if (isKey && DorisType.STRING.equals(fieldType)) {
             fieldType = String.format("%s(%s)", DorisType.VARCHAR, 65533);
         }
         sql.append(identifier(field.getName())).append(" ").append(fieldType);
+
+        // auto partition need set partition-column not null
+        if (autoPartitionCol) {
+            sql.append(" NOT NULL ");
+        }
 
         if (field.getDefaultValue() != null) {
             sql.append(" DEFAULT " + quoteDefaultValue(field.getDefaultValue()));
