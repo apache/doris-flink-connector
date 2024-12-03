@@ -70,7 +70,7 @@ under the License.
         <revision>24.0.0-SNAPSHOT</revision>
         <flink.version>1.18.0</flink.version>
         <flink.major.version>1.18</flink.major.version>
-        <flink.sql.cdc.version>3.1.1</flink.sql.cdc.version>
+        <flink.sql.cdc.version>3.2.1</flink.sql.cdc.version>
         <flink.python.id>flink-python</flink.python.id>
         <libthrift.version>0.16.0</libthrift.version>
         <maven-compiler-plugin.version>3.10.1</maven-compiler-plugin.version>
