@@ -20,9 +20,13 @@ package org.apache.doris.flink.sink.writer;
 import org.apache.flink.util.Preconditions;
 
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 /** Generator label for stream load. */
 public class LabelGenerator {
+    // doris default label regex
+    private static final String LABEL_REGEX = "^[-_A-Za-z0-9:]{1,128}$";
+    private static final Pattern LABEL_PATTERN = Pattern.compile(LABEL_REGEX);
     private String labelPrefix;
     private boolean enable2PC;
     private String tableIdentifier;
@@ -50,11 +54,33 @@ public class LabelGenerator {
     public String generateTableLabel(long chkId) {
         Preconditions.checkState(tableIdentifier != null);
         String label = String.format("%s_%s_%s_%s", labelPrefix, tableIdentifier, subtaskId, chkId);
-        return enable2PC ? label : label + "_" + UUID.randomUUID();
+
+        if (!enable2PC) {
+            label = label + "_" + UUID.randomUUID();
+        }
+
+        if (LABEL_PATTERN.matcher(label).matches()) {
+            // The unicode table name or length exceeds the limit
+            return label;
+        }
+
+        if (enable2PC) {
+            // In 2pc, replace uuid with the table name. This will cause some txns to fail to be
+            // aborted when aborting.
+            // Later, the label needs to be stored in the state and aborted through label
+            return String.format("%s_%s_%s_%s", labelPrefix, UUID.randomUUID(), subtaskId, chkId);
+        } else {
+            return String.format("%s_%s_%s_%s", labelPrefix, subtaskId, chkId, UUID.randomUUID());
+        }
     }
 
     public String generateBatchLabel(String table) {
-        return String.format("%s_%s_%s", labelPrefix, table, UUID.randomUUID());
+        String uuid = UUID.randomUUID().toString();
+        String label = String.format("%s_%s_%s", labelPrefix, table, uuid);
+        if (!LABEL_PATTERN.matcher(label).matches()) {
+            return labelPrefix + "_" + uuid;
+        }
+        return label;
     }
 
     public String generateCopyBatchLabel(String table, long chkId, int fileNum) {
