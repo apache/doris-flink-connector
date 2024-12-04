@@ -17,50 +17,70 @@
 
 package org.apache.doris.flink.sink;
 
+import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.impl.NoConnectionReuseStrategy;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.DefaultRedirectStrategy;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.HttpClients;
+import org.apache.http.protocol.HttpRequestExecutor;
 
-import java.util.concurrent.TimeUnit;
+import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_REQUEST_CONNECT_TIMEOUT_MS_DEFAULT;
+import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_REQUEST_READ_TIMEOUT_MS_DEFAULT;
 
 /** util to build http client. */
 public class HttpUtil {
+    private final int connectTimeout;
+    private final int socketTimeout;
+    private HttpClientBuilder httpClientBuilder;
 
-    private RequestConfig requestConfigStream =
-            RequestConfig.custom()
-                    .setConnectTimeout(60 * 1000)
-                    .setConnectionRequestTimeout(60 * 1000)
-                    .build();
+    public HttpUtil() {
+        this.connectTimeout = DORIS_REQUEST_CONNECT_TIMEOUT_MS_DEFAULT;
+        this.socketTimeout = DORIS_REQUEST_READ_TIMEOUT_MS_DEFAULT;
+        settingStreamHttpClientBuilder();
+    }
 
-    private final HttpClientBuilder httpClientBuilder =
-            HttpClients.custom()
-                    .setRedirectStrategy(
-                            new DefaultRedirectStrategy() {
-                                @Override
-                                protected boolean isRedirectable(String method) {
-                                    return true;
-                                }
-                            })
-                    .setConnectionReuseStrategy(NoConnectionReuseStrategy.INSTANCE)
-                    .evictExpiredConnections()
-                    .evictIdleConnections(60, TimeUnit.SECONDS)
-                    .setDefaultRequestConfig(requestConfigStream);
+    public HttpUtil(DorisReadOptions readOptions) {
+        this.connectTimeout = readOptions.getRequestConnectTimeoutMs();
+        this.socketTimeout = readOptions.getRequestReadTimeoutMs();
+        settingStreamHttpClientBuilder();
+    }
 
+    private void settingStreamHttpClientBuilder() {
+        this.httpClientBuilder =
+                HttpClients.custom()
+                        // default timeout 3s, maybe report 307 error when fe busy
+                        .setRequestExecutor(new HttpRequestExecutor(socketTimeout))
+                        .setRedirectStrategy(
+                                new DefaultRedirectStrategy() {
+                                    @Override
+                                    protected boolean isRedirectable(String method) {
+                                        return true;
+                                    }
+                                })
+                        .setConnectionReuseStrategy(NoConnectionReuseStrategy.INSTANCE)
+                        .setDefaultRequestConfig(
+                                RequestConfig.custom()
+                                        .setConnectTimeout(connectTimeout)
+                                        .setConnectionRequestTimeout(connectTimeout)
+                                        .build());
+    }
+
+    /**
+     * for stream http
+     *
+     * @return
+     */
     public CloseableHttpClient getHttpClient() {
         return httpClientBuilder.build();
     }
 
-    private RequestConfig requestConfig =
-            RequestConfig.custom()
-                    .setConnectTimeout(60 * 1000)
-                    .setConnectionRequestTimeout(60 * 1000)
-                    // default checkpoint timeout is 10min
-                    .setSocketTimeout(9 * 60 * 1000)
-                    .build();
-
+    /**
+     * for batch http
+     *
+     * @return
+     */
     public HttpClientBuilder getHttpClientBuilderForBatch() {
         return HttpClients.custom()
                 .setRedirectStrategy(
@@ -70,12 +90,22 @@ public class HttpUtil {
                                 return true;
                             }
                         })
-                .setDefaultRequestConfig(requestConfig);
+                .setDefaultRequestConfig(
+                        RequestConfig.custom()
+                                .setConnectTimeout(connectTimeout)
+                                .setConnectionRequestTimeout(connectTimeout)
+                                .setSocketTimeout(socketTimeout)
+                                .build());
     }
 
     public HttpClientBuilder getHttpClientBuilderForCopyBatch() {
         return HttpClients.custom()
                 .disableRedirectHandling()
-                .setDefaultRequestConfig(requestConfig);
+                .setDefaultRequestConfig(
+                        RequestConfig.custom()
+                                .setConnectTimeout(connectTimeout)
+                                .setConnectionRequestTimeout(connectTimeout)
+                                .setSocketTimeout(socketTimeout)
+                                .build());
     }
 }

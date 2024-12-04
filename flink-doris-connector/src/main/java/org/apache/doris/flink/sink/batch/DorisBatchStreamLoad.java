@@ -103,7 +103,7 @@ public class DorisBatchStreamLoad implements Serializable {
     private final AtomicBoolean started;
     private volatile boolean loadThreadAlive = false;
     private AtomicReference<Throwable> exception = new AtomicReference<>(null);
-    private HttpClientBuilder httpClientBuilder = new HttpUtil().getHttpClientBuilderForBatch();
+    private HttpClientBuilder httpClientBuilder;
     private BackendUtil backendUtil;
     private boolean enableGroupCommit;
     private boolean enableGzCompress;
@@ -170,6 +170,7 @@ public class DorisBatchStreamLoad implements Serializable {
         this.started = new AtomicBoolean(true);
         this.loadExecutorService.execute(loadAsyncExecutor);
         this.subTaskId = subTaskId;
+        this.httpClientBuilder = new HttpUtil(dorisReadOptions).getHttpClientBuilderForBatch();
     }
 
     /**

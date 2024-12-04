@@ -66,7 +66,11 @@ public class DorisCommitter implements Committer<DorisCommittable>, Closeable {
             DorisOptions dorisOptions,
             DorisReadOptions dorisReadOptions,
             DorisExecutionOptions executionOptions) {
-        this(dorisOptions, dorisReadOptions, executionOptions, new HttpUtil().getHttpClient());
+        this(
+                dorisOptions,
+                dorisReadOptions,
+                executionOptions,
+                new HttpUtil(dorisReadOptions).getHttpClient());
     }
 
     public DorisCommitter(
