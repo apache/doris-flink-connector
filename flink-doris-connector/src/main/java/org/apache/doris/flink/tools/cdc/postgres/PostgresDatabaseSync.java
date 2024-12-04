@@ -191,7 +191,6 @@ public class PostgresDatabaseSync extends DatabaseSync {
                             .deserializer(schema)
                             .slotName(slotName)
                             .decodingPluginName(config.get(DECODING_PLUGIN_NAME))
-                            .includeSchemaChanges(true)
                             .debeziumProperties(debeziumProperties)
                             .startupOptions(startupOptions)
                             .splitSize(config.get(SCAN_INCREMENTAL_SNAPSHOT_CHUNK_SIZE))
