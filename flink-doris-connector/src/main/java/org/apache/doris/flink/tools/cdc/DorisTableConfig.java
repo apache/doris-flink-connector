@@ -32,6 +32,7 @@ public class DorisTableConfig implements Serializable {
     public static final String REPLICATION_NUM = "replication_num";
     public static final String TABLE_BUCKETS = "table-buckets";
     public static final String TABLE_PARTITIONS = "table-partitions";
+    public static final String CONVERT_UNIQ_TO_PK = "convert-uniq-to-pk";
 
     private final Map<String, String> tableProperties;
     // The specific parameters extracted from --table-conf need to be parsed and integrated into the
@@ -39,6 +40,8 @@ public class DorisTableConfig implements Serializable {
     private Map<String, Integer> tableBuckets;
     // table:partitionColumn:interval
     private Map<String, Tuple2<String, String>> tablePartitions;
+    // uniq index to primary key
+    private boolean convertUniqToPk = false;
 
     // Only for testing
     @VisibleForTesting
@@ -64,6 +67,11 @@ public class DorisTableConfig implements Serializable {
             tableConfig.remove(TABLE_PARTITIONS);
         }
 
+        if (tableConfig.containsKey(CONVERT_UNIQ_TO_PK)) {
+            this.convertUniqToPk = Boolean.parseBoolean(tableConfig.get(CONVERT_UNIQ_TO_PK));
+            tableConfig.remove(CONVERT_UNIQ_TO_PK);
+        }
+
         tableProperties = tableConfig;
     }
 
@@ -77,6 +85,10 @@ public class DorisTableConfig implements Serializable {
 
     public Map<String, Tuple2<String, String>> getTablePartitions() {
         return tablePartitions;
+    }
+
+    public boolean isConvertUniqToPk() {
+        return convertUniqToPk;
     }
 
     /**

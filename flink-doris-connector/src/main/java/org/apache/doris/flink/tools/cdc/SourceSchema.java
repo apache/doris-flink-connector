@@ -37,6 +37,7 @@ public abstract class SourceSchema {
     protected final String tableComment;
     protected LinkedHashMap<String, FieldSchema> fields;
     public List<String> primaryKeys;
+    public List<String> uniqueIndexs;
     public DataModel model = DataModel.UNIQUE;
 
     public SourceSchema(
@@ -64,7 +65,6 @@ public abstract class SourceSchema {
         if (!StringUtils.isNullOrWhitespaceOnly(schemaName)) {
             identifier.add(schemaName);
         }
-
         if (!StringUtils.isNullOrWhitespaceOnly(tableName)) {
             identifier.add(tableName);
         }
@@ -113,6 +113,10 @@ public abstract class SourceSchema {
 
     public List<String> getPrimaryKeys() {
         return primaryKeys;
+    }
+
+    public List<String> getUniqueIndexs() {
+        return uniqueIndexs;
     }
 
     public String getTableComment() {
