@@ -25,6 +25,7 @@ import org.apache.http.impl.client.DefaultRedirectStrategy;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.protocol.HttpRequestExecutor;
+import org.apache.http.protocol.RequestContent;
 
 import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_REQUEST_CONNECT_TIMEOUT_MS_DEFAULT;
 import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_REQUEST_READ_TIMEOUT_MS_DEFAULT;
@@ -64,7 +65,8 @@ public class HttpUtil {
                                 RequestConfig.custom()
                                         .setConnectTimeout(connectTimeout)
                                         .setConnectionRequestTimeout(connectTimeout)
-                                        .build());
+                                        .build())
+                        .addInterceptorLast(new RequestContent(true));;
     }
 
     /**
