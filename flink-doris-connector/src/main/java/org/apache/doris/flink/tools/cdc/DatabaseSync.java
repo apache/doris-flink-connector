@@ -463,6 +463,11 @@ public abstract class DatabaseSync {
     private void tryCreateTableIfAbsent(
             DorisSystem dorisSystem, String targetDb, String dorisTable, SourceSchema schema) {
         if (!dorisSystem.tableExists(targetDb, dorisTable)) {
+            if (dorisTableConfig.isConvertUniqToPk()
+                    && CollectionUtil.isNullOrEmpty(schema.primaryKeys)
+                    && !CollectionUtil.isNullOrEmpty(schema.uniqueIndexs)) {
+                schema.primaryKeys = new ArrayList<>(schema.uniqueIndexs);
+            }
             TableSchema dorisSchema =
                     DorisSchemaFactory.createTableSchema(
                             database,

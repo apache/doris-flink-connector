@@ -49,10 +49,7 @@ public abstract class JdbcSourceSchema extends SourceSchema {
         super(databaseName, schemaName, tableName, tableComment);
         fields = getColumnInfo(metaData, databaseName, schemaName, tableName);
         primaryKeys = getPrimaryKeys(metaData, databaseName, schemaName, tableName);
-        if (primaryKeys.isEmpty()) {
-            List<String> uniqIndex = getUniqIndex(metaData, databaseName, schemaName, tableName);
-            primaryKeys.addAll(uniqIndex);
-        }
+        uniqueIndexs = getUniqIndex(metaData, databaseName, schemaName, tableName);
     }
 
     public LinkedHashMap<String, FieldSchema> getColumnInfo(

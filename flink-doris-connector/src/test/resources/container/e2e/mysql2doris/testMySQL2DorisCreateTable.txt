@@ -3,3 +3,4 @@ mysql-sync-database
     --create-table-only
     --table-conf table-buckets=create_tbl_uniq:10,create_tbl_from_uniqindex.*:30
     --table-conf replication_num=1
+    --table-conf convert-uniq-to-pk=true
