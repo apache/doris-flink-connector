@@ -346,7 +346,7 @@ public class DorisWriter<IN>
                                 dorisOptions,
                                 executionOptions,
                                 labelGenerator,
-                                new HttpUtil().getHttpClient()));
+                                new HttpUtil(dorisReadOptions).getHttpClient()));
     }
 
     /** Check the streamload http request regularly. */

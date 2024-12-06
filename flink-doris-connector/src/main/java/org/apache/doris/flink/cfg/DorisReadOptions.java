@@ -210,17 +210,22 @@ public class DorisReadOptions implements Serializable {
 
         private String readFields;
         private String filterQuery;
-        private Integer requestTabletSize;
-        private Integer requestConnectTimeoutMs;
-        private Integer requestReadTimeoutMs;
-        private Integer requestQueryTimeoutS;
-        private Integer requestRetries;
-        private Integer requestBatchSize;
-        private Long execMemLimit;
-        private Integer deserializeQueueSize;
-        private Boolean deserializeArrowAsync;
+        private Integer requestTabletSize = ConfigurationOptions.DORIS_TABLET_SIZE_DEFAULT;
+        private Integer requestConnectTimeoutMs =
+                ConfigurationOptions.DORIS_REQUEST_CONNECT_TIMEOUT_MS_DEFAULT;
+        private Integer requestReadTimeoutMs =
+                ConfigurationOptions.DORIS_REQUEST_READ_TIMEOUT_MS_DEFAULT;
+        private Integer requestQueryTimeoutS =
+                ConfigurationOptions.DORIS_REQUEST_QUERY_TIMEOUT_S_DEFAULT;
+        private Integer requestRetries = ConfigurationOptions.DORIS_REQUEST_RETRIES_DEFAULT;
+        private Integer requestBatchSize = ConfigurationOptions.DORIS_BATCH_SIZE_DEFAULT;
+        private Long execMemLimit = ConfigurationOptions.DORIS_EXEC_MEM_LIMIT_DEFAULT;
+        private Integer deserializeQueueSize =
+                ConfigurationOptions.DORIS_DESERIALIZE_QUEUE_SIZE_DEFAULT;
+        private Boolean deserializeArrowAsync =
+                ConfigurationOptions.DORIS_DESERIALIZE_ARROW_ASYNC_DEFAULT;
         private Boolean useOldApi = false;
-        private Boolean useFlightSql = false;
+        private Boolean useFlightSql = ConfigurationOptions.USE_FLIGHT_SQL_DEFAULT;
         private Integer flightSqlPort;
 
         /**

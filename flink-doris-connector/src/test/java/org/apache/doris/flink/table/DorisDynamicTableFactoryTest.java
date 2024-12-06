@@ -248,8 +248,8 @@ public class DorisDynamicTableFactoryTest {
         options.put("password", "");
         options.put("auto-redirect", "true");
         options.put("doris.request.retries", "3");
-        options.put("doris.request.connect.timeout", "30s");
-        options.put("doris.request.read.timeout", "30s");
+        options.put("doris.request.connect.timeout", "60s");
+        options.put("doris.request.read.timeout", "60s");
         return options;
     }
 }
