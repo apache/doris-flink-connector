@@ -58,7 +58,7 @@ public class SchemaChangeManager implements Serializable {
     private static final Logger LOG = LoggerFactory.getLogger(SchemaChangeManager.class);
     private static final String CHECK_SCHEMA_CHANGE_API =
             "http://%s/api/enable_light_schema_change/%s/%s";
-    private static final String SCHEMA_CHANGE_API = "http://%s/api/query/default_cluster/%s";
+    private static final String SCHEMA_CHANGE_API = "%s/api/query/default_cluster/%s";
     private ObjectMapper objectMapper = new ObjectMapper();
     private DorisOptions dorisOptions;
     private String charsetEncoding = "UTF-8";

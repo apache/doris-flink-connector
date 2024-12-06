@@ -58,12 +58,7 @@ public class BackendUtil {
                     if (tryHttpConnection(node)) {
                         LOG.info("{} backend http connection success.", node);
                         node = node.trim();
-                        String[] ipAndPort = node.split(":");
-                        BackendRowV2 backendRowV2 = new BackendRowV2();
-                        backendRowV2.setIp(ipAndPort[0]);
-                        backendRowV2.setHttpPort(Integer.parseInt(ipAndPort[1]));
-                        backendRowV2.setAlive(true);
-                        backends.add(backendRowV2);
+                        backends.add(BackendRowV2.ofUrl(node, true));
                     }
                 });
         return backends;
@@ -98,8 +93,10 @@ public class BackendUtil {
 
     public static boolean tryHttpConnection(String host) {
         try {
+            if (!host.startsWith("http://") && !host.startsWith("https://")) {
+                host = "http://" + host;
+            }
             LOG.debug("try to connect host {}", host);
-            host = "http://" + host;
             URL url = new URL(host);
             HttpURLConnection connection = (HttpURLConnection) url.openConnection();
             connection.setRequestMethod("GET");

@@ -88,7 +88,7 @@ public class DorisBatchStreamLoad implements Serializable {
     private static final long STREAM_LOAD_MAX_ROWS = Integer.MAX_VALUE;
     private final LabelGenerator labelGenerator;
     private final byte[] lineDelimiter;
-    private static final String LOAD_URL_PATTERN = "http://%s/api/%s/%s/_stream_load";
+    private static final String LOAD_URL_PATTERN = "%s/api/%s/%s/_stream_load";
     private String loadUrl;
     private String hostPort;
     private final String username;
