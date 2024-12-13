@@ -28,9 +28,15 @@ import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.util.StringUtils;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 public class DorisExpressionVisitor implements ExpressionVisitor<String> {
+    private static final String DATETIME_PATTERN = "yyyy-MM-dd HH:mm:ss";
+    private static final String DATETIMEV2_PATTERN = "yyyy-MM-dd HH:mm:ss.SSSSSS";
+    DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern(DATETIME_PATTERN);
+    DateTimeFormatter dateTimev2Formatter = DateTimeFormatter.ofPattern(DATETIMEV2_PATTERN);
 
     @Override
     public String visit(CallExpression call) {
@@ -94,11 +100,37 @@ public class DorisExpressionVisitor implements ExpressionVisitor<String> {
     @Override
     public String visit(ValueLiteralExpression valueLiteral) {
         LogicalTypeRoot typeRoot = valueLiteral.getOutputDataType().getLogicalType().getTypeRoot();
-        if (typeRoot.equals(LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE)
-                || typeRoot.equals(LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE)
-                || typeRoot.equals(LogicalTypeRoot.TIMESTAMP_WITH_TIME_ZONE)
-                || typeRoot.equals(LogicalTypeRoot.DATE)) {
-            return "'" + valueLiteral + "'";
+
+        switch (typeRoot) {
+            case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+            case TIMESTAMP_WITH_TIME_ZONE:
+            case DATE:
+                return "'" + valueLiteral + "'";
+            case TIMESTAMP_WITHOUT_TIME_ZONE:
+                Class<?> conversionClass = valueLiteral.getOutputDataType().getConversionClass();
+                if (LocalDateTime.class.isAssignableFrom(conversionClass)) {
+                    try {
+                        LocalDateTime localDateTime =
+                                valueLiteral
+                                        .getValueAs(LocalDateTime.class)
+                                        .orElseThrow(
+                                                () ->
+                                                        new RuntimeException(
+                                                                "Failed to get LocalDateTime value"));
+                        String formattedDate =
+                                localDateTime.format(
+                                        localDateTime.getNano() == 0
+                                                ? dateTimeFormatter
+                                                : dateTimev2Formatter);
+                        return wrapWithQuotes(formattedDate);
+                    } catch (Exception e) {
+
+                        return "ERROR: " + e.getMessage();
+                    }
+                }
+                break;
+            default:
+                return valueLiteral.toString();
         }
         return valueLiteral.toString();
     }
@@ -116,5 +148,9 @@ public class DorisExpressionVisitor implements ExpressionVisitor<String> {
     @Override
     public String visit(Expression expression) {
         return null;
+    }
+
+    private static String wrapWithQuotes(String value) {
+        return "'" + value + "'";
     }
 }

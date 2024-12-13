@@ -23,7 +23,7 @@ import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.runtime.minicluster.RpcServiceSharing;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
@@ -59,6 +59,8 @@ public class DorisSourceITCase extends AbstractITCaseService {
     private static final String TABLE_READ_TBL_OLD_API = "tbl_read_tbl_old_api";
     private static final String TABLE_READ_TBL_ALL_OPTIONS = "tbl_read_tbl_all_options";
     private static final String TABLE_READ_TBL_PUSH_DOWN = "tbl_read_tbl_push_down";
+    private static final String TABLE_READ_TBL_TIMESTAMP_PUSH_DOWN =
+            "tbl_read_tbl_timestamp_push_down";
     private static final String TABLE_READ_TBL_PUSH_DOWN_WITH_UNION_ALL =
             "tbl_read_tbl_push_down_with_union_all";
     static final String TABLE_CSV_JM = "tbl_csv_jm_source";
@@ -309,6 +311,66 @@ public class DorisSourceITCase extends AbstractITCaseService {
         String[] expected = new String[] {"+I[18]"};
         checkResultInAnyOrder(
                 "testTableSourceFilterAndProjectionPushDown", expected, actual.toArray());
+    }
+
+    @Test
+    public void testTableSourceTimestampFilterAndProjectionPushDown() throws Exception {
+        initializeTimestampTable(TABLE_READ_TBL_TIMESTAMP_PUSH_DOWN);
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(DEFAULT_PARALLELISM);
+        EnvironmentSettings settings = EnvironmentSettings.newInstance().inBatchMode().build();
+        final StreamTableEnvironment tEnv = StreamTableEnvironment.create(env, settings);
+
+        String sourceDDL =
+                String.format(
+                        "CREATE TABLE doris_source_datetime_filter_and_projection_push_down ("
+                                + "`id` int ,\n"
+                                + "`name` timestamp,\n"
+                                + "`age` int,\n"
+                                + "`birthday` timestamp,\n"
+                                + "`brilliant_time` timestamp(6)\n"
+                                + ") WITH ("
+                                + " 'connector' = '"
+                                + DorisConfigOptions.IDENTIFIER
+                                + "',"
+                                + " 'fenodes' = '%s',"
+                                + " 'table.identifier' = '%s',"
+                                + " 'username' = '%s',"
+                                + " 'password' = '%s'"
+                                + ")",
+                        getFenodes(),
+                        DATABASE + "." + TABLE_READ_TBL_TIMESTAMP_PUSH_DOWN,
+                        getDorisUsername(),
+                        getDorisPassword());
+        tEnv.executeSql(sourceDDL);
+        TableResult tableResult =
+                tEnv.executeSql(
+                        "SELECT count(*) FROM doris_source_datetime_filter_and_projection_push_down where birthday >= '2023-01-01 00:00:00'");
+        TableResult tableResult1 =
+                tEnv.executeSql(
+                        "SELECT count(*) FROM doris_source_datetime_filter_and_projection_push_down where brilliant_time > '2023-01-01 00:00:00.000001'");
+
+        List<String> actual = new ArrayList<>();
+        try (CloseableIterator<Row> iterator = tableResult.collect()) {
+            while (iterator.hasNext()) {
+                actual.add(iterator.next().toString());
+            }
+        }
+        List<String> actual1 = new ArrayList<>();
+        try (CloseableIterator<Row> iterator = tableResult1.collect()) {
+            while (iterator.hasNext()) {
+                actual1.add(iterator.next().toString());
+            }
+        }
+
+        String[] expected = new String[] {"+I[3]"};
+        String[] expected1 = new String[] {"+I[2]"};
+        checkResultInAnyOrder(
+                "testTableSourceTimestampFilterAndProjectionPushDown", expected, actual.toArray());
+        checkResultInAnyOrder(
+                "testTableSourceTimestampFilterAndProjectionPushDown",
+                expected1,
+                actual1.toArray());
     }
 
     @Test
@@ -564,6 +626,35 @@ public class DorisSourceITCase extends AbstractITCaseService {
                 String.format("insert into %s.%s  values ('doris',18)", DATABASE, table),
                 String.format("insert into %s.%s  values ('flink',10)", DATABASE, table),
                 String.format("insert into %s.%s  values ('apache',12)", DATABASE, table));
+    }
+
+    private void initializeTimestampTable(String table) {
+        ContainerUtils.executeSQLStatement(
+                getDorisQueryConnection(),
+                LOG,
+                String.format("CREATE DATABASE IF NOT EXISTS %s", DATABASE),
+                String.format("DROP TABLE IF EXISTS %s.%s", DATABASE, table),
+                String.format(
+                        "CREATE TABLE %s.%s ( \n"
+                                + "`id` int,\n"
+                                + "`name` varchar(256),\n"
+                                + "`age` int,\n"
+                                + "`birthday` datetime,\n"
+                                + "`brilliant_time` datetime(6),\n"
+                                + ") DISTRIBUTED BY HASH(`id`) BUCKETS 10\n"
+                                + "PROPERTIES (\n"
+                                + "\"replication_num\" = \"1\"\n"
+                                + ")\n",
+                        DATABASE, table),
+                String.format(
+                        "insert into %s.%s  values (1,'Andy Palvo',54,'2023-01-01 00:00:00','2023-01-01 00:00:00.000001')",
+                        DATABASE, table),
+                String.format(
+                        "insert into %s.%s  values (2,'Dylan Simba',25,'2023-01-01 00:00:01','2023-01-01 00:00:00.005000')",
+                        DATABASE, table),
+                String.format(
+                        "insert into %s.%s  values (3,'Michael Stonebraker',65,'2023-01-01 00:00:02','2023-01-01 00:00:00.000009')",
+                        DATABASE, table));
     }
 
     private void initializeTableWithData(String table) {
