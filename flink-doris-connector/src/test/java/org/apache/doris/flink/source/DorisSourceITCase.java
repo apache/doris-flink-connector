@@ -329,7 +329,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
                                 + "`name` timestamp,\n"
                                 + "`age` int,\n"
                                 + "`birthday` timestamp,\n"
-                                + "`brilliant_time` timestamp(6)\n"
+                                + "`brilliant_time` timestamp(9)\n"
                                 + ") WITH ("
                                 + " 'connector' = '"
                                 + DorisConfigOptions.IDENTIFIER
@@ -347,31 +347,50 @@ public class DorisSourceITCase extends AbstractITCaseService {
         TableResult tableResult =
                 tEnv.executeSql(
                         "SELECT count(*) FROM doris_source_datetime_filter_and_projection_push_down where birthday >= '2023-01-01 00:00:00'");
-        TableResult tableResult1 =
+        TableResult tableResultPushDownWithMicrosecond =
                 tEnv.executeSql(
                         "SELECT count(*) FROM doris_source_datetime_filter_and_projection_push_down where brilliant_time > '2023-01-01 00:00:00.000001'");
 
-        List<String> actual = new ArrayList<>();
+        TableResult tableResultPushDownWithNanosecond =
+                tEnv.executeSql(
+                        "SELECT count(*) FROM doris_source_datetime_filter_and_projection_push_down where brilliant_time > '2023-01-01 00:00:00.000009001'");
+
+        List<String> actualResult = new ArrayList<>();
+        List<String> actualPushDownMicrosecondResult = new ArrayList<>();
+        List<String> actualPushDownNanosecondResult = new ArrayList<>();
         try (CloseableIterator<Row> iterator = tableResult.collect()) {
             while (iterator.hasNext()) {
-                actual.add(iterator.next().toString());
+                actualResult.add(iterator.next().toString());
             }
         }
-        List<String> actual1 = new ArrayList<>();
-        try (CloseableIterator<Row> iterator = tableResult1.collect()) {
+
+        try (CloseableIterator<Row> iterator = tableResultPushDownWithMicrosecond.collect()) {
             while (iterator.hasNext()) {
-                actual1.add(iterator.next().toString());
+                actualPushDownMicrosecondResult.add(iterator.next().toString());
+            }
+        }
+
+        try (CloseableIterator<Row> iterator = tableResultPushDownWithNanosecond.collect()) {
+            while (iterator.hasNext()) {
+                actualPushDownNanosecondResult.add(iterator.next().toString());
             }
         }
 
         String[] expected = new String[] {"+I[3]"};
-        String[] expected1 = new String[] {"+I[2]"};
-        checkResultInAnyOrder(
-                "testTableSourceTimestampFilterAndProjectionPushDown", expected, actual.toArray());
+        String[] expectedPushDownWithMicrosecondResult = new String[] {"+I[2]"};
+        String[] expectedPushDownWithNanosecondResult = new String[] {"+I[1]"};
         checkResultInAnyOrder(
                 "testTableSourceTimestampFilterAndProjectionPushDown",
-                expected1,
-                actual1.toArray());
+                expected,
+                actualResult.toArray());
+        checkResultInAnyOrder(
+                "testTableSourceTimestampFilterAndProjectionPushDown",
+                expectedPushDownWithMicrosecondResult,
+                actualPushDownMicrosecondResult.toArray());
+        checkResultInAnyOrder(
+                "testTableSourceTimestampFilterAndProjectionPushDown",
+                expectedPushDownWithNanosecondResult,
+                actualPushDownNanosecondResult.toArray());
     }
 
     @Test

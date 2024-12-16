@@ -28,6 +28,8 @@ import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.util.StringUtils;
 
+import org.apache.doris.flink.exception.DorisRuntimeException;
+
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -124,8 +126,7 @@ public class DorisExpressionVisitor implements ExpressionVisitor<String> {
                                                 : dateTimev2Formatter);
                         return wrapWithQuotes(formattedDate);
                     } catch (Exception e) {
-
-                        return "ERROR: " + e.getMessage();
+                        throw new DorisRuntimeException(e.getMessage());
                     }
                 }
                 break;
