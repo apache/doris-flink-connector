@@ -329,7 +329,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
                                 + "`name` timestamp,\n"
                                 + "`age` int,\n"
                                 + "`birthday` timestamp,\n"
-                                + "`brilliant_time` timestamp(9)\n"
+                                + "`brilliant_time` timestamp(6)\n"
                                 + ") WITH ("
                                 + " 'connector' = '"
                                 + DorisConfigOptions.IDENTIFIER
@@ -344,45 +344,90 @@ public class DorisSourceITCase extends AbstractITCaseService {
                         getDorisUsername(),
                         getDorisPassword());
         tEnv.executeSql(sourceDDL);
-        TableResult tableResult =
-                tEnv.executeSql(
-                        "SELECT count(*) FROM doris_source_datetime_filter_and_projection_push_down where birthday >= '2023-01-01 00:00:00'");
-        TableResult tableResultPushDownWithMicrosecond =
-                tEnv.executeSql(
-                        "SELECT count(*) FROM doris_source_datetime_filter_and_projection_push_down where brilliant_time > '2023-01-01 00:00:00.000001'");
 
-        TableResult tableResultPushDownWithNanosecond =
-                tEnv.executeSql(
-                        "SELECT count(*) FROM doris_source_datetime_filter_and_projection_push_down where brilliant_time > '2023-01-01 00:00:00.000009001'");
+        List<String> actualProjectionResult =
+                generateExecuteSQLResult(
+                        tEnv,
+                        "SELECT id,birthday,brilliant_time FROM doris_source_datetime_filter_and_projection_push_down order by id");
 
-        List<String> actualResult = new ArrayList<>();
-        List<String> actualPushDownMicrosecondResult = new ArrayList<>();
-        List<String> actualPushDownNanosecondResult = new ArrayList<>();
-        try (CloseableIterator<Row> iterator = tableResult.collect()) {
-            while (iterator.hasNext()) {
-                actualResult.add(iterator.next().toString());
-            }
-        }
+        List<String> actualPushDownDatetimeResult =
+                generateExecuteSQLResult(
+                        tEnv,
+                        "SELECT id,birthday FROM doris_source_datetime_filter_and_projection_push_down where birthday >= '2023-01-01 00:00:00' order by id");
+        List<String> actualPushDownMicrosecondResult =
+                generateExecuteSQLResult(
+                        tEnv,
+                        "SELECT id,brilliant_time FROM doris_source_datetime_filter_and_projection_push_down where brilliant_time > '2023-01-01 00:00:00.000001' order by id");
+        List<String> actualPushDownNanosecondResult =
+                generateExecuteSQLResult(
+                        tEnv,
+                        "SELECT id,brilliant_time FROM doris_source_datetime_filter_and_projection_push_down where brilliant_time > '2023-01-01 00:00:00.000009001' order by id");
 
-        try (CloseableIterator<Row> iterator = tableResultPushDownWithMicrosecond.collect()) {
-            while (iterator.hasNext()) {
-                actualPushDownMicrosecondResult.add(iterator.next().toString());
-            }
-        }
+        List<String> actualPushDownNanosecondRoundDownResult =
+                generateExecuteSQLResult(
+                        tEnv,
+                        "SELECT id,brilliant_time FROM doris_source_datetime_filter_and_projection_push_down where brilliant_time >= '2023-01-01 00:00:00.999999001' order by id");
+        List<String> actualPushDownNanosecondRoundUpResult =
+                generateExecuteSQLResult(
+                        tEnv,
+                        "SELECT id,brilliant_time FROM doris_source_datetime_filter_and_projection_push_down where brilliant_time >= '2023-01-01 00:00:00.999999999' order by id");
 
-        try (CloseableIterator<Row> iterator = tableResultPushDownWithNanosecond.collect()) {
-            while (iterator.hasNext()) {
-                actualPushDownNanosecondResult.add(iterator.next().toString());
-            }
-        }
+        String[] expectedProjectionResult =
+                new String[] {
+                    "+I[1, 2023-01-01T00:00, 2023-01-01T00:00:00.000001]",
+                    "+I[2, 2023-01-01T00:00:01, 2023-01-01T00:00:00.005]",
+                    "+I[3, 2023-01-01T00:00:02, 2023-01-01T00:00:00.000009]",
+                    "+I[4, 2023-01-01T00:00:02, 2023-01-01T00:00:00.999999]",
+                    "+I[5, 2023-01-01T00:00:02, 2023-01-01T00:00:00.999999]",
+                    "+I[6, 2023-01-01T00:00:02, 2023-01-01T00:00:01]"
+                };
+        String[] expectedPushDownDatetimeResult =
+                new String[] {
+                    "+I[1, 2023-01-01T00:00]",
+                    "+I[2, 2023-01-01T00:00:01]",
+                    "+I[3, 2023-01-01T00:00:02]",
+                    "+I[4, 2023-01-01T00:00:02]",
+                    "+I[5, 2023-01-01T00:00:02]",
+                    "+I[6, 2023-01-01T00:00:02]"
+                };
+        String[] expectedPushDownWithMicrosecondResult =
+                new String[] {
+                    "+I[2, 2023-01-01T00:00:00.005]",
+                    "+I[3, 2023-01-01T00:00:00.000009]",
+                    "+I[4, 2023-01-01T00:00:00.999999]",
+                    "+I[5, 2023-01-01T00:00:00.999999]",
+                    "+I[6, 2023-01-01T00:00:01]"
+                };
 
-        String[] expected = new String[] {"+I[3]"};
-        String[] expectedPushDownWithMicrosecondResult = new String[] {"+I[2]"};
-        String[] expectedPushDownWithNanosecondResult = new String[] {"+I[1]"};
+        String[] expectedPushDownWithNanosecondResult =
+                new String[] {
+                    "+I[2, 2023-01-01T00:00:00.005]",
+                    "+I[4, 2023-01-01T00:00:00.999999]",
+                    "+I[5, 2023-01-01T00:00:00.999999]",
+                    "+I[6, 2023-01-01T00:00:01]"
+                };
+
+        String[] expectedPushDownWithNanosecondRoundDownResult =
+                new String[] {
+                    "+I[4, 2023-01-01T00:00:00.999999]",
+                    "+I[5, 2023-01-01T00:00:00.999999]",
+                    "+I[6, 2023-01-01T00:00:01]"
+                };
+
+        String[] expectedPushDownWithNanosecondRoundUpResult =
+                new String[] {
+                    "+I[4, 2023-01-01T00:00:00.999999]",
+                    "+I[5, 2023-01-01T00:00:00.999999]",
+                    "+I[6, 2023-01-01T00:00:01]"
+                };
         checkResultInAnyOrder(
                 "testTableSourceTimestampFilterAndProjectionPushDown",
-                expected,
-                actualResult.toArray());
+                expectedProjectionResult,
+                actualProjectionResult.toArray());
+        checkResultInAnyOrder(
+                "testTableSourceTimestampFilterAndProjectionPushDown",
+                expectedPushDownDatetimeResult,
+                actualPushDownDatetimeResult.toArray());
         checkResultInAnyOrder(
                 "testTableSourceTimestampFilterAndProjectionPushDown",
                 expectedPushDownWithMicrosecondResult,
@@ -391,6 +436,14 @@ public class DorisSourceITCase extends AbstractITCaseService {
                 "testTableSourceTimestampFilterAndProjectionPushDown",
                 expectedPushDownWithNanosecondResult,
                 actualPushDownNanosecondResult.toArray());
+        checkResultInAnyOrder(
+                "testTableSourceTimestampFilterAndProjectionPushDown",
+                expectedPushDownWithNanosecondRoundDownResult,
+                actualPushDownNanosecondRoundDownResult.toArray());
+        checkResultInAnyOrder(
+                "testTableSourceTimestampFilterAndProjectionPushDown",
+                expectedPushDownWithNanosecondRoundUpResult,
+                actualPushDownNanosecondRoundUpResult.toArray());
     }
 
     @Test
@@ -661,19 +714,28 @@ public class DorisSourceITCase extends AbstractITCaseService {
                                 + "`age` int,\n"
                                 + "`birthday` datetime,\n"
                                 + "`brilliant_time` datetime(6),\n"
-                                + ") DISTRIBUTED BY HASH(`id`) BUCKETS 10\n"
+                                + ") DISTRIBUTED BY HASH(`id`) BUCKETS 3\n"
                                 + "PROPERTIES (\n"
                                 + "\"replication_num\" = \"1\"\n"
                                 + ")\n",
                         DATABASE, table),
                 String.format(
-                        "insert into %s.%s  values (1,'Andy Palvo',54,'2023-01-01 00:00:00','2023-01-01 00:00:00.000001')",
+                        "insert into %s.%s  values (1,'Kevin',54,'2023-01-01T00:00:00','2023-01-01T00:00:00.000001')",
                         DATABASE, table),
                 String.format(
-                        "insert into %s.%s  values (2,'Dylan Simba',25,'2023-01-01 00:00:01','2023-01-01 00:00:00.005000')",
+                        "insert into %s.%s  values (2,'Dylan',25,'2023-01-01T00:00:01','2023-01-01T00:00:00.005000')",
                         DATABASE, table),
                 String.format(
-                        "insert into %s.%s  values (3,'Michael Stonebraker',65,'2023-01-01 00:00:02','2023-01-01 00:00:00.000009')",
+                        "insert into %s.%s  values (3,'Darren',65,'2023-01-01T00:00:02','2023-01-01T00:00:00.000009')",
+                        DATABASE, table),
+                String.format(
+                        "insert into %s.%s  values (4,'Warren',75,'2023-01-01T00:00:02','2023-01-01T00:00:00.999999')",
+                        DATABASE, table),
+                String.format(
+                        "insert into %s.%s  values (5,'Simba',75,'2023-01-01T00:00:02','2023-01-01T00:00:00.999999001')",
+                        DATABASE, table),
+                String.format(
+                        "insert into %s.%s  values (6,'Jimmy',75,'2023-01-01T00:00:02','2023-01-01T00:00:00.999999999')",
                         DATABASE, table));
     }
 
@@ -720,5 +782,18 @@ public class DorisSourceITCase extends AbstractITCaseService {
             rows.add(row.toString());
         }
         return rows;
+    }
+
+    private List<String> generateExecuteSQLResult(StreamTableEnvironment tEnv, String executeSql)
+            throws Exception {
+        List<String> actualResultList = new ArrayList<>();
+        TableResult tableResult = tEnv.executeSql(executeSql);
+        try (CloseableIterator<Row> iterator = tableResult.collect()) {
+            while (iterator.hasNext()) {
+
+                actualResultList.add(iterator.next().toString());
+            }
+        }
+        return actualResultList;
     }
 }

@@ -119,12 +119,23 @@ public class DorisExpressionVisitor implements ExpressionVisitor<String> {
                                                 () ->
                                                         new RuntimeException(
                                                                 "Failed to get LocalDateTime value"));
-                        String formattedDate =
-                                localDateTime.format(
-                                        localDateTime.getNano() == 0
-                                                ? dateTimeFormatter
-                                                : dateTimev2Formatter);
-                        return wrapWithQuotes(formattedDate);
+                        int nano = localDateTime.getNano();
+                        if (nano == 0) {
+                            // if nanoseconds equals to zero, the timestamp is in seconds.
+                            return wrapWithQuotes(localDateTime.format(dateTimeFormatter));
+                        } else {
+                            // 1. Even though the datetime precision in Doris is set to 3, the
+                            // microseconds format such as "yyyy-MM-dd HH:mm:ss.SSSSSS" can still
+                            // function properly in the Doris query plan.
+                            // 2. If the timestamp is in nanoseconds, format it like 'yyyy-MM-dd
+                            // HH:mm:ss.SSSSSS'. This will have no impact on the result. Because
+                            // when parsing the imported DATETIME type data on the BE side (for
+                            // example, through Stream load, Spark load, etc.), or when using the FE
+                            // side with Nereids enabled, the decimals that exceed the current
+                            // precision will be rounded.
+                            return wrapWithQuotes(localDateTime.format(dateTimev2Formatter));
+                        }
+
                     } catch (Exception e) {
                         throw new DorisRuntimeException(e.getMessage());
                     }
