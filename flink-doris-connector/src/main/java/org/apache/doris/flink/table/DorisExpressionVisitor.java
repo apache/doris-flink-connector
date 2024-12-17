@@ -28,9 +28,17 @@ import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.util.StringUtils;
 
+import org.apache.doris.flink.exception.DorisRuntimeException;
+
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 public class DorisExpressionVisitor implements ExpressionVisitor<String> {
+    private static final String DATETIME_PATTERN = "yyyy-MM-dd HH:mm:ss";
+    private static final String DATETIMEV2_PATTERN = "yyyy-MM-dd HH:mm:ss.SSSSSS";
+    DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern(DATETIME_PATTERN);
+    DateTimeFormatter dateTimev2Formatter = DateTimeFormatter.ofPattern(DATETIMEV2_PATTERN);
 
     @Override
     public String visit(CallExpression call) {
@@ -94,11 +102,47 @@ public class DorisExpressionVisitor implements ExpressionVisitor<String> {
     @Override
     public String visit(ValueLiteralExpression valueLiteral) {
         LogicalTypeRoot typeRoot = valueLiteral.getOutputDataType().getLogicalType().getTypeRoot();
-        if (typeRoot.equals(LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE)
-                || typeRoot.equals(LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE)
-                || typeRoot.equals(LogicalTypeRoot.TIMESTAMP_WITH_TIME_ZONE)
-                || typeRoot.equals(LogicalTypeRoot.DATE)) {
-            return "'" + valueLiteral + "'";
+
+        switch (typeRoot) {
+            case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+            case TIMESTAMP_WITH_TIME_ZONE:
+            case DATE:
+                return "'" + valueLiteral + "'";
+            case TIMESTAMP_WITHOUT_TIME_ZONE:
+                Class<?> conversionClass = valueLiteral.getOutputDataType().getConversionClass();
+                if (LocalDateTime.class.isAssignableFrom(conversionClass)) {
+                    try {
+                        LocalDateTime localDateTime =
+                                valueLiteral
+                                        .getValueAs(LocalDateTime.class)
+                                        .orElseThrow(
+                                                () ->
+                                                        new RuntimeException(
+                                                                "Failed to get LocalDateTime value"));
+                        int nano = localDateTime.getNano();
+                        if (nano == 0) {
+                            // if nanoseconds equals to zero, the timestamp is in seconds.
+                            return wrapWithQuotes(localDateTime.format(dateTimeFormatter));
+                        } else {
+                            // 1. Even though the datetime precision in Doris is set to 3, the
+                            // microseconds format such as "yyyy-MM-dd HH:mm:ss.SSSSSS" can still
+                            // function properly in the Doris query plan.
+                            // 2. If the timestamp is in nanoseconds, format it like 'yyyy-MM-dd
+                            // HH:mm:ss.SSSSSS'. This will have no impact on the result. Because
+                            // when parsing the imported DATETIME type data on the BE side (for
+                            // example, through Stream load, Spark load, etc.), or when using the FE
+                            // side with Nereids enabled, the decimals that exceed the current
+                            // precision will be rounded.
+                            return wrapWithQuotes(localDateTime.format(dateTimev2Formatter));
+                        }
+
+                    } catch (Exception e) {
+                        throw new DorisRuntimeException(e.getMessage());
+                    }
+                }
+                break;
+            default:
+                return valueLiteral.toString();
         }
         return valueLiteral.toString();
     }
@@ -116,5 +160,9 @@ public class DorisExpressionVisitor implements ExpressionVisitor<String> {
     @Override
     public String visit(Expression expression) {
         return null;
+    }
+
+    private static String wrapWithQuotes(String value) {
+        return "'" + value + "'";
     }
 }
