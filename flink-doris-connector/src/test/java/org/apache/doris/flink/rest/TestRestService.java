@@ -114,6 +114,9 @@ public class TestRestService {
     @Test
     public void testParseIdentifierIllegal() throws Exception {
         String invalidIdentifier3 = "a.b.c";
+        RestService.parseIdentifier(invalidIdentifier3, logger);
+
+        invalidIdentifier3 = "a.b.c.d.e";
         thrown.expect(IllegalArgumentException.class);
         thrown.expectMessage(
                 "argument 'table.identifier' is illegal, value is '" + invalidIdentifier3 + "'.");
