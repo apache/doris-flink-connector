@@ -26,6 +26,8 @@ import org.apache.arrow.adbc.driver.flightsql.FlightSqlDriver;
 import org.apache.arrow.flight.Location;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.ipc.ArrowReader;
+import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.exception.DorisException;
@@ -39,12 +41,14 @@ import org.apache.doris.flink.serialization.RowBatch;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.stream.Collectors;
 
 import static org.apache.doris.flink.util.ErrorMessages.SHOULD_NOT_HAPPEN_MESSAGE;
 
@@ -64,15 +68,12 @@ public class DorisFlightValueReader extends ValueReader implements AutoCloseable
     protected AtomicBoolean eos = new AtomicBoolean(false);
 
     public DorisFlightValueReader(
-            PartitionDefinition partition,
-            DorisOptions options,
-            DorisReadOptions readOptions,
-            Schema schema) {
+            PartitionDefinition partition, DorisOptions options, DorisReadOptions readOptions) {
         this.partition = partition;
         this.options = options;
         this.readOptions = readOptions;
+        initSchema();
         this.client = openConnection();
-        this.schema = schema;
         init();
     }
 
@@ -80,8 +81,7 @@ public class DorisFlightValueReader extends ValueReader implements AutoCloseable
         clientLock.lock();
         try {
             this.statement = this.client.createStatement();
-            this.statement.setSqlQuery(
-                    RestService.parseFlightSql(readOptions, options, partition, LOG));
+            this.statement.setSqlQuery(parseFlightSql(readOptions, options, partition, LOG));
             this.queryResult = statement.executeQuery();
             this.arrowReader = queryResult.getReader();
         } catch (AdbcException | DorisException e) {
@@ -90,6 +90,47 @@ public class DorisFlightValueReader extends ValueReader implements AutoCloseable
             clientLock.unlock();
         }
         LOG.debug("Open scan result is, schema: {}.", schema);
+    }
+
+    private void initSchema() {
+        try {
+            this.schema = RestService.getSchema(options, readOptions, LOG);
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
+    }
+
+    private String parseFlightSql(
+            DorisReadOptions readOptions,
+            DorisOptions options,
+            PartitionDefinition partition,
+            Logger logger)
+            throws IllegalArgumentException {
+        String[] tableIdentifiers =
+                RestService.parseIdentifier(options.getTableIdentifier(), logger);
+        String readFields =
+                StringUtils.isBlank(readOptions.getReadFields())
+                        ? "*"
+                        : readOptions.getReadFields();
+
+        String queryTable =
+                Arrays.stream(tableIdentifiers)
+                        .map(v -> "`" + v + "`")
+                        .collect(Collectors.joining("."));
+        String sql = "SELECT " + readFields + " FROM " + queryTable;
+        if (CollectionUtils.isNotEmpty(partition.getTabletIds())) {
+            String tablet =
+                    partition.getTabletIds().stream()
+                            .map(Object::toString)
+                            .collect(Collectors.joining(","));
+            sql += "  TABLET(" + tablet + ") ";
+        }
+
+        if (!StringUtils.isEmpty(readOptions.getFilterQuery())) {
+            sql += " WHERE " + readOptions.getFilterQuery();
+        }
+        logger.info("Query SQL Sending to Doris FE is: '{}'.", sql);
+        return sql;
     }
 
     private AdbcConnection openConnection() {
