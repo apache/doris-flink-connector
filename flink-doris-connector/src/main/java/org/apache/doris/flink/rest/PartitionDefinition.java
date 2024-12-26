@@ -27,7 +27,6 @@ import java.util.Set;
 public class PartitionDefinition implements Serializable, Comparable<PartitionDefinition> {
     private final String database;
     private final String table;
-
     private final String beAddress;
     private final Set<Long> tabletIds;
     private final String queryPlan;
@@ -40,6 +39,10 @@ public class PartitionDefinition implements Serializable, Comparable<PartitionDe
         this.beAddress = beAddress;
         this.tabletIds = tabletIds;
         this.queryPlan = queryPlan;
+    }
+
+    public static PartitionDefinition emptyPartition(String table) {
+        return new PartitionDefinition("", table, "", new HashSet<>(), "");
     }
 
     public String getBeAddress() {

@@ -53,7 +53,7 @@ public class DorisSourceSplit implements SourceSplit {
     @Override
     public String toString() {
         return String.format(
-                "DorisSourceSplit: %s.%s,id=%s,be=%s,tablets=%s",
+                "DorisSourceSplit: database=%s,table=%s,id=%s,be=%s,tablets=%s",
                 partitionDefinition.getDatabase(),
                 partitionDefinition.getTable(),
                 id,

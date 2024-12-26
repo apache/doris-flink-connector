@@ -27,6 +27,7 @@ import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
@@ -56,6 +57,7 @@ public class DorisSource<OUT>
                 ResultTypeQueryable<OUT> {
 
     private static final Logger LOG = LoggerFactory.getLogger(DorisSource.class);
+    private static final String SINGLE_SPLIT = "SingleSplit";
 
     private final DorisOptions options;
     private final DorisReadOptions readOptions;
@@ -95,13 +97,27 @@ public class DorisSource<OUT>
     public SplitEnumerator<DorisSourceSplit, PendingSplitsCheckpoint> createEnumerator(
             SplitEnumeratorContext<DorisSourceSplit> context) throws Exception {
         List<DorisSourceSplit> dorisSourceSplits = new ArrayList<>();
-        List<PartitionDefinition> partitions =
-                RestService.findPartitions(options, readOptions, LOG);
-        for (int index = 0; index < partitions.size(); index++) {
-            PartitionDefinition partitionDef = partitions.get(index);
-            String splitId = partitionDef.getBeAddress() + "_" + index;
-            dorisSourceSplits.add(new DorisSourceSplit(splitId, partitionDef));
+        String[] tableIdentifiers = RestService.parseIdentifier(options.getTableIdentifier(), LOG);
+
+        if (tableIdentifiers.length == 2) {
+            List<PartitionDefinition> partitions =
+                    RestService.findPartitions(options, readOptions, LOG);
+            for (int index = 0; index < partitions.size(); index++) {
+                PartitionDefinition partitionDef = partitions.get(index);
+                String splitId = partitionDef.getBeAddress() + "_" + index;
+                dorisSourceSplits.add(new DorisSourceSplit(splitId, partitionDef));
+            }
+        } else {
+            Preconditions.checkArgument(
+                    readOptions.getUseFlightSql(),
+                    "UseFlightSql must be true when table.identifier is catalog.db.table");
+            // catalog query or customer query
+            dorisSourceSplits.add(
+                    new DorisSourceSplit(
+                            SINGLE_SPLIT,
+                            PartitionDefinition.emptyPartition(options.getTableIdentifier())));
         }
+
         DorisSplitAssigner splitAssigner = new SimpleSplitAssigner(dorisSourceSplits);
         return new DorisSourceEnumerator(context, splitAssigner);
     }

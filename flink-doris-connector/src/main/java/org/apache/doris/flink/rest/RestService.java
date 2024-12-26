@@ -18,6 +18,7 @@
 package org.apache.doris.flink.rest;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.util.Preconditions;
 
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -92,6 +93,7 @@ public class RestService implements Serializable {
     private static final String FE_LOGIN = "/rest/v1/login";
     private static final ObjectMapper objectMapper = new ObjectMapper();
     private static final String TABLE_SCHEMA_API = "http://%s/api/%s/%s/_schema";
+    private static final String CATALOG_TABLE_SCHEMA_API = "http://%s/api/%s/%s/%s/_schema";
     private static final String QUERY_PLAN_API = "http://%s/api/%s/%s/_query_plan";
 
     /**
@@ -234,38 +236,6 @@ public class RestService implements Serializable {
         }
     }
 
-    @VisibleForTesting
-    public static String parseFlightSql(
-            DorisReadOptions readOptions,
-            DorisOptions options,
-            PartitionDefinition partition,
-            Logger logger)
-            throws IllegalArgumentException {
-        String[] tableIdentifiers = parseIdentifier(options.getTableIdentifier(), logger);
-        String readFields =
-                StringUtils.isBlank(readOptions.getReadFields())
-                        ? "*"
-                        : readOptions.getReadFields();
-        String sql =
-                "select "
-                        + readFields
-                        + " from `"
-                        + tableIdentifiers[0]
-                        + "`.`"
-                        + tableIdentifiers[1]
-                        + "`";
-        String tablet =
-                partition.getTabletIds().stream()
-                        .map(Object::toString)
-                        .collect(Collectors.joining(","));
-        sql += "  TABLET(" + tablet + ") ";
-        if (!StringUtils.isEmpty(readOptions.getFilterQuery())) {
-            sql += " where " + readOptions.getFilterQuery();
-        }
-        logger.info("Query SQL Sending to Doris FE is: '{}'.", sql);
-        return sql;
-    }
-
     /**
      * parse table identifier to array.
      *
@@ -275,7 +245,7 @@ public class RestService implements Serializable {
      * @throws IllegalArgumentException table identifier is illegal
      */
     @VisibleForTesting
-    static String[] parseIdentifier(String tableIdentifier, Logger logger)
+    public static String[] parseIdentifier(String tableIdentifier, Logger logger)
             throws IllegalArgumentException {
         logger.trace("Parse identifier '{}'.", tableIdentifier);
         if (StringUtils.isEmpty(tableIdentifier)) {
@@ -283,7 +253,8 @@ public class RestService implements Serializable {
             throw new IllegalArgumentException("table.identifier", tableIdentifier);
         }
         String[] identifier = tableIdentifier.split("\\.");
-        if (identifier.length != 2) {
+        // db.table or catalog.db.table
+        if (identifier.length != 2 && identifier.length != 3) {
             logger.error(ILLEGAL_ARGUMENT_MESSAGE, "table.identifier", tableIdentifier);
             throw new IllegalArgumentException("table.identifier", tableIdentifier);
         }
@@ -426,12 +397,26 @@ public class RestService implements Serializable {
             throws DorisException {
         logger.trace("Finding schema.");
         String[] tableIdentifier = parseIdentifier(options.getTableIdentifier(), logger);
-        String tableSchemaUri =
-                String.format(
-                        TABLE_SCHEMA_API,
-                        randomEndpoint(options.getFenodes(), logger),
-                        tableIdentifier[0],
-                        tableIdentifier[1]);
+        String tableSchemaUri;
+        if (tableIdentifier.length == 2) {
+            tableSchemaUri =
+                    String.format(
+                            TABLE_SCHEMA_API,
+                            randomEndpoint(options.getFenodes(), logger),
+                            tableIdentifier[0],
+                            tableIdentifier[1]);
+        } else if (tableIdentifier.length == 3) {
+            tableSchemaUri =
+                    String.format(
+                            CATALOG_TABLE_SCHEMA_API,
+                            randomEndpoint(options.getFenodes(), logger),
+                            tableIdentifier[0],
+                            tableIdentifier[1],
+                            tableIdentifier[2]);
+        } else {
+            throw new IllegalArgumentException(
+                    "table identifier is illegal, should be db.table or catalog.db.table");
+        }
         HttpGet httpGet = new HttpGet(tableSchemaUri);
         String response = send(options, readOptions, httpGet, logger);
         logger.debug("Find schema response is '{}'.", response);
@@ -561,6 +546,8 @@ public class RestService implements Serializable {
             DorisOptions options, DorisReadOptions readOptions, Logger logger)
             throws DorisException {
         String[] tableIdentifiers = parseIdentifier(options.getTableIdentifier(), logger);
+        Preconditions.checkArgument(
+                tableIdentifiers.length == 2, "table identifier is illegal, should be db.table");
         String readFields =
                 StringUtils.isBlank(readOptions.getReadFields())
                         ? "*"
@@ -578,6 +565,7 @@ public class RestService implements Serializable {
         }
         logger.info("Query SQL Sending to Doris FE is: '{}'.", sql);
         String[] tableIdentifier = parseIdentifier(options.getTableIdentifier(), logger);
+
         String queryPlanUri =
                 String.format(
                         QUERY_PLAN_API,
