@@ -209,9 +209,9 @@ public class RestService implements Serializable {
         HttpURLConnection connection = (HttpURLConnection) realUrl.openConnection();
         connection.setRequestProperty("Authorization", authHeader(dorisOptions));
 
-        connection.connect();
         connection.setConnectTimeout(request.getConfig().getConnectTimeout());
         connection.setReadTimeout(request.getConfig().getSocketTimeout());
+        connection.connect();
         return parseResponse(connection, logger);
     }
 
