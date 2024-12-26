@@ -54,6 +54,8 @@ import static org.apache.doris.flink.util.ErrorMessages.SHOULD_NOT_HAPPEN_MESSAG
 
 public class DorisFlightValueReader extends ValueReader implements AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(DorisFlightValueReader.class);
+    private static final String PREFIX = "/* ApplicationName=Flink ArrowFlightSQL Query */";
+
     protected AdbcConnection client;
     protected Lock clientLock = new ReentrantLock();
 
@@ -117,7 +119,8 @@ public class DorisFlightValueReader extends ValueReader implements AutoCloseable
                 Arrays.stream(tableIdentifiers)
                         .map(v -> "`" + v + "`")
                         .collect(Collectors.joining("."));
-        String sql = "SELECT " + readFields + " FROM " + queryTable;
+
+        String sql = PREFIX + " SELECT " + readFields + " FROM " + queryTable;
         if (CollectionUtils.isNotEmpty(partition.getTabletIds())) {
             String tablet =
                     partition.getTabletIds().stream()
