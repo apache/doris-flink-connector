@@ -66,7 +66,8 @@ public class HttpUtil {
                                         .setConnectTimeout(connectTimeout)
                                         .setConnectionRequestTimeout(connectTimeout)
                                         .build())
-                        .addInterceptorLast(new RequestContent(true));;
+                        .addInterceptorLast(new RequestContent(true));
+        ;
     }
 
     /**
