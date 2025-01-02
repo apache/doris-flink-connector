@@ -42,6 +42,7 @@ import org.apache.doris.flink.sink.writer.WriteMode;
 import org.apache.doris.flink.sink.writer.serializer.DorisRecordSerializer;
 import org.apache.doris.flink.sink.writer.serializer.JsonDebeziumSchemaSerializer;
 import org.apache.doris.flink.table.DorisConfigOptions;
+import org.apache.doris.flink.tools.cdc.oracle.OracleDatabaseSync;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,6 +59,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.cdc.debezium.utils.JdbcUrlUtils.PROPERTIES_PREFIX;
 
@@ -359,7 +361,14 @@ public abstract class DatabaseSync {
 
     protected String getSyncTableList(List<String> syncTables) {
         if (!singleSink) {
-            return String.format("(%s)\\.(%s)", getTableListPrefix(), String.join("|", syncTables));
+            if (this instanceof OracleDatabaseSync) {
+                return syncTables.stream()
+                        .map(v -> getTableListPrefix() + "\\." + v)
+                        .collect(Collectors.joining("|"));
+            } else {
+                return String.format(
+                        "(%s)\\.(%s)", getTableListPrefix(), String.join("|", syncTables));
+            }
         } else {
             // includingTablePattern and ^excludingPattern
             if (includingTables == null) {
