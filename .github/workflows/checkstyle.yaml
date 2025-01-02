@@ -32,6 +32,12 @@ jobs:
           persist-credentials: false
           submodules: recursive
 
+      - name: Setup java
+        uses: actions/setup-java@v2
+        with:
+          distribution: adopt
+          java-version: '8'
+
       - name: Run java checkstyle
         run:
           cd flink-doris-connector && mvn clean compile checkstyle:checkstyle
