@@ -167,6 +167,7 @@ public class OracleDatabaseSync extends DatabaseSync {
         // LogMinerQueryBuilder.buildTablePredicate is separated by commas to avoid
         // the error ORA-12733 when the regexp_like regular expression exceeds 512 characters
         if (!singleSink && tableName.length() > 256) {
+            // todo: Make the length of a single regular expression as long as possible.
             tableName = tableName.replace("|", ",");
         }
 
