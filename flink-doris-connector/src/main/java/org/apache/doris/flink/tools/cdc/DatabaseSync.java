@@ -479,7 +479,7 @@ public abstract class DatabaseSync {
             }
             TableSchema dorisSchema =
                     DorisSchemaFactory.createTableSchema(
-                            database,
+                            targetDb,
                             dorisTable,
                             schema.getFields(),
                             schema.getPrimaryKeys(),

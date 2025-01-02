@@ -36,6 +36,7 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
     private static final Logger LOG = LoggerFactory.getLogger(Mysql2DorisE2ECase.class);
     private static final String DATABASE = "test_e2e_mysql";
     private static final String CREATE_DATABASE = "CREATE DATABASE IF NOT EXISTS " + DATABASE;
+    private static final String DROP_DATABASE = "DROP DATABASE IF EXISTS " + DATABASE;
     private static final String MYSQL_CONF = "--" + DatabaseSyncConfig.MYSQL_CONF;
 
     @Before
@@ -55,14 +56,9 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
         argList.add(USERNAME + "=" + getMySQLUsername());
         argList.add(MYSQL_CONF);
         argList.add(PASSWORD + "=" + getMySQLPassword());
-        argList.add(MYSQL_CONF);
-        argList.add(DATABASE_NAME + "=" + DATABASE);
         // argList.add(MYSQL_CONF);
         // argList.add("server-time-zone=UTC");
 
-        // set doris database
-        argList.add(DORIS_DATABASE);
-        argList.add(DATABASE);
         setSinkConfDefaultConfig(argList);
         return argList;
     }
@@ -82,15 +78,7 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
 
     private void initDorisEnvironment() {
         LOG.info("Initializing Doris environment.");
-        ContainerUtils.executeSQLStatement(getDorisQueryConnection(), LOG, CREATE_DATABASE);
-        ContainerUtils.executeSQLStatement(
-                getDorisQueryConnection(),
-                LOG,
-                "DROP TABLE IF EXISTS test_e2e_mysql.tbl1",
-                "DROP TABLE IF EXISTS test_e2e_mysql.tbl2",
-                "DROP TABLE IF EXISTS test_e2e_mysql.tbl3",
-                "DROP TABLE IF EXISTS test_e2e_mysql.tbl4",
-                "DROP TABLE IF EXISTS test_e2e_mysql.tbl5");
+        ContainerUtils.executeSQLStatement(getDorisQueryConnection(), LOG, DROP_DATABASE);
     }
 
     private void initEnvironment(String jobName, String mysqlSourcePath) {
@@ -434,6 +422,48 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
             return createTblSql;
         }
         throw new RuntimeException("Table not exist " + table);
+    }
+
+    @Test
+    public void testMySQL2DorisMultiDatabaseSync() throws Exception {
+        String jobName = "testMySQL2DorisMultiDatabaseSync";
+        initEnvironment(jobName, "container/e2e/mysql2doris/testMySQL2DorisMultiDbSync_init.sql");
+        startMysql2DorisJob(jobName, "container/e2e/mysql2doris/testMySQL2DorisMultiDbSync.txt");
+
+        // wait 2 times checkpoint
+        Thread.sleep(20000);
+        LOG.info("Start to verify init result.");
+        List<String> initExpected =
+                Arrays.asList("1,db1_tb1,18", "1,db1_tb2,19", "1,db2_tb1,20", "1,db2_tb2,21");
+        String sql =
+                "SELECT * FROM test_e2e_mysql_db1.tbl1 UNION ALL \n"
+                        + "SELECT * FROM test_e2e_mysql_db1.tbl2 UNION ALL \n"
+                        + "SELECT * FROM test_e2e_mysql_db2.tbl1 UNION ALL \n"
+                        + "SELECT * FROM test_e2e_mysql_db2.tbl2 ";
+        ContainerUtils.checkResult(getDorisQueryConnection(), LOG, initExpected, sql, 3);
+
+        // add incremental data
+        ContainerUtils.executeSQLStatement(
+                getMySQLQueryConnection(),
+                LOG,
+                "insert into test_e2e_mysql_db1.tbl1 values (2,'db1_tb1',180)",
+                "insert into test_e2e_mysql_db1.tbl2 values (2,'db1_tb2',190)",
+                "insert into test_e2e_mysql_db2.tbl1 values (2,'db2_tb1',200)",
+                "insert into test_e2e_mysql_db2.tbl2 values (2,'db2_tb2',210)");
+
+        Thread.sleep(20000);
+        List<String> expected =
+                Arrays.asList(
+                        "1,db1_tb1,18",
+                        "1,db1_tb2,19",
+                        "1,db2_tb1,20",
+                        "1,db2_tb2,21",
+                        "2,db1_tb1,180",
+                        "2,db1_tb2,190",
+                        "2,db2_tb1,200",
+                        "2,db2_tb2,210");
+        ContainerUtils.checkResult(getDorisQueryConnection(), LOG, expected, sql, 3);
+        cancelE2EJob(jobName);
     }
 
     @After

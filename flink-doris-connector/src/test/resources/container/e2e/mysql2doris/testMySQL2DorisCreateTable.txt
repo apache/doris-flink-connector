@@ -1,4 +1,6 @@
 mysql-sync-database
+    --database test_e2e_mysql
+    --mysql-conf database-name=test_e2e_mysql
     --including-tables "create_tbl_.*"
     --create-table-only
     --table-conf table-buckets=create_tbl_uniq:10,create_tbl_from_uniqindex.*:30

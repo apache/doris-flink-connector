@@ -1,4 +1,6 @@
 mysql-sync-database
+    --database test_e2e_mysql
+    --mysql-conf database-name=test_e2e_mysql
     --including-tables "tbl.*|add_tbl"
     --table-conf replication_num=1
     --schema-change-mode sql_parser

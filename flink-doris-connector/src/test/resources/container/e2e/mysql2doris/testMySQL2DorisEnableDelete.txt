@@ -1,4 +1,6 @@
 mysql-sync-database
+    --database test_e2e_mysql
+    --mysql-conf database-name=test_e2e_mysql
     --including-tables "tbl1|tbl2|tbl3|tbl5"
     --table-conf replication_num=1
     --sink-conf sink.enable-delete=false
