@@ -458,7 +458,6 @@ public class DorisWriter<IN>
         if (scheduledExecutorService != null) {
             scheduledExecutorService.shutdownNow();
         }
-        LOG.info("Try to abort txn before closing.");
         abortPossibleSuccessfulTransaction();
 
         if (dorisStreamLoadMap != null && !dorisStreamLoadMap.isEmpty()) {
