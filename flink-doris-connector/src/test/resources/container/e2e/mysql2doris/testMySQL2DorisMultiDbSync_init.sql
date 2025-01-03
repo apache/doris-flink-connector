@@ -38,3 +38,12 @@ CREATE TABLE test_e2e_mysql_db2.tbl2 (
 PRIMARY KEY (`id`) USING BTREE
 );
 insert into test_e2e_mysql_db2.tbl2 values (1,'db2_tb2',21);
+
+DROP TABLE IF EXISTS test_e2e_mysql_db2.tbl3;
+CREATE TABLE test_e2e_mysql_db2.tbl3 (
+`id` int NOT NULL,
+`name` varchar(255) DEFAULT NULL,
+`age` bigint DEFAULT NULL,
+PRIMARY KEY (`id`) USING BTREE
+);
+insert into test_e2e_mysql_db2.tbl3 values (1,'db2_tb3',22);

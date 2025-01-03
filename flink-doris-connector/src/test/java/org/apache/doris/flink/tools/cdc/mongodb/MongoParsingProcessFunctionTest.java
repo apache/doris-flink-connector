@@ -28,7 +28,7 @@ public class MongoParsingProcessFunctionTest {
         String record =
                 "{\"_id\":\"{\\\"_id\\\": {\\\"$oid\\\": \\\"66583533791a67a6f8c5a339\\\"}}\",\"operationType\":\"insert\",\"fullDocument\":\"{\\\"_id\\\": {\\\"$oid\\\": \\\"66583533791a67a6f8c5a339\\\"}, \\\"key1\\\": \\\"value1\\\"}\",\"source\":{\"ts_ms\":0,\"snapshot\":\"true\"},\"ts_ms\":1717065582062,\"ns\":{\"db\":\"test\",\"coll\":\"cdc_test\"},\"to\":null,\"documentKey\":\"{\\\"_id\\\": {\\\"$oid\\\": \\\"66583533791a67a6f8c5a339\\\"}}\",\"updateDescription\":null,\"clusterTime\":null,\"txnNumber\":null,\"lsid\":null}";
         MongoParsingProcessFunction mongoParsingProcessFunction =
-                new MongoParsingProcessFunction(null);
+                new MongoParsingProcessFunction(null, null);
         String recordTableName = mongoParsingProcessFunction.getRecordTableName(record);
         assertEquals("cdc_test", recordTableName);
     }

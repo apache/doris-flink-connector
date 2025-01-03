@@ -27,8 +27,8 @@ import org.slf4j.LoggerFactory;
 public class MongoParsingProcessFunction extends ParsingProcessFunction {
     private static final Logger LOG = LoggerFactory.getLogger(MongoParsingProcessFunction.class);
 
-    public MongoParsingProcessFunction(TableNameConverter converter) {
-        super(converter);
+    public MongoParsingProcessFunction(String databaseName, TableNameConverter converter) {
+        super(databaseName, converter);
     }
 
     @Override

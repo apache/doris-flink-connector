@@ -21,7 +21,9 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
+import org.apache.flink.util.StringUtils;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -32,8 +34,10 @@ public class ParsingProcessFunction extends ProcessFunction<String, Void> {
     protected ObjectMapper objectMapper = new ObjectMapper();
     private transient Map<String, OutputTag<String>> recordOutputTags;
     private DatabaseSync.TableNameConverter converter;
+    private String database;
 
-    public ParsingProcessFunction(DatabaseSync.TableNameConverter converter) {
+    public ParsingProcessFunction(String database, DatabaseSync.TableNameConverter converter) {
+        this.database = database;
         this.converter = converter;
     }
 
@@ -47,8 +51,17 @@ public class ParsingProcessFunction extends ProcessFunction<String, Void> {
             String record, ProcessFunction<String, Void>.Context context, Collector<Void> collector)
             throws Exception {
         String tableName = getRecordTableName(record);
-        String dorisName = converter.convert(tableName);
-        context.output(getRecordOutputTag(dorisName), record);
+        String dorisTableName = converter.convert(tableName);
+        String dorisDbName = database;
+        if (StringUtils.isNullOrWhitespaceOnly(database)) {
+            dorisDbName = getRecordDatabaseName(record);
+        }
+        context.output(getRecordOutputTag(dorisDbName, dorisTableName), record);
+    }
+
+    private String getRecordDatabaseName(String record) throws JsonProcessingException {
+        JsonNode recordRoot = objectMapper.readValue(record, JsonNode.class);
+        return extractJsonNode(recordRoot.get("source"), "db");
     }
 
     protected String getRecordTableName(String record) throws Exception {
@@ -60,12 +73,13 @@ public class ParsingProcessFunction extends ProcessFunction<String, Void> {
         return record != null && record.get(key) != null ? record.get(key).asText() : null;
     }
 
-    private OutputTag<String> getRecordOutputTag(String tableName) {
+    private OutputTag<String> getRecordOutputTag(String databaseName, String tableName) {
+        String tableIdentifier = databaseName + "." + tableName;
         return recordOutputTags.computeIfAbsent(
-                tableName, ParsingProcessFunction::createRecordOutputTag);
+                tableIdentifier, k -> createRecordOutputTag(databaseName, tableName));
     }
 
-    public static OutputTag<String> createRecordOutputTag(String tableName) {
-        return new OutputTag<String>("record-" + tableName) {};
+    public static OutputTag<String> createRecordOutputTag(String databaseName, String tableName) {
+        return new OutputTag<String>(String.format("record-%s-%s", databaseName, tableName)) {};
     }
 }
