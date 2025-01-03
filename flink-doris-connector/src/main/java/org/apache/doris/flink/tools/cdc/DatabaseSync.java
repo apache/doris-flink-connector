@@ -170,7 +170,7 @@ public abstract class DatabaseSync {
                     streamSource.process(buildProcessFunction());
             for (Tuple2<String, String> dbTbl : dorisTables) {
                 OutputTag<String> recordOutputTag =
-                        ParsingProcessFunction.createRecordOutputTag(dbTbl.f1);
+                        ParsingProcessFunction.createRecordOutputTag(dbTbl.f0, dbTbl.f1);
                 DataStream<String> sideOutput = parsedStream.getSideOutput(recordOutputTag);
                 int sinkParallel =
                         sinkConfig.getInteger(
@@ -230,7 +230,7 @@ public abstract class DatabaseSync {
     }
 
     public ParsingProcessFunction buildProcessFunction() {
-        return new ParsingProcessFunction(converter);
+        return new ParsingProcessFunction(database, converter);
     }
 
     /** create doris sink. */
@@ -479,7 +479,7 @@ public abstract class DatabaseSync {
             }
             TableSchema dorisSchema =
                     DorisSchemaFactory.createTableSchema(
-                            database,
+                            targetDb,
                             dorisTable,
                             schema.getFields(),
                             schema.getPrimaryKeys(),

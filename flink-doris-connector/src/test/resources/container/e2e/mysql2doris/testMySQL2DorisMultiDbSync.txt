@@ -1,0 +1,4 @@
+mysql-sync-database
+    --mysql-conf database-name=test_e2e_mysql_db.*
+    --including-tables ".*"
+    --table-conf replication_num=1

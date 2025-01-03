@@ -104,6 +104,16 @@ public class ContainerUtils {
             List<String> expected,
             String query,
             int columnSize) {
+        checkResult(connection, logger, expected, query, columnSize, true);
+    }
+
+    public static void checkResult(
+            Connection connection,
+            Logger logger,
+            List<String> expected,
+            String query,
+            int columnSize,
+            boolean ordered) {
         List<String> actual = new ArrayList<>();
         try (Statement statement = connection.createStatement()) {
             ResultSet sinkResultSet = statement.executeQuery(query);
@@ -131,6 +141,13 @@ public class ContainerUtils {
                 "checking test result. expected={}, actual={}",
                 String.join(",", expected),
                 String.join(",", actual));
-        Assert.assertArrayEquals(expected.toArray(), actual.toArray());
+        if (ordered) {
+            Assert.assertArrayEquals(expected.toArray(), actual.toArray());
+        } else {
+            Assert.assertEquals(expected.size(), actual.size());
+            Assert.assertArrayEquals(
+                    expected.stream().sorted().toArray(Object[]::new),
+                    actual.stream().sorted().toArray(Object[]::new));
+        }
     }
 }

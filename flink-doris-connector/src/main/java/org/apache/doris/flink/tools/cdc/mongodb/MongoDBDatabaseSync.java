@@ -198,7 +198,7 @@ public class MongoDBDatabaseSync extends DatabaseSync {
 
     @Override
     public ParsingProcessFunction buildProcessFunction() {
-        return new MongoParsingProcessFunction(converter);
+        return new MongoParsingProcessFunction(database, converter);
     }
 
     @Override

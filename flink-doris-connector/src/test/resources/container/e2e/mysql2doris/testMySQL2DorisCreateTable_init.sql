@@ -1,3 +1,4 @@
+DROP DATABASE if EXISTS test_e2e_mysql;
 CREATE DATABASE if NOT EXISTS test_e2e_mysql;
 DROP TABLE IF EXISTS test_e2e_mysql.create_tbl_uniq;
 CREATE TABLE test_e2e_mysql.create_tbl_uniq (

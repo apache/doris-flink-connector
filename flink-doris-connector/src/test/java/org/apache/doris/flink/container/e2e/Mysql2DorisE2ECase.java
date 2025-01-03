@@ -36,6 +36,7 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
     private static final Logger LOG = LoggerFactory.getLogger(Mysql2DorisE2ECase.class);
     private static final String DATABASE = "test_e2e_mysql";
     private static final String CREATE_DATABASE = "CREATE DATABASE IF NOT EXISTS " + DATABASE;
+    private static final String DROP_DATABASE = "DROP DATABASE IF EXISTS " + DATABASE;
     private static final String MYSQL_CONF = "--" + DatabaseSyncConfig.MYSQL_CONF;
 
     @Before
@@ -56,13 +57,8 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
         argList.add(MYSQL_CONF);
         argList.add(PASSWORD + "=" + getMySQLPassword());
         argList.add(MYSQL_CONF);
-        argList.add(DATABASE_NAME + "=" + DATABASE);
-        // argList.add(MYSQL_CONF);
-        // argList.add("server-time-zone=UTC");
+        argList.add("server-time-zone=UTC");
 
-        // set doris database
-        argList.add(DORIS_DATABASE);
-        argList.add(DATABASE);
         setSinkConfDefaultConfig(argList);
         return argList;
     }
@@ -82,15 +78,7 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
 
     private void initDorisEnvironment() {
         LOG.info("Initializing Doris environment.");
-        ContainerUtils.executeSQLStatement(getDorisQueryConnection(), LOG, CREATE_DATABASE);
-        ContainerUtils.executeSQLStatement(
-                getDorisQueryConnection(),
-                LOG,
-                "DROP TABLE IF EXISTS test_e2e_mysql.tbl1",
-                "DROP TABLE IF EXISTS test_e2e_mysql.tbl2",
-                "DROP TABLE IF EXISTS test_e2e_mysql.tbl3",
-                "DROP TABLE IF EXISTS test_e2e_mysql.tbl4",
-                "DROP TABLE IF EXISTS test_e2e_mysql.tbl5");
+        ContainerUtils.executeSQLStatement(getDorisQueryConnection(), LOG, DROP_DATABASE);
     }
 
     private void initEnvironment(String jobName, String mysqlSourcePath) {
@@ -434,6 +422,132 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
             return createTblSql;
         }
         throw new RuntimeException("Table not exist " + table);
+    }
+
+    @Test
+    public void testMySQL2DorisMultiDatabaseSync() throws Exception {
+        String jobName = "testMySQL2DorisMultiDatabaseSync";
+        ContainerUtils.executeSQLStatement(
+                getDorisQueryConnection(), LOG, "DROP DATABASE IF EXISTS test_e2e_mysql_db1");
+        ContainerUtils.executeSQLStatement(
+                getDorisQueryConnection(), LOG, "DROP DATABASE IF EXISTS test_e2e_mysql_db2");
+        initEnvironment(jobName, "container/e2e/mysql2doris/testMySQL2DorisMultiDbSync_init.sql");
+        startMysql2DorisJob(jobName, "container/e2e/mysql2doris/testMySQL2DorisMultiDbSync.txt");
+
+        // wait 3 times checkpoint
+        Thread.sleep(30000);
+        LOG.info("Start to verify init result.");
+        List<String> initExpected1 = Arrays.asList("1,db1_tb1,18");
+        String sql1 = "SELECT * FROM test_e2e_mysql_db1.tbl1";
+        ContainerUtils.checkResult(getDorisQueryConnection(), LOG, initExpected1, sql1, 3, false);
+
+        List<String> initExpected2 = Arrays.asList("1,db1_tb2,19");
+        String sql2 = "SELECT * FROM test_e2e_mysql_db1.tbl2";
+        ContainerUtils.checkResult(getDorisQueryConnection(), LOG, initExpected2, sql2, 3, false);
+
+        List<String> initExpected3 = Arrays.asList("1,db2_tb1,20");
+        String sql3 = "SELECT * FROM test_e2e_mysql_db2.tbl1";
+        ContainerUtils.checkResult(getDorisQueryConnection(), LOG, initExpected3, sql3, 3, false);
+
+        List<String> initExpected4 = Arrays.asList("1,db2_tb2,21");
+        String sql4 = "SELECT * FROM test_e2e_mysql_db2.tbl2";
+        ContainerUtils.checkResult(getDorisQueryConnection(), LOG, initExpected4, sql4, 3, false);
+
+        List<String> initExpected5 = Arrays.asList("1,db2_tb3,22");
+        String sql5 = "SELECT * FROM test_e2e_mysql_db2.tbl3";
+        ContainerUtils.checkResult(getDorisQueryConnection(), LOG, initExpected5, sql5, 3, false);
+
+        // add incremental data
+        ContainerUtils.executeSQLStatement(
+                getMySQLQueryConnection(),
+                LOG,
+                "insert into test_e2e_mysql_db1.tbl1 values (2,'db1_tb1',180)",
+                "insert into test_e2e_mysql_db1.tbl2 values (2,'db1_tb2',190)",
+                "insert into test_e2e_mysql_db2.tbl1 values (2,'db2_tb1',200)",
+                "insert into test_e2e_mysql_db2.tbl2 values (2,'db2_tb2',210)",
+                "insert into test_e2e_mysql_db2.tbl3 values (2,'db2_tb3',220)");
+
+        Thread.sleep(20000);
+        List<String> incrExpected1 = Arrays.asList("1,db1_tb1,18", "2,db1_tb1,180");
+        ContainerUtils.checkResult(getDorisQueryConnection(), LOG, incrExpected1, sql1, 3, false);
+
+        List<String> incrExpected2 = Arrays.asList("1,db1_tb2,19", "2,db1_tb2,190");
+        ContainerUtils.checkResult(getDorisQueryConnection(), LOG, incrExpected2, sql2, 3, false);
+
+        List<String> incrExpected3 = Arrays.asList("1,db2_tb1,20", "2,db2_tb1,200");
+        ContainerUtils.checkResult(getDorisQueryConnection(), LOG, incrExpected3, sql3, 3, false);
+
+        List<String> incrExpected4 = Arrays.asList("1,db2_tb2,21", "2,db2_tb2,210");
+        ContainerUtils.checkResult(getDorisQueryConnection(), LOG, incrExpected4, sql4, 3, false);
+
+        List<String> incrExpected5 = Arrays.asList("1,db2_tb3,22", "2,db2_tb3,220");
+        ContainerUtils.checkResult(getDorisQueryConnection(), LOG, incrExpected5, sql5, 3, false);
+
+        cancelE2EJob(jobName);
+    }
+
+    /**
+     * Separate databases and tables to write to the same database and table
+     *
+     * @throws Exception
+     */
+    @Test
+    public void testMySQL2DorisMultiDatabase2OneSync() throws Exception {
+        String jobName = "testMySQL2DorisMultiDatabase2OneSync";
+        initEnvironment(jobName, "container/e2e/mysql2doris/testMySQL2DorisMultiDb2One_init.sql");
+        startMysql2DorisJob(jobName, "container/e2e/mysql2doris/testMySQL2DorisMultiDb2One.txt");
+
+        // wait 3 times checkpoint
+        Thread.sleep(30000);
+        LOG.info("Start to verify init result.");
+        List<String> initExpected = Arrays.asList("1,db1_tb1,18", "2,db2_tb1,20");
+        String sql1 = "SELECT * FROM test_e2e_mysql.tbl1";
+        ContainerUtils.checkResult(getDorisQueryConnection(), LOG, initExpected, sql1, 3, false);
+
+        List<String> initExpected2 =
+                Arrays.asList(
+                        "1,db1_tb2_1,19", "2,db1_tb2_2,191", "3,db2_tb2_2,21", "4,db2_tbl2_2,211");
+        String sql2 = "SELECT * FROM test_e2e_mysql.tbl2_merge";
+        ContainerUtils.checkResult(getDorisQueryConnection(), LOG, initExpected2, sql2, 3, false);
+
+        List<String> initExpected3 = Arrays.asList("1,db2_tb3,22");
+        String sql3 = "SELECT * FROM test_e2e_mysql.tbl3";
+        ContainerUtils.checkResult(getDorisQueryConnection(), LOG, initExpected3, sql3, 3, false);
+
+        // add incremental data
+        ContainerUtils.executeSQLStatement(
+                getMySQLQueryConnection(),
+                LOG,
+                "insert into test_e2e_mysql_db1.tbl1 values (3,'db1_tb1',180)",
+                "insert into test_e2e_mysql_db2.tbl1 values (4,'db2_tb1',200)",
+                "insert into test_e2e_mysql_db1.tbl2_1 values (5,'db1_tb2_1',1901)",
+                "insert into test_e2e_mysql_db1.tbl2_2 values (6,'db1_tb2_2',1902)",
+                "insert into test_e2e_mysql_db2.tbl2_1 values (7,'db2_tb2_1',2101)",
+                "insert into test_e2e_mysql_db2.tbl2_2 values (8,'db2_tb2_2',2102)",
+                "insert into test_e2e_mysql_db2.tbl3 values (3,'db2_tb3',220)");
+
+        Thread.sleep(20000);
+
+        List<String> incrExpected =
+                Arrays.asList("1,db1_tb1,18", "2,db2_tb1,20", "3,db1_tb1,180", "4,db2_tb1,200");
+        ContainerUtils.checkResult(getDorisQueryConnection(), LOG, incrExpected, sql1, 3, false);
+
+        List<String> incrExpected2 =
+                Arrays.asList(
+                        "1,db1_tb2_1,19",
+                        "2,db1_tb2_2,191",
+                        "3,db2_tb2_2,21",
+                        "4,db2_tbl2_2,211",
+                        "5,db1_tb2_1,1901",
+                        "6,db1_tb2_2,1902",
+                        "7,db2_tb2_1,2101",
+                        "8,db2_tb2_2,2102");
+        ContainerUtils.checkResult(getDorisQueryConnection(), LOG, incrExpected2, sql2, 3, false);
+
+        List<String> incrExpected3 = Arrays.asList("1,db2_tb3,22", "3,db2_tb3,220");
+        ContainerUtils.checkResult(getDorisQueryConnection(), LOG, incrExpected3, sql3, 3, false);
+
+        cancelE2EJob(jobName);
     }
 
     @After

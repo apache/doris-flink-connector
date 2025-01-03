@@ -1,0 +1,7 @@
+mysql-sync-database
+    --database test_e2e_mysql
+    --mysql-conf database-name=test_e2e_mysql_db.*
+    --including-tables ".*"
+    --multi-to-one-origin "tbl2.*"
+    --multi-to-one-target "tbl2_merge"
+    --table-conf replication_num=1
