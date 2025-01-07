@@ -128,12 +128,16 @@ public class DorisCommitter implements Committer<DorisCommittable>, Closeable {
                                 jsonMapper.readValue(
                                         loadResult,
                                         new TypeReference<HashMap<String, String>>() {});
-                        if (!res.get("status").equals(SUCCESS)
-                                && !ResponseUtil.isCommitted(res.get("msg"))) {
+                        if (res.get("status").equals(SUCCESS)) {
+                            LOG.info("load result {}", loadResult);
+                        } else if (ResponseUtil.isCommitted(res.get("msg"))) {
+                            LOG.info(
+                                    "transaction {} has already committed successfully, skipping, load response is {}",
+                                    committable.getTxnID(),
+                                    res.get("msg"));
+                        } else {
                             throw new DorisRuntimeException(
                                     "commit transaction failed " + loadResult);
-                        } else {
-                            LOG.info("load result {}", loadResult);
                         }
                         return;
                     }

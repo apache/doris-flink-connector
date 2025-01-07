@@ -391,7 +391,10 @@ public class DorisStreamLoad implements Serializable {
             String msg = res.get("msg");
             // transaction already aborted
             if (msg != null && ResponseUtil.isAborted(msg)) {
-                LOG.warn("Failed to abort transaction, {}", msg);
+                LOG.info(
+                        "transaction {} may have already been successfully aborted, skipping, abort response is {}",
+                        txnID,
+                        msg);
                 return;
             }
 
