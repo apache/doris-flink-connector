@@ -89,26 +89,32 @@ public class MongoJsonDebeziumSchemaChange extends CdcSchemaChange {
     }
 
     @Override
-    public boolean schemaChange(JsonNode recordRoot) throws IOException {
-        JsonNode logData = getFullDocument(recordRoot);
-        String cdcTableIdentifier = getCdcTableIdentifier(recordRoot);
-        String dorisTableIdentifier =
-                getDorisTableIdentifier(cdcTableIdentifier, dorisOptions, tableMapping);
-        String[] tableInfo = dorisTableIdentifier.split("\\.");
-        if (tableInfo.length != 2) {
-            throw new DorisRuntimeException();
-        }
-        String dataBase = tableInfo[0];
-        String table = tableInfo[1];
-        // build table fields mapping for all record
-        buildDorisTableFieldsMapping(dataBase, table);
+    public boolean schemaChange(JsonNode recordRoot) {
+        try {
+            JsonNode logData = getFullDocument(recordRoot);
+            String cdcTableIdentifier = getCdcTableIdentifier(recordRoot);
+            String dorisTableIdentifier =
+                    getDorisTableIdentifier(cdcTableIdentifier, dorisOptions, tableMapping);
+            String[] tableInfo = dorisTableIdentifier.split("\\.");
+            if (tableInfo.length != 2) {
+                throw new DorisRuntimeException();
+            }
+            String dataBase = tableInfo[0];
+            String table = tableInfo[1];
+            // build table fields mapping for all record
+            buildDorisTableFieldsMapping(dataBase, table);
 
-        // Determine whether change stream log and tableField are exactly the same, if not, perform
-        // schema change
-        checkAndUpdateSchemaChange(logData, dorisTableIdentifier, dataBase, table);
-        formatSpecialFieldData(logData);
-        ((ObjectNode) recordRoot).set(FIELD_DATA, logData);
-        return true;
+            // Determine whether change stream log and tableField are exactly the same, if not,
+            // perform
+            // schema change
+            checkAndUpdateSchemaChange(logData, dorisTableIdentifier, dataBase, table);
+            formatSpecialFieldData(logData);
+            ((ObjectNode) recordRoot).set(FIELD_DATA, logData);
+            return true;
+        } catch (Exception ex) {
+            LOG.warn("schema change error : ", ex);
+            return false;
+        }
     }
 
     private void formatSpecialFieldData(JsonNode logData) {

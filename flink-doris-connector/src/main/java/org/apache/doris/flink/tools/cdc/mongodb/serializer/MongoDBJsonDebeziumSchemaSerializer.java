@@ -120,11 +120,8 @@ public class MongoDBJsonDebeziumSchemaSerializer implements DorisRecordSerialize
         LOG.debug("received debezium json data {} :", record);
         JsonNode recordRoot = objectMapper.readValue(record, JsonNode.class);
         String op = getOperateType(recordRoot);
-        try {
-            schemaChange.schemaChange(recordRoot);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        schemaChange.schemaChange(recordRoot);
+
         return dataChange.serialize(record, recordRoot, op);
     }
 
