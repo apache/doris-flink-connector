@@ -61,6 +61,8 @@ public class SQLParserSchemaManager implements Serializable {
     private static final String PRIMARY_KEY = "PRIMARY KEY";
     private static final String UNIQUE = "UNIQUE";
     private static final String DORIS_CURRENT_TIMESTAMP = "CURRENT_TIMESTAMP";
+    private static final List<String> TYPE_MODIFIER =
+            Arrays.asList("UNSIGNED", "ZEROFILL", "PRECISION");
     private static final Set<String> sourceConnectorTimeValues =
             new HashSet<>(
                     Arrays.asList(
@@ -139,15 +141,13 @@ public class SQLParserSchemaManager implements Serializable {
                         .forEach(
                                 column -> {
                                     String columnName = column.getColumnName();
-                                    ColDataType colDataType = column.getColDataType();
-                                    String dataType = parseDataType(colDataType, sourceConnector);
                                     List<String> columnSpecs = column.getColumnSpecs();
-                                    String defaultValue =
-                                            extractDefaultValue(dataType, columnSpecs);
-                                    String comment = extractComment(columnSpecs);
                                     FieldSchema fieldSchema =
-                                            new FieldSchema(
-                                                    columnName, dataType, defaultValue, comment);
+                                            getFieldSchema(
+                                                    column.getColumnName(),
+                                                    column.getColumnSpecs(),
+                                                    column.getColDataType(),
+                                                    sourceConnector);
                                     columnFields.put(columnName, fieldSchema);
                                     extractColumnPrimaryKey(columnName, columnSpecs, pkKeys);
                                 });
@@ -179,6 +179,20 @@ public class SQLParserSchemaManager implements Serializable {
                     dorisTable);
         }
         return null;
+    }
+
+    private String extractTypeModifier(List<String> columnSpecs) {
+        if (CollectionUtils.isEmpty(columnSpecs)) {
+            return "";
+        }
+        StringBuilder builder = new StringBuilder();
+        for (String columnSpec : columnSpecs) {
+            String columnSpecUpperCase = columnSpec.toUpperCase(Locale.ROOT);
+            if (TYPE_MODIFIER.contains(columnSpecUpperCase)) {
+                builder.append(" ").append(columnSpecUpperCase);
+            }
+        }
+        return builder.toString();
     }
 
     private void extractIndexesPrimaryKey(List<Index> indexes, List<String> pkKeys) {
@@ -215,10 +229,23 @@ public class SQLParserSchemaManager implements Serializable {
         if (CollectionUtils.isEmpty(tableOptionsStrings)) {
             return null;
         }
+
+        for (int i = 0; i < tableOptionsStrings.size(); i++) {
+            String columnSpec = tableOptionsStrings.get(i);
+            // If you encounter a COMMENT and the next element is an equal sign (=)
+            if (COMMENT.equalsIgnoreCase(columnSpec)
+                    && i + 1 < tableOptionsStrings.size()
+                    && "=".equals(tableOptionsStrings.get(i + 1))) {
+                tableOptionsStrings.remove(i + 1);
+                break;
+            }
+        }
+
         return extractAdjacentString(tableOptionsStrings, COMMENT);
     }
 
-    private String parseDataType(ColDataType colDataType, SourceConnector sourceConnector) {
+    private String parseDataType(
+            ColDataType colDataType, String typeModifier, SourceConnector sourceConnector) {
         String dataType = colDataType.getDataType();
         int length = 0;
         int scale = 0;
@@ -229,7 +256,8 @@ public class SQLParserSchemaManager implements Serializable {
                 scale = Integer.parseInt(argumentsStringList.get(1));
             }
         }
-        return JsonDebeziumChangeUtils.buildDorisTypeName(sourceConnector, dataType, length, scale);
+        return JsonDebeziumChangeUtils.buildDorisTypeName(
+                sourceConnector, dataType + typeModifier, length, scale);
     }
 
     private String processDropColumnOperation(AlterExpression alterExpression, String dorisTable) {
@@ -244,19 +272,30 @@ public class SQLParserSchemaManager implements Serializable {
         List<ColumnDataType> colDataTypeList = alterExpression.getColDataTypeList();
         List<String> addColumnList = new ArrayList<>();
         for (ColumnDataType columnDataType : colDataTypeList) {
-            String columnName = columnDataType.getColumnName();
-            ColDataType colDataType = columnDataType.getColDataType();
-            String datatype = parseDataType(colDataType, sourceConnector);
-
-            List<String> columnSpecs = columnDataType.getColumnSpecs();
-            String defaultValue = extractDefaultValue(datatype, columnSpecs);
-            String comment = extractComment(columnSpecs);
-            FieldSchema fieldSchema = new FieldSchema(columnName, datatype, defaultValue, comment);
+            FieldSchema fieldSchema =
+                    getFieldSchema(
+                            columnDataType.getColumnName(),
+                            columnDataType.getColumnSpecs(),
+                            columnDataType.getColDataType(),
+                            sourceConnector);
             String addColumnDDL = SchemaChangeHelper.buildAddColumnDDL(dorisTable, fieldSchema);
             LOG.info("Parsed add column DDL SQL is: {}", addColumnDDL);
             addColumnList.add(addColumnDDL);
         }
         return addColumnList;
+    }
+
+    private FieldSchema getFieldSchema(
+            String columnName,
+            List<String> columnSpecs,
+            ColDataType colDataType,
+            SourceConnector sourceConnector) {
+        String typeModifier = extractTypeModifier(columnSpecs);
+        String datatype = parseDataType(colDataType, typeModifier, sourceConnector);
+
+        String defaultValue = extractDefaultValue(datatype, columnSpecs);
+        String comment = extractComment(columnSpecs);
+        return new FieldSchema(columnName, datatype, defaultValue, comment);
     }
 
     private String processChangeColumnOperation(

@@ -53,10 +53,12 @@ public class SQLParserSchemaManagerTest {
                 "ALTER TABLE `doris`.`tab` ADD COLUMN `create_time` DATETIMEV2(3) DEFAULT CURRENT_TIMESTAMP COMMENT 'time_comment'");
         expectDDLs.add("ALTER TABLE `doris`.`tab` RENAME COLUMN `c10` `c11`");
         expectDDLs.add("ALTER TABLE `doris`.`tab` RENAME COLUMN `c12` `c13`");
+        expectDDLs.add(
+                "ALTER TABLE `doris`.`tab` ADD COLUMN `card` LARGEINT COMMENT 'card_comment'");
 
         SourceConnector mysql = SourceConnector.MYSQL;
         String ddl =
-                "alter table t1 drop c1, drop column c2, add c3 int default 100, add column `decimal_type` decimal(38,9) DEFAULT '1.123456789' COMMENT 'decimal_type_comment', add `create_time` datetime(3) DEFAULT CURRENT_TIMESTAMP(3) comment 'time_comment', rename column c10 to c11, change column c12 c13 varchar(10)";
+                "alter table t1 drop c1, drop column c2, add c3 int default 100, add column `decimal_type` decimal(38,9) DEFAULT '1.123456789' COMMENT 'decimal_type_comment', add `create_time` datetime(3) DEFAULT CURRENT_TIMESTAMP(3) comment 'time_comment', rename column c10 to c11, change column c12 c13 varchar(10), add card bigint(20) unsigned NOT NULL COMMENT 'card_comment'";
         List<String> actualDDLs = schemaManager.parseAlterDDLs(mysql, ddl, dorisTable);
         for (String actualDDL : actualDDLs) {
             Assert.assertTrue(expectDDLs.contains(actualDDL));
@@ -257,13 +259,38 @@ public class SQLParserSchemaManagerTest {
                         + "  `decimal_type3` decimal(38,9) DEFAULT '1.123456789' COMMENT 'comment_test',\n"
                         + "  `create_time3` datetime(3) DEFAULT CURRENT_TIMESTAMP(3) COMMENT 'ttime_aaa',\n"
                         + "  PRIMARY KEY (`id`)\n"
-                        + ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci";
+                        + ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci comment='test_sinka'";
         TableSchema tableSchema =
                 schemaManager.parseCreateTableStatement(
                         SourceConnector.MYSQL, ddl, dorisTable, null);
 
         String expected =
-                "TableSchema{database='doris', table='auto_tab', tableComment='null', fields={`id`=FieldSchema{name='`id`', typeString='INT', defaultValue='10000', comment='id_test'}, `create_time`=FieldSchema{name='`create_time`', typeString='DATETIMEV2(3)', defaultValue='CURRENT_TIMESTAMP', comment='null'}, `c1`=FieldSchema{name='`c1`', typeString='INT', defaultValue='999', comment='null'}, `decimal_type`=FieldSchema{name='`decimal_type`', typeString='DECIMALV3(9,3)', defaultValue='1.000', comment='decimal_tes'}, `aaa`=FieldSchema{name='`aaa`', typeString='VARCHAR(300)', defaultValue='NULL', comment='null'}, `decimal_type3`=FieldSchema{name='`decimal_type3`', typeString='DECIMALV3(38,9)', defaultValue='1.123456789', comment='comment_test'}, `create_time3`=FieldSchema{name='`create_time3`', typeString='DATETIMEV2(3)', defaultValue='CURRENT_TIMESTAMP', comment='ttime_aaa'}}, keys=`id`, model=UNIQUE, distributeKeys=`id`, properties={}, tableBuckets=null}";
+                "TableSchema{database='doris', table='auto_tab', tableComment='test_sinka', fields={`id`=FieldSchema{name='`id`', typeString='INT', defaultValue='10000', comment='id_test'}, `create_time`=FieldSchema{name='`create_time`', typeString='DATETIMEV2(3)', defaultValue='CURRENT_TIMESTAMP', comment='null'}, `c1`=FieldSchema{name='`c1`', typeString='INT', defaultValue='999', comment='null'}, `decimal_type`=FieldSchema{name='`decimal_type`', typeString='DECIMALV3(9,3)', defaultValue='1.000', comment='decimal_tes'}, `aaa`=FieldSchema{name='`aaa`', typeString='VARCHAR(300)', defaultValue='NULL', comment='null'}, `decimal_type3`=FieldSchema{name='`decimal_type3`', typeString='DECIMALV3(38,9)', defaultValue='1.123456789', comment='comment_test'}, `create_time3`=FieldSchema{name='`create_time3`', typeString='DATETIMEV2(3)', defaultValue='CURRENT_TIMESTAMP', comment='ttime_aaa'}}, keys=`id`, model=UNIQUE, distributeKeys=`id`, properties={}, tableBuckets=null}";
+        Assert.assertEquals(expected, tableSchema.toString());
+    }
+
+    @Test
+    public void testParseCreateTableUnsignedStatement() {
+        String dorisTable = "doris.auto_tab";
+        String ddl =
+                "CREATE TABLE `test_sinka` (\n"
+                        + "  `id` BIGINT NOT NULL DEFAULT '10000' COMMENT 'id_test',\n"
+                        + "  `id2` BIGINT UNSIGNED ZEROFILL NOT NULL DEFAULT '10000' COMMENT 'id2_comment',\n"
+                        + "  `create_time` datetime(3) DEFAULT CURRENT_TIMESTAMP(3),\n"
+                        + "  `c1` int DEFAULT '999',\n"
+                        + "  `decimal_type` decimal(9,3) DEFAULT '1.000' COMMENT 'decimal_tes',\n"
+                        + "  `aaa` varchar(100) DEFAULT NULL,\n"
+                        + "  `decimal_type3` decimal(38,9) DEFAULT '1.123456789' COMMENT 'comment_test',\n"
+                        + "  `create_time3` datetime(3) DEFAULT CURRENT_TIMESTAMP(3) COMMENT 'ttime_aaa',\n"
+                        + "  PRIMARY KEY (`id`)\n"
+                        + ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci comment 'test_sinka'";
+        TableSchema tableSchema =
+                schemaManager.parseCreateTableStatement(
+                        SourceConnector.MYSQL, ddl, dorisTable, null);
+
+        String expected =
+                "TableSchema{database='doris', table='auto_tab', tableComment='test_sinka', fields={`id`=FieldSchema{name='`id`', typeString='BIGINT', defaultValue='10000', comment='id_test'}, `id2`=FieldSchema{name='`id2`', typeString='LARGEINT', defaultValue='10000', comment='id2_comment'}, `create_time`=FieldSchema{name='`create_time`', typeString='DATETIMEV2(3)', defaultValue='CURRENT_TIMESTAMP', comment='null'}, `c1`=FieldSchema{name='`c1`', typeString='INT', defaultValue='999', comment='null'}, `decimal_type`=FieldSchema{name='`decimal_type`', typeString='DECIMALV3(9,3)', defaultValue='1.000', comment='decimal_tes'}, `aaa`=FieldSchema{name='`aaa`', typeString='VARCHAR(300)', defaultValue='NULL', comment='null'}, `decimal_type3`=FieldSchema{name='`decimal_type3`', typeString='DECIMALV3(38,9)', defaultValue='1.123456789', comment='comment_test'}, `create_time3`=FieldSchema{name='`create_time3`', typeString='DATETIMEV2(3)', defaultValue='CURRENT_TIMESTAMP', comment='ttime_aaa'}}, keys=`id`, model=UNIQUE, distributeKeys=`id`, properties={}, tableBuckets=null}";
+        System.out.println(tableSchema.toString());
         Assert.assertEquals(expected, tableSchema.toString());
     }
 
