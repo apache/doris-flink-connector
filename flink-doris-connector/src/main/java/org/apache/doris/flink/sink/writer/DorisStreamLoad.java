@@ -115,6 +115,10 @@ public class DorisStreamLoad implements Serializable {
         this.streamLoadProp = executionOptions.getStreamLoadProp();
         this.enableDelete = executionOptions.getDeletable();
         this.httpClient = httpClient;
+        String threadName =
+                String.format(
+                        "stream-load-upload-%s-%s",
+                        labelGenerator.getSubtaskId(), labelGenerator.getTableIdentifier());
         this.executorService =
                 new ThreadPoolExecutor(
                         1,
@@ -122,7 +126,7 @@ public class DorisStreamLoad implements Serializable {
                         0L,
                         TimeUnit.MILLISECONDS,
                         new LinkedBlockingQueue<>(),
-                        new ExecutorThreadFactory("stream-load-upload"));
+                        new ExecutorThreadFactory(threadName));
         this.recordStream =
                 new RecordStream(
                         executionOptions.getBufferSize(),
@@ -347,11 +351,20 @@ public class DorisStreamLoad implements Serializable {
             } else {
                 executeMessage = "table " + table + " start execute load for label " + label;
             }
+            Thread currentThread = Thread.currentThread();
             pendingLoadFuture =
                     executorService.submit(
                             () -> {
                                 LOG.info(executeMessage);
-                                return httpClient.execute(putBuilder.build());
+                                try {
+                                    return httpClient.execute(putBuilder.build());
+                                } catch (Exception e) {
+                                    LOG.error("Failed to execute load, cause ", e);
+                                    // When an HTTP error occurs, the main thread should be
+                                    // interrupted to prevent blocking
+                                    currentThread.interrupt();
+                                    throw e;
+                                }
                             });
         } catch (Exception e) {
             String err;

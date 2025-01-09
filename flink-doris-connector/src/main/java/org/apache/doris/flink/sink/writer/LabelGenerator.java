@@ -91,4 +91,12 @@ public class LabelGenerator {
         String concatPrefix = String.format("%s_%s_%s", labelPrefix, tableIdentifier, subtaskId);
         return concatPrefix;
     }
+
+    public int getSubtaskId() {
+        return subtaskId;
+    }
+
+    public String getTableIdentifier() {
+        return tableIdentifier;
+    }
 }
