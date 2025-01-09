@@ -20,9 +20,12 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.doris.flink.cfg.ConfigurationOptions;
+import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.exception.StreamLoadException;
 import org.apache.doris.flink.rest.models.RespContent;
 import org.apache.http.HttpHeaders;
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPut;
 import org.apache.http.entity.StringEntity;
@@ -65,17 +68,9 @@ public class DorisStreamLoad implements Serializable {
     private String tbl;
     private String authEncoding;
     private Properties streamLoadProp;
-    private final HttpClientBuilder httpClientBuilder = HttpClients
-            .custom()
-            .setRedirectStrategy(new DefaultRedirectStrategy() {
-                @Override
-                protected boolean isRedirectable(String method) {
-                    return true;
-                }
-            });
-    private CloseableHttpClient httpClient;
+    private final HttpClientBuilder httpClientBuilder;
 
-    public DorisStreamLoad(String hostPort, String db, String tbl, String user, String passwd, Properties streamLoadProp) {
+    public DorisStreamLoad(String hostPort, String db, String tbl, String user, String passwd, Properties streamLoadProp, DorisReadOptions readOptions) {
         this.hostPort = hostPort;
         this.db = db;
         this.tbl = tbl;
@@ -84,7 +79,22 @@ public class DorisStreamLoad implements Serializable {
         this.loadUrlStr = String.format(loadUrlPattern, hostPort, db, tbl);
         this.authEncoding = basicAuthHeader(user, passwd);
         this.streamLoadProp = streamLoadProp;
-        this.httpClient = httpClientBuilder.build();
+        int connectTimeout = readOptions.getRequestConnectTimeoutMs() == null ? ConfigurationOptions.DORIS_REQUEST_CONNECT_TIMEOUT_MS_DEFAULT : readOptions.getRequestConnectTimeoutMs();
+        int socketTimeout = readOptions.getRequestReadTimeoutMs() == null ? ConfigurationOptions.DORIS_REQUEST_READ_TIMEOUT_MS_DEFAULT : readOptions.getRequestReadTimeoutMs();
+        this.httpClientBuilder = HttpClients
+                .custom()
+                .setRedirectStrategy(new DefaultRedirectStrategy() {
+                    @Override
+                    protected boolean isRedirectable(String method) {
+                        return true;
+                    }
+                })
+                .setDefaultRequestConfig(
+                        RequestConfig.custom()
+                                .setConnectTimeout(connectTimeout)
+                                .setConnectionRequestTimeout(connectTimeout)
+                                .setSocketTimeout(socketTimeout)
+                                .build());
     }
 
     public String getLoadUrlStr() {
@@ -134,18 +144,20 @@ public class DorisStreamLoad implements Serializable {
             StringEntity entity = new StringEntity(value, "UTF-8");
             put.setEntity(entity);
 
-            try (CloseableHttpResponse response = httpClient.execute(put)) {
-                final int statusCode = response.getStatusLine().getStatusCode();
-                final String reasonPhrase = response.getStatusLine().getReasonPhrase();
-                String loadResult = "";
-                if (response.getEntity() != null) {
-                    loadResult = EntityUtils.toString(response.getEntity());
+            try (CloseableHttpClient httpClient = httpClientBuilder.build()){
+                try (CloseableHttpResponse response = httpClient.execute(put)) {
+                    final int statusCode = response.getStatusLine().getStatusCode();
+                    final String reasonPhrase = response.getStatusLine().getReasonPhrase();
+                    String loadResult = "";
+                    if (response.getEntity() != null) {
+                        loadResult = EntityUtils.toString(response.getEntity());
+                    }
+                    return new LoadResponse(statusCode, reasonPhrase, loadResult);
                 }
-                return new LoadResponse(statusCode, reasonPhrase, loadResult);
             }
         } catch (Exception e) {
             String err = "failed to stream load data with label: " + label;
-            LOG.warn(err, e);
+            LOG.error(err, e);
             return new LoadResponse(-1, e.getMessage(), err);
         }
     }
@@ -157,14 +169,6 @@ public class DorisStreamLoad implements Serializable {
     }
 
     public void close() throws IOException {
-        if (null != httpClient) {
-            try {
-                httpClient.close();
-            } catch (IOException e) {
-                LOG.error("Closing httpClient failed.", e);
-                throw new RuntimeException("Closing httpClient failed.", e);
-            }
-        }
     }
 
     public static class LoadResponse {

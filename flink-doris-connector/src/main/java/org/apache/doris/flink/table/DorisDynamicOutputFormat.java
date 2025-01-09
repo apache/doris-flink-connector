@@ -23,14 +23,16 @@ import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.exception.DorisException;
 import org.apache.doris.flink.exception.StreamLoadException;
 import org.apache.doris.flink.rest.RestService;
+import org.apache.doris.flink.rest.models.BackendV2;
 import org.apache.doris.flink.rest.models.Schema;
 import org.apache.flink.api.common.io.RichOutputFormat;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.types.RowKind;
-import org.apache.flink.runtime.util.ExecutorThreadFactory;
+import org.apache.flink.util.CollectionUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -87,7 +89,8 @@ public class DorisDynamicOutputFormat<T> extends RichOutputFormat<T> {
     private DorisExecutionOptions executionOptions;
     private DorisStreamLoad dorisStreamLoad;
     private String keysType;
-
+    private List<BackendV2.BackendRowV2> backends;
+    private long pos = 0L;
     private transient volatile boolean closed = false;
     private transient ScheduledExecutorService scheduler;
     private transient ScheduledFuture<?> scheduledFuture;
@@ -105,11 +108,13 @@ public class DorisDynamicOutputFormat<T> extends RichOutputFormat<T> {
         this.jsonFormat = FORMAT_JSON_VALUE.equals(executionOptions.getStreamLoadProp().getProperty(FORMAT_KEY));
         this.keysType = parseKeysType();
 
+
         handleStreamloadProp();
         this.fieldGetters = new RowData.FieldGetter[logicalTypes.length];
         for (int i = 0; i < logicalTypes.length; i++) {
             fieldGetters[i] = createFieldGetter(logicalTypes[i], i);
         }
+
     }
 
     /**
@@ -186,13 +191,15 @@ public class DorisDynamicOutputFormat<T> extends RichOutputFormat<T> {
 
     @Override
     public void open(int taskNumber, int numTasks) throws IOException {
+        this.backends = settingBackends();
         dorisStreamLoad = new DorisStreamLoad(
-                getBackend(),
+                backends.get(0).toBackendString(),
                 options.getTableIdentifier().split("\\.")[0],
                 options.getTableIdentifier().split("\\.")[1],
                 options.getUsername(),
                 options.getPassword(),
-                executionOptions.getStreamLoadProp());
+                executionOptions.getStreamLoadProp(),
+                readOptions);
         LOG.info("Streamload BE:{}", dorisStreamLoad.getLoadUrlStr());
 
         if (executionOptions.getBatchIntervalMs() != 0 && executionOptions.getBatchSize() != 1) {
@@ -326,9 +333,9 @@ public class DorisDynamicOutputFormat<T> extends RichOutputFormat<T> {
                     throw new IOException(e);
                 }
                 try {
-                    dorisStreamLoad.setHostPort(getBackend());
+                    dorisStreamLoad.setHostPort(getAvailableBackend());
                     LOG.warn("streamload error,switch be: {}", dorisStreamLoad.getLoadUrlStr(), e);
-                    Thread.sleep(1000 * i);
+                    Thread.sleep(1000L * ( i + 1 ));
                 } catch (InterruptedException ex) {
                     Thread.currentThread().interrupt();
                     throw new IOException("unable to flush; interrupted while doing another attempt", e);
@@ -342,9 +349,33 @@ public class DorisDynamicOutputFormat<T> extends RichOutputFormat<T> {
             //get be url from fe
             return RestService.randomBackend(options, readOptions, LOG);
         } catch (IOException | DorisException e) {
-            LOG.error("get backends info fail");
+            LOG.error("get backends info fail", e);
             throw new IOException(e);
         }
+    }
+
+    private List<BackendV2.BackendRowV2> settingBackends(){
+        try {
+            List<BackendV2.BackendRowV2> backendsV2 = RestService.getBackendsV2(options, readOptions, LOG);
+            if(CollectionUtil.isNullOrEmpty(backendsV2)){
+                throw new RuntimeException("get no available backend.");
+            }
+            return backendsV2;
+        } catch (Exception e) {
+            LOG.error("get backends lists fail", e);
+            throw new RuntimeException(e);
+        }
+    }
+
+    public String getAvailableBackend() {
+        long tmp = pos + backends.size();
+        while (pos < tmp) {
+            BackendV2.BackendRowV2 backend =
+                    backends.get((int) (pos % backends.size()));
+            pos++;
+            return backend.toBackendString();
+        }
+        throw new RuntimeException("error cause no available backend.");
     }
 
     /**
