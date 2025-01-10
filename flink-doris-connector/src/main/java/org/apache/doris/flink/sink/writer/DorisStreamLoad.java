@@ -89,6 +89,7 @@ public class DorisStreamLoad implements Serializable {
     private final Properties streamLoadProp;
     private final RecordStream recordStream;
     private volatile Future<CloseableHttpResponse> pendingLoadFuture;
+    private volatile Exception httpException = null;
     private final CloseableHttpClient httpClient;
     private final ExecutorService executorService;
     private boolean loadBatchFirstRecord;
@@ -115,6 +116,10 @@ public class DorisStreamLoad implements Serializable {
         this.streamLoadProp = executionOptions.getStreamLoadProp();
         this.enableDelete = executionOptions.getDeletable();
         this.httpClient = httpClient;
+        String threadName =
+                String.format(
+                        "stream-load-upload-%s-%s",
+                        labelGenerator.getSubtaskId(), labelGenerator.getTableIdentifier());
         this.executorService =
                 new ThreadPoolExecutor(
                         1,
@@ -122,7 +127,7 @@ public class DorisStreamLoad implements Serializable {
                         0L,
                         TimeUnit.MILLISECONDS,
                         new LinkedBlockingQueue<>(),
-                        new ExecutorThreadFactory("stream-load-upload"));
+                        new ExecutorThreadFactory(threadName));
         this.recordStream =
                 new RecordStream(
                         executionOptions.getBufferSize(),
@@ -250,12 +255,19 @@ public class DorisStreamLoad implements Serializable {
      * @throws IOException
      */
     public void writeRecord(byte[] record) throws IOException {
+        checkLoadException();
         if (loadBatchFirstRecord) {
             loadBatchFirstRecord = false;
         } else if (lineDelimiter != null) {
             recordStream.write(lineDelimiter);
         }
         recordStream.write(record);
+    }
+
+    private void checkLoadException() {
+        if (httpException != null) {
+            throw new RuntimeException("Stream load http request error, ", httpException);
+        }
     }
 
     @VisibleForTesting
@@ -347,11 +359,21 @@ public class DorisStreamLoad implements Serializable {
             } else {
                 executeMessage = "table " + table + " start execute load for label " + label;
             }
+            Thread mainThread = Thread.currentThread();
             pendingLoadFuture =
                     executorService.submit(
                             () -> {
                                 LOG.info(executeMessage);
-                                return httpClient.execute(putBuilder.build());
+                                try {
+                                    return httpClient.execute(putBuilder.build());
+                                } catch (Exception e) {
+                                    LOG.error("Failed to execute load, cause ", e);
+                                    httpException = e;
+                                    // When an HTTP error occurs, the main thread should be
+                                    // interrupted to prevent blocking
+                                    mainThread.interrupt();
+                                    throw e;
+                                }
                             });
         } catch (Exception e) {
             String err;

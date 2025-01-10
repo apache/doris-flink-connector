@@ -60,6 +60,7 @@ public class HttpUtil {
                                         return true;
                                     }
                                 })
+                        .setRetryHandler((exception, executionCount, context) -> false)
                         .setConnectionReuseStrategy(NoConnectionReuseStrategy.INSTANCE)
                         .setDefaultRequestConfig(
                                 RequestConfig.custom()
