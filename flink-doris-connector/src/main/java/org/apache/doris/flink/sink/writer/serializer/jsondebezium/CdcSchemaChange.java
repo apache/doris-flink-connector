@@ -20,8 +20,6 @@ package org.apache.doris.flink.sink.writer.serializer.jsondebezium;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.apache.doris.flink.sink.writer.ChangeEvent;
 
-import java.io.IOException;
-
 /**
  * When cdc connector captures data changes about source database schema changes, you need to
  * inherit this class to complete the synchronized changes to Doris schema. Supports data messages
@@ -33,7 +31,8 @@ public abstract class CdcSchemaChange implements ChangeEvent {
 
     protected abstract String extractTable(JsonNode record);
 
-    public abstract boolean schemaChange(JsonNode recordRoot) throws IOException;
+    /** Schema change */
+    public abstract boolean schemaChange(JsonNode recordRoot);
 
     protected abstract String getCdcTableIdentifier(JsonNode record);
 }
