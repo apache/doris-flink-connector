@@ -93,6 +93,14 @@ public class DorisConfigOptions {
                     .withDescription(
                             "Filter expression of the query, which is transparently transmitted to Doris. Doris uses this expression to complete source-side data filtering");
 
+    public static final ConfigOption<String> DORIS_FILTER_PARTITION =
+            ConfigOptions.key("doris.filter.partition")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Filter expression of partition, which is transparently transmitted to Doris. Doris uses "
+                                    + "this expression to complete source-side data partition filtering,example ``p20241201000000`,`p20241202000000``");
+
     @Deprecated
     public static final ConfigOption<String> DORIS_READ_FIELD =
             ConfigOptions.key("doris.read.field")

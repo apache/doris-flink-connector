@@ -26,6 +26,8 @@ public interface ConfigurationOptions {
     String TABLE_IDENTIFIER = "table.identifier";
     String DORIS_READ_FIELD = "doris.read.field";
     String DORIS_FILTER_QUERY = "doris.filter.query";
+    // filter partition
+    String DORIS_FILTER_PARTITION = "doris.filter.partition";
     String DORIS_USER = "username";
     String DORIS_PASSWORD = "password";
     String DORIS_REQUEST_RETRIES = "doris.request.retries";

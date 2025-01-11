@@ -38,53 +38,7 @@ import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
 
-import static org.apache.doris.flink.table.DorisConfigOptions.AUTO_REDIRECT;
-import static org.apache.doris.flink.table.DorisConfigOptions.BENODES;
-import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_BATCH_SIZE;
-import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_DESERIALIZE_ARROW_ASYNC;
-import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_DESERIALIZE_QUEUE_SIZE;
-import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_EXEC_MEM_LIMIT;
-import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_FILTER_QUERY;
-import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_READ_FIELD;
-import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_REQUEST_CONNECT_TIMEOUT_MS;
-import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_REQUEST_QUERY_TIMEOUT_S;
-import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_REQUEST_READ_TIMEOUT_MS;
-import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_REQUEST_RETRIES;
-import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_TABLET_SIZE;
-import static org.apache.doris.flink.table.DorisConfigOptions.FENODES;
-import static org.apache.doris.flink.table.DorisConfigOptions.FLIGHT_SQL_PORT;
-import static org.apache.doris.flink.table.DorisConfigOptions.IDENTIFIER;
-import static org.apache.doris.flink.table.DorisConfigOptions.JDBC_URL;
-import static org.apache.doris.flink.table.DorisConfigOptions.LOOKUP_CACHE_MAX_ROWS;
-import static org.apache.doris.flink.table.DorisConfigOptions.LOOKUP_CACHE_TTL;
-import static org.apache.doris.flink.table.DorisConfigOptions.LOOKUP_JDBC_ASYNC;
-import static org.apache.doris.flink.table.DorisConfigOptions.LOOKUP_JDBC_READ_BATCH_QUEUE_SIZE;
-import static org.apache.doris.flink.table.DorisConfigOptions.LOOKUP_JDBC_READ_BATCH_SIZE;
-import static org.apache.doris.flink.table.DorisConfigOptions.LOOKUP_JDBC_READ_THREAD_SIZE;
-import static org.apache.doris.flink.table.DorisConfigOptions.LOOKUP_MAX_RETRIES;
-import static org.apache.doris.flink.table.DorisConfigOptions.PASSWORD;
-import static org.apache.doris.flink.table.DorisConfigOptions.SINK_BUFFER_COUNT;
-import static org.apache.doris.flink.table.DorisConfigOptions.SINK_BUFFER_FLUSH_INTERVAL;
-import static org.apache.doris.flink.table.DorisConfigOptions.SINK_BUFFER_FLUSH_MAX_BYTES;
-import static org.apache.doris.flink.table.DorisConfigOptions.SINK_BUFFER_FLUSH_MAX_ROWS;
-import static org.apache.doris.flink.table.DorisConfigOptions.SINK_BUFFER_SIZE;
-import static org.apache.doris.flink.table.DorisConfigOptions.SINK_CHECK_INTERVAL;
-import static org.apache.doris.flink.table.DorisConfigOptions.SINK_ENABLE_2PC;
-import static org.apache.doris.flink.table.DorisConfigOptions.SINK_ENABLE_BATCH_MODE;
-import static org.apache.doris.flink.table.DorisConfigOptions.SINK_ENABLE_DELETE;
-import static org.apache.doris.flink.table.DorisConfigOptions.SINK_FLUSH_QUEUE_SIZE;
-import static org.apache.doris.flink.table.DorisConfigOptions.SINK_IGNORE_COMMIT_ERROR;
-import static org.apache.doris.flink.table.DorisConfigOptions.SINK_IGNORE_UPDATE_BEFORE;
-import static org.apache.doris.flink.table.DorisConfigOptions.SINK_LABEL_PREFIX;
-import static org.apache.doris.flink.table.DorisConfigOptions.SINK_MAX_RETRIES;
-import static org.apache.doris.flink.table.DorisConfigOptions.SINK_PARALLELISM;
-import static org.apache.doris.flink.table.DorisConfigOptions.SINK_USE_CACHE;
-import static org.apache.doris.flink.table.DorisConfigOptions.SINK_WRITE_MODE;
-import static org.apache.doris.flink.table.DorisConfigOptions.SOURCE_USE_OLD_API;
-import static org.apache.doris.flink.table.DorisConfigOptions.STREAM_LOAD_PROP_PREFIX;
-import static org.apache.doris.flink.table.DorisConfigOptions.TABLE_IDENTIFIER;
-import static org.apache.doris.flink.table.DorisConfigOptions.USERNAME;
-import static org.apache.doris.flink.table.DorisConfigOptions.USE_FLIGHT_SQL;
+import static org.apache.doris.flink.table.DorisConfigOptions.*;
 
 /**
  * The {@link DorisDynamicTableFactory} translates the catalog table to a table source.
@@ -121,6 +75,7 @@ public final class DorisDynamicTableFactory
 
         options.add(DORIS_READ_FIELD);
         options.add(DORIS_FILTER_QUERY);
+        options.add(DORIS_FILTER_PARTITION);
         options.add(DORIS_TABLET_SIZE);
         options.add(DORIS_REQUEST_CONNECT_TIMEOUT_MS);
         options.add(DORIS_REQUEST_READ_TIMEOUT_MS);
@@ -210,7 +165,10 @@ public final class DorisDynamicTableFactory
         builder.setDeserializeArrowAsync(readableConfig.get(DORIS_DESERIALIZE_ARROW_ASYNC))
                 .setDeserializeQueueSize(readableConfig.get(DORIS_DESERIALIZE_QUEUE_SIZE))
                 .setExecMemLimit(readableConfig.get(DORIS_EXEC_MEM_LIMIT).getBytes())
-                .setFilterQuery(readableConfig.get(DORIS_FILTER_QUERY))
+                // 将filter中的双引号替换为单引
+                .setFilterQuery(readableConfig.get(DORIS_FILTER_QUERY).replaceAll("\"", "'"))
+                // 将partition filter传递下去
+                .setFilterPartition(readableConfig.get(DORIS_FILTER_PARTITION))
                 .setReadFields(readableConfig.get(DORIS_READ_FIELD))
                 .setRequestQueryTimeoutS(
                         (int) readableConfig.get(DORIS_REQUEST_QUERY_TIMEOUT_S).getSeconds())

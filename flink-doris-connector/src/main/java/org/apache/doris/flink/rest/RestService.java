@@ -573,9 +573,15 @@ public class RestService implements Serializable {
                         + "`.`"
                         + tableIdentifiers[1]
                         + "`";
+        // 将partition 拼接上去
+        if (!StringUtils.isEmpty(readOptions.getFilterPartition())) {
+            sql = sql + " partition (" + readOptions.getFilterPartition() + ")";
+        }
+
         if (!StringUtils.isEmpty(readOptions.getFilterQuery())) {
             sql += " where " + readOptions.getFilterQuery();
         }
+
         logger.info("Query SQL Sending to Doris FE is: '{}'.", sql);
         String[] tableIdentifier = parseIdentifier(options.getTableIdentifier(), logger);
         String queryPlanUri =

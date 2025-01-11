@@ -27,6 +27,8 @@ public class DorisReadOptions implements Serializable {
 
     private String readFields;
     private String filterQuery;
+    // 增加分区过滤功能，减少查询数据量
+    private String filterPartition;
     private Integer requestTabletSize;
     private Integer requestConnectTimeoutMs;
     private Integer requestReadTimeoutMs;
@@ -43,6 +45,7 @@ public class DorisReadOptions implements Serializable {
     public DorisReadOptions(
             String readFields,
             String filterQuery,
+            String filterPartition,
             Integer requestTabletSize,
             Integer requestConnectTimeoutMs,
             Integer requestReadTimeoutMs,
@@ -57,6 +60,7 @@ public class DorisReadOptions implements Serializable {
             Integer flightSqlPort) {
         this.readFields = readFields;
         this.filterQuery = filterQuery;
+        this.filterPartition = filterPartition;
         this.requestTabletSize = requestTabletSize;
         this.requestConnectTimeoutMs = requestConnectTimeoutMs;
         this.requestReadTimeoutMs = requestReadTimeoutMs;
@@ -77,6 +81,10 @@ public class DorisReadOptions implements Serializable {
 
     public String getFilterQuery() {
         return filterQuery;
+    }
+
+    public String getFilterPartition() {
+        return filterPartition;
     }
 
     public Integer getRequestTabletSize() {
@@ -127,6 +135,10 @@ public class DorisReadOptions implements Serializable {
         this.filterQuery = filterQuery;
     }
 
+    public void setFilterPartition(String filterPartition) {
+        this.filterPartition = filterPartition;
+    }
+
     public boolean getUseFlightSql() {
         return useFlightSql;
     }
@@ -155,6 +167,7 @@ public class DorisReadOptions implements Serializable {
         return useOldApi == that.useOldApi
                 && Objects.equals(readFields, that.readFields)
                 && Objects.equals(filterQuery, that.filterQuery)
+                && Objects.equals(filterPartition, that.filterPartition)
                 && Objects.equals(requestTabletSize, that.requestTabletSize)
                 && Objects.equals(requestConnectTimeoutMs, that.requestConnectTimeoutMs)
                 && Objects.equals(requestReadTimeoutMs, that.requestReadTimeoutMs)
@@ -173,6 +186,7 @@ public class DorisReadOptions implements Serializable {
         return Objects.hash(
                 readFields,
                 filterQuery,
+                filterPartition,
                 requestTabletSize,
                 requestConnectTimeoutMs,
                 requestReadTimeoutMs,
@@ -191,6 +205,7 @@ public class DorisReadOptions implements Serializable {
         return new DorisReadOptions(
                 readFields,
                 filterQuery,
+                filterPartition,
                 requestTabletSize,
                 requestConnectTimeoutMs,
                 requestReadTimeoutMs,
@@ -210,6 +225,7 @@ public class DorisReadOptions implements Serializable {
 
         private String readFields;
         private String filterQuery;
+        private String filterPartition;
         private Integer requestTabletSize;
         private Integer requestConnectTimeoutMs;
         private Integer requestReadTimeoutMs;
@@ -242,6 +258,17 @@ public class DorisReadOptions implements Serializable {
          */
         public Builder setFilterQuery(String filterQuery) {
             this.filterQuery = filterQuery;
+            return this;
+        }
+
+        /**
+         * Sets the filterPartition for doris table to filter partition.
+         *
+         * @param filterPartition
+         * @return this DorisReadOptions.builder.
+         */
+        public Builder setFilterPartition(String filterPartition) {
+            this.filterPartition = filterPartition;
             return this;
         }
 
@@ -390,6 +417,7 @@ public class DorisReadOptions implements Serializable {
             return new DorisReadOptions(
                     readFields,
                     filterQuery,
+                    filterPartition,
                     requestTabletSize,
                     requestConnectTimeoutMs,
                     requestReadTimeoutMs,
