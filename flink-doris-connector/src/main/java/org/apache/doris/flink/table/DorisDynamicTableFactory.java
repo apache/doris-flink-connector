@@ -165,9 +165,7 @@ public final class DorisDynamicTableFactory
         builder.setDeserializeArrowAsync(readableConfig.get(DORIS_DESERIALIZE_ARROW_ASYNC))
                 .setDeserializeQueueSize(readableConfig.get(DORIS_DESERIALIZE_QUEUE_SIZE))
                 .setExecMemLimit(readableConfig.get(DORIS_EXEC_MEM_LIMIT).getBytes())
-                // 将filter中的双引号替换为单引
-                .setFilterQuery(readableConfig.get(DORIS_FILTER_QUERY).replaceAll("\"", "'"))
-                // 将partition filter传递下去
+                 // 将partition filter传递下去
                 .setFilterPartition(readableConfig.get(DORIS_FILTER_PARTITION))
                 .setReadFields(readableConfig.get(DORIS_READ_FIELD))
                 .setRequestQueryTimeoutS(
@@ -182,6 +180,10 @@ public final class DorisDynamicTableFactory
                 .setUseOldApi(readableConfig.get(SOURCE_USE_OLD_API))
                 .setUseFlightSql(readableConfig.get(USE_FLIGHT_SQL))
                 .setFlightSqlPort(readableConfig.get(FLIGHT_SQL_PORT));
+        if(readableConfig.get(DORIS_FILTER_QUERY)!=null){
+            // 将filter中的双引号替换为单引
+            builder.setFilterQuery(readableConfig.get(DORIS_FILTER_QUERY).replaceAll("\"", "'"));
+        }
         return builder.build();
     }
 
