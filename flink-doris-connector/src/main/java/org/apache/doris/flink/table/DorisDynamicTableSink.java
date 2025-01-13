@@ -21,18 +21,23 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.SinkV2Provider;
+import org.apache.flink.table.connector.sink.abilities.SupportsOverwrite;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
+import org.apache.doris.flink.connection.SimpleJdbcConnectionProvider;
+import org.apache.doris.flink.exception.DorisSystemException;
 import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.sink.DorisSink;
 import org.apache.doris.flink.sink.writer.serializer.RowDataSerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.sql.Connection;
+import java.sql.Statement;
 import java.util.Arrays;
 import java.util.Objects;
 import java.util.Properties;
@@ -46,13 +51,14 @@ import static org.apache.doris.flink.sink.writer.LoadConstants.FIELD_DELIMITER_K
 import static org.apache.doris.flink.sink.writer.LoadConstants.FORMAT_KEY;
 
 /** DorisDynamicTableSink. */
-public class DorisDynamicTableSink implements DynamicTableSink {
+public class DorisDynamicTableSink implements DynamicTableSink, SupportsOverwrite {
     private static final Logger LOG = LoggerFactory.getLogger(DorisDynamicTableSink.class);
     private final DorisOptions options;
     private final DorisReadOptions readOptions;
     private final DorisExecutionOptions executionOptions;
     private final TableSchema tableSchema;
     private final Integer sinkParallelism;
+    private boolean overwrite = false;
 
     public DorisDynamicTableSink(
             DorisOptions options,
@@ -115,13 +121,46 @@ public class DorisDynamicTableSink implements DynamicTableSink {
                 .setDorisReadOptions(readOptions)
                 .setDorisExecutionOptions(executionOptions)
                 .setSerializer(serializerBuilder.build());
-        return SinkV2Provider.of(dorisSinkBuilder.build(), sinkParallelism);
+        DorisSink<RowData> dorisSink = dorisSinkBuilder.build();
+
+        // for insert overwrite
+        if (overwrite) {
+            if (context.isBounded()) {
+                // execute jdbc query to truncate table
+                Preconditions.checkArgument(
+                        options.getJdbcUrl() != null, "jdbc-url is required for Overwrite mode.");
+                // todo: should be written to a temporary table first,
+                // and then use GlobalCommitter to perform the rename.
+                truncateTable();
+            } else {
+                throw new IllegalStateException("Streaming mode not support overwrite.");
+            }
+        }
+        return SinkV2Provider.of(dorisSink, sinkParallelism);
+    }
+
+    private void truncateTable() {
+        String truncateQuery = "TRUNCATE TABLE " + options.getTableIdentifier();
+        SimpleJdbcConnectionProvider jdbcConnectionProvider =
+                new SimpleJdbcConnectionProvider(options);
+        try (Connection connection = jdbcConnectionProvider.getOrEstablishConnection();
+                Statement statement = connection.createStatement()) {
+            LOG.info("Executing truncate query: {}", truncateQuery);
+            statement.execute(truncateQuery);
+        } catch (Exception e) {
+            LOG.error("Failed to execute truncate query: {}", truncateQuery, e);
+            throw new DorisSystemException(
+                    String.format("Failed to execute truncate query: %s", truncateQuery), e);
+        }
     }
 
     @Override
     public DynamicTableSink copy() {
-        return new DorisDynamicTableSink(
-                options, readOptions, executionOptions, tableSchema, sinkParallelism);
+        DorisDynamicTableSink sink =
+                new DorisDynamicTableSink(
+                        options, readOptions, executionOptions, tableSchema, sinkParallelism);
+        sink.overwrite = overwrite;
+        return sink;
     }
 
     @Override
@@ -142,11 +181,18 @@ public class DorisDynamicTableSink implements DynamicTableSink {
                 && Objects.equals(readOptions, that.readOptions)
                 && Objects.equals(executionOptions, that.executionOptions)
                 && Objects.equals(tableSchema, that.tableSchema)
-                && Objects.equals(sinkParallelism, that.sinkParallelism);
+                && Objects.equals(sinkParallelism, that.sinkParallelism)
+                && Objects.equals(overwrite, that.overwrite);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(options, readOptions, executionOptions, tableSchema, sinkParallelism);
+        return Objects.hash(
+                options, readOptions, executionOptions, tableSchema, sinkParallelism, overwrite);
+    }
+
+    @Override
+    public void applyOverwrite(boolean overwrite) {
+        this.overwrite = overwrite;
     }
 }

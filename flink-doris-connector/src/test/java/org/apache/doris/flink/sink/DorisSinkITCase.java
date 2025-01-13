@@ -25,6 +25,7 @@ import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.minicluster.RpcServiceSharing;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.StringUtils;
@@ -53,6 +54,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.api.common.JobStatus.FINISHED;
 import static org.apache.flink.api.common.JobStatus.RUNNING;
@@ -68,6 +70,7 @@ public class DorisSinkITCase extends AbstractITCaseService {
     static final String TABLE_CSV_BATCH_TBL = "tbl_csv_batch_tbl";
     static final String TABLE_CSV_BATCH_DS = "tbl_csv_batch_DS";
     static final String TABLE_GROUP_COMMIT = "tbl_group_commit";
+    static final String TABLE_OVERWRITE = "tbl_overwrite";
     static final String TABLE_GZ_FORMAT = "tbl_gz_format";
     static final String TABLE_CSV_JM = "tbl_csv_jm";
     static final String TABLE_CSV_TM = "tbl_csv_tm";
@@ -553,6 +556,59 @@ public class DorisSinkITCase extends AbstractITCaseService {
                 Arrays.asList("1,0", "1,1", "2,0", "2,1", "3,0", "3,1", "4,0", "4,1", "5,0", "5,1");
         String query =
                 String.format("select id,task_id from %s.%s order by 1,2", DATABASE, TABLE_CSV_TM);
+        ContainerUtils.checkResult(getDorisQueryConnection(), LOG, expected, query, 2);
+    }
+
+    @Test
+    public void testTableOverwrite() throws Exception {
+        initializeTable(TABLE_OVERWRITE);
+        // mock data
+        ContainerUtils.executeSQLStatement(
+                getDorisQueryConnection(),
+                LOG,
+                String.format(
+                        "INSERT INTO %s.%s values('history-data',12)", DATABASE, TABLE_OVERWRITE));
+
+        List<String> expected_his = Arrays.asList("history-data,12");
+        String query =
+                String.format("select name,age from %s.%s order by 1", DATABASE, TABLE_OVERWRITE);
+        ContainerUtils.checkResult(getDorisQueryConnection(), LOG, expected_his, query, 2);
+
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(DEFAULT_PARALLELISM);
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+        final StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
+
+        String sinkDDL =
+                String.format(
+                        "CREATE TABLE doris_overwrite_sink ("
+                                + " name STRING,"
+                                + " age INT"
+                                + ") WITH ("
+                                + " 'connector' = '"
+                                + DorisConfigOptions.IDENTIFIER
+                                + "',"
+                                + " 'fenodes' = '%s',"
+                                + " 'table.identifier' = '%s',"
+                                + " 'jdbc-url' = '%s',"
+                                + " 'username' = '%s',"
+                                + " 'password' = '%s',"
+                                + " 'sink.label-prefix' = '"
+                                + UUID.randomUUID()
+                                + "'"
+                                + ")",
+                        getFenodes(),
+                        DATABASE + "." + TABLE_OVERWRITE,
+                        getDorisQueryUrl(),
+                        getDorisUsername(),
+                        getDorisPassword());
+        tEnv.executeSql(sinkDDL);
+        TableResult tableResult =
+                tEnv.executeSql(
+                        "INSERT OVERWRITE doris_overwrite_sink SELECT 'doris',1 union all  SELECT 'overwrite',2 union all  SELECT 'flink',3");
+
+        tableResult.await(25000, TimeUnit.MILLISECONDS);
+        List<String> expected = Arrays.asList("doris,1", "flink,3", "overwrite,2");
         ContainerUtils.checkResult(getDorisQueryConnection(), LOG, expected, query, 2);
     }
 
