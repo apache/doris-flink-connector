@@ -29,6 +29,9 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.TextNode;
 import org.apache.doris.flink.catalog.doris.DorisType;
 import org.bson.BsonArray;
+import org.bson.BsonInt64;
+import org.bson.BsonString;
+import org.bson.BsonTimestamp;
 import org.bson.types.Decimal128;
 import org.bson.types.ObjectId;
 import org.junit.Test;
@@ -46,6 +49,7 @@ public class MongoDBTypeTest {
     public void toDorisType() {
         assertEquals(DorisType.INT, MongoDBType.toDorisType(new Integer(123)));
         assertEquals(DorisType.DATETIME_V2 + "(3)", MongoDBType.toDorisType(new Date()));
+        assertEquals(DorisType.DATETIME_V2 + "(0)", MongoDBType.toDorisType(new BsonTimestamp()));
         assertEquals(DorisType.BIGINT, MongoDBType.toDorisType(new Long(1234567891)));
         assertEquals("DECIMALV3(6,2)", MongoDBType.toDorisType(new Double("1234.56")));
         assertEquals(DorisType.BOOLEAN, MongoDBType.toDorisType(new Boolean(true)));
@@ -53,10 +57,13 @@ public class MongoDBTypeTest {
         assertEquals(
                 DorisType.VARCHAR + "(30)",
                 MongoDBType.toDorisType(new ObjectId("66583533791a67a6f8c5a339")));
-        assertEquals(DorisType.ARRAY, MongoDBType.toDorisType(new BsonArray()));
         assertEquals(
                 "DECIMALV3(10,5)",
                 MongoDBType.toDorisType(new Decimal128(new BigDecimal("12345.55555"))));
+        BsonArray bsonArray = new BsonArray();
+        bsonArray.add(new BsonString("string"));
+        bsonArray.add(new BsonInt64(123456789));
+        assertEquals(DorisType.ARRAY + "<STRING>", MongoDBType.toDorisType(bsonArray));
     }
 
     @Test
@@ -67,22 +74,27 @@ public class MongoDBTypeTest {
         assertEquals(DorisType.DOUBLE, MongoDBType.jsonNodeToDorisType(new DoubleNode(1234.23)));
         assertEquals(DorisType.BOOLEAN, MongoDBType.jsonNodeToDorisType(BooleanNode.TRUE));
         assertEquals(
-                DorisType.ARRAY,
+                DorisType.ARRAY + "<STRING>",
                 MongoDBType.jsonNodeToDorisType(JsonNodeFactory.instance.arrayNode()));
         assertEquals(
                 "DECIMALV3(6,2)",
                 MongoDBType.jsonNodeToDorisType(new DecimalNode(new BigDecimal("1234.23"))));
 
         ObjectNode dateJsonNodes = JsonNodeFactory.instance.objectNode();
-        dateJsonNodes.put(MongoDBType.DATE_TYPE, "");
+        dateJsonNodes.put(ChangeStreamConstant.DATE_FIELD, "");
         assertEquals(DorisType.DATETIME_V2 + "(3)", MongoDBType.jsonNodeToDorisType(dateJsonNodes));
 
+        ObjectNode timestampJsonNodes = JsonNodeFactory.instance.objectNode();
+        timestampJsonNodes.put(ChangeStreamConstant.TIMESTAMP_FIELD, "");
+        assertEquals(
+                DorisType.DATETIME_V2 + "(0)", MongoDBType.jsonNodeToDorisType(timestampJsonNodes));
+
         ObjectNode decimalJsonNodes = JsonNodeFactory.instance.objectNode();
-        decimalJsonNodes.put(MongoDBType.DECIMAL_TYPE, "1234.23");
+        decimalJsonNodes.put(ChangeStreamConstant.DECIMAL_FIELD, "1234.23");
         assertEquals("DECIMALV3(6,2)", MongoDBType.jsonNodeToDorisType(decimalJsonNodes));
 
         ObjectNode longJsonNodes = JsonNodeFactory.instance.objectNode();
-        longJsonNodes.put(MongoDBType.LONG_TYPE, "1234234466");
+        longJsonNodes.put(ChangeStreamConstant.LONG_FIELD, "1234234466");
         assertEquals(DorisType.BIGINT, MongoDBType.jsonNodeToDorisType(longJsonNodes));
     }
 

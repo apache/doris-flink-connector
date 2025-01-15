@@ -35,6 +35,7 @@ public class ChangeStreamConstant implements Serializable {
     public static final String FIELD_DOCUMENT_KEY = "documentKey";
 
     public static final String DATE_FIELD = "$date";
+    public static final String TIMESTAMP_FIELD = "$timestamp";
 
     public static final String DECIMAL_FIELD = "$numberDecimal";
 
