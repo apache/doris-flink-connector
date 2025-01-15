@@ -80,7 +80,8 @@ public class MongoDBType {
         } else if (value instanceof LongNode) {
             return DorisType.BIGINT;
         } else if (value instanceof DoubleNode) {
-            return DorisType.DOUBLE; // When the actual double is in the JsonNode, it's actually a decimal type, The code useless
+            // When mongo double is in the JsonNode, it's actually a decimal type
+            return DorisType.DOUBLE;
         } else if (value instanceof BooleanNode) {
             return DorisType.BOOLEAN;
         } else if (value instanceof ArrayNode) {
