@@ -37,6 +37,7 @@ public class BackendV2 {
         this.backends = backends;
     }
 
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class BackendRowV2 {
         @JsonProperty("ip")
         public String ip;

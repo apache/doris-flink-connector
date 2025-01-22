@@ -17,8 +17,11 @@
 
 package org.apache.doris.flink.rest.models;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 import java.util.List;
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class Tablet {
     private List<String> routings;
     private int version;

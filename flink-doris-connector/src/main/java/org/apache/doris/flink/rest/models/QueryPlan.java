@@ -17,10 +17,12 @@
 
 package org.apache.doris.flink.rest.models;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.Map;
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class QueryPlan {
     @JsonProperty(value = "status")
     private int status;
