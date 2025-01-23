@@ -42,6 +42,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -49,6 +50,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_TABLET_SIZE_DEFAULT;
 import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_TABLET_SIZE_MIN;
@@ -186,12 +188,11 @@ public class TestRestService {
     @Test
     public void testFeResponseToSchemaNotMap() throws Exception {
         String notSchemaRes =
-                "{\"property\":[{\"type\":\"TINYINT\",\"name\":\"k1\",\"comment\":\"\"},"
+                "{\"properties_error_key\":[{\"type\":\"TINYINT\",\"name\":\"k1\",\"comment\":\"\"},"
                         + "{\"name\":\"k5\",\"scale\":\"0\",\"comment\":\"\",\"type\":\"DECIMALV2\",\"precision\":\"9\"}],"
                         + "\"status\":200}";
-        thrown.expect(DorisException.class);
-        thrown.expectMessage(startsWith("Doris FE's response cannot map to schema. res: "));
-        RestService.parseSchema(notSchemaRes, logger);
+        Schema schema = RestService.parseSchema(notSchemaRes, logger);
+        Assert.assertTrue(schema.getProperties().isEmpty());
     }
 
     @Test
@@ -215,7 +216,7 @@ public class TestRestService {
     public void testFeResponseToQueryPlan() throws Exception {
         String res =
                 "{\"partitions\":{"
-                        + "\"11017\":{\"routings\":[\"be1\",\"be2\"],\"version\":3,\"versionHash\":1,\"schemaHash\":1},"
+                        + "\"11017\":{\"routings1\":[\"be1\",\"be2\"],\"version\":3,\"versionHash\":1,\"schemaHash\":1},"
                         + "\"11019\":{\"routings\":[\"be3\",\"be4\"],\"version\":3,\"versionHash\":1,\"schemaHash\":1}},"
                         + "\"opaqued_query_plan\":\"query_plan\",\"status\":200}";
 
@@ -407,12 +408,15 @@ public class TestRestService {
     }
 
     @Test
-    public void testParseBackendV2Error() throws Exception {
+    public void testParseBackendV2Error() {
         String response =
-                "{\"backends\":[{\"ip1\":\"192.168.1.1\",\"http_port\":8042,\"is_alive\":true}, {\"ip\":\"192.168.1.2\",\"http_port\":8042,\"is_alive\":true}]}";
-        thrown.expect(DorisRuntimeException.class);
-        thrown.expectMessage(startsWith("Parse Doris BE's response to json failed"));
-        RestService.parseBackendV2(response, logger);
+                "{\"backends\":[{\"ip_error_key\":\"192.168.1.1\",\"http_port\":8042,\"is_alive\":true}, {\"ip\":\"192.168.1.2\",\"http_port\":8042,\"is_alive\":true}]}";
+        List<BackendV2.BackendRowV2> backendRowV2s = RestService.parseBackendV2(response, logger);
+        Assert.assertEquals(2, backendRowV2s.size());
+        List<String> actual = backendRowV2s.stream().map(m -> m.ip).collect(Collectors.toList());
+        List<String> excepted = Arrays.asList(null, "192.168.1.2");
+        Assert.assertEquals(actual.size(), excepted.size());
+        Assert.assertTrue(actual.containsAll(excepted));
     }
 
     @Test

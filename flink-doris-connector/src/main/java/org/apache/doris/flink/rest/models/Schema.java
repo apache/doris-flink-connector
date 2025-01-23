@@ -17,9 +17,12 @@
 
 package org.apache.doris.flink.rest.models;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 import java.util.ArrayList;
 import java.util.List;
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class Schema {
     private int status = 0;
     private String keysType;
