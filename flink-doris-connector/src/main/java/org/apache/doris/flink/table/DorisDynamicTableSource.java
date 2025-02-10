@@ -90,8 +90,12 @@ public final class DorisDynamicTableSource
 
     @Override
     public ScanRuntimeProvider getScanRuntimeProvider(ScanContext runtimeProviderContext) {
-        if (StringUtils.isNullOrWhitespaceOnly(readOptions.getFilterQuery())) {
+        if (!resolvedFilterQuery.isEmpty()) {
             String filterQuery = resolvedFilterQuery.stream().collect(Collectors.joining(" AND "));
+            if (!StringUtils.isNullOrWhitespaceOnly(readOptions.getFilterQuery())) {
+                filterQuery =
+                        String.format("(%s) AND (%s)", readOptions.getFilterQuery(), filterQuery);
+            }
             readOptions.setFilterQuery(filterQuery);
         }
 
@@ -195,8 +199,7 @@ public final class DorisDynamicTableSource
         DorisExpressionVisitor expressionVisitor = new DorisExpressionVisitor();
         for (ResolvedExpression filter : filters) {
             String filterQuery = filter.accept(expressionVisitor);
-            if (StringUtils.isNullOrWhitespaceOnly(readOptions.getFilterQuery())
-                    && !StringUtils.isNullOrWhitespaceOnly(filterQuery)) {
+            if (!StringUtils.isNullOrWhitespaceOnly(filterQuery)) {
                 acceptedFilters.add(filter);
                 this.resolvedFilterQuery.add(filterQuery);
             } else {

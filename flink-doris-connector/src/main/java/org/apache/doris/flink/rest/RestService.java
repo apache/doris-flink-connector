@@ -615,12 +615,12 @@ public class RestService implements Serializable {
         }
 
         if (queryPlan == null) {
-            logger.error(SHOULD_NOT_HAPPEN_MESSAGE);
+            logger.error(SHOULD_NOT_HAPPEN_MESSAGE + " res: " + response);
             throw new ShouldNeverHappenException();
         }
 
         if (queryPlan.getStatus() != REST_RESPONSE_STATUS_OK) {
-            String errMsg = "Doris FE's response is not OK, status is " + queryPlan.getStatus();
+            String errMsg = "Doris FE's response is not OK, res: " + response;
             logger.error(errMsg);
             throw new DorisException(errMsg);
         }
