@@ -50,6 +50,7 @@ import static org.apache.doris.flink.tools.cdc.mongodb.ChangeStreamConstant.FIEL
 import static org.apache.doris.flink.tools.cdc.mongodb.ChangeStreamConstant.FIELD_NAMESPACE;
 import static org.apache.doris.flink.tools.cdc.mongodb.ChangeStreamConstant.FIELD_TABLE;
 import static org.apache.doris.flink.tools.cdc.mongodb.ChangeStreamConstant.LONG_FIELD;
+import static org.apache.doris.flink.tools.cdc.mongodb.ChangeStreamConstant.TIMESTAMP_FIELD;
 
 public class MongoJsonDebeziumSchemaChange extends CdcSchemaChange {
 
@@ -67,7 +68,7 @@ public class MongoJsonDebeziumSchemaChange extends CdcSchemaChange {
     private final DorisOptions dorisOptions;
 
     private final Set<String> specialFields =
-            new HashSet<>(Arrays.asList(DATE_FIELD, DECIMAL_FIELD, LONG_FIELD));
+            new HashSet<>(Arrays.asList(DATE_FIELD, TIMESTAMP_FIELD, DECIMAL_FIELD, LONG_FIELD));
 
     public MongoJsonDebeziumSchemaChange(JsonDebeziumChangeContext changeContext) {
         this.objectMapper = changeContext.getObjectMapper();
@@ -127,7 +128,12 @@ public class MongoJsonDebeziumSchemaChange extends CdcSchemaChange {
                                 if (specialFields.contains(fieldKey)) {
                                     switch (fieldKey) {
                                         case DATE_FIELD:
-                                            long timestamp = fieldNode.get(DATE_FIELD).asLong();
+                                        case TIMESTAMP_FIELD:
+                                            JsonNode jsonNode = fieldNode.get(fieldKey);
+                                            long timestamp =
+                                                    fieldKey.equals(TIMESTAMP_FIELD)
+                                                            ? jsonNode.get("t").asLong() * 1000L
+                                                            : jsonNode.asLong();
                                             String formattedDate =
                                                     MongoDateConverter.convertTimestampToString(
                                                             timestamp);

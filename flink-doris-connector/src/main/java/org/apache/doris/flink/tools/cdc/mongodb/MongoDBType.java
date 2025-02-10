@@ -30,26 +30,29 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.TextNode;
 import org.apache.doris.flink.catalog.doris.DorisType;
 import org.apache.doris.flink.exception.DorisRuntimeException;
-import org.bson.BsonArray;
+import org.bson.BsonTimestamp;
 import org.bson.types.Decimal128;
 import org.bson.types.ObjectId;
 
 import java.math.BigDecimal;
 import java.util.Date;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static org.apache.doris.flink.tools.cdc.mongodb.ChangeStreamConstant.DATE_FIELD;
+import static org.apache.doris.flink.tools.cdc.mongodb.ChangeStreamConstant.DECIMAL_FIELD;
+import static org.apache.doris.flink.tools.cdc.mongodb.ChangeStreamConstant.LONG_FIELD;
+import static org.apache.doris.flink.tools.cdc.mongodb.ChangeStreamConstant.TIMESTAMP_FIELD;
+
 public class MongoDBType {
-
-    public static final String DATE_TYPE = "$date";
-    public static final String DECIMAL_TYPE = "$numberDecimal";
-    public static final String LONG_TYPE = "$numberLong";
-
     public static String toDorisType(Object value) {
         if (value instanceof Integer) {
             return DorisType.INT;
         } else if (value instanceof Date) {
             return DorisType.DATETIME_V2 + "(3)";
+        } else if (value instanceof BsonTimestamp) {
+            return DorisType.DATETIME_V2 + "(0)";
         } else if (value instanceof Long) {
             return DorisType.BIGINT;
         } else if (value instanceof Double) {
@@ -60,8 +63,8 @@ public class MongoDBType {
             return DorisType.STRING;
         } else if (value instanceof ObjectId) {
             return DorisType.VARCHAR + "(30)";
-        } else if (value instanceof BsonArray) {
-            return DorisType.ARRAY;
+        } else if (value instanceof List) {
+            return DorisType.ARRAY + "<" + DorisType.STRING + ">";
         } else if (value instanceof Decimal128) {
             return checkAndRebuildBigDecimal(((Decimal128) value).bigDecimalValue());
         } else {
@@ -77,19 +80,22 @@ public class MongoDBType {
         } else if (value instanceof LongNode) {
             return DorisType.BIGINT;
         } else if (value instanceof DoubleNode) {
+            // When mongo double is in the JsonNode, it's actually a decimal type
             return DorisType.DOUBLE;
         } else if (value instanceof BooleanNode) {
             return DorisType.BOOLEAN;
         } else if (value instanceof ArrayNode) {
-            return DorisType.ARRAY;
+            return DorisType.ARRAY + "<" + DorisType.STRING + ">";
         } else if (value instanceof DecimalNode) {
             return checkAndRebuildBigDecimal(value.decimalValue());
         } else if (value instanceof ObjectNode) {
-            if (value.size() == 1 && value.get(DATE_TYPE) != null) {
+            if (value.size() == 1 && value.get(DATE_FIELD) != null) {
                 return DorisType.DATETIME_V2 + "(3)";
-            } else if (value.size() == 1 && value.get(DECIMAL_TYPE) != null) {
-                return checkAndRebuildBigDecimal(new BigDecimal(value.get(DECIMAL_TYPE).asText()));
-            } else if (value.size() == 1 && value.get(LONG_TYPE) != null) {
+            } else if (value.size() == 1 && value.get(TIMESTAMP_FIELD) != null) {
+                return DorisType.DATETIME_V2 + "(0)";
+            } else if (value.size() == 1 && value.get(DECIMAL_FIELD) != null) {
+                return checkAndRebuildBigDecimal(new BigDecimal(value.get(DECIMAL_FIELD).asText()));
+            } else if (value.size() == 1 && value.get(LONG_FIELD) != null) {
                 return DorisType.BIGINT;
             } else {
                 return DorisType.STRING;
