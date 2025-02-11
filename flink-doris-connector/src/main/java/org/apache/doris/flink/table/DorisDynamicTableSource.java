@@ -29,6 +29,7 @@ import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.SourceProvider;
 import org.apache.flink.table.connector.source.TableFunctionProvider;
 import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
+import org.apache.flink.table.connector.source.abilities.SupportsLimitPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.expressions.ResolvedExpression;
@@ -58,7 +59,8 @@ public final class DorisDynamicTableSource
         implements ScanTableSource,
                 LookupTableSource,
                 SupportsFilterPushDown,
-                SupportsProjectionPushDown {
+                SupportsProjectionPushDown,
+                SupportsLimitPushDown {
 
     private static final Logger LOG = LoggerFactory.getLogger(DorisDynamicTableSource.class);
     private final DorisOptions options;
@@ -252,5 +254,11 @@ public final class DorisDynamicTableSource
                 physicalSchema,
                 resolvedFilterQuery,
                 physicalRowDataType);
+    }
+
+    @Override
+    public void applyLimit(long limit) {
+        // partial limit push down to reduce the amount of data scanned
+        readOptions.setRowLimit(limit);
     }
 }
