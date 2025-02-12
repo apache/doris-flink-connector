@@ -74,6 +74,7 @@ public class DorisValueReader extends ValueReader implements AutoCloseable {
     protected String contextId;
     protected Schema schema;
     protected boolean asyncThreadStarted;
+    private long readRowCount = 0L;
 
     public DorisValueReader(
             PartitionDefinition partition, DorisOptions options, DorisReadOptions readOptions) {
@@ -210,6 +211,10 @@ public class DorisValueReader extends ValueReader implements AutoCloseable {
      * @return true if hax next value
      */
     public boolean hasNext() {
+        if (readOptions.getRowLimit() != null && readRowCount >= readOptions.getRowLimit()) {
+            return false;
+        }
+
         boolean hasNext = false;
         if (deserializeArrowToRowBatchAsync && asyncThreadStarted) {
             // support deserialize Arrow to RowBatch asynchronously
@@ -275,6 +280,7 @@ public class DorisValueReader extends ValueReader implements AutoCloseable {
             LOG.error(SHOULD_NOT_HAPPEN_MESSAGE);
             throw new ShouldNeverHappenException();
         }
+        readRowCount++;
         return rowBatch.next();
     }
 

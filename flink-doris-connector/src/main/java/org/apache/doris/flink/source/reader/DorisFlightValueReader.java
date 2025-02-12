@@ -132,6 +132,11 @@ public class DorisFlightValueReader extends ValueReader implements AutoCloseable
         if (!StringUtils.isEmpty(readOptions.getFilterQuery())) {
             sql += " WHERE " + readOptions.getFilterQuery();
         }
+
+        if (readOptions.getRowLimit() != null) {
+            sql += " LIMIT " + readOptions.getRowLimit();
+        }
+
         logger.info("Query SQL Sending to Doris FE is: '{}'.", sql);
         return sql;
     }
