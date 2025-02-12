@@ -63,7 +63,9 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import static org.apache.doris.flink.sink.LoadStatus.PUBLISH_TIMEOUT;
 import static org.apache.doris.flink.sink.LoadStatus.SUCCESS;
@@ -111,6 +113,7 @@ public class DorisBatchStreamLoad implements Serializable {
     private final AtomicLong currentCacheBytes = new AtomicLong(0L);
     private final Lock lock = new ReentrantLock();
     private final Condition block = lock.newCondition();
+    private final Map<String, ReadWriteLock> bufferMapLock = new ConcurrentHashMap<>();
 
     public DorisBatchStreamLoad(
             DorisOptions dorisOptions,
@@ -181,7 +184,7 @@ public class DorisBatchStreamLoad implements Serializable {
     public void writeRecord(String database, String table, byte[] record) {
         checkFlushException();
         String bufferKey = getTableIdentifier(database, table);
-
+        getLock(bufferKey).readLock().lock();
         BatchRecordBuffer buffer =
                 bufferMap.computeIfAbsent(
                         bufferKey,
@@ -194,6 +197,7 @@ public class DorisBatchStreamLoad implements Serializable {
 
         int bytes = buffer.insert(record);
         currentCacheBytes.addAndGet(bytes);
+        getLock(bufferKey).readLock().unlock();
         if (currentCacheBytes.get() > maxBlockedBytes) {
             lock.lock();
             try {
@@ -283,11 +287,19 @@ public class DorisBatchStreamLoad implements Serializable {
     }
 
     private synchronized void flushBuffer(String bufferKey) {
-        BatchRecordBuffer buffer = bufferMap.get(bufferKey);
+        BatchRecordBuffer buffer;
+        try {
+            getLock(bufferKey).writeLock().lock();
+            buffer = bufferMap.remove(bufferKey);
+        } finally {
+            getLock(bufferKey).writeLock().unlock();
+        }
+        if (buffer == null) {
+            return;
+        }
         buffer.setLabelName(labelGenerator.generateBatchLabel(buffer.getTable()));
         LOG.debug("flush buffer for key {} with label {}", bufferKey, buffer.getLabelName());
         putRecordToFlushQueue(buffer);
-        bufferMap.remove(bufferKey);
     }
 
     private void putRecordToFlushQueue(BatchRecordBuffer buffer) {
@@ -372,6 +384,10 @@ public class DorisBatchStreamLoad implements Serializable {
         mergeBuffer.setBufferSizeBytes(
                 mergeBuffer.getBufferSizeBytes() + buffer.getBufferSizeBytes());
         return true;
+    }
+
+    private ReadWriteLock getLock(String bufferKey) {
+        return bufferMapLock.computeIfAbsent(bufferKey, k -> new ReentrantReadWriteLock());
     }
 
     class LoadAsyncExecutor implements Runnable {
