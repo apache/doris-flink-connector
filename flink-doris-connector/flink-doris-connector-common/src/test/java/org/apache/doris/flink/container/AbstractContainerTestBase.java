@@ -20,6 +20,7 @@ package org.apache.doris.flink.container;
 import org.apache.doris.flink.container.instance.ContainerService;
 import org.apache.doris.flink.container.instance.DorisContainer;
 import org.apache.doris.flink.container.instance.DorisCustomerContainer;
+import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -83,6 +84,7 @@ public abstract class AbstractContainerTestBase {
         return dorisContainerService.getInstanceHost();
     }
 
+    @AfterClass
     public static void closeContainers() {
         LOG.info("Starting to close containers.");
         closeDorisContainer();
