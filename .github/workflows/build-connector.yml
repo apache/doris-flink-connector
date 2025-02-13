@@ -40,42 +40,24 @@ jobs:
 
     - name: Build flink connector 1.15
       run: |
-        cd flink-doris-connector && mvn clean package \
-          -Dflink.version=1.15.0 \
-          -Dflink.minor.version=1.15 \
-          -Dflink.python.id=flink-python_2.12
+        cd flink-doris-connector && mvn clean install -pl flink-doris-connector-1.15 -am
 
     - name: Build flink connector 1.16
       run: |
-        cd flink-doris-connector && mvn clean package \
-          -Dflink.version=1.16.0 \
-          -Dflink.minor.version=1.16 \
-          -Dflink.python.id=flink-python
+        cd flink-doris-connector && mvn clean install -pl flink-doris-connector-1.16 -am
 
     - name: Build flink connector 1.17
       run: |
-        cd flink-doris-connector && mvn clean package \
-          -Dflink.version=1.17.0 \
-          -Dflink.minor.version=1.17 \
-          -Dflink.python.id=flink-python
+        cd flink-doris-connector && mvn clean install -pl flink-doris-connector-1.17 -am
 
     - name: Build flink connector 1.18
       run: |
-        cd flink-doris-connector && mvn clean package \
-          -Dflink.version=1.18.0 \
-          -Dflink.minor.version=1.18 \
-          -Dflink.python.id=flink-python
+        cd flink-doris-connector && mvn clean install -pl flink-doris-connector-1.18 -am
 
     - name: Build flink connector 1.19
       run: |
-        cd flink-doris-connector && mvn clean package \
-          -Dflink.version=1.19.0 \
-          -Dflink.minor.version=1.19 \
-          -Dflink.python.id=flink-python
+        cd flink-doris-connector && mvn clean install -pl flink-doris-connector-1.19 -am
 
     - name: Build flink connector 1.20
       run: |
-        cd flink-doris-connector && mvn clean package \
-          -Dflink.version=1.20.0 \
-          -Dflink.minor.version=1.20 \
-          -Dflink.python.id=flink-python
+        cd flink-doris-connector && mvn clean install -pl flink-doris-connector-1.20 -am

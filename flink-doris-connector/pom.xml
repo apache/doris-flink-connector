@@ -26,8 +26,9 @@ under the License.
         <version>23</version>
     </parent>
     <groupId>org.apache.doris</groupId>
-    <artifactId>flink-doris-connector-${flink.major.version}</artifactId>
-    <version>${revision}</version>
+    <artifactId>flink-doris-connector</artifactId>
+    <version>25.0.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
     <name>Flink Doris Connector</name>
     <url>https://doris.apache.org/</url>
 
@@ -38,6 +39,15 @@ under the License.
             <distribution>repo</distribution>
         </license>
     </licenses>
+    <modules>
+        <module>flink-doris-connector-1.15</module>
+        <module>flink-doris-connector-1.16</module>
+        <module>flink-doris-connector-1.17</module>
+        <module>flink-doris-connector-1.18</module>
+        <module>flink-doris-connector-1.19</module>
+        <module>flink-doris-connector-1.20</module>
+        <module>flink-doris-connector-common</module>
+    </modules>
 
     <scm>
         <connection>scm:git:https://git@github.com/apache/doris-flink-connector.git</connection>
@@ -67,9 +77,8 @@ under the License.
     </mailingLists>
 
     <properties>
-        <revision>24.1.0-SNAPSHOT</revision>
-        <flink.version>1.18.0</flink.version>
-        <flink.major.version>1.18</flink.major.version>
+        <flink.version>1.20.0</flink.version>
+        <flink.major.version>1.20</flink.major.version>
         <flink.sql.cdc.version>3.2.1</flink.sql.cdc.version>
         <flink.python.id>flink-python</flink.python.id>
         <libthrift.version>0.16.0</libthrift.version>
