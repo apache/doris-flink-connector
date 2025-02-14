@@ -352,30 +352,8 @@ public class DorisSourceITCase extends AbstractITCaseService {
         List<String> actualProjectionResult =
                 generateExecuteSQLResult(
                         tEnv,
-                        "SELECT id,birthday,brilliant_time FROM doris_source_datetime_filter_and_projection_push_down order by id");
-
-        List<String> actualPushDownDatetimeResult =
-                generateExecuteSQLResult(
-                        tEnv,
-                        "SELECT id,birthday FROM doris_source_datetime_filter_and_projection_push_down where birthday >= '2023-01-01 00:00:00' order by id");
-        List<String> actualPushDownMicrosecondResult =
-                generateExecuteSQLResult(
-                        tEnv,
-                        "SELECT id,brilliant_time FROM doris_source_datetime_filter_and_projection_push_down where brilliant_time > '2023-01-01 00:00:00.000001' order by id");
-        List<String> actualPushDownNanosecondResult =
-                generateExecuteSQLResult(
-                        tEnv,
-                        "SELECT id,brilliant_time FROM doris_source_datetime_filter_and_projection_push_down where brilliant_time > '2023-01-01 00:00:00.000009001' order by id");
-
-        List<String> actualPushDownNanosecondRoundDownResult =
-                generateExecuteSQLResult(
-                        tEnv,
-                        "SELECT id,brilliant_time FROM doris_source_datetime_filter_and_projection_push_down where brilliant_time >= '2023-01-01 00:00:00.999999001' order by id");
-        List<String> actualPushDownNanosecondRoundUpResult =
-                generateExecuteSQLResult(
-                        tEnv,
-                        "SELECT id,brilliant_time FROM doris_source_datetime_filter_and_projection_push_down where brilliant_time >= '2023-01-01 00:00:00.999999999' order by id");
-
+                        "SELECT id,birthday,brilliant_time FROM doris_source_datetime_filter_and_projection_push_down order by id",
+                        6);
         String[] expectedProjectionResult =
                 new String[] {
                     "+I[1, 2023-01-01T00:00, 2023-01-01T00:00:00.000001]",
@@ -385,6 +363,16 @@ public class DorisSourceITCase extends AbstractITCaseService {
                     "+I[5, 2023-01-01T00:00:02, 2023-01-01T00:00:00.999999]",
                     "+I[6, 2023-01-01T00:00:02, 2023-01-01T00:00:01]"
                 };
+        checkResultInAnyOrder(
+                "testTableSourceTimestampFilterAndProjectionPushDown",
+                expectedProjectionResult,
+                actualProjectionResult.toArray());
+
+        List<String> actualPushDownDatetimeResult =
+                generateExecuteSQLResult(
+                        tEnv,
+                        "SELECT id,birthday FROM doris_source_datetime_filter_and_projection_push_down where birthday >= '2023-01-01 00:00:00' order by id",
+                        6);
         String[] expectedPushDownDatetimeResult =
                 new String[] {
                     "+I[1, 2023-01-01T00:00]",
@@ -394,6 +382,16 @@ public class DorisSourceITCase extends AbstractITCaseService {
                     "+I[5, 2023-01-01T00:00:02]",
                     "+I[6, 2023-01-01T00:00:02]"
                 };
+        checkResultInAnyOrder(
+                "testTableSourceTimestampFilterAndProjectionPushDown",
+                expectedPushDownDatetimeResult,
+                actualPushDownDatetimeResult.toArray());
+
+        List<String> actualPushDownMicrosecondResult =
+                generateExecuteSQLResult(
+                        tEnv,
+                        "SELECT id,brilliant_time FROM doris_source_datetime_filter_and_projection_push_down where brilliant_time > '2023-01-01 00:00:00.000001' order by id",
+                        5);
         String[] expectedPushDownWithMicrosecondResult =
                 new String[] {
                     "+I[2, 2023-01-01T00:00:00.005]",
@@ -402,7 +400,16 @@ public class DorisSourceITCase extends AbstractITCaseService {
                     "+I[5, 2023-01-01T00:00:00.999999]",
                     "+I[6, 2023-01-01T00:00:01]"
                 };
+        checkResultInAnyOrder(
+                "testTableSourceTimestampFilterAndProjectionPushDown",
+                expectedPushDownWithMicrosecondResult,
+                actualPushDownMicrosecondResult.toArray());
 
+        List<String> actualPushDownNanosecondResult =
+                generateExecuteSQLResult(
+                        tEnv,
+                        "SELECT id,brilliant_time FROM doris_source_datetime_filter_and_projection_push_down where brilliant_time > '2023-01-01 00:00:00.000009001' order by id",
+                        4);
         String[] expectedPushDownWithNanosecondResult =
                 new String[] {
                     "+I[2, 2023-01-01T00:00:00.005]",
@@ -410,40 +417,38 @@ public class DorisSourceITCase extends AbstractITCaseService {
                     "+I[5, 2023-01-01T00:00:00.999999]",
                     "+I[6, 2023-01-01T00:00:01]"
                 };
+        checkResultInAnyOrder(
+                "testTableSourceTimestampFilterAndProjectionPushDown",
+                expectedPushDownWithNanosecondResult,
+                actualPushDownNanosecondResult.toArray());
 
+        List<String> actualPushDownNanosecondRoundDownResult =
+                generateExecuteSQLResult(
+                        tEnv,
+                        "SELECT id,brilliant_time FROM doris_source_datetime_filter_and_projection_push_down where brilliant_time >= '2023-01-01 00:00:00.999999001' order by id",
+                        3);
         String[] expectedPushDownWithNanosecondRoundDownResult =
                 new String[] {
                     "+I[4, 2023-01-01T00:00:00.999999]",
                     "+I[5, 2023-01-01T00:00:00.999999]",
                     "+I[6, 2023-01-01T00:00:01]"
                 };
+        checkResultInAnyOrder(
+                "testTableSourceTimestampFilterAndProjectionPushDown",
+                expectedPushDownWithNanosecondRoundDownResult,
+                actualPushDownNanosecondRoundDownResult.toArray());
 
+        List<String> actualPushDownNanosecondRoundUpResult =
+                generateExecuteSQLResult(
+                        tEnv,
+                        "SELECT id,brilliant_time FROM doris_source_datetime_filter_and_projection_push_down where brilliant_time >= '2023-01-01 00:00:00.999999999' order by id",
+                        3);
         String[] expectedPushDownWithNanosecondRoundUpResult =
                 new String[] {
                     "+I[4, 2023-01-01T00:00:00.999999]",
                     "+I[5, 2023-01-01T00:00:00.999999]",
                     "+I[6, 2023-01-01T00:00:01]"
                 };
-        checkResultInAnyOrder(
-                "testTableSourceTimestampFilterAndProjectionPushDown",
-                expectedProjectionResult,
-                actualProjectionResult.toArray());
-        checkResultInAnyOrder(
-                "testTableSourceTimestampFilterAndProjectionPushDown",
-                expectedPushDownDatetimeResult,
-                actualPushDownDatetimeResult.toArray());
-        checkResultInAnyOrder(
-                "testTableSourceTimestampFilterAndProjectionPushDown",
-                expectedPushDownWithMicrosecondResult,
-                actualPushDownMicrosecondResult.toArray());
-        checkResultInAnyOrder(
-                "testTableSourceTimestampFilterAndProjectionPushDown",
-                expectedPushDownWithNanosecondResult,
-                actualPushDownNanosecondResult.toArray());
-        checkResultInAnyOrder(
-                "testTableSourceTimestampFilterAndProjectionPushDown",
-                expectedPushDownWithNanosecondRoundDownResult,
-                actualPushDownNanosecondRoundDownResult.toArray());
         checkResultInAnyOrder(
                 "testTableSourceTimestampFilterAndProjectionPushDown",
                 expectedPushDownWithNanosecondRoundUpResult,
@@ -862,16 +867,16 @@ public class DorisSourceITCase extends AbstractITCaseService {
         return rows;
     }
 
-    private List<String> generateExecuteSQLResult(StreamTableEnvironment tEnv, String executeSql)
-            throws Exception {
+    private List<String> generateExecuteSQLResult(
+            StreamTableEnvironment tEnv, String executeSql, int rows) throws Exception {
         List<String> actualResultList = new ArrayList<>();
         TableResult tableResult = tEnv.executeSql(executeSql);
         try (CloseableIterator<Row> iterator = tableResult.collect()) {
-            while (iterator.hasNext()) {
-
+            while (actualResultList.size() < rows && iterator.hasNext()) {
                 actualResultList.add(iterator.next().toString());
             }
         }
+
         return actualResultList;
     }
 }
