@@ -151,7 +151,6 @@ flinkVer=$?
 FLINK_PYTHON_ID="flink-python"
 if [ ${flinkVer} -eq 1 ]; then
     FLINK_VERSION="1.15.0"
-    FLINK_PYTHON_ID="flink-python_2.12"
 elif [ ${flinkVer} -eq 2 ]; then
     FLINK_VERSION="1.16.0"
 elif [ ${flinkVer} -eq 3 ]; then
@@ -172,7 +171,7 @@ FLINK_MAJOR_VERSION=0
 echo_g " flink version: ${FLINK_VERSION}, major version: ${FLINK_MAJOR_VERSION}"
 echo_g " build starting..."
 
-${MVN_BIN} clean package -Dflink.version=${FLINK_VERSION} -Dflink.major.version=${FLINK_MAJOR_VERSION} -Dflink.python.id=${FLINK_PYTHON_ID} "$@"
+${MVN_BIN} clean install -pl flink-doris-connector-${FLINK_MAJOR_VERSION} -am "$@"
 
 EXIT_CODE=$?
 if [ $EXIT_CODE -eq 0 ]; then

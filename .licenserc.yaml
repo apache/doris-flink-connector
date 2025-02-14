@@ -12,6 +12,6 @@ header:
     - '.github/PULL_REQUEST_TEMPLATE.md'
     - '.licenserc.yaml'
     - 'custom_env.sh.tpl'
-    - 'flink-doris-connector/src/test/resources/container/'
+    - 'flink-doris-connector/flink-doris-connector-common/src/test/resources/container/'
 
   comment: on-failure

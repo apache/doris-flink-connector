@@ -38,7 +38,11 @@ jobs:
         distribution: adopt
         java-version: '8'
 
-    - name: Run ITCases
+    - name: Run ITCases For 1.15
       run: |
-        cd flink-doris-connector && mvn test -Dtest="*ITCase" -Dimage="apache/doris:doris-all-in-one-2.1.0"
+        cd flink-doris-connector && mvn clean test -pl flink-doris-connector-1.15 -am -DfailIfNoTests=false -Dtest="*ITCase" -Dimage="apache/doris:doris-all-in-one-2.1.0"
+
+    - name: Run ITCases For 1.18
+      run: |
+        cd flink-doris-connector && mvn clean test -pl flink-doris-connector-1.18 -am -DfailIfNoTests=false -Dtest="*ITCase" -Dimage="apache/doris:doris-all-in-one-2.1.0"
 
