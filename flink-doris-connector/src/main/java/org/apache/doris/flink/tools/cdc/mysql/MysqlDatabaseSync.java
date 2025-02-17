@@ -59,7 +59,8 @@ import static org.apache.flink.cdc.debezium.utils.JdbcUrlUtils.PROPERTIES_PREFIX
 
 public class MysqlDatabaseSync extends DatabaseSync {
     private static final Logger LOG = LoggerFactory.getLogger(MysqlDatabaseSync.class);
-    private static final String JDBC_URL = "jdbc:mysql://%s:%d?useInformationSchema=true";
+    private static final String JDBC_URL =
+            "jdbc:mysql://%s:%d?useInformationSchema=true&tinyInt1isBit=false";
 
     public MysqlDatabaseSync() throws SQLException {
         super();
