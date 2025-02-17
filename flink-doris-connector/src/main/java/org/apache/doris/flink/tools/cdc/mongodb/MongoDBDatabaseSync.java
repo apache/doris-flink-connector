@@ -68,6 +68,18 @@ public class MongoDBDatabaseSync extends DatabaseSync {
                     .defaultValue(0.2)
                     .withDescription("mongo cdc sample percent");
 
+    public static final ConfigOption<Long> MONGO_CDC_MIN_SAMPLE_SIZE =
+            ConfigOptions.key("schema.min-sample-size")
+                    .longType()
+                    .defaultValue(1000L)
+                    .withDescription("mongo cdc min sample size");
+
+    public static final ConfigOption<Long> MONGO_CDC_MAX_SAMPLE_SIZE =
+            ConfigOptions.key("schema.max-sample-size")
+                    .longType()
+                    .defaultValue(100000L)
+                    .withDescription("mongo cdc max sample size");
+
     public static final ConfigOption<String> TABLE_NAME =
             ConfigOptions.key("table-name")
                     .stringType()
@@ -101,6 +113,8 @@ public class MongoDBDatabaseSync extends DatabaseSync {
 
         MongoClientSettings settings = settingsBuilder.build();
         Double samplePercent = config.get(MONGO_CDC_CREATE_SAMPLE_PERCENT);
+        Long minSampleSize = config.get(MONGO_CDC_MIN_SAMPLE_SIZE);
+        Long maxSampleSize = config.get(MONGO_CDC_MAX_SAMPLE_SIZE);
         try (MongoClient mongoClient = MongoClients.create(settings)) {
             MongoDatabase mongoDatabase = mongoClient.getDatabase(databaseName);
             MongoIterable<String> collectionNames = mongoDatabase.listCollectionNames();
@@ -115,7 +129,10 @@ public class MongoDBDatabaseSync extends DatabaseSync {
                 }
 
                 long totalDocuments = collection.estimatedDocumentCount();
-                long sampleSize = (long) Math.ceil(totalDocuments * samplePercent);
+                long sampleSize =
+                        calculateSampleSize(
+                                totalDocuments, samplePercent, minSampleSize, maxSampleSize);
+
                 ArrayList<Document> documents = sampleData(collection, sampleSize);
                 MongoDBSchema mongoDBSchema =
                         new MongoDBSchema(documents, databaseName, collectionName, null);
@@ -125,6 +142,19 @@ public class MongoDBDatabaseSync extends DatabaseSync {
         }
 
         return schemaList;
+    }
+
+    public long calculateSampleSize(
+            long totalDocuments, Double samplePercent, Long minSampleSize, Long maxSampleSize) {
+        if (totalDocuments < minSampleSize) {
+            return totalDocuments;
+        }
+        long sampleSize = (long) Math.ceil(totalDocuments * samplePercent);
+        // If the number of samples is less than the minimum threshold, the minimum threshold is
+        // used, while ensuring that the number of samples does not exceed the maximum threshold
+        sampleSize = Math.max(sampleSize, minSampleSize);
+        sampleSize = Math.min(sampleSize, maxSampleSize);
+        return sampleSize;
     }
 
     private ArrayList<Document> sampleData(MongoCollection<Document> collection, Long sampleNum) {
@@ -198,7 +228,7 @@ public class MongoDBDatabaseSync extends DatabaseSync {
 
     @Override
     public ParsingProcessFunction buildProcessFunction() {
-        return new MongoParsingProcessFunction(converter);
+        return new MongoParsingProcessFunction(database, converter);
     }
 
     @Override
