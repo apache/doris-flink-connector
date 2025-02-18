@@ -45,7 +45,6 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.doris.flink.sink.batch.TestBatchBufferStream.mergeByteArrays;
 import static org.mockito.ArgumentMatchers.any;
@@ -124,17 +123,10 @@ public class TestDorisBatchStreamLoad {
         when(httpClientBuilder.build()).thenReturn(httpClient);
         when(httpClient.execute(any())).thenReturn(response);
         loader.writeRecord("db", "tbl", "1,data".getBytes());
-        loader.checkpointFlush();
 
-        TestUtil.waitUntilCondition(
-                () -> !loader.isLoadThreadAlive(),
-                Deadline.fromNow(Duration.ofSeconds(20)),
-                100L,
-                "testLoadFail wait loader exit failed." + loader.isLoadThreadAlive());
-        AtomicReference<Throwable> exception = loader.getException();
-        Assert.assertTrue(exception.get() instanceof Exception);
-        Assert.assertTrue(exception.get().getMessage().contains("stream load error"));
-        LOG.info("testLoadFail end");
+        thrown.expect(Exception.class);
+        thrown.expectMessage("stream load error");
+        loader.checkpointFlush();
     }
 
     @Test
@@ -175,17 +167,10 @@ public class TestDorisBatchStreamLoad {
         when(httpClientBuilder.build()).thenReturn(httpClient);
         when(httpClient.execute(any())).thenReturn(response);
         loader.writeRecord("db", "tbl", "1,data".getBytes());
-        loader.checkpointFlush();
 
-        TestUtil.waitUntilCondition(
-                () -> !loader.isLoadThreadAlive(),
-                Deadline.fromNow(Duration.ofSeconds(20)),
-                100L,
-                "testLoadError wait loader exit failed." + loader.isLoadThreadAlive());
-        AtomicReference<Throwable> exception = loader.getException();
-        Assert.assertTrue(exception.get() instanceof Exception);
-        Assert.assertTrue(exception.get().getMessage().contains("stream load error"));
-        LOG.info("testLoadError end");
+        thrown.expect(Exception.class);
+        thrown.expectMessage("stream load error");
+        loader.checkpointFlush();
     }
 
     @After

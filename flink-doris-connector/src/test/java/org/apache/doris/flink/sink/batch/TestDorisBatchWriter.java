@@ -57,7 +57,8 @@ public class TestDorisBatchWriter {
                         .build();
         thrown.expect(IllegalStateException.class);
         thrown.expectMessage("tableIdentifier input error");
-        DorisBatchWriter batchWriter = new DorisBatchWriter(null, null, options, null, null);
+        Sink.InitContext initContext = mock(Sink.InitContext.class);
+        DorisBatchWriter batchWriter = new DorisBatchWriter(initContext, null, options, null, null);
     }
 
     @Test
