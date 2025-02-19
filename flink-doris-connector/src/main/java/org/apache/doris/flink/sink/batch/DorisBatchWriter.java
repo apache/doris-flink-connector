@@ -18,6 +18,7 @@
 package org.apache.doris.flink.sink.batch;
 
 import org.apache.flink.api.connector.sink2.Sink;
+import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
@@ -67,6 +68,12 @@ public class DorisBatchWriter<IN>
             DorisOptions dorisOptions,
             DorisReadOptions dorisReadOptions,
             DorisExecutionOptions executionOptions) {
+
+        long restoreCheckpointId =
+                initContext
+                        .getRestoredCheckpointId()
+                        .orElse(CheckpointIDCounter.INITIAL_CHECKPOINT_ID - 1);
+        LOG.info("restore from checkpointId {}", restoreCheckpointId);
         if (!StringUtils.isNullOrWhitespaceOnly(dorisOptions.getTableIdentifier())) {
             String[] tableInfo = dorisOptions.getTableIdentifier().split("\\.");
             Preconditions.checkState(
@@ -75,6 +82,7 @@ public class DorisBatchWriter<IN>
             this.database = tableInfo[0];
             this.table = tableInfo[1];
         }
+
         LOG.info("labelPrefix " + executionOptions.getLabelPrefix());
         this.subtaskId = initContext.getSubtaskId();
         this.labelPrefix = executionOptions.getLabelPrefix() + "_" + initContext.getSubtaskId();
@@ -130,12 +138,13 @@ public class DorisBatchWriter<IN>
 
     @Override
     public Collection<DorisCommittable> prepareCommit() throws IOException, InterruptedException {
-        // nothing to commit
+        checkFlushException();
         return Collections.emptyList();
     }
 
     @Override
     public List<DorisWriterState> snapshotState(long checkpointId) throws IOException {
+        checkFlushException();
         return new ArrayList<>();
     }
 

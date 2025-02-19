@@ -184,6 +184,7 @@ public class DorisBatchStreamLoad implements Serializable {
     public void writeRecord(String database, String table, byte[] record) {
         checkFlushException();
         String bufferKey = getTableIdentifier(database, table);
+
         getLock(bufferKey).readLock().lock();
         BatchRecordBuffer buffer =
                 bufferMap.computeIfAbsent(
@@ -198,6 +199,7 @@ public class DorisBatchStreamLoad implements Serializable {
         int bytes = buffer.insert(record);
         currentCacheBytes.addAndGet(bytes);
         getLock(bufferKey).readLock().unlock();
+
         if (currentCacheBytes.get() > maxBlockedBytes) {
             lock.lock();
             try {
@@ -258,8 +260,9 @@ public class DorisBatchStreamLoad implements Serializable {
     }
 
     private synchronized boolean flush(String bufferKey, boolean waitUtilDone) {
-        if (bufferMap.isEmpty()) {
+        if (!waitUtilDone && bufferMap.isEmpty()) {
             // bufferMap may have been flushed by other threads
+            LOG.info("bufferMap is empty, no need to flush {}", bufferKey);
             return false;
         }
         if (null == bufferKey) {
@@ -295,6 +298,7 @@ public class DorisBatchStreamLoad implements Serializable {
             getLock(bufferKey).writeLock().unlock();
         }
         if (buffer == null) {
+            LOG.info("buffer key is not exist {}, skipped", bufferKey);
             return;
         }
         buffer.setLabelName(labelGenerator.generateBatchLabel(buffer.getTable()));
@@ -312,6 +316,9 @@ public class DorisBatchStreamLoad implements Serializable {
         } catch (InterruptedException e) {
             throw new RuntimeException("Failed to put record buffer to flush queue");
         }
+        // When the load thread reports an error, the flushQueue will be cleared,
+        // and need to force a check for the exception.
+        checkFlushException();
     }
 
     private void checkFlushException() {
@@ -321,7 +328,9 @@ public class DorisBatchStreamLoad implements Serializable {
     }
 
     private void waitAsyncLoadFinish() {
-        for (int i = 0; i < executionOptions.getFlushQueueSize() + 1; i++) {
+        // Because the queue will have a drainTo operation, it needs to be multiplied by 2
+        for (int i = 0; i < executionOptions.getFlushQueueSize() * 2 + 1; i++) {
+            // eof buffer
             BatchRecordBuffer empty = new BatchRecordBuffer();
             putRecordToFlushQueue(empty);
         }
@@ -335,8 +344,6 @@ public class DorisBatchStreamLoad implements Serializable {
         // close async executor
         this.loadExecutorService.shutdown();
         this.started.set(false);
-        // clear buffer
-        this.flushQueue.clear();
     }
 
     @VisibleForTesting
@@ -407,10 +414,14 @@ public class DorisBatchStreamLoad implements Serializable {
                 recordList.clear();
                 try {
                     BatchRecordBuffer buffer = flushQueue.poll(2000L, TimeUnit.MILLISECONDS);
-                    if (buffer == null || buffer.getLabelName() == null) {
-                        // label is empty and does not need to load. It is the flag of waitUtilDone
+                    if (buffer == null) {
                         continue;
                     }
+                    if (buffer.getLabelName() == null) {
+                        // When the label is empty, it is the eof buffer for checkpoint flush.
+                        continue;
+                    }
+
                     recordList.add(buffer);
                     boolean merge = false;
                     if (!flushQueue.isEmpty()) {
@@ -424,6 +435,7 @@ public class DorisBatchStreamLoad implements Serializable {
                     if (!merge) {
                         for (BatchRecordBuffer bf : recordList) {
                             if (bf == null || bf.getLabelName() == null) {
+                                // When the label is empty, it's eof buffer for checkpointFlush.
                                 continue;
                             }
                             load(bf.getLabelName(), bf);
