@@ -28,23 +28,22 @@ import org.apache.http.protocol.HttpRequestExecutor;
 import org.apache.http.protocol.RequestContent;
 
 import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_REQUEST_CONNECT_TIMEOUT_MS_DEFAULT;
-import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_REQUEST_READ_TIMEOUT_MS_DEFAULT;
 
 /** util to build http client. */
 public class HttpUtil {
     private final int connectTimeout;
-    private final int socketTimeout;
+    private final int waitForContinueTimeout;
     private HttpClientBuilder httpClientBuilder;
 
     public HttpUtil() {
         this.connectTimeout = DORIS_REQUEST_CONNECT_TIMEOUT_MS_DEFAULT;
-        this.socketTimeout = DORIS_REQUEST_READ_TIMEOUT_MS_DEFAULT;
+        this.waitForContinueTimeout = DORIS_REQUEST_CONNECT_TIMEOUT_MS_DEFAULT;
         settingStreamHttpClientBuilder();
     }
 
     public HttpUtil(DorisReadOptions readOptions) {
         this.connectTimeout = readOptions.getRequestConnectTimeoutMs();
-        this.socketTimeout = readOptions.getRequestReadTimeoutMs();
+        this.waitForContinueTimeout = readOptions.getRequestConnectTimeoutMs();
         settingStreamHttpClientBuilder();
     }
 
@@ -52,7 +51,7 @@ public class HttpUtil {
         this.httpClientBuilder =
                 HttpClients.custom()
                         // default timeout 3s, maybe report 307 error when fe busy
-                        .setRequestExecutor(new HttpRequestExecutor(socketTimeout))
+                        .setRequestExecutor(new HttpRequestExecutor(waitForContinueTimeout))
                         .setRedirectStrategy(
                                 new DefaultRedirectStrategy() {
                                     @Override
@@ -97,7 +96,9 @@ public class HttpUtil {
                         RequestConfig.custom()
                                 .setConnectTimeout(connectTimeout)
                                 .setConnectionRequestTimeout(connectTimeout)
-                                .setSocketTimeout(socketTimeout)
+                                // todo: Need to be extracted to DorisExecutionOption
+                                // default checkpoint timeout is 10min
+                                .setSocketTimeout(9 * 60 * 1000)
                                 .build());
     }
 
@@ -108,7 +109,9 @@ public class HttpUtil {
                         RequestConfig.custom()
                                 .setConnectTimeout(connectTimeout)
                                 .setConnectionRequestTimeout(connectTimeout)
-                                .setSocketTimeout(socketTimeout)
+                                // todo: Need to be extracted to DorisExecutionOption
+                                // default checkpoint timeout is 10min
+                                .setSocketTimeout(9 * 60 * 1000)
                                 .build());
     }
 }
