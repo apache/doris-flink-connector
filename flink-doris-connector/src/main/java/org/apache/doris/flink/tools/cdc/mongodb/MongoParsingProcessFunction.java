@@ -19,8 +19,8 @@ package org.apache.doris.flink.tools.cdc.mongodb;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.NullNode;
-import org.apache.doris.flink.tools.cdc.DatabaseSync.TableNameConverter;
 import org.apache.doris.flink.tools.cdc.ParsingProcessFunction;
+import org.apache.doris.flink.tools.cdc.converter.TableNameConverter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

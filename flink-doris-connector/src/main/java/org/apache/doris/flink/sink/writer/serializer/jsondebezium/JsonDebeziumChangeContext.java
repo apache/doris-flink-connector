@@ -17,9 +17,12 @@
 
 package org.apache.doris.flink.sink.writer.serializer.jsondebezium;
 
+import org.apache.flink.annotation.VisibleForTesting;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.tools.cdc.DorisTableConfig;
+import org.apache.doris.flink.tools.cdc.converter.TableNameConverter;
 
 import java.io.Serializable;
 import java.util.HashMap;
@@ -44,6 +47,7 @@ public class JsonDebeziumChangeContext implements Serializable {
     private final boolean enableDelete;
     private final String targetTablePrefix;
     private final String targetTableSuffix;
+    private TableNameConverter tableNameConverter;
 
     public JsonDebeziumChangeContext(
             DorisOptions dorisOptions,
@@ -70,6 +74,36 @@ public class JsonDebeziumChangeContext implements Serializable {
         this.enableDelete = enableDelete;
         this.targetTablePrefix = targetTablePrefix;
         this.targetTableSuffix = targetTableSuffix;
+    }
+
+    public JsonDebeziumChangeContext(
+            DorisOptions dorisOptions,
+            Map<String, String> tableMapping,
+            String sourceTableName,
+            String targetDatabase,
+            DorisTableConfig dorisTableConfig,
+            ObjectMapper objectMapper,
+            Pattern pattern,
+            String lineDelimiter,
+            boolean ignoreUpdateBefore,
+            String targetTablePrefix,
+            String targetTableSuffix,
+            boolean enableDelete,
+            TableNameConverter tableNameConverter) {
+        this(
+                dorisOptions,
+                tableMapping,
+                sourceTableName,
+                targetDatabase,
+                dorisTableConfig,
+                objectMapper,
+                pattern,
+                lineDelimiter,
+                ignoreUpdateBefore,
+                targetTablePrefix,
+                targetTableSuffix,
+                enableDelete);
+        this.tableNameConverter = tableNameConverter;
     }
 
     public DorisOptions getDorisOptions() {
@@ -119,11 +153,20 @@ public class JsonDebeziumChangeContext implements Serializable {
         return targetTableSuffix;
     }
 
+    public TableNameConverter getTableNameConverter() {
+        return tableNameConverter;
+    }
+
     public boolean enableDelete() {
         return enableDelete;
     }
 
     public DorisTableConfig getDorisTableConf() {
         return dorisTableConfig;
+    }
+
+    @VisibleForTesting
+    public void setTableNameConverter(TableNameConverter tableNameConverter) {
+        this.tableNameConverter = tableNameConverter;
     }
 }

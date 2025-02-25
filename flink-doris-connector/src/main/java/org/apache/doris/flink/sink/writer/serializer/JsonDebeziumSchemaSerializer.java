@@ -38,6 +38,7 @@ import org.apache.doris.flink.sink.writer.serializer.jsondebezium.JsonDebeziumSc
 import org.apache.doris.flink.sink.writer.serializer.jsondebezium.JsonDebeziumSchemaChangeImplV2;
 import org.apache.doris.flink.sink.writer.serializer.jsondebezium.SQLParserSchemaChange;
 import org.apache.doris.flink.tools.cdc.DorisTableConfig;
+import org.apache.doris.flink.tools.cdc.converter.TableNameConverter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -81,6 +82,7 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
     private JsonDebeziumDataChange dataChange;
     private JsonDebeziumSchemaChange schemaChange;
     private SchemaChangeMode schemaChangeMode;
+    private TableNameConverter tableNameConverter;
     private final Set<String> initTableSet = new HashSet<>();
 
     public JsonDebeziumSchemaSerializer(
@@ -127,7 +129,8 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
             String targetDatabase,
             String targetTablePrefix,
             String targetTableSuffix,
-            SchemaChangeMode schemaChangeMode) {
+            SchemaChangeMode schemaChangeMode,
+            TableNameConverter tableNameConverter) {
         this(dorisOptions, pattern, sourceTableName, newSchemaChange, executionOptions);
         this.tableMapping = tableMapping;
         this.targetDatabase = targetDatabase;
@@ -135,6 +138,7 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
         this.targetTableSuffix = targetTableSuffix;
         this.schemaChangeMode = schemaChangeMode;
         this.dorisTableConfig = dorisTableConfig;
+        this.tableNameConverter = tableNameConverter;
         init();
     }
 
@@ -152,7 +156,8 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
                         ignoreUpdateBefore,
                         targetTablePrefix,
                         targetTableSuffix,
-                        enableDelete);
+                        enableDelete,
+                        tableNameConverter);
         initSchemaChangeInstance(changeContext);
         this.dataChange = new JsonDebeziumDataChange(changeContext);
     }
@@ -233,6 +238,7 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
         private String targetDatabase;
         private String targetTablePrefix = "";
         private String targetTableSuffix = "";
+        private TableNameConverter tableNameConverter;
 
         public JsonDebeziumSchemaSerializer.Builder setDorisOptions(DorisOptions dorisOptions) {
             this.dorisOptions = dorisOptions;
@@ -302,6 +308,11 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
             return this;
         }
 
+        public Builder setTableNameConverter(TableNameConverter tableNameConverter) {
+            this.tableNameConverter = tableNameConverter;
+            return this;
+        }
+
         public JsonDebeziumSchemaSerializer build() {
             return new JsonDebeziumSchemaSerializer(
                     dorisOptions,
@@ -314,7 +325,8 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
                     targetDatabase,
                     targetTablePrefix,
                     targetTableSuffix,
-                    schemaChangeMode);
+                    schemaChangeMode,
+                    tableNameConverter);
         }
     }
 }

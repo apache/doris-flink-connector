@@ -28,6 +28,7 @@ import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.rest.models.Schema;
 import org.apache.doris.flink.tools.cdc.DorisTableConfig;
 import org.apache.doris.flink.tools.cdc.SourceConnector;
+import org.apache.doris.flink.tools.cdc.converter.TableNameConverter;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -42,6 +43,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.regex.Pattern;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mockStatic;
@@ -50,7 +52,10 @@ import static org.mockito.Mockito.mockStatic;
 public class TestJsonDebeziumSchemaChangeImplV2 extends TestJsonDebeziumChangeBase {
 
     private JsonDebeziumSchemaChangeImplV2 schemaChange;
+    private JsonDebeziumSchemaChangeImplV2 schemaChangeWithConvert;
     private JsonDebeziumChangeContext changeContext;
+    private JsonDebeziumChangeContext convertContext;
+
     private MockedStatic<RestService> mockRestService;
 
     @Before
@@ -86,6 +91,23 @@ public class TestJsonDebeziumSchemaChangeImplV2 extends TestJsonDebeziumChangeBa
                         "",
                         true);
         schemaChange = new JsonDebeziumSchemaChangeImplV2(changeContext);
+
+        convertContext =
+                new JsonDebeziumChangeContext(
+                        dorisOptions,
+                        tableMapping,
+                        sourceTableName,
+                        targetDatabase,
+                        new DorisTableConfig(tableProperties),
+                        objectMapper,
+                        null,
+                        lineDelimiter,
+                        ignoreUpdateBefore,
+                        "ods_",
+                        "_dt",
+                        true,
+                        new TableNameConverter("ods_", "_dt"));
+        schemaChangeWithConvert = new JsonDebeziumSchemaChangeImplV2(convertContext);
     }
 
     @Test
@@ -487,6 +509,44 @@ public class TestJsonDebeziumSchemaChangeImplV2 extends TestJsonDebeziumChangeBa
         Assert.assertEquals("NAME4", tableSchema.getFields().get("NAME4").getName());
         Assert.assertEquals("age4", tableSchema.getFields().get("age4").getName());
         schemaChange.setSourceConnector(SourceConnector.MYSQL.connectorName);
+    }
+
+    @Test
+    public void testAutoCreateTableWithConvert() throws Exception {
+        String record =
+                "{    \"source\":{        \"version\":\"1.9.7.Final\",        \"connector\":\"oracle\",        \"name\":\"oracle_logminer\",        \"ts_ms\":1696945825065,        \"snapshot\":\"true\",        \"db\":\"TESTDB\",        \"sequence\":null,        \"schema\":\"ADMIN\",        \"table\":\"PERSONS\",        \"txId\":null,        \"scn\":\"1199617\",        \"commit_scn\":null,        \"lcr_position\":null,        \"rs_id\":null,        \"ssn\":0,        \"redo_thread\":null    },    \"databaseName\":\"TESTDB\",    \"schemaName\":\"ADMIN\",    \"ddl\":\"\\n  CREATE TABLE \\\"ADMIN\\\".\\\"PERSONS\\\" \\n   (\\t\\\"ID\\\" NUMBER(10,0), \\n\\t\\\"NAME4\\\" VARCHAR2(128) NOT NULL ENABLE, \\n\\t\\\"age4\\\" VARCHAR2(128), \\n\\t PRIMARY KEY (\\\"ID\\\") ENABLE\\n   ) ;\\n \",    \"tableChanges\":[        {            \"type\":\"CREATE\",            \"id\":\"\\\"TESTDB\\\".\\\"ADMIN\\\".\\\"PERSONS\\\"\",            \"table\":{                \"defaultCharsetName\":null,                \"primaryKeyColumnNames\":[                    \"ID\"                ],                \"columns\":[                    {                        \"name\":\"ID\",                        \"jdbcType\":2,                        \"nativeType\":null,                        \"typeName\":\"NUMBER\",                        \"typeExpression\":\"NUMBER\",                        \"charsetName\":null,                        \"length\":10,                        \"scale\":0,                        \"position\":1,                        \"optional\":false,                        \"autoIncremented\":false,                        \"generated\":false,                        \"comment\":null                    },                    {                        \"name\":\"NAME4\",                        \"jdbcType\":12,                        \"nativeType\":null,                        \"typeName\":\"VARCHAR2\",                        \"typeExpression\":\"VARCHAR2\",                        \"charsetName\":null,                        \"length\":128,                        \"scale\":null,                        \"position\":2,                        \"optional\":false,                        \"autoIncremented\":false,                        \"generated\":false,                        \"comment\":null                    },                    {                        \"name\":\"age4\",                        \"jdbcType\":12,                        \"nativeType\":null,                        \"typeName\":\"VARCHAR2\",                        \"typeExpression\":\"VARCHAR2\",                        \"charsetName\":null,                        \"length\":128,                        \"scale\":null,                        \"position\":3,                        \"optional\":true,                        \"autoIncremented\":false,                        \"generated\":false,                        \"comment\":null                    }                ],                \"comment\":null            }        }    ]}";
+        JsonNode recordRoot = objectMapper.readTree(record);
+        schemaChangeWithConvert.setSourceConnector(SourceConnector.ORACLE.connectorName);
+        TableSchema tableSchema = schemaChangeWithConvert.extractCreateTableSchema(recordRoot);
+        Assert.assertEquals("TESTDB", tableSchema.getDatabase());
+        Assert.assertEquals("ods_PERSONS_dt", tableSchema.getTable());
+        Assert.assertArrayEquals(new String[] {"ID"}, tableSchema.getKeys().toArray());
+        Assert.assertEquals(3, tableSchema.getFields().size());
+        Assert.assertEquals("ID", tableSchema.getFields().get("ID").getName());
+        Assert.assertEquals("NAME4", tableSchema.getFields().get("NAME4").getName());
+        Assert.assertEquals("age4", tableSchema.getFields().get("age4").getName());
+
+        // match table
+        Map<Pattern, String> tableConvert = new HashMap<>();
+        tableConvert.put(Pattern.compile("PER.*"), "PERSONS_RES");
+
+        convertContext.setTableNameConverter(
+                new TableNameConverter("prefix_", "_suffix", tableConvert));
+        schemaChangeWithConvert = new JsonDebeziumSchemaChangeImplV2(convertContext);
+        TableSchema tableSchema2 = schemaChangeWithConvert.extractCreateTableSchema(recordRoot);
+        Assert.assertEquals("TESTDB", tableSchema2.getDatabase());
+        Assert.assertEquals("PERSONS_RES", tableSchema2.getTable());
+
+        // no match table
+        Map<Pattern, String> tableConvert2 = new HashMap<>();
+        tableConvert2.put(Pattern.compile("NOMATCH.*"), "PERSONS_RES");
+        convertContext.setTableNameConverter(new TableNameConverter("pre_", "_suf", tableConvert2));
+        schemaChangeWithConvert = new JsonDebeziumSchemaChangeImplV2(convertContext);
+        TableSchema tableSchema3 = schemaChangeWithConvert.extractCreateTableSchema(recordRoot);
+        Assert.assertEquals("TESTDB", tableSchema3.getDatabase());
+        Assert.assertEquals("pre_PERSONS_suf", tableSchema3.getTable());
+
+        schemaChangeWithConvert.setSourceConnector(SourceConnector.MYSQL.connectorName);
     }
 
     @Test

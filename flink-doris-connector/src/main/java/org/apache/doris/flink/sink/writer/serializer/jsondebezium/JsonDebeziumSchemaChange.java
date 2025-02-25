@@ -33,6 +33,7 @@ import org.apache.doris.flink.sink.writer.EventType;
 import org.apache.doris.flink.tools.cdc.DorisTableConfig;
 import org.apache.doris.flink.tools.cdc.SourceConnector;
 import org.apache.doris.flink.tools.cdc.SourceSchema;
+import org.apache.doris.flink.tools.cdc.converter.TableNameConverter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -71,6 +72,7 @@ public abstract class JsonDebeziumSchemaChange extends CdcSchemaChange {
     protected String targetTablePrefix;
     protected String targetTableSuffix;
     protected DorisTableConfig dorisTableConfig;
+    protected TableNameConverter tableNameConverter;
 
     public abstract boolean schemaChange(JsonNode recordRoot);
 
@@ -196,7 +198,13 @@ public abstract class JsonDebeziumSchemaChange extends CdcSchemaChange {
 
     protected String getCreateTableIdentifier(JsonNode record) {
         String table = extractJsonNode(record.get("source"), "table");
-        return targetDatabase + "." + targetTablePrefix + table + targetTableSuffix;
+        String createTblName;
+        if (tableNameConverter != null) {
+            createTblName = tableNameConverter.convert(table);
+        } else {
+            createTblName = targetTablePrefix + table + targetTableSuffix;
+        }
+        return targetDatabase + "." + createTblName;
     }
 
     public Map<String, String> getTableMapping() {

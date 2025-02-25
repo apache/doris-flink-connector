@@ -255,10 +255,12 @@ public class DorisSchemaFactory {
     }
 
     public static String quoteDefaultValue(String defaultValue) {
-        // DEFAULT current_timestamp not need quote
-        if (defaultValue.equalsIgnoreCase("current_timestamp")) {
+        // DEFAULT current_timestamp or null not need quote
+        if (defaultValue.equalsIgnoreCase("current_timestamp")
+                || defaultValue.equalsIgnoreCase("null")) {
             return defaultValue;
         }
+
         return "'" + defaultValue + "'";
     }
 
