@@ -42,11 +42,11 @@ import org.apache.doris.flink.sink.writer.WriteMode;
 import org.apache.doris.flink.sink.writer.serializer.DorisRecordSerializer;
 import org.apache.doris.flink.sink.writer.serializer.JsonDebeziumSchemaSerializer;
 import org.apache.doris.flink.table.DorisConfigOptions;
+import org.apache.doris.flink.tools.cdc.converter.TableNameConverter;
 import org.apache.doris.flink.tools.cdc.oracle.OracleDatabaseSync;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.Serializable;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.SQLSyntaxErrorException;
@@ -343,6 +343,7 @@ public abstract class DatabaseSync {
                 .setTargetDatabase(database)
                 .setTargetTablePrefix(tablePrefix)
                 .setTargetTableSuffix(tableSuffix)
+                .setTableNameConverter(converter)
                 .build();
     }
 
@@ -617,52 +618,5 @@ public abstract class DatabaseSync {
     public DatabaseSync setTableSuffix(String tableSuffix) {
         this.tableSuffix = tableSuffix;
         return this;
-    }
-
-    public static class TableNameConverter implements Serializable {
-        private static final long serialVersionUID = 1L;
-        private final String prefix;
-        private final String suffix;
-        private Map<Pattern, String> multiToOneRulesPattern;
-
-        TableNameConverter() {
-            this("", "");
-        }
-
-        TableNameConverter(String prefix, String suffix) {
-            this.prefix = prefix == null ? "" : prefix;
-            this.suffix = suffix == null ? "" : suffix;
-        }
-
-        TableNameConverter(
-                String prefix, String suffix, Map<Pattern, String> multiToOneRulesPattern) {
-            this.prefix = prefix == null ? "" : prefix;
-            this.suffix = suffix == null ? "" : suffix;
-            this.multiToOneRulesPattern = multiToOneRulesPattern;
-        }
-
-        public String convert(String tableName) {
-            if (multiToOneRulesPattern == null) {
-                return prefix + tableName + suffix;
-            }
-
-            String target = null;
-
-            for (Map.Entry<Pattern, String> patternStringEntry :
-                    multiToOneRulesPattern.entrySet()) {
-                if (patternStringEntry.getKey().matcher(tableName).matches()) {
-                    target = patternStringEntry.getValue();
-                }
-            }
-            /**
-             * If multiToOneRulesPattern is not null and target is not assigned, then the
-             * synchronization task contains both multi to one and one to one , prefixes and
-             * suffixes are added to common one-to-one mapping tables
-             */
-            if (target == null) {
-                return prefix + tableName + suffix;
-            }
-            return target;
-        }
     }
 }

@@ -53,6 +53,7 @@ public class SQLParserSchemaChange extends JsonDebeziumSchemaChange {
                 changeContext.getTargetTableSuffix() == null
                         ? ""
                         : changeContext.getTargetTableSuffix();
+        this.tableNameConverter = changeContext.getTableNameConverter();
     }
 
     @Override

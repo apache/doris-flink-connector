@@ -26,6 +26,7 @@ import org.apache.flink.util.StringUtils;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.doris.flink.tools.cdc.converter.TableNameConverter;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -33,10 +34,10 @@ import java.util.Map;
 public class ParsingProcessFunction extends ProcessFunction<String, Void> {
     protected ObjectMapper objectMapper = new ObjectMapper();
     private transient Map<String, OutputTag<String>> recordOutputTags;
-    private DatabaseSync.TableNameConverter converter;
+    private TableNameConverter converter;
     private String database;
 
-    public ParsingProcessFunction(String database, DatabaseSync.TableNameConverter converter) {
+    public ParsingProcessFunction(String database, TableNameConverter converter) {
         this.database = database;
         this.converter = converter;
     }

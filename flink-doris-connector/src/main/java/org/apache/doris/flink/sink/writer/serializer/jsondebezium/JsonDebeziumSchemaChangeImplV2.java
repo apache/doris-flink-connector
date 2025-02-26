@@ -88,6 +88,7 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
                 changeContext.getTargetTableSuffix() == null
                         ? ""
                         : changeContext.getTargetTableSuffix();
+        this.tableNameConverter = changeContext.getTableNameConverter();
     }
 
     @Override
