@@ -91,6 +91,7 @@ public class DorisDynamicOutputFormat<T> extends RichOutputFormat<T> {
     private String keysType;
     private List<BackendV2.BackendRowV2> backends;
     private long pos = 0L;
+    private int subtaskId = 0;
     private transient volatile boolean closed = false;
     private transient ScheduledExecutorService scheduler;
     private transient ScheduledFuture<?> scheduledFuture;
@@ -191,16 +192,17 @@ public class DorisDynamicOutputFormat<T> extends RichOutputFormat<T> {
 
     @Override
     public void open(int taskNumber, int numTasks) throws IOException {
+        this.subtaskId = taskNumber;
         this.backends = settingBackends();
+        String backend = getAvailableBackend();
         dorisStreamLoad = new DorisStreamLoad(
-                backends.get(0).toBackendString(),
+                backend,
                 options.getTableIdentifier().split("\\.")[0],
                 options.getTableIdentifier().split("\\.")[1],
                 options.getUsername(),
                 options.getPassword(),
                 executionOptions.getStreamLoadProp(),
                 readOptions);
-        LOG.info("Streamload BE:{}", dorisStreamLoad.getLoadUrlStr());
 
         if (executionOptions.getBatchIntervalMs() != 0 && executionOptions.getBatchSize() != 1) {
             this.scheduler = Executors.newScheduledThreadPool(1, new ExecutorThreadFactory("doris-streamload-output" +
@@ -321,6 +323,10 @@ public class DorisDynamicOutputFormat<T> extends RichOutputFormat<T> {
         } else {
             result = String.join(this.lineDelimiter, batch);
         }
+
+        // refresh backend
+        dorisStreamLoad.setHostPort(getAvailableBackend());
+
         for (int i = 0; i <= executionOptions.getMaxRetries(); i++) {
             try {
                 dorisStreamLoad.load(result);
@@ -334,7 +340,7 @@ public class DorisDynamicOutputFormat<T> extends RichOutputFormat<T> {
                 }
                 try {
                     dorisStreamLoad.setHostPort(getAvailableBackend());
-                    LOG.warn("streamload error,switch be: {}", dorisStreamLoad.getLoadUrlStr(), e);
+                    LOG.warn("stream load error,switch be: {}", dorisStreamLoad.getLoadUrlStr(), e);
                     Thread.sleep(1000L * ( i + 1 ));
                 } catch (InterruptedException ex) {
                     Thread.currentThread().interrupt();
@@ -342,8 +348,10 @@ public class DorisDynamicOutputFormat<T> extends RichOutputFormat<T> {
                 }
             }
         }
+
     }
 
+    @Deprecated
     private String getBackend() throws IOException {
         try {
             //get be url from fe
@@ -371,7 +379,7 @@ public class DorisDynamicOutputFormat<T> extends RichOutputFormat<T> {
         long tmp = pos + backends.size();
         while (pos < tmp) {
             BackendV2.BackendRowV2 backend =
-                    backends.get((int) (pos % backends.size()));
+                    backends.get((int) ((pos + subtaskId) % backends.size()));
             pos++;
             return backend.toBackendString();
         }
