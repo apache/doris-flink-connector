@@ -283,7 +283,6 @@ public class DorisLookupTableITCase extends AbstractITCaseService {
                                 DATABASE, DorisLookupTableITCase.TABLE_DIM_TBL));
             }
             actual.add(row);
-            System.out.println(row);
             index++;
         }
 
