@@ -25,6 +25,8 @@ import org.apache.doris.flink.container.AbstractContainerTestBase;
 import org.apache.doris.flink.container.ContainerUtils;
 import org.apache.doris.flink.table.DorisConfigOptions;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,6 +34,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
+@RunWith(Parameterized.class)
 public class Doris2DorisE2ECase extends AbstractContainerTestBase {
     private static final Logger LOG = LoggerFactory.getLogger(Doris2DorisE2ECase.class);
     private static final String DATABASE_SOURCE = "test_doris2doris_source";
@@ -39,6 +42,16 @@ public class Doris2DorisE2ECase extends AbstractContainerTestBase {
     private static final String TABLE = "test_tbl";
 
     // 增加 arrowflight 和 thrift
+    private final boolean useFlightRead;
+
+    public Doris2DorisE2ECase(boolean useFlightRead) {
+        this.useFlightRead = useFlightRead;
+    }
+
+    @Parameterized.Parameters(name = "useFlightRead: {0}")
+    public static Object[] parameters() {
+        return new Object[][] {new Object[] {false}, new Object[] {true}};
+    }
 
     @Test
     public void testDoris2Doris() throws Exception {
@@ -83,13 +96,14 @@ public class Doris2DorisE2ECase extends AbstractContainerTestBase {
                                 + "',"
                                 + " 'username' = '%s',"
                                 + " 'password' = '%s',"
-                                + " 'source.use-flight-sql' = 'true',\n"
+                                + " 'source.use-flight-sql' = '%s',\n"
                                 + " 'source.flight-sql-port' = '9611'"
                                 + ")",
                         getFenodes(),
                         DATABASE_SOURCE + "." + TABLE,
                         getDorisUsername(),
-                        getDorisPassword());
+                        getDorisPassword(),
+                        useFlightRead);
         tEnv.executeSql(sourceDDL);
 
         String sinkDDL =
