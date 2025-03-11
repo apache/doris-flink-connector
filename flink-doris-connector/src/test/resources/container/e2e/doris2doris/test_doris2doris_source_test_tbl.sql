@@ -16,11 +16,13 @@ CREATE TABLE test_doris2doris_source.test_tbl (
      `c10` date,
      `c11` datetime,
      `c12` char(1),
-     `c13` varchar(256),
-     `c14` Array<String>,
-     `c15` Map<String, String>,
-     `c16` Struct<name: String, age: int>,
-     `c17` JSON
+     `c13` varchar(16),
+     `c14` string,
+     `c15` Array<String>,
+     `c16` Map<String, String>,
+     `c17` Struct<name: String, age: int>,
+     `c18` JSON,
+     `c19` JSON -- doris2.1.0 can not read VARIANT
 )
 DUPLICATE KEY(`id`)
 DISTRIBUTED BY HASH(`id`) BUCKETS 1
@@ -29,45 +31,22 @@ PROPERTIES (
 "light_schema_change" = "true"
 );
 
-INSERT INTO test_doris2doris_source.test_tbl
-VALUES
-    (
-        1,
-        TRUE,
-        127,
-        32767,
-        2147483647,
-        9223372036854775807,
-        123456789012345678901234567890,
-        3.14,
-        2.7182818284,
-        12345.6789,
-        '2023-05-22',
-        '2023-05-22 12:34:56',
-        'A',
-        'Example text',
-        ['item1', 'item2', 'item3'],
-        {'key1': 'value1', 'key2': 'value2'},
-        STRUCT('John Doe', 30),
-        '{"key": "value"}'
-    ),
-    (
-        2,
-        FALSE,
-        -128,
-        -32768,
-        -2147483648,
-        -9223372036854775808,
-        -123456789012345678901234567890,
-        -3.14,
-        -2.7182818284,
-        -12345.6789,
-        '2024-01-01',
-        '2024-01-01 00:00:00',
-        'B',
-        'Another example',
-        ['item4', 'item5', 'item6'],
-        {'key3': 'value3', 'key4': 'value4'},
-        STRUCT('Jane Doe', 25),
-        '{"another_key": "another_value"}'
-);
+INSERT INTO test_doris2doris_source.test_tbl VALUES
+    (1, true, 127, 32767, 2147483647, 9223372036854775807, 170141183460469231731687303715884105727,
+     3.14, 2.71828, 12345.6789, '2025-03-11', '2025-03-11 12:34:56', 'A', 'Hello, Doris!', 'This is a string',
+        ['Alice', 'Bob'], {'key1': 'value1', 'key2': 'value2'}, STRUCT('Tom', 30), '{"key": "value"}', '{"type": "variant", "data": 123}');
+
+INSERT INTO test_doris2doris_source.test_tbl VALUES
+    (2, false, -128, -32768, -2147483648, -9223372036854775808, -170141183460469231731687303715884105728,
+     -1.23, 0.0001, -9999.9999, '2024-12-25', '2024-12-25 23:59:59', 'B', 'Doris Test', 'Another string!',
+        ['Charlie', 'David'], {'k1': 'v1', 'k2': 'v2'}, STRUCT('Jerry', 25), '{"status": "ok"}', '{"data": [1, 2, 3]}' );
+
+INSERT INTO test_doris2doris_source.test_tbl VALUES
+    (3, true, 0, 0, 0, 0, 0,
+     0.0, 0.0, 0.0000, '2023-06-15', '2023-06-15 08:00:00', 'C', 'Test Doris', 'Sample text',
+        ['Eve', 'Frank'], {'alpha': 'beta'}, STRUCT('Alice', 40), '{"nested": {"key": "value"}}', '{"variant": "test"}');
+
+INSERT INTO test_doris2doris_source.test_tbl VALUES
+    (4, NULL, NULL, NULL, NULL, NULL, NULL,
+     NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+     NULL, NULL, NULL, NULL, NULL);

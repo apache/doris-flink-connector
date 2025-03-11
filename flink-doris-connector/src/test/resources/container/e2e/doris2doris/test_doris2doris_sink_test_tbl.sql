@@ -17,10 +17,12 @@ CREATE TABLE test_doris2doris_sink.test_tbl (
       `c11` datetime,
       `c12` char(1),
       `c13` varchar(256),
-      `c14` Array<String>,
-      `c15` Map<String, String>,
-      `c16` Struct<name: String, age: int>,
-      `c17` JSON
+      `c14` string,
+      `c15` Array<String>,
+      `c16` Map<String, String>,
+      `c17` Struct<name: String, age: int>,
+      `c18` JSON,
+      `c19` VARIANT
 )
     DUPLICATE KEY(`id`)
 DISTRIBUTED BY HASH(`id`) BUCKETS 1
