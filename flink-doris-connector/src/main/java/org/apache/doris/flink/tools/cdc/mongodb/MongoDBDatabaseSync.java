@@ -240,6 +240,9 @@ public class MongoDBDatabaseSync extends DatabaseSync {
                 .setTableMapping(tableMapping)
                 .setTableConf(dorisTableConfig)
                 .setTargetDatabase(database)
+                .setTargetTablePrefix(tablePrefix)
+                .setTargetTableSuffix(tableSuffix)
+                .setTableNameConverter(converter)
                 .build();
     }
 

@@ -17,40 +17,36 @@
 
 package org.apache.doris.flink.tools.cdc.mongodb.serializer;
 
+import org.apache.flink.util.CollectionUtil;
+import org.apache.flink.util.StringUtils;
+
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.NullNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import org.apache.doris.flink.catalog.doris.DorisSystem;
-import org.apache.doris.flink.catalog.doris.FieldSchema;
+import org.apache.doris.flink.catalog.doris.*;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.exception.DorisRuntimeException;
+import org.apache.doris.flink.exception.DorisSystemException;
 import org.apache.doris.flink.exception.IllegalArgumentException;
 import org.apache.doris.flink.sink.schema.SchemaChangeManager;
 import org.apache.doris.flink.sink.writer.serializer.jsondebezium.CdcSchemaChange;
 import org.apache.doris.flink.sink.writer.serializer.jsondebezium.JsonDebeziumChangeContext;
 import org.apache.doris.flink.tools.cdc.SourceSchema;
+import org.apache.doris.flink.tools.cdc.mongodb.MongoDBSchema;
 import org.apache.doris.flink.tools.cdc.mongodb.MongoDBType;
 import org.apache.doris.flink.tools.cdc.mongodb.MongoDateConverter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.sql.SQLSyntaxErrorException;
+import java.util.*;
 
 import static org.apache.doris.flink.sink.writer.serializer.jsondebezium.JsonDebeziumChangeUtils.getDorisTableIdentifier;
-import static org.apache.doris.flink.tools.cdc.mongodb.ChangeStreamConstant.DATE_FIELD;
-import static org.apache.doris.flink.tools.cdc.mongodb.ChangeStreamConstant.DECIMAL_FIELD;
-import static org.apache.doris.flink.tools.cdc.mongodb.ChangeStreamConstant.FIELD_DATA;
-import static org.apache.doris.flink.tools.cdc.mongodb.ChangeStreamConstant.FIELD_DATABASE;
-import static org.apache.doris.flink.tools.cdc.mongodb.ChangeStreamConstant.FIELD_NAMESPACE;
-import static org.apache.doris.flink.tools.cdc.mongodb.ChangeStreamConstant.FIELD_TABLE;
-import static org.apache.doris.flink.tools.cdc.mongodb.ChangeStreamConstant.LONG_FIELD;
-import static org.apache.doris.flink.tools.cdc.mongodb.ChangeStreamConstant.TIMESTAMP_FIELD;
+import static org.apache.doris.flink.tools.cdc.mongodb.ChangeStreamConstant.*;
+import static org.apache.doris.flink.tools.cdc.mongodb.ChangeStreamConstant.ID_FIELD;
 
 public class MongoJsonDebeziumSchemaChange extends CdcSchemaChange {
 
@@ -66,11 +62,13 @@ public class MongoJsonDebeziumSchemaChange extends CdcSchemaChange {
 
     public Map<String, String> tableMapping;
     private final DorisOptions dorisOptions;
+    public JsonDebeziumChangeContext changeContext;
 
     private final Set<String> specialFields =
             new HashSet<>(Arrays.asList(DATE_FIELD, TIMESTAMP_FIELD, DECIMAL_FIELD, LONG_FIELD));
 
     public MongoJsonDebeziumSchemaChange(JsonDebeziumChangeContext changeContext) {
+        this.changeContext = changeContext;
         this.objectMapper = changeContext.getObjectMapper();
         this.dorisOptions = changeContext.getDorisOptions();
         this.tableFields = new HashMap<>();
@@ -96,6 +94,30 @@ public class MongoJsonDebeziumSchemaChange extends CdcSchemaChange {
             String cdcTableIdentifier = getCdcTableIdentifier(recordRoot);
             String dorisTableIdentifier =
                     getDorisTableIdentifier(cdcTableIdentifier, dorisOptions, tableMapping);
+
+            // if table dorisTableIdentifier is null, create table
+            if (StringUtils.isNullOrWhitespaceOnly(dorisTableIdentifier)) {
+                String[] split = cdcTableIdentifier.split("\\.");
+                String targetDb = getRandomValue(tableMapping).split("\\.")[0];
+                String sourceTable = split[1];
+                String dorisTable = changeContext.getTableNameConverter().convert(sourceTable);
+                LOG.info(
+                        "The table [{}.{}] does not exist. Attempting to create a new table named: {}.{}",
+                        targetDb,
+                        sourceTable,
+                        targetDb,
+                        dorisTable);
+                tableMapping.put(cdcTableIdentifier, String.format("%s.%s", targetDb, dorisTable));
+                dorisTableIdentifier = tableMapping.get(cdcTableIdentifier);
+                Map<String, Object> stringObjectMap = extractAfterRow(logData);
+                JsonNode jsonNode = objectMapper.valueToTree(stringObjectMap);
+
+                MongoDBSchema mongoSchema = new MongoDBSchema(jsonNode, targetDb, dorisTable, "");
+
+                mongoSchema.setModel(DataModel.UNIQUE);
+                tryCreateTableIfAbsent(dorisSystem, targetDb, dorisTable, mongoSchema);
+            }
+
             String[] tableInfo = dorisTableIdentifier.split("\\.");
             if (tableInfo.length != 2) {
                 throw new DorisRuntimeException();
@@ -115,6 +137,45 @@ public class MongoJsonDebeziumSchemaChange extends CdcSchemaChange {
         } catch (Exception ex) {
             LOG.warn("schema change error : ", ex);
             return false;
+        }
+    }
+
+    public static <K, V> V getRandomValue(Map<K, V> map) {
+        Collection<V> values = map.values();
+        return values.stream().findAny().orElse(null);
+    }
+
+    private void tryCreateTableIfAbsent(
+            DorisSystem dorisSystem, String targetDb, String dorisTable, SourceSchema schema) {
+        if (!dorisSystem.tableExists(targetDb, dorisTable)) {
+            if (changeContext.getDorisTableConf().isConvertUniqToPk()
+                    && CollectionUtil.isNullOrEmpty(schema.primaryKeys)
+                    && !CollectionUtil.isNullOrEmpty(schema.uniqueIndexs)) {
+                schema.primaryKeys = new ArrayList<>(schema.uniqueIndexs);
+            }
+            TableSchema dorisSchema =
+                    DorisSchemaFactory.createTableSchema(
+                            targetDb,
+                            dorisTable,
+                            schema.getFields(),
+                            schema.getPrimaryKeys(),
+                            changeContext.getDorisTableConf(),
+                            schema.getTableComment());
+            try {
+                dorisSystem.createTable(dorisSchema);
+            } catch (Exception ex) {
+                handleTableCreationFailure(ex);
+            }
+        }
+    }
+
+    private void handleTableCreationFailure(Exception ex) throws DorisSystemException {
+        if (ex.getCause() instanceof SQLSyntaxErrorException) {
+            LOG.warn(
+                    "Doris schema and source table schema are not compatible. Error: {} ",
+                    ex.getCause().toString());
+        } else {
+            throw new DorisSystemException("Failed to create table due to: ", ex);
         }
     }
 
@@ -161,6 +222,25 @@ public class MongoJsonDebeziumSchemaChange extends CdcSchemaChange {
         } catch (IOException e) {
             throw new DorisRuntimeException("Failed to parse fullDocument JSON", e);
         }
+    }
+
+    public Map<String, Object> extractAfterRow(JsonNode recordRoot) {
+        Map<String, Object> rowMap = extractRow(recordRoot);
+        String objectId;
+        // if user specifies the `_id` field manually, the $oid field may not exist
+        if (rowMap.get(ID_FIELD) instanceof Map<?, ?>) {
+            objectId = ((Map<?, ?>) rowMap.get(ID_FIELD)).get(OID_FIELD).toString();
+        } else {
+            objectId = rowMap.get(ID_FIELD).toString();
+        }
+        rowMap.put(ID_FIELD, objectId);
+        return rowMap;
+    }
+
+    private Map<String, Object> extractRow(JsonNode recordRow) {
+        Map<String, Object> recordMap =
+                objectMapper.convertValue(recordRow, new TypeReference<Map<String, Object>>() {});
+        return recordMap != null ? recordMap : new HashMap<>();
     }
 
     private void checkAndUpdateSchemaChange(
