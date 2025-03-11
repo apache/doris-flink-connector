@@ -17,6 +17,18 @@
 
 package org.apache.doris.flink.sink;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.doris.flink.catalog.doris.DataModel;
+import org.apache.doris.flink.cfg.DorisExecutionOptions;
+import org.apache.doris.flink.cfg.DorisOptions;
+import org.apache.doris.flink.cfg.DorisReadOptions;
+import org.apache.doris.flink.container.AbstractITCaseService;
+import org.apache.doris.flink.container.ContainerUtils;
+import org.apache.doris.flink.sink.DorisSink.Builder;
+import org.apache.doris.flink.sink.batch.DorisBatchSink;
+import org.apache.doris.flink.sink.writer.serializer.SimpleStringSerializer;
+import org.apache.doris.flink.table.DorisConfigOptions;
+import org.apache.doris.flink.utils.MockSource;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
@@ -29,20 +41,10 @@ import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.StringUtils;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.doris.flink.cfg.DorisExecutionOptions;
-import org.apache.doris.flink.cfg.DorisOptions;
-import org.apache.doris.flink.cfg.DorisReadOptions;
-import org.apache.doris.flink.container.AbstractITCaseService;
-import org.apache.doris.flink.container.ContainerUtils;
-import org.apache.doris.flink.sink.DorisSink.Builder;
-import org.apache.doris.flink.sink.batch.DorisBatchSink;
-import org.apache.doris.flink.sink.writer.serializer.SimpleStringSerializer;
-import org.apache.doris.flink.table.DorisConfigOptions;
-import org.apache.doris.flink.utils.MockSource;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,6 +62,7 @@ import static org.apache.flink.api.common.JobStatus.FINISHED;
 import static org.apache.flink.api.common.JobStatus.RUNNING;
 
 /** DorisSink ITCase with csv and arrow format. */
+@RunWith(Parameterized.class)
 public class DorisSinkITCase extends AbstractITCaseService {
     private static final Logger LOG = LoggerFactory.getLogger(DorisSinkITCase.class);
     static final String DATABASE = "test_sink";
@@ -75,6 +78,20 @@ public class DorisSinkITCase extends AbstractITCaseService {
     static final String TABLE_CSV_JM = "tbl_csv_jm";
     static final String TABLE_CSV_TM = "tbl_csv_tm";
 
+    private final boolean batchMode;
+
+    public DorisSinkITCase(boolean batchMode) {
+        this.batchMode = batchMode;
+    }
+
+    @Parameterized.Parameters(name = "batchMode: {0}")
+    public static Object[] parameters() {
+        return new Object[][] {
+                new Object[] {false},
+                new Object[] {true}
+        };
+    }
+
     @Rule
     public final MiniClusterWithClientResource miniClusterResource =
             new MiniClusterWithClientResource(
@@ -87,13 +104,18 @@ public class DorisSinkITCase extends AbstractITCaseService {
 
     @Test
     public void testSinkCsvFormat() throws Exception {
-        initializeTable(TABLE_CSV);
+        initializeTable(TABLE_CSV, DataModel.UNIQUE);
         Properties properties = new Properties();
         properties.setProperty("column_separator", ",");
         properties.setProperty("line_delimiter", "\n");
         properties.setProperty("format", "csv");
         DorisExecutionOptions.Builder executionBuilder = DorisExecutionOptions.builder();
-        executionBuilder.setLabelPrefix(UUID.randomUUID().toString()).setStreamLoadProp(properties);
+        executionBuilder.setLabelPrefix(UUID.randomUUID().toString())
+                .setStreamLoadProp(properties)
+                .setDeletable(false)
+                .setBufferCount(4)
+                .setBufferSize(5 * 1024 * 1024)
+                .setBatchMode(batchMode);
         DorisOptions.Builder dorisBuilder = DorisOptions.builder();
         dorisBuilder
                 .setFenodes(getFenodes())
@@ -110,7 +132,7 @@ public class DorisSinkITCase extends AbstractITCaseService {
 
     @Test
     public void testSinkJsonFormat() throws Exception {
-        initializeTable(TABLE_JSON);
+        initializeTable(TABLE_JSON, DataModel.UNIQUE);
         Properties properties = new Properties();
         properties.setProperty("read_json_by_line", "true");
         properties.setProperty("format", "json");
@@ -124,7 +146,11 @@ public class DorisSinkITCase extends AbstractITCaseService {
         row2.put("age", 2);
 
         DorisExecutionOptions.Builder executionBuilder = DorisExecutionOptions.builder();
-        executionBuilder.setLabelPrefix(UUID.randomUUID().toString()).setStreamLoadProp(properties);
+        executionBuilder.setLabelPrefix(UUID.randomUUID().toString())
+                .setBatchMode(batchMode)
+                .setStreamLoadProp(properties)
+                // uniq need to be false
+                .setDeletable(false);
         DorisOptions.Builder dorisBuilder = DorisOptions.builder();
         dorisBuilder
                 .setFenodes(getFenodes())
@@ -166,7 +192,7 @@ public class DorisSinkITCase extends AbstractITCaseService {
 
     @Test
     public void testTableSinkJsonFormat() throws Exception {
-        initializeTable(TABLE_JSON_TBL);
+        initializeTable(TABLE_JSON_TBL, DataModel.DUPLICATE);
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
@@ -191,6 +217,7 @@ public class DorisSinkITCase extends AbstractITCaseService {
                                 + " 'sink.enable-2pc' = 'true',"
                                 + " 'sink.use-cache' = 'true',"
                                 + " 'sink.enable-delete' = 'false',"
+                                + " 'sink.enable.batch-mode' = '%s',"
                                 + " 'sink.ignore.update-before' = 'true',"
                                 + " 'sink.properties.format' = 'json',"
                                 + " 'sink.properties.read_json_by_line' = 'true',"
@@ -201,7 +228,8 @@ public class DorisSinkITCase extends AbstractITCaseService {
                         getFenodes(),
                         DATABASE + "." + TABLE_JSON_TBL,
                         getDorisUsername(),
-                        getDorisPassword());
+                        getDorisPassword(),
+                        batchMode);
         tEnv.executeSql(sinkDDL);
         tEnv.executeSql("INSERT INTO doris_sink SELECT 'doris',1 union all SELECT 'flink',2");
 
@@ -218,7 +246,7 @@ public class DorisSinkITCase extends AbstractITCaseService {
             LOG.info("benodes is empty, skip the test.");
             return;
         }
-        initializeTable(TABLE_TBL_AUTO_REDIRECT);
+        initializeTable(TABLE_TBL_AUTO_REDIRECT, DataModel.AGGREGATE);
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
@@ -239,6 +267,7 @@ public class DorisSinkITCase extends AbstractITCaseService {
                                 + " 'table.identifier' = '%s',"
                                 + " 'username' = '%s',"
                                 + " 'password' = '%s',"
+                                + " 'sink.enable.batch-mode' = '%s',"
                                 + " 'sink.label-prefix' = 'doris_sink"
                                 + UUID.randomUUID()
                                 + "'"
@@ -247,7 +276,8 @@ public class DorisSinkITCase extends AbstractITCaseService {
                         getBenodes(),
                         DATABASE + "." + TABLE_TBL_AUTO_REDIRECT,
                         getDorisUsername(),
-                        getDorisPassword());
+                        getDorisPassword(),
+                        batchMode);
         tEnv.executeSql(sinkDDL);
         tEnv.executeSql("INSERT INTO doris_sink SELECT 'doris',1 union all SELECT 'flink',2");
 
@@ -260,7 +290,7 @@ public class DorisSinkITCase extends AbstractITCaseService {
 
     @Test
     public void testTableBatch() throws Exception {
-        initializeTable(TABLE_CSV_BATCH_TBL);
+        initializeTable(TABLE_CSV_BATCH_TBL, DataModel.UNIQUE_MOR);
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
@@ -285,7 +315,7 @@ public class DorisSinkITCase extends AbstractITCaseService {
                                 + " 'sink.properties.column_separator' = '\\x01',"
                                 + " 'sink.properties.line_delimiter' = '\\x02',"
                                 + " 'sink.ignore.update-before' = 'false',"
-                                + " 'sink.enable.batch-mode' = 'true',"
+                                + " 'sink.enable.batch-mode' = '%s',"
                                 + " 'sink.enable-delete' = 'true',"
                                 + " 'sink.flush.queue-size' = '2',"
                                 + " 'sink.buffer-flush.max-rows' = '10000',"
@@ -295,7 +325,8 @@ public class DorisSinkITCase extends AbstractITCaseService {
                         getFenodes(),
                         DATABASE + "." + TABLE_CSV_BATCH_TBL,
                         getDorisUsername(),
-                        getDorisPassword());
+                        getDorisPassword(),
+                        batchMode);
         tEnv.executeSql(sinkDDL);
         tEnv.executeSql("INSERT INTO doris_sink_batch SELECT 'doris',1 union all SELECT 'flink',2");
 
@@ -309,7 +340,7 @@ public class DorisSinkITCase extends AbstractITCaseService {
 
     @Test
     public void testDataStreamBatch() throws Exception {
-        initializeTable(TABLE_CSV_BATCH_DS);
+        initializeTable(TABLE_CSV_BATCH_DS, DataModel.AGGREGATE);
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
         env.setParallelism(DEFAULT_PARALLELISM);
@@ -328,6 +359,8 @@ public class DorisSinkITCase extends AbstractITCaseService {
         DorisExecutionOptions.Builder executionBuilder = DorisExecutionOptions.builder();
         executionBuilder
                 .setLabelPrefix(UUID.randomUUID().toString())
+                .setFlushQueueSize(3)
+                .setBatchMode(batchMode)
                 .setStreamLoadProp(properties)
                 .setBufferFlushMaxBytes(10485760)
                 .setBufferFlushMaxRows(10000)
@@ -350,7 +383,7 @@ public class DorisSinkITCase extends AbstractITCaseService {
 
     @Test
     public void testTableGroupCommit() throws Exception {
-        initializeTable(TABLE_GROUP_COMMIT);
+        initializeTable(TABLE_GROUP_COMMIT,DataModel.DUPLICATE);
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
@@ -376,7 +409,7 @@ public class DorisSinkITCase extends AbstractITCaseService {
                                 + " 'sink.properties.line_delimiter' = '\\x02',"
                                 + " 'sink.properties.group_commit' = 'sync_mode',"
                                 + " 'sink.ignore.update-before' = 'false',"
-                                + " 'sink.enable.batch-mode' = 'true',"
+                                + " 'sink.enable.batch-mode' = '%s',"
                                 + " 'sink.enable-delete' = 'true',"
                                 + " 'sink.flush.queue-size' = '2',"
                                 + " 'sink.buffer-flush.max-rows' = '10000',"
@@ -386,7 +419,8 @@ public class DorisSinkITCase extends AbstractITCaseService {
                         getFenodes(),
                         DATABASE + "." + TABLE_GROUP_COMMIT,
                         getDorisUsername(),
-                        getDorisPassword());
+                        getDorisPassword(),
+                        batchMode);
         tEnv.executeSql(sinkDDL);
         tEnv.executeSql(
                 "INSERT INTO doris_group_commit_sink SELECT 'doris',1 union all  SELECT 'group_commit',2 union all  SELECT 'flink',3");
@@ -401,7 +435,7 @@ public class DorisSinkITCase extends AbstractITCaseService {
 
     @Test
     public void testTableGzFormat() throws Exception {
-        initializeTable(TABLE_GZ_FORMAT);
+        initializeTable(TABLE_GZ_FORMAT, DataModel.UNIQUE);
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
@@ -420,6 +454,8 @@ public class DorisSinkITCase extends AbstractITCaseService {
                                 + " 'table.identifier' = '%s',"
                                 + " 'username' = '%s',"
                                 + " 'password' = '%s',"
+                                + " 'sink.enable.batch-mode' = '%s',"
+                                + " 'sink.enable-delete' = 'false',"
                                 + " 'sink.label-prefix' = '"
                                 + UUID.randomUUID()
                                 + "',"
@@ -430,7 +466,8 @@ public class DorisSinkITCase extends AbstractITCaseService {
                         getFenodes(),
                         DATABASE + "." + TABLE_GZ_FORMAT,
                         getDorisUsername(),
-                        getDorisPassword());
+                        getDorisPassword(),
+                        batchMode);
         tEnv.executeSql(sinkDDL);
         tEnv.executeSql(
                 "INSERT INTO doris_gz_format_sink SELECT 'doris',1 union all  SELECT 'flink',2");
@@ -445,7 +482,7 @@ public class DorisSinkITCase extends AbstractITCaseService {
     @Test
     public void testJobManagerFailoverSink() throws Exception {
         LOG.info("start to test JobManagerFailoverSink.");
-        initializeFailoverTable(TABLE_CSV_JM);
+        initializeFailoverTable(TABLE_CSV_JM, DataModel.DUPLICATE);
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
         env.enableCheckpointing(10000);
@@ -468,6 +505,7 @@ public class DorisSinkITCase extends AbstractITCaseService {
         executionBuilder
                 .setLabelPrefix(UUID.randomUUID().toString())
                 .setStreamLoadProp(properties)
+                .setBatchMode(batchMode)
                 .setUseCache(true);
 
         builder.setDorisReadOptions(readOptionBuilder.build())
@@ -505,7 +543,7 @@ public class DorisSinkITCase extends AbstractITCaseService {
     @Test
     public void testTaskManagerFailoverSink() throws Exception {
         LOG.info("start to test TaskManagerFailoverSink.");
-        initializeFailoverTable(TABLE_CSV_TM);
+        initializeFailoverTable(TABLE_CSV_TM, DataModel.DUPLICATE);
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
         env.enableCheckpointing(10000);
@@ -525,7 +563,9 @@ public class DorisSinkITCase extends AbstractITCaseService {
         properties.setProperty("column_separator", ",");
         properties.setProperty("line_delimiter", "\n");
         properties.setProperty("format", "csv");
-        executionBuilder.setLabelPrefix(UUID.randomUUID().toString()).setStreamLoadProp(properties);
+        executionBuilder.setLabelPrefix(UUID.randomUUID().toString())
+                .setBatchMode(batchMode)
+                .setStreamLoadProp(properties);
 
         builder.setDorisReadOptions(readOptionBuilder.build())
                 .setDorisExecutionOptions(executionBuilder.build())
@@ -561,7 +601,7 @@ public class DorisSinkITCase extends AbstractITCaseService {
 
     @Test
     public void testTableOverwrite() throws Exception {
-        initializeTable(TABLE_OVERWRITE);
+        initializeTable(TABLE_OVERWRITE, DataModel.AGGREGATE);
         // mock data
         ContainerUtils.executeSQLStatement(
                 getDorisQueryConnection(),
@@ -593,6 +633,7 @@ public class DorisSinkITCase extends AbstractITCaseService {
                                 + " 'jdbc-url' = '%s',"
                                 + " 'username' = '%s',"
                                 + " 'password' = '%s',"
+                                + " 'sink.enable.batch-mode' = '%s',"
                                 + " 'sink.label-prefix' = '"
                                 + UUID.randomUUID()
                                 + "'"
@@ -601,7 +642,8 @@ public class DorisSinkITCase extends AbstractITCaseService {
                         DATABASE + "." + TABLE_OVERWRITE,
                         getDorisQueryUrl(),
                         getDorisUsername(),
-                        getDorisPassword());
+                        getDorisPassword(),
+                        batchMode);
         tEnv.executeSql(sinkDDL);
         TableResult tableResult =
                 tEnv.executeSql(
@@ -612,7 +654,10 @@ public class DorisSinkITCase extends AbstractITCaseService {
         ContainerUtils.checkResult(getDorisQueryConnection(), LOG, expected, query, 2);
     }
 
-    private void initializeTable(String table) {
+    private void initializeTable(String table, DataModel dataModel) {
+        String max = DataModel.AGGREGATE.equals(dataModel) ? "MAX" : "";
+        String morProps = !DataModel.UNIQUE_MOR.equals(dataModel) ? "" : ",\"enable_unique_key_merge_on_write\" = \"false\"";
+        String model = dataModel.equals(DataModel.UNIQUE_MOR) ? DataModel.UNIQUE.toString() : dataModel.toString();
         ContainerUtils.executeSQLStatement(
                 getDorisQueryConnection(),
                 LOG,
@@ -621,15 +666,22 @@ public class DorisSinkITCase extends AbstractITCaseService {
                 String.format(
                         "CREATE TABLE %s.%s ( \n"
                                 + "`name` varchar(256),\n"
-                                + "`age` int\n"
-                                + ") DISTRIBUTED BY HASH(`name`) BUCKETS 1\n"
-                                + "PROPERTIES (\n"
+                                + "`age` int %s\n"
+                                + ") "
+                                + " %s KEY(`name`) "
+                                + " DISTRIBUTED BY HASH(`name`) BUCKETS 1\n"
+                                + "PROPERTIES ("
                                 + "\"replication_num\" = \"1\"\n"
-                                + ")\n",
-                        DATABASE, table));
+                                + morProps
+                                + ")",
+                        DATABASE, table, max, model));
+
     }
 
-    private void initializeFailoverTable(String table) {
+    private void initializeFailoverTable(String table, DataModel dataModel) {
+        String max = DataModel.AGGREGATE.equals(dataModel) ? "MAX" : "";
+        String morProps = !DataModel.UNIQUE_MOR.equals(dataModel) ? "" : ",\"enable_unique_key_merge_on_write\" = \"false\"";
+        String model = dataModel.equals(DataModel.UNIQUE_MOR) ? DataModel.UNIQUE.toString() : dataModel.toString();
         ContainerUtils.executeSQLStatement(
                 getDorisQueryConnection(),
                 LOG,
@@ -638,11 +690,14 @@ public class DorisSinkITCase extends AbstractITCaseService {
                 String.format(
                         "CREATE TABLE %s.%s ( \n"
                                 + "`id` int,\n"
-                                + "`task_id` int\n"
-                                + ") DISTRIBUTED BY HASH(`id`) BUCKETS 1\n"
+                                + "`task_id` int %s\n"
+                                + ") "
+                                + " %s KEY(`id`) "
+                                + "DISTRIBUTED BY HASH(`id`) BUCKETS 1\n"
                                 + "PROPERTIES (\n"
                                 + "\"replication_num\" = \"1\"\n"
+                                + morProps
                                 + ")\n",
-                        DATABASE, table));
+                        DATABASE, table, max, model));
     }
 }

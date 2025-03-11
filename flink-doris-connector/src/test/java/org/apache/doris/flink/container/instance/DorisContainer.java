@@ -110,6 +110,12 @@ public class DorisContainer implements ContainerService {
     }
 
     @Override
+    public void restartContainer() {
+        LOG.info("Restart doris container.");
+        dorisContainer.getDockerClient().restartContainerCmd(dorisContainer.getContainerId()).exec();
+    }
+
+    @Override
     public boolean isRunning() {
         return dorisContainer.isRunning();
     }

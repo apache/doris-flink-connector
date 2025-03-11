@@ -40,12 +40,18 @@ public class MockSource extends RichParallelSourceFunction<String>
     private transient ListState<Long> state;
     private Long id = 0L;
     private int numEventsTotal;
+    private int failCheckpointId = -1;
     private volatile boolean running = true;
     private volatile long waitNextCheckpoint = 0L;
     private volatile long lastCheckpointConfirmed = 0L;
 
     public MockSource(int numEventsTotal) {
         this.numEventsTotal = numEventsTotal;
+    }
+
+    public MockSource(int numEventsTotal, int failCheckpointId) {
+        this.numEventsTotal = numEventsTotal;
+        this.failCheckpointId = failCheckpointId;
     }
 
     @Override
@@ -73,7 +79,10 @@ public class MockSource extends RichParallelSourceFunction<String>
     @Override
     public void snapshotState(FunctionSnapshotContext context) throws Exception {
         state.update(Collections.singletonList(id));
-        LOG.info("snapshot state to {}", id);
+        if(failCheckpointId > 0 && context.getCheckpointId() % failCheckpointId == 0){
+            throw new RuntimeException("Trigger fail for testing, checkpointId = " + context.getCheckpointId());
+        }
+        LOG.info("snapshot state to {} for checkpoint {}", id, context.getCheckpointId());
     }
 
     @Override
