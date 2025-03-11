@@ -55,7 +55,8 @@ public class ContainerUtils {
         }
     }
 
-    public static List<String> executeSQLStatement(Connection connection, Logger logger, String sql, int columnSize) {
+    public static List<String> executeSQLStatement(
+            Connection connection, Logger logger, String sql, int columnSize) {
         List<String> result = new ArrayList<>();
         if (Objects.isNull(sql)) {
             return result;
@@ -149,11 +150,12 @@ public class ContainerUtils {
         }
     }
 
-    public static List<String> getResult( Connection connection,
-                                          Logger logger,
-                                          List<String> expected,
-                                          String query,
-                                          int columnSize) {
+    public static List<String> getResult(
+            Connection connection,
+            Logger logger,
+            List<String> expected,
+            String query,
+            int columnSize) {
         List<String> actual = new ArrayList<>();
         try (Statement statement = connection.createStatement()) {
             ResultSet sinkResultSet = statement.executeQuery(query);

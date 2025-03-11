@@ -79,8 +79,9 @@ public class MockSource extends RichParallelSourceFunction<String>
     @Override
     public void snapshotState(FunctionSnapshotContext context) throws Exception {
         state.update(Collections.singletonList(id));
-        if(failCheckpointId > 0 && context.getCheckpointId() % failCheckpointId == 0){
-            throw new RuntimeException("Trigger fail for testing, checkpointId = " + context.getCheckpointId());
+        if (failCheckpointId > 0 && context.getCheckpointId() % failCheckpointId == 0) {
+            throw new RuntimeException(
+                    "Trigger fail for testing, checkpointId = " + context.getCheckpointId());
         }
         LOG.info("snapshot state to {} for checkpoint {}", id, context.getCheckpointId());
     }

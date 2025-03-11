@@ -17,18 +17,6 @@
 
 package org.apache.doris.flink.sink;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.doris.flink.catalog.doris.DataModel;
-import org.apache.doris.flink.cfg.DorisExecutionOptions;
-import org.apache.doris.flink.cfg.DorisOptions;
-import org.apache.doris.flink.cfg.DorisReadOptions;
-import org.apache.doris.flink.container.AbstractITCaseService;
-import org.apache.doris.flink.container.ContainerUtils;
-import org.apache.doris.flink.sink.DorisSink.Builder;
-import org.apache.doris.flink.sink.batch.DorisBatchSink;
-import org.apache.doris.flink.sink.writer.serializer.SimpleStringSerializer;
-import org.apache.doris.flink.table.DorisConfigOptions;
-import org.apache.doris.flink.utils.MockSource;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
@@ -41,6 +29,19 @@ import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.StringUtils;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.doris.flink.catalog.doris.DataModel;
+import org.apache.doris.flink.cfg.DorisExecutionOptions;
+import org.apache.doris.flink.cfg.DorisOptions;
+import org.apache.doris.flink.cfg.DorisReadOptions;
+import org.apache.doris.flink.container.AbstractITCaseService;
+import org.apache.doris.flink.container.ContainerUtils;
+import org.apache.doris.flink.sink.DorisSink.Builder;
+import org.apache.doris.flink.sink.batch.DorisBatchSink;
+import org.apache.doris.flink.sink.writer.serializer.SimpleStringSerializer;
+import org.apache.doris.flink.table.DorisConfigOptions;
+import org.apache.doris.flink.utils.MockSource;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -86,10 +87,7 @@ public class DorisSinkITCase extends AbstractITCaseService {
 
     @Parameterized.Parameters(name = "batchMode: {0}")
     public static Object[] parameters() {
-        return new Object[][] {
-                new Object[] {false},
-                new Object[] {true}
-        };
+        return new Object[][] {new Object[] {false}, new Object[] {true}};
     }
 
     @Rule
@@ -110,7 +108,8 @@ public class DorisSinkITCase extends AbstractITCaseService {
         properties.setProperty("line_delimiter", "\n");
         properties.setProperty("format", "csv");
         DorisExecutionOptions.Builder executionBuilder = DorisExecutionOptions.builder();
-        executionBuilder.setLabelPrefix(UUID.randomUUID().toString())
+        executionBuilder
+                .setLabelPrefix(UUID.randomUUID().toString())
                 .setStreamLoadProp(properties)
                 .setDeletable(false)
                 .setBufferCount(4)
@@ -146,7 +145,8 @@ public class DorisSinkITCase extends AbstractITCaseService {
         row2.put("age", 2);
 
         DorisExecutionOptions.Builder executionBuilder = DorisExecutionOptions.builder();
-        executionBuilder.setLabelPrefix(UUID.randomUUID().toString())
+        executionBuilder
+                .setLabelPrefix(UUID.randomUUID().toString())
                 .setBatchMode(batchMode)
                 .setStreamLoadProp(properties)
                 // uniq need to be false
@@ -383,7 +383,7 @@ public class DorisSinkITCase extends AbstractITCaseService {
 
     @Test
     public void testTableGroupCommit() throws Exception {
-        initializeTable(TABLE_GROUP_COMMIT,DataModel.DUPLICATE);
+        initializeTable(TABLE_GROUP_COMMIT, DataModel.DUPLICATE);
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
@@ -563,7 +563,8 @@ public class DorisSinkITCase extends AbstractITCaseService {
         properties.setProperty("column_separator", ",");
         properties.setProperty("line_delimiter", "\n");
         properties.setProperty("format", "csv");
-        executionBuilder.setLabelPrefix(UUID.randomUUID().toString())
+        executionBuilder
+                .setLabelPrefix(UUID.randomUUID().toString())
                 .setBatchMode(batchMode)
                 .setStreamLoadProp(properties);
 
@@ -656,8 +657,14 @@ public class DorisSinkITCase extends AbstractITCaseService {
 
     private void initializeTable(String table, DataModel dataModel) {
         String max = DataModel.AGGREGATE.equals(dataModel) ? "MAX" : "";
-        String morProps = !DataModel.UNIQUE_MOR.equals(dataModel) ? "" : ",\"enable_unique_key_merge_on_write\" = \"false\"";
-        String model = dataModel.equals(DataModel.UNIQUE_MOR) ? DataModel.UNIQUE.toString() : dataModel.toString();
+        String morProps =
+                !DataModel.UNIQUE_MOR.equals(dataModel)
+                        ? ""
+                        : ",\"enable_unique_key_merge_on_write\" = \"false\"";
+        String model =
+                dataModel.equals(DataModel.UNIQUE_MOR)
+                        ? DataModel.UNIQUE.toString()
+                        : dataModel.toString();
         ContainerUtils.executeSQLStatement(
                 getDorisQueryConnection(),
                 LOG,
@@ -674,14 +681,22 @@ public class DorisSinkITCase extends AbstractITCaseService {
                                 + "\"replication_num\" = \"1\"\n"
                                 + morProps
                                 + ")",
-                        DATABASE, table, max, model));
-
+                        DATABASE,
+                        table,
+                        max,
+                        model));
     }
 
     private void initializeFailoverTable(String table, DataModel dataModel) {
         String max = DataModel.AGGREGATE.equals(dataModel) ? "MAX" : "";
-        String morProps = !DataModel.UNIQUE_MOR.equals(dataModel) ? "" : ",\"enable_unique_key_merge_on_write\" = \"false\"";
-        String model = dataModel.equals(DataModel.UNIQUE_MOR) ? DataModel.UNIQUE.toString() : dataModel.toString();
+        String morProps =
+                !DataModel.UNIQUE_MOR.equals(dataModel)
+                        ? ""
+                        : ",\"enable_unique_key_merge_on_write\" = \"false\"";
+        String model =
+                dataModel.equals(DataModel.UNIQUE_MOR)
+                        ? DataModel.UNIQUE.toString()
+                        : dataModel.toString();
         ContainerUtils.executeSQLStatement(
                 getDorisQueryConnection(),
                 LOG,
@@ -698,6 +713,9 @@ public class DorisSinkITCase extends AbstractITCaseService {
                                 + "\"replication_num\" = \"1\"\n"
                                 + morProps
                                 + ")\n",
-                        DATABASE, table, max, model));
+                        DATABASE,
+                        table,
+                        max,
+                        model));
     }
 }
