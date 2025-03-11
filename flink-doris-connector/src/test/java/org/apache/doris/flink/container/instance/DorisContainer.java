@@ -71,6 +71,9 @@ public class DorisContainer implements ContainerService {
                         .withNetwork(Network.newNetwork())
                         .withNetworkAliases("DorisContainer")
                         .withPrivilegedMode(true)
+                        .withLogConsumer(
+                                new Slf4jLogConsumer(
+                                        DockerLoggerFactory.getLogger(DORIS_DOCKER_IMAGE)))
                         // use customer conf
                         .withCopyFileToContainer(
                                 MountableFile.forClasspathResource("docker/doris/be.conf"),
@@ -78,9 +81,6 @@ public class DorisContainer implements ContainerService {
                         .withCopyFileToContainer(
                                 MountableFile.forClasspathResource("docker/doris/fe.conf"),
                                 "/opt/apache-doris/fe/conf/fe.conf")
-                        .withLogConsumer(
-                                new Slf4jLogConsumer(
-                                        DockerLoggerFactory.getLogger(DORIS_DOCKER_IMAGE)))
                         .withExposedPorts(8030, 9030, 8040, 9060, 9611, 9610);
 
         container.setPortBindings(

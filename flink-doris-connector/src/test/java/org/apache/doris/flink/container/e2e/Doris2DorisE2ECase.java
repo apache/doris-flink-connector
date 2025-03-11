@@ -41,7 +41,6 @@ public class Doris2DorisE2ECase extends AbstractContainerTestBase {
     private static final String DATABASE_SINK = "test_doris2doris_sink";
     private static final String TABLE = "test_tbl";
 
-    // 增加 arrowflight 和 thrift
     private final boolean useFlightRead;
 
     public Doris2DorisE2ECase(boolean useFlightRead) {

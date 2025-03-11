@@ -76,18 +76,21 @@ public class DorisSinkFailoverITCase extends AbstractITCaseService {
     /** test doris cluster failover */
     @Test
     public void testDorisClusterFailoverSink() throws Exception {
+        LOG.info("start to test testDorisClusterFailoverSink.");
         makeFailoverTest(TABLE_JSON_TBL_RESTART_DORIS, FaultType.RESTART_FAILURE, 40);
     }
 
     /** mock precommit failure */
     @Test
     public void testStreamLoadFailoverSink() throws Exception {
+        LOG.info("start to test testStreamLoadFailoverSink.");
         makeFailoverTest(TABLE_JSON_TBL_LOAD_FAILURE, FaultType.STREAM_LOAD_FAILURE, 20);
     }
 
     /** mock checkpoint failure when precommit or streamload successful */
     @Test
     public void testCheckpointFailoverSink() throws Exception {
+        LOG.info("start to test testCheckpointFailoverSink.");
         makeFailoverTest(TABLE_JSON_TBL_CKPT_FAILURE, FaultType.CHECKPOINT_FAILURE, 20);
     }
 
