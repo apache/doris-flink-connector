@@ -80,23 +80,19 @@ public class DorisSourceITCase extends AbstractITCaseService {
 
     private final boolean useFlightSql;
     private final int flightSqlPort;
-    private final DataModel dataModel;
 
-    public DorisSourceITCase(boolean useFlightSql, int flightSqlPort, DataModel dataModel) {
+    public DorisSourceITCase(boolean useFlightSql, int flightSqlPort) {
         this.useFlightSql = useFlightSql;
         this.flightSqlPort = flightSqlPort;
-        this.dataModel = dataModel;
     }
 
-    @Parameterized.Parameters(name = "useFlightSql: {0}, flightSqlPort: {1}, dataModel: {2}")
+    @Parameterized.Parameters(name = "useFlightSql: {0}, flightSqlPort: {1}")
     public static Object[] parameters() {
         return new Object[][] {
-            new Object[] {false, -1, DataModel.UNIQUE},
-            new Object[] {true, 9611, DataModel.UNIQUE},
-            new Object[] {false, -1, DataModel.DUPLICATE},
-            new Object[] {true, 9611, DataModel.DUPLICATE},
-            new Object[] {false, -1, DataModel.AGGREGATE},
-            new Object[] {true, 9611, DataModel.AGGREGATE}
+            new Object[] {
+                false, -1,
+            },
+            new Object[] {true, 9611}
         };
     }
 
@@ -112,7 +108,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
 
     @Test
     public void testSource() throws Exception {
-        initializeTable(TABLE_READ);
+        initializeTable(TABLE_READ, DataModel.AGGREGATE);
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
         env.setParallelism(DEFAULT_PARALLELISM);
@@ -148,7 +144,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
 
     @Test
     public void testOldSourceApi() throws Exception {
-        initializeTable(TABLE_READ_OLD_API);
+        initializeTable(TABLE_READ_OLD_API, DataModel.UNIQUE);
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
         Properties properties = new Properties();
@@ -174,7 +170,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
 
     @Test
     public void testTableSource() throws Exception {
-        initializeTable(TABLE_READ_TBL);
+        initializeTable(TABLE_READ_TBL, DataModel.DUPLICATE);
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
@@ -229,7 +225,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
 
     @Test
     public void testTableSourceOldApi() throws Exception {
-        initializeTable(TABLE_READ_TBL_OLD_API);
+        initializeTable(TABLE_READ_TBL_OLD_API, DataModel.AGGREGATE);
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
         final StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
@@ -268,7 +264,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
 
     @Test
     public void testTableSourceAllOptions() throws Exception {
-        initializeTable(TABLE_READ_TBL_ALL_OPTIONS);
+        initializeTable(TABLE_READ_TBL_ALL_OPTIONS, DataModel.DUPLICATE);
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
         final StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
@@ -320,7 +316,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
 
     @Test
     public void testTableSourceFilterAndProjectionPushDown() throws Exception {
-        initializeTable(TABLE_READ_TBL_PUSH_DOWN);
+        initializeTable(TABLE_READ_TBL_PUSH_DOWN, DataModel.UNIQUE_MOR);
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
         final StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
@@ -365,7 +361,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
 
     @Test
     public void testTableSourceTimestampFilterAndProjectionPushDown() throws Exception {
-        initializeTimestampTable(TABLE_READ_TBL_TIMESTAMP_PUSH_DOWN);
+        initializeTimestampTable(TABLE_READ_TBL_TIMESTAMP_PUSH_DOWN, DataModel.UNIQUE);
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
         EnvironmentSettings settings = EnvironmentSettings.newInstance().inBatchMode().build();
@@ -502,7 +498,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
     @Test
     public void testTableSourceFilterWithUnionAll() throws Exception {
         LOG.info("starting to execute testTableSourceFilterWithUnionAll case.");
-        initializeTable(TABLE_READ_TBL_PUSH_DOWN_WITH_UNION_ALL);
+        initializeTable(TABLE_READ_TBL_PUSH_DOWN_WITH_UNION_ALL, DataModel.UNIQUE_MOR);
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
         final StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
@@ -550,7 +546,6 @@ public class DorisSourceITCase extends AbstractITCaseService {
     @Test
     public void testTableSourceFilterWithFilterQuery() throws Exception {
         LOG.info("starting to execute testTableSourceFilterWithFilterQuery case.");
-        String max = DataModel.AGGREGATE.equals(dataModel) ? "MAX" : "";
         // init doris table
         ContainerUtils.executeSQLStatement(
                 getDorisQueryConnection(),
@@ -572,9 +567,9 @@ public class DorisSourceITCase extends AbstractITCaseService {
                                 + ")\n",
                         DATABASE,
                         TABLE_READ_TBL_PUSH_DOWN_WITH_FILTER_QUERY,
-                        max,
-                        max,
-                        dataModel.toString()),
+                        "",
+                        "",
+                        DataModel.UNIQUE),
                 String.format(
                         "insert into %s.%s  values ('doris',date_sub(now(),INTERVAL 7 DAY), 18)",
                         DATABASE, TABLE_READ_TBL_PUSH_DOWN_WITH_FILTER_QUERY),
@@ -635,7 +630,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
     @Test
     public void testTableSourceFilterWithUnionAllNotEqualFilter() throws Exception {
         LOG.info("starting to execute testTableSourceFilterWithUnionAllNotEqualFilter case.");
-        initializeTable(TABLE_READ_TBL_PUSH_DOWN_WITH_UNION_ALL_NOT_EQ_FILTER);
+        initializeTable(TABLE_READ_TBL_PUSH_DOWN_WITH_UNION_ALL_NOT_EQ_FILTER, DataModel.AGGREGATE);
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
         final StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
@@ -684,7 +679,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
     @Test
     public void testJobManagerFailoverSource() throws Exception {
         LOG.info("start to test JobManagerFailoverSource.");
-        initializeTableWithData(TABLE_CSV_JM);
+        initializeTableWithData(TABLE_CSV_JM, DataModel.DUPLICATE);
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
         env.enableCheckpointing(200L);
@@ -769,7 +764,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
     @Test
     public void testTaskManagerFailoverSource() throws Exception {
         LOG.info("start to test TaskManagerFailoverSource.");
-        initializeTableWithData(TABLE_CSV_TM);
+        initializeTableWithData(TABLE_CSV_TM, DataModel.UNIQUE);
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
         env.enableCheckpointing(200L);
@@ -835,7 +830,15 @@ public class DorisSourceITCase extends AbstractITCaseService {
         assertEqualsInAnyOrder(Arrays.asList(expected), Arrays.asList(actual));
     }
 
-    private void initializeTable(String table) {
+    private void initializeTable(String table, DataModel dataModel) {
+        String morProps =
+                !DataModel.UNIQUE_MOR.equals(dataModel)
+                        ? ""
+                        : ",\"enable_unique_key_merge_on_write\" = \"false\"";
+        String model =
+                dataModel.equals(DataModel.UNIQUE_MOR)
+                        ? DataModel.UNIQUE.toString()
+                        : dataModel.toString();
         ContainerUtils.executeSQLStatement(
                 getDorisQueryConnection(),
                 LOG,
@@ -850,17 +853,18 @@ public class DorisSourceITCase extends AbstractITCaseService {
                                 + " DISTRIBUTED BY HASH(`name`) BUCKETS 10\n"
                                 + "PROPERTIES (\n"
                                 + "\"replication_num\" = \"1\"\n"
-                                + ")\n",
+                                + morProps
+                                + ")",
                         DATABASE,
                         table,
                         DataModel.AGGREGATE.equals(dataModel) ? "MAX" : "",
-                        dataModel.toString()),
+                        model),
                 String.format("insert into %s.%s  values ('doris',18)", DATABASE, table),
                 String.format("insert into %s.%s  values ('flink',10)", DATABASE, table),
                 String.format("insert into %s.%s  values ('apache',12)", DATABASE, table));
     }
 
-    private void initializeTimestampTable(String table) {
+    private void initializeTimestampTable(String table, DataModel dataModel) {
         String max = DataModel.AGGREGATE.equals(dataModel) ? "MAX" : "";
         ContainerUtils.executeSQLStatement(
                 getDorisQueryConnection(),
@@ -901,7 +905,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
                         DATABASE, table));
     }
 
-    private void initializeTableWithData(String table) {
+    private void initializeTableWithData(String table, DataModel dataModel) {
         ContainerUtils.executeSQLStatement(
                 getDorisQueryConnection(),
                 LOG,

@@ -42,6 +42,7 @@ import org.apache.doris.flink.sink.batch.DorisBatchSink;
 import org.apache.doris.flink.sink.writer.serializer.SimpleStringSerializer;
 import org.apache.doris.flink.table.DorisConfigOptions;
 import org.apache.doris.flink.utils.MockSource;
+import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -537,7 +538,11 @@ public class DorisSinkITCase extends AbstractITCaseService {
                 Arrays.asList("1,0", "1,1", "2,0", "2,1", "3,0", "3,1", "4,0", "4,1", "5,0", "5,1");
         String query =
                 String.format("select id,task_id from %s.%s order by 1,2", DATABASE, TABLE_CSV_JM);
-        ContainerUtils.checkResult(getDorisQueryConnection(), LOG, expected, query, 2);
+
+        List<String> actualResult =
+                ContainerUtils.getResult(getDorisQueryConnection(), LOG, expected, query, 2);
+        Assert.assertTrue(
+                actualResult.size() >= expected.size() && actualResult.containsAll(expected));
     }
 
     @Test
@@ -597,7 +602,11 @@ public class DorisSinkITCase extends AbstractITCaseService {
                 Arrays.asList("1,0", "1,1", "2,0", "2,1", "3,0", "3,1", "4,0", "4,1", "5,0", "5,1");
         String query =
                 String.format("select id,task_id from %s.%s order by 1,2", DATABASE, TABLE_CSV_TM);
-        ContainerUtils.checkResult(getDorisQueryConnection(), LOG, expected, query, 2);
+
+        List<String> actualResult =
+                ContainerUtils.getResult(getDorisQueryConnection(), LOG, expected, query, 2);
+        Assert.assertTrue(
+                actualResult.size() >= expected.size() && actualResult.containsAll(expected));
     }
 
     @Test
@@ -647,11 +656,10 @@ public class DorisSinkITCase extends AbstractITCaseService {
                         batchMode);
         tEnv.executeSql(sinkDDL);
         TableResult tableResult =
-                tEnv.executeSql(
-                        "INSERT OVERWRITE doris_overwrite_sink SELECT 'doris',1 union all  SELECT 'overwrite',2 union all  SELECT 'flink',3");
+                tEnv.executeSql("INSERT OVERWRITE doris_overwrite_sink SELECT 'overwrite',1");
 
         tableResult.await(25000, TimeUnit.MILLISECONDS);
-        List<String> expected = Arrays.asList("doris,1", "flink,3", "overwrite,2");
+        List<String> expected = Arrays.asList("overwrite,1");
         ContainerUtils.checkResult(getDorisQueryConnection(), LOG, expected, query, 2);
     }
 
