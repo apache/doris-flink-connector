@@ -17,6 +17,8 @@
 
 package org.apache.doris.flink.cfg;
 
+import org.apache.flink.util.Preconditions;
+
 import java.io.Serializable;
 import java.util.Objects;
 
@@ -408,6 +410,12 @@ public class DorisReadOptions implements Serializable {
          * @return a DorisReadOptions with the settings made for this builder.
          */
         public DorisReadOptions build() {
+
+            if (useFlightSql) {
+                Preconditions.checkNotNull(
+                        flightSqlPort, "flight sql port must be set when use flight sql to read.");
+            }
+
             return new DorisReadOptions(
                     readFields,
                     filterQuery,

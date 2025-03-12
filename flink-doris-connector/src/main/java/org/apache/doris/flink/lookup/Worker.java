@@ -107,6 +107,7 @@ public class Worker implements Runnable {
                 recordList.size(),
                 deduplicateList.size());
         StringBuilder sb = new StringBuilder();
+        sb.append("/* ApplicationName=Flink Lookup Query */ ");
         boolean first;
         for (int i = 0; i < deduplicateList.size(); i++) {
             if (i > 0) {
@@ -169,7 +170,6 @@ public class Worker implements Runnable {
 
     private void appendSelect(StringBuilder sb, LookupSchema schema) {
         String[] selectFields = schema.getSelectFields();
-        sb.append("/* ApplicationName=Flink Lookup Query */ ");
         sb.append(" select ");
         for (int i = 0; i < selectFields.length; i++) {
             if (i > 0) {

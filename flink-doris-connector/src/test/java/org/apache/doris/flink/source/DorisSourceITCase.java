@@ -31,7 +31,9 @@ import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
 
+import org.apache.doris.flink.catalog.doris.DataModel;
 import org.apache.doris.flink.cfg.DorisOptions;
+import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.cfg.DorisStreamOptions;
 import org.apache.doris.flink.container.AbstractITCaseService;
 import org.apache.doris.flink.container.ContainerUtils;
@@ -41,6 +43,8 @@ import org.apache.doris.flink.table.DorisConfigOptions;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,6 +57,7 @@ import java.util.List;
 import java.util.Properties;
 
 /** DorisSource ITCase. */
+@RunWith(Parameterized.class)
 public class DorisSourceITCase extends AbstractITCaseService {
     private static final Logger LOG = LoggerFactory.getLogger(DorisSourceITCase.class);
     private static final String DATABASE = "test_source";
@@ -73,6 +78,24 @@ public class DorisSourceITCase extends AbstractITCaseService {
     private static final String TABLE_READ_TBL_PUSH_DOWN_WITH_FILTER_QUERY =
             "tbl_read_tbl_push_down_with_filter_query";
 
+    private final boolean useFlightSql;
+    private final int flightSqlPort;
+
+    public DorisSourceITCase(boolean useFlightSql, int flightSqlPort) {
+        this.useFlightSql = useFlightSql;
+        this.flightSqlPort = flightSqlPort;
+    }
+
+    @Parameterized.Parameters(name = "useFlightSql: {0}, flightSqlPort: {1}")
+    public static Object[] parameters() {
+        return new Object[][] {
+            new Object[] {
+                false, -1,
+            },
+            new Object[] {true, 9611}
+        };
+    }
+
     @Rule
     public final MiniClusterWithClientResource miniClusterResource =
             new MiniClusterWithClientResource(
@@ -85,7 +108,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
 
     @Test
     public void testSource() throws Exception {
-        initializeTable(TABLE_READ);
+        initializeTable(TABLE_READ, DataModel.AGGREGATE);
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
         env.setParallelism(DEFAULT_PARALLELISM);
@@ -99,8 +122,14 @@ public class DorisSourceITCase extends AbstractITCaseService {
         DorisSource<List<?>> source =
                 DorisSource.<List<?>>builder()
                         .setDorisOptions(dorisBuilder.build())
+                        .setDorisReadOptions(
+                                DorisReadOptions.builder()
+                                        .setFlightSqlPort(flightSqlPort)
+                                        .setUseFlightSql(useFlightSql)
+                                        .build())
                         .setDeserializer(new SimpleListDeserializationSchema())
                         .build();
+
         List<String> actual = new ArrayList<>();
         try (CloseableIterator<List<?>> iterator =
                 env.fromSource(source, WatermarkStrategy.noWatermarks(), "Doris Source")
@@ -115,7 +144,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
 
     @Test
     public void testOldSourceApi() throws Exception {
-        initializeTable(TABLE_READ_OLD_API);
+        initializeTable(TABLE_READ_OLD_API, DataModel.UNIQUE);
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
         Properties properties = new Properties();
@@ -141,7 +170,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
 
     @Test
     public void testTableSource() throws Exception {
-        initializeTable(TABLE_READ_TBL);
+        initializeTable(TABLE_READ_TBL, DataModel.DUPLICATE);
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
@@ -159,12 +188,16 @@ public class DorisSourceITCase extends AbstractITCaseService {
                                 + " 'fenodes' = '%s',"
                                 + " 'table.identifier' = '%s',"
                                 + " 'username' = '%s',"
-                                + " 'password' = '%s'"
+                                + " 'password' = '%s',"
+                                + " 'source.use-flight-sql' = '%s',"
+                                + " 'source.flight-sql-port' = '%s'"
                                 + ")",
                         getFenodes(),
                         DATABASE + "." + TABLE_READ_TBL,
                         getDorisUsername(),
-                        getDorisPassword());
+                        getDorisPassword(),
+                        useFlightSql,
+                        flightSqlPort);
         tEnv.executeSql(sourceDDL);
         TableResult tableResult = tEnv.executeSql("SELECT * FROM doris_source");
 
@@ -192,7 +225,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
 
     @Test
     public void testTableSourceOldApi() throws Exception {
-        initializeTable(TABLE_READ_TBL_OLD_API);
+        initializeTable(TABLE_READ_TBL_OLD_API, DataModel.AGGREGATE);
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
         final StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
@@ -231,7 +264,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
 
     @Test
     public void testTableSourceAllOptions() throws Exception {
-        initializeTable(TABLE_READ_TBL_ALL_OPTIONS);
+        initializeTable(TABLE_READ_TBL_ALL_OPTIONS, DataModel.DUPLICATE);
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
         final StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
@@ -258,12 +291,16 @@ public class DorisSourceITCase extends AbstractITCaseService {
                                 + " 'doris.batch.size' = '1024',"
                                 + " 'doris.exec.mem.limit' = '2048mb',"
                                 + " 'doris.deserialize.arrow.async' = 'true',"
-                                + " 'doris.deserialize.queue.size' = '32'"
+                                + " 'doris.deserialize.queue.size' = '32',"
+                                + " 'source.use-flight-sql' = '%s',"
+                                + " 'source.flight-sql-port' = '%s'"
                                 + ")",
                         getFenodes(),
                         DATABASE + "." + TABLE_READ_TBL_ALL_OPTIONS,
                         getDorisUsername(),
-                        getDorisPassword());
+                        getDorisPassword(),
+                        useFlightSql,
+                        flightSqlPort);
         tEnv.executeSql(sourceDDL);
         TableResult tableResult = tEnv.executeSql("SELECT * FROM doris_source_all_options");
 
@@ -279,7 +316,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
 
     @Test
     public void testTableSourceFilterAndProjectionPushDown() throws Exception {
-        initializeTable(TABLE_READ_TBL_PUSH_DOWN);
+        initializeTable(TABLE_READ_TBL_PUSH_DOWN, DataModel.UNIQUE_MOR);
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
         final StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
@@ -296,12 +333,16 @@ public class DorisSourceITCase extends AbstractITCaseService {
                                 + " 'fenodes' = '%s',"
                                 + " 'table.identifier' = '%s',"
                                 + " 'username' = '%s',"
-                                + " 'password' = '%s'"
+                                + " 'password' = '%s',"
+                                + " 'source.use-flight-sql' = '%s',"
+                                + " 'source.flight-sql-port' = '%s'"
                                 + ")",
                         getFenodes(),
                         DATABASE + "." + TABLE_READ_TBL_PUSH_DOWN,
                         getDorisUsername(),
-                        getDorisPassword());
+                        getDorisPassword(),
+                        useFlightSql,
+                        flightSqlPort);
         tEnv.executeSql(sourceDDL);
         TableResult tableResult =
                 tEnv.executeSql(
@@ -320,7 +361,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
 
     @Test
     public void testTableSourceTimestampFilterAndProjectionPushDown() throws Exception {
-        initializeTimestampTable(TABLE_READ_TBL_TIMESTAMP_PUSH_DOWN);
+        initializeTimestampTable(TABLE_READ_TBL_TIMESTAMP_PUSH_DOWN, DataModel.UNIQUE);
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
         EnvironmentSettings settings = EnvironmentSettings.newInstance().inBatchMode().build();
@@ -341,12 +382,16 @@ public class DorisSourceITCase extends AbstractITCaseService {
                                 + " 'fenodes' = '%s',"
                                 + " 'table.identifier' = '%s',"
                                 + " 'username' = '%s',"
-                                + " 'password' = '%s'"
+                                + " 'password' = '%s',"
+                                + " 'source.use-flight-sql' = '%s',"
+                                + " 'source.flight-sql-port' = '%s'"
                                 + ")",
                         getFenodes(),
                         DATABASE + "." + TABLE_READ_TBL_TIMESTAMP_PUSH_DOWN,
                         getDorisUsername(),
-                        getDorisPassword());
+                        getDorisPassword(),
+                        useFlightSql,
+                        flightSqlPort);
         tEnv.executeSql(sourceDDL);
 
         List<String> actualProjectionResult =
@@ -453,7 +498,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
     @Test
     public void testTableSourceFilterWithUnionAll() throws Exception {
         LOG.info("starting to execute testTableSourceFilterWithUnionAll case.");
-        initializeTable(TABLE_READ_TBL_PUSH_DOWN_WITH_UNION_ALL);
+        initializeTable(TABLE_READ_TBL_PUSH_DOWN_WITH_UNION_ALL, DataModel.UNIQUE_MOR);
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
         final StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
@@ -470,12 +515,16 @@ public class DorisSourceITCase extends AbstractITCaseService {
                                 + " 'fenodes' = '%s',"
                                 + " 'table.identifier' = '%s',"
                                 + " 'username' = '%s',"
-                                + " 'password' = '%s'"
+                                + " 'password' = '%s',"
+                                + " 'source.use-flight-sql' = '%s',"
+                                + " 'source.flight-sql-port' = '%s'"
                                 + ")",
                         getFenodes(),
                         DATABASE + "." + TABLE_READ_TBL_PUSH_DOWN_WITH_UNION_ALL,
                         getDorisUsername(),
-                        getDorisPassword());
+                        getDorisPassword(),
+                        useFlightSql,
+                        flightSqlPort);
         tEnv.executeSql(sourceDDL);
         String querySql =
                 "  SELECT * FROM doris_source_filter_with_union_all where age = '18'"
@@ -508,13 +557,19 @@ public class DorisSourceITCase extends AbstractITCaseService {
                 String.format(
                         "CREATE TABLE %s.%s ( \n"
                                 + "`name` varchar(256),\n"
-                                + "`dt` date,\n"
-                                + "`age` int\n"
-                                + ") DISTRIBUTED BY HASH(`name`) BUCKETS 10\n"
+                                + "`dt` date %s,\n"
+                                + "`age` int %s\n"
+                                + ") "
+                                + " %s KEY(`name`) "
+                                + "DISTRIBUTED BY HASH(`name`) BUCKETS 10\n"
                                 + "PROPERTIES (\n"
                                 + "\"replication_num\" = \"1\"\n"
                                 + ")\n",
-                        DATABASE, TABLE_READ_TBL_PUSH_DOWN_WITH_FILTER_QUERY),
+                        DATABASE,
+                        TABLE_READ_TBL_PUSH_DOWN_WITH_FILTER_QUERY,
+                        "",
+                        "",
+                        DataModel.UNIQUE),
                 String.format(
                         "insert into %s.%s  values ('doris',date_sub(now(),INTERVAL 7 DAY), 18)",
                         DATABASE, TABLE_READ_TBL_PUSH_DOWN_WITH_FILTER_QUERY),
@@ -543,12 +598,16 @@ public class DorisSourceITCase extends AbstractITCaseService {
                                 + " 'table.identifier' = '%s',"
                                 + " 'username' = '%s',"
                                 + " 'password' = '%s',"
-                                + " 'doris.filter.query' = ' (dt = DATE_FORMAT(TIMESTAMPADD(DAY , -7, NOW()), ''yyyy-MM-dd'')) '"
+                                + " 'doris.filter.query' = ' (dt = DATE_FORMAT(TIMESTAMPADD(DAY , -7, NOW()), ''yyyy-MM-dd'')) ',"
+                                + " 'source.use-flight-sql' = '%s',"
+                                + " 'source.flight-sql-port' = '%s'"
                                 + ")",
                         getFenodes(),
                         DATABASE + "." + TABLE_READ_TBL_PUSH_DOWN_WITH_FILTER_QUERY,
                         getDorisUsername(),
-                        getDorisPassword());
+                        getDorisPassword(),
+                        useFlightSql,
+                        flightSqlPort);
         tEnv.executeSql(sourceDDL);
         String querySql =
                 "  SELECT * FROM doris_source_filter_with_filter_query where name = 'doris' and age > 2";
@@ -571,7 +630,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
     @Test
     public void testTableSourceFilterWithUnionAllNotEqualFilter() throws Exception {
         LOG.info("starting to execute testTableSourceFilterWithUnionAllNotEqualFilter case.");
-        initializeTable(TABLE_READ_TBL_PUSH_DOWN_WITH_UNION_ALL_NOT_EQ_FILTER);
+        initializeTable(TABLE_READ_TBL_PUSH_DOWN_WITH_UNION_ALL_NOT_EQ_FILTER, DataModel.AGGREGATE);
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
         final StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
@@ -588,12 +647,16 @@ public class DorisSourceITCase extends AbstractITCaseService {
                                 + " 'fenodes' = '%s',"
                                 + " 'table.identifier' = '%s',"
                                 + " 'username' = '%s',"
-                                + " 'password' = '%s'"
+                                + " 'password' = '%s',"
+                                + " 'source.use-flight-sql' = '%s',"
+                                + " 'source.flight-sql-port' = '%s'"
                                 + ")",
                         getFenodes(),
                         DATABASE + "." + TABLE_READ_TBL_PUSH_DOWN_WITH_UNION_ALL_NOT_EQ_FILTER,
                         getDorisUsername(),
-                        getDorisPassword());
+                        getDorisPassword(),
+                        useFlightSql,
+                        flightSqlPort);
         tEnv.executeSql(sourceDDL);
         String querySql =
                 "  SELECT * FROM doris_source_filter_with_union_all where name = 'doris'"
@@ -616,7 +679,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
     @Test
     public void testJobManagerFailoverSource() throws Exception {
         LOG.info("start to test JobManagerFailoverSource.");
-        initializeTableWithData(TABLE_CSV_JM);
+        initializeTableWithData(TABLE_CSV_JM, DataModel.DUPLICATE);
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
         env.enableCheckpointing(200L);
@@ -634,12 +697,16 @@ public class DorisSourceITCase extends AbstractITCaseService {
                                 + " 'fenodes' = '%s',"
                                 + " 'table.identifier' = '%s',"
                                 + " 'username' = '%s',"
-                                + " 'password' = '%s'"
+                                + " 'password' = '%s',"
+                                + " 'source.use-flight-sql' = '%s',"
+                                + " 'source.flight-sql-port' = '%s'"
                                 + ")",
                         getFenodes(),
                         DATABASE + "." + TABLE_CSV_JM,
                         getDorisUsername(),
-                        getDorisPassword());
+                        getDorisPassword(),
+                        useFlightSql,
+                        flightSqlPort);
         tEnv.executeSql(sourceDDL);
         TableResult tableResult = tEnv.executeSql("select * from doris_source_jm");
         CloseableIterator<Row> iterator = tableResult.collect();
@@ -697,7 +764,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
     @Test
     public void testTaskManagerFailoverSource() throws Exception {
         LOG.info("start to test TaskManagerFailoverSource.");
-        initializeTableWithData(TABLE_CSV_TM);
+        initializeTableWithData(TABLE_CSV_TM, DataModel.UNIQUE);
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
         env.enableCheckpointing(200L);
@@ -715,12 +782,16 @@ public class DorisSourceITCase extends AbstractITCaseService {
                                 + " 'fenodes' = '%s',"
                                 + " 'table.identifier' = '%s',"
                                 + " 'username' = '%s',"
-                                + " 'password' = '%s'"
+                                + " 'password' = '%s',"
+                                + " 'source.use-flight-sql' = '%s',"
+                                + " 'source.flight-sql-port' = '%s'"
                                 + ")",
                         getFenodes(),
                         DATABASE + "." + TABLE_CSV_TM,
                         getDorisUsername(),
-                        getDorisPassword());
+                        getDorisPassword(),
+                        useFlightSql,
+                        flightSqlPort);
         tEnv.executeSql(sourceDDL);
         TableResult tableResult = tEnv.executeSql("select * from doris_source_tm");
         CloseableIterator<Row> iterator = tableResult.collect();
@@ -759,7 +830,15 @@ public class DorisSourceITCase extends AbstractITCaseService {
         assertEqualsInAnyOrder(Arrays.asList(expected), Arrays.asList(actual));
     }
 
-    private void initializeTable(String table) {
+    private void initializeTable(String table, DataModel dataModel) {
+        String morProps =
+                !DataModel.UNIQUE_MOR.equals(dataModel)
+                        ? ""
+                        : ",\"enable_unique_key_merge_on_write\" = \"false\"";
+        String model =
+                dataModel.equals(DataModel.UNIQUE_MOR)
+                        ? DataModel.UNIQUE.toString()
+                        : dataModel.toString();
         ContainerUtils.executeSQLStatement(
                 getDorisQueryConnection(),
                 LOG,
@@ -768,18 +847,25 @@ public class DorisSourceITCase extends AbstractITCaseService {
                 String.format(
                         "CREATE TABLE %s.%s ( \n"
                                 + "`name` varchar(256),\n"
-                                + "`age` int\n"
-                                + ") DISTRIBUTED BY HASH(`name`) BUCKETS 10\n"
+                                + "`age` int %s\n"
+                                + ") "
+                                + " %s KEY(`name`) "
+                                + " DISTRIBUTED BY HASH(`name`) BUCKETS 10\n"
                                 + "PROPERTIES (\n"
                                 + "\"replication_num\" = \"1\"\n"
-                                + ")\n",
-                        DATABASE, table),
+                                + morProps
+                                + ")",
+                        DATABASE,
+                        table,
+                        DataModel.AGGREGATE.equals(dataModel) ? "MAX" : "",
+                        model),
                 String.format("insert into %s.%s  values ('doris',18)", DATABASE, table),
                 String.format("insert into %s.%s  values ('flink',10)", DATABASE, table),
                 String.format("insert into %s.%s  values ('apache',12)", DATABASE, table));
     }
 
-    private void initializeTimestampTable(String table) {
+    private void initializeTimestampTable(String table, DataModel dataModel) {
+        String max = DataModel.AGGREGATE.equals(dataModel) ? "MAX" : "";
         ContainerUtils.executeSQLStatement(
                 getDorisQueryConnection(),
                 LOG,
@@ -789,14 +875,16 @@ public class DorisSourceITCase extends AbstractITCaseService {
                         "CREATE TABLE %s.%s ( \n"
                                 + "`id` int,\n"
                                 + "`name` varchar(256),\n"
-                                + "`age` int,\n"
-                                + "`birthday` datetime,\n"
-                                + "`brilliant_time` datetime(6),\n"
-                                + ") DISTRIBUTED BY HASH(`id`) BUCKETS 3\n"
+                                + "`age` int %s,\n"
+                                + "`birthday` datetime %s,\n"
+                                + "`brilliant_time` datetime(6) %s,\n"
+                                + ") "
+                                + " %s KEY(`id`, `name`) "
+                                + " DISTRIBUTED BY HASH(`id`) BUCKETS 3\n"
                                 + "PROPERTIES (\n"
                                 + "\"replication_num\" = \"1\"\n"
                                 + ")\n",
-                        DATABASE, table),
+                        DATABASE, table, max, max, max, dataModel.toString()),
                 String.format(
                         "insert into %s.%s  values (1,'Kevin',54,'2023-01-01T00:00:00','2023-01-01T00:00:00.000001')",
                         DATABASE, table),
@@ -817,7 +905,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
                         DATABASE, table));
     }
 
-    private void initializeTableWithData(String table) {
+    private void initializeTableWithData(String table, DataModel dataModel) {
         ContainerUtils.executeSQLStatement(
                 getDorisQueryConnection(),
                 LOG,
@@ -826,12 +914,17 @@ public class DorisSourceITCase extends AbstractITCaseService {
                 String.format(
                         "CREATE TABLE %s.%s ( \n"
                                 + "`name` varchar(256),\n"
-                                + "`age` int\n"
-                                + ") DISTRIBUTED BY HASH(`name`) BUCKETS 10\n"
+                                + "`age` int %s\n"
+                                + ") "
+                                + " %s KEY(`name`) "
+                                + "DISTRIBUTED BY HASH(`name`) BUCKETS 10\n"
                                 + "PROPERTIES (\n"
                                 + "\"replication_num\" = \"1\"\n"
                                 + ")\n",
-                        DATABASE, table),
+                        DATABASE,
+                        table,
+                        DataModel.AGGREGATE.equals(dataModel) ? "MAX" : "",
+                        dataModel.toString()),
                 String.format(
                         "insert into %s.%s  values ('101',1),('102',1),('103',1)", DATABASE, table),
                 String.format(

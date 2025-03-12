@@ -34,6 +34,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.StringJoiner;
 import java.util.stream.Collectors;
 
 public class ContainerUtils {
@@ -49,6 +50,30 @@ public class ContainerUtils {
                     statement.execute(s);
                 }
             }
+        } catch (SQLException e) {
+            throw new DorisRuntimeException(e);
+        }
+    }
+
+    public static List<String> executeSQLStatement(
+            Connection connection, Logger logger, String sql, int columnSize) {
+        List<String> result = new ArrayList<>();
+        if (Objects.isNull(sql)) {
+            return result;
+        }
+        try (Statement statement = connection.createStatement()) {
+            logger.info("start to execute sql={}", sql);
+            ResultSet resultSet = statement.executeQuery(sql);
+
+            while (resultSet.next()) {
+                StringJoiner sb = new StringJoiner(",");
+                for (int i = 1; i <= columnSize; i++) {
+                    Object value = resultSet.getObject(i);
+                    sb.add(String.valueOf(value));
+                }
+                result.add(sb.toString());
+            }
+            return result;
         } catch (SQLException e) {
             throw new DorisRuntimeException(e);
         }
@@ -114,6 +139,23 @@ public class ContainerUtils {
             String query,
             int columnSize,
             boolean ordered) {
+        List<String> actual = getResult(connection, logger, expected, query, columnSize);
+        if (ordered) {
+            Assert.assertArrayEquals(expected.toArray(), actual.toArray());
+        } else {
+            Assert.assertEquals(expected.size(), actual.size());
+            Assert.assertArrayEquals(
+                    expected.stream().sorted().toArray(Object[]::new),
+                    actual.stream().sorted().toArray(Object[]::new));
+        }
+    }
+
+    public static List<String> getResult(
+            Connection connection,
+            Logger logger,
+            List<String> expected,
+            String query,
+            int columnSize) {
         List<String> actual = new ArrayList<>();
         try (Statement statement = connection.createStatement()) {
             ResultSet sinkResultSet = statement.executeQuery(query);
@@ -141,13 +183,6 @@ public class ContainerUtils {
                 "checking test result. expected={}, actual={}",
                 String.join(",", expected),
                 String.join(",", actual));
-        if (ordered) {
-            Assert.assertArrayEquals(expected.toArray(), actual.toArray());
-        } else {
-            Assert.assertEquals(expected.size(), actual.size());
-            Assert.assertArrayEquals(
-                    expected.stream().sorted().toArray(Object[]::new),
-                    actual.stream().sorted().toArray(Object[]::new));
-        }
+        return actual;
     }
 }

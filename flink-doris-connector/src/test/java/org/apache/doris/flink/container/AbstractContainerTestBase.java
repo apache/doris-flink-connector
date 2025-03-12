@@ -35,7 +35,7 @@ import static org.junit.Assert.assertTrue;
 
 public abstract class AbstractContainerTestBase {
     private static final Logger LOG = LoggerFactory.getLogger(AbstractContainerTestBase.class);
-    private static ContainerService dorisContainerService;
+    protected static ContainerService dorisContainerService;
     public static final int DEFAULT_PARALLELISM = 2;
 
     @BeforeClass

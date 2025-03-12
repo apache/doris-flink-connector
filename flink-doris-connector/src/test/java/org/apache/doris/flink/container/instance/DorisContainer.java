@@ -25,6 +25,7 @@ import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
 import org.testcontainers.containers.output.Slf4jLogConsumer;
 import org.testcontainers.utility.DockerLoggerFactory;
+import org.testcontainers.utility.MountableFile;
 
 import java.io.BufferedReader;
 import java.io.InputStream;
@@ -73,14 +74,23 @@ public class DorisContainer implements ContainerService {
                         .withLogConsumer(
                                 new Slf4jLogConsumer(
                                         DockerLoggerFactory.getLogger(DORIS_DOCKER_IMAGE)))
-                        .withExposedPorts(8030, 9030, 8040, 9060);
+                        // use customer conf
+                        .withCopyFileToContainer(
+                                MountableFile.forClasspathResource("docker/doris/be.conf"),
+                                "/opt/apache-doris/be/conf/be.conf")
+                        .withCopyFileToContainer(
+                                MountableFile.forClasspathResource("docker/doris/fe.conf"),
+                                "/opt/apache-doris/fe/conf/fe.conf")
+                        .withExposedPorts(8030, 9030, 8040, 9060, 9611, 9610);
 
         container.setPortBindings(
                 Lists.newArrayList(
                         String.format("%s:%s", "8030", "8030"),
                         String.format("%s:%s", "9030", "9030"),
                         String.format("%s:%s", "9060", "9060"),
-                        String.format("%s:%s", "8040", "8040")));
+                        String.format("%s:%s", "8040", "8040"),
+                        String.format("%s:%s", "9611", "9611"),
+                        String.format("%s:%s", "9610", "9610")));
         return container;
     }
 
@@ -90,12 +100,22 @@ public class DorisContainer implements ContainerService {
             // singleton doris container
             dorisContainer.start();
             initializeJdbcConnection();
+            initializeVariables();
             printClusterStatus();
         } catch (Exception ex) {
             LOG.error("Failed to start containers doris", ex);
             throw new DorisRuntimeException("Failed to start containers doris", ex);
         }
         LOG.info("Doris container started successfully.");
+    }
+
+    @Override
+    public void restartContainer() {
+        LOG.info("Restart doris container.");
+        dorisContainer
+                .getDockerClient()
+                .restartContainerCmd(dorisContainer.getContainerId())
+                .exec();
     }
 
     @Override
@@ -113,6 +133,16 @@ public class DorisContainer implements ContainerService {
             LOG.info("Failed to get doris query connection. jdbcUrl={}", jdbcUrl, e);
             throw new DorisRuntimeException(e);
         }
+    }
+
+    private void initializeVariables() throws Exception {
+        try (Connection connection = getQueryConnection();
+                Statement statement = connection.createStatement()) {
+            LOG.info("init doris cluster variables.");
+            // avoid arrow flight sql reading bug
+            statement.executeQuery("SET PROPERTY FOR 'root' 'max_user_connections' = '1024';");
+        }
+        LOG.info("Init variables successfully.");
     }
 
     @Override
