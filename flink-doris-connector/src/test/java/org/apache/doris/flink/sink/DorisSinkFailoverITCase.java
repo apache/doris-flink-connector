@@ -51,7 +51,6 @@ import java.util.Properties;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 
 /** DorisSink ITCase failover case */
 @RunWith(Parameterized.class)
@@ -189,19 +188,6 @@ public class DorisSinkFailoverITCase extends AbstractITCaseService {
             Assert.assertTrue(
                     actualResult.size() >= expected.size() && actualResult.containsAll(expected));
         }
-    }
-
-    private JobStatus getFlinkJobStatus(JobClient jobClient) {
-        JobStatus jobStatus;
-        try {
-            jobStatus = jobClient.getJobStatus().get();
-        } catch (IllegalStateException e) {
-            LOG.info("Failed to get state, cause " + e.getMessage());
-            jobStatus = JobStatus.FINISHED;
-        } catch (InterruptedException | ExecutionException e) {
-            throw new RuntimeException(e);
-        }
-        return jobStatus;
     }
 
     public void faultInjectionOpen() throws IOException {

@@ -29,6 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
 public abstract class AbstractITCaseService extends AbstractContainerTestBase {
@@ -130,5 +131,18 @@ public abstract class AbstractITCaseService extends AbstractContainerTestBase {
             Thread.sleep(millis);
         } catch (InterruptedException ignored) {
         }
+    }
+
+    protected JobStatus getFlinkJobStatus(JobClient jobClient) {
+        JobStatus jobStatus;
+        try {
+            jobStatus = jobClient.getJobStatus().get();
+        } catch (IllegalStateException e) {
+            LOG.info("Failed to get state, cause " + e.getMessage());
+            jobStatus = JobStatus.FINISHED;
+        } catch (InterruptedException | ExecutionException e) {
+            throw new RuntimeException(e);
+        }
+        return jobStatus;
     }
 }

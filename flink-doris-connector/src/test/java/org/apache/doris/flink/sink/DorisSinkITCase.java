@@ -58,7 +58,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.api.common.JobStatus.FINISHED;
 import static org.apache.flink.api.common.JobStatus.RUNNING;
@@ -611,6 +610,7 @@ public class DorisSinkITCase extends AbstractITCaseService {
 
     @Test
     public void testTableOverwrite() throws Exception {
+        LOG.info("start to test testTableOverwrite.");
         initializeTable(TABLE_OVERWRITE, DataModel.AGGREGATE);
         // mock data
         ContainerUtils.executeSQLStatement(
@@ -656,11 +656,17 @@ public class DorisSinkITCase extends AbstractITCaseService {
                         batchMode);
         tEnv.executeSql(sinkDDL);
         TableResult tableResult =
-                tEnv.executeSql("INSERT OVERWRITE doris_overwrite_sink SELECT 'overwrite',1");
+                tEnv.executeSql(
+                        "INSERT OVERWRITE doris_overwrite_sink SELECT 'doris',1 union all  SELECT 'overwrite',2 union all  SELECT 'flink',3");
 
-        tableResult.await(25000, TimeUnit.MILLISECONDS);
-        List<String> expected = Arrays.asList("overwrite,1");
-        ContainerUtils.checkResult(getDorisQueryConnection(), LOG, expected, query, 2);
+        JobClient jobClient = tableResult.getJobClient().get();
+        waitForJobStatus(
+                jobClient,
+                Collections.singletonList(FINISHED),
+                Deadline.fromNow(Duration.ofSeconds(120)));
+
+        List<String> expected = Arrays.asList("doris,1", "flink,3", "overwrite,2");
+        ContainerUtils.checkResult(getDorisQueryConnection(), LOG, expected, query, 2, false);
     }
 
     private void initializeTable(String table, DataModel dataModel) {
