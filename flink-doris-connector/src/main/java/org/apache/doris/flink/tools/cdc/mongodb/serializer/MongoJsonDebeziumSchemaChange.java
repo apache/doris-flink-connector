@@ -42,10 +42,24 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.sql.SQLSyntaxErrorException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
 import static org.apache.doris.flink.sink.writer.serializer.jsondebezium.JsonDebeziumChangeUtils.getDorisTableIdentifier;
-import static org.apache.doris.flink.tools.cdc.mongodb.ChangeStreamConstant.*;
+import static org.apache.doris.flink.tools.cdc.mongodb.ChangeStreamConstant.DATE_FIELD;
+import static org.apache.doris.flink.tools.cdc.mongodb.ChangeStreamConstant.DECIMAL_FIELD;
+import static org.apache.doris.flink.tools.cdc.mongodb.ChangeStreamConstant.FIELD_DATA;
+import static org.apache.doris.flink.tools.cdc.mongodb.ChangeStreamConstant.FIELD_DATABASE;
+import static org.apache.doris.flink.tools.cdc.mongodb.ChangeStreamConstant.FIELD_NAMESPACE;
+import static org.apache.doris.flink.tools.cdc.mongodb.ChangeStreamConstant.FIELD_TABLE;
+import static org.apache.doris.flink.tools.cdc.mongodb.ChangeStreamConstant.LONG_FIELD;
+import static org.apache.doris.flink.tools.cdc.mongodb.ChangeStreamConstant.OID_FIELD;
+import static org.apache.doris.flink.tools.cdc.mongodb.ChangeStreamConstant.TIMESTAMP_FIELD;
 import static org.apache.doris.flink.tools.cdc.mongodb.ChangeStreamConstant.ID_FIELD;
 
 public class MongoJsonDebeziumSchemaChange extends CdcSchemaChange {
