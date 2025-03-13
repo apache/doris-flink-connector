@@ -37,6 +37,7 @@ import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.cfg.DorisStreamOptions;
 import org.apache.doris.flink.container.AbstractITCaseService;
 import org.apache.doris.flink.container.ContainerUtils;
+import org.apache.doris.flink.container.config.DorisPorts.FE;
 import org.apache.doris.flink.datastream.DorisSourceFunction;
 import org.apache.doris.flink.deserialization.SimpleListDeserializationSchema;
 import org.apache.doris.flink.table.DorisConfigOptions;
@@ -92,7 +93,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
             new Object[] {
                 false, -1,
             },
-            new Object[] {true, 9611}
+            new Object[] {true, FE.FLIGHT_SQL_PORT}
         };
     }
 
