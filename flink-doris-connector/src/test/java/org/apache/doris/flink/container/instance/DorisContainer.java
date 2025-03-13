@@ -18,6 +18,8 @@
 package org.apache.doris.flink.container.instance;
 
 import com.google.common.collect.Lists;
+import org.apache.doris.flink.container.config.DorisPorts.BE;
+import org.apache.doris.flink.container.config.DorisPorts.FE;
 import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,7 +50,7 @@ import java.util.concurrent.locks.LockSupport;
 
 public class DorisContainer implements ContainerService {
     private static final Logger LOG = LoggerFactory.getLogger(DorisContainer.class);
-    private static final String DEFAULT_DOCKER_IMAGE = "apache/doris:doris-all-in-one-2.1.0";
+    private static final String DEFAULT_DOCKER_IMAGE = "yagagagaga/doris-standalone:2.1.7";
     private static final String DORIS_DOCKER_IMAGE =
             System.getProperty("image") == null
                     ? DEFAULT_DOCKER_IMAGE
@@ -81,16 +83,28 @@ public class DorisContainer implements ContainerService {
                         .withCopyFileToContainer(
                                 MountableFile.forClasspathResource("docker/doris/fe.conf"),
                                 "/opt/apache-doris/fe/conf/fe.conf")
-                        .withExposedPorts(8030, 9030, 8040, 9060, 9611, 9610);
+                        // These exposed ports are used to connect to Doris. They are the default
+                        // ports for yagagagaga/doris-standalone:2.1.7.
+                        // For more information, see:
+                        // https://hub.docker.com/r/yagagagaga/doris-standalone
+                        .withExposedPorts(
+                                FE.HTTP_PORT,
+                                FE.QUERY_PORT,
+                                BE.THRIFT_PORT,
+                                BE.WEBSERVICE_PORT,
+                                FE.FLIGHT_SQL_PORT,
+                                BE.FLIGHT_SQL_PORT)
+                        .withEnv("TZ", "Asia/Shanghai")
+                        .withStartupTimeout(Duration.ofMinutes(5));
 
         container.setPortBindings(
                 Lists.newArrayList(
-                        String.format("%s:%s", "8030", "8030"),
-                        String.format("%s:%s", "9030", "9030"),
-                        String.format("%s:%s", "9060", "9060"),
-                        String.format("%s:%s", "8040", "8040"),
-                        String.format("%s:%s", "9611", "9611"),
-                        String.format("%s:%s", "9610", "9610")));
+                        String.format("%s:%s", FE.HTTP_PORT, FE.HTTP_PORT),
+                        String.format("%s:%s", FE.QUERY_PORT, FE.QUERY_PORT),
+                        String.format("%s:%s", BE.THRIFT_PORT, BE.THRIFT_PORT),
+                        String.format("%s:%s", BE.WEBSERVICE_PORT, BE.WEBSERVICE_PORT),
+                        String.format("%s:%s", FE.FLIGHT_SQL_PORT, FE.FLIGHT_SQL_PORT),
+                        String.format("%s:%s", BE.FLIGHT_SQL_PORT, BE.FLIGHT_SQL_PORT)));
         return container;
     }
 
@@ -172,12 +186,12 @@ public class DorisContainer implements ContainerService {
 
     @Override
     public String getFenodes() {
-        return dorisContainer.getHost() + ":8030";
+        return dorisContainer.getHost() + ":" + FE.HTTP_PORT;
     }
 
     @Override
     public String getBenodes() {
-        return dorisContainer.getHost() + ":8040";
+        return dorisContainer.getHost() + ":" + BE.WEBSERVICE_PORT;
     }
 
     public void close() {

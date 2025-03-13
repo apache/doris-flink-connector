@@ -18,12 +18,19 @@
 ---
 name: Build Connector
 on:
+  workflow_run:
+    workflows: [ "Code Style Checker" ]
+    types:
+      - completed
+    branches:
+      - 'master'
   pull_request:
   push:
 
 jobs:
   build-extension:
     name: "Build Connector"
+    if: (github.event_name == 'push') || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
     runs-on: ubuntu-latest
     defaults:
       run:

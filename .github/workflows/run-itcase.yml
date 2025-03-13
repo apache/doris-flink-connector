@@ -18,12 +18,17 @@
 ---
 name: Run ITCases
 on:
+  workflow_run:
+    workflows: [ "Build Connector" ]
+    types:
+      - completed
   pull_request:
   push:
 
 jobs:
   build-extension:
     name: "Run ITCases"
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -40,5 +45,5 @@ jobs:
 
     - name: Run ITCases
       run: |
-        cd flink-doris-connector && mvn test -Dtest="*ITCase" -Dimage="apache/doris:doris-all-in-one-2.1.0"
+        cd flink-doris-connector && mvn test -Dtest="*ITCase" -Dimage="yagagagaga/doris-standalone:2.1.7"
 
