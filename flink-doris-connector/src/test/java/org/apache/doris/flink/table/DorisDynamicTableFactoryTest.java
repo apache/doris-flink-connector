@@ -40,6 +40,8 @@ import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_REQUEST_QUER
 import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_REQUEST_READ_TIMEOUT_MS_DEFAULT;
 import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_REQUEST_RETRIES_DEFAULT;
 import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_TABLET_SIZE_DEFAULT;
+import static org.apache.doris.flink.cfg.ConfigurationOptions.FLIGHT_SQL_PORT_DEFAULT;
+import static org.apache.doris.flink.cfg.ConfigurationOptions.USE_FLIGHT_SQL_DEFAULT;
 import static org.apache.doris.flink.utils.FactoryMocks.SCHEMA;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSink;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSource;
@@ -65,8 +67,8 @@ public class DorisDynamicTableFactoryTest {
         properties.put("lookup.jdbc.read.batch.size", "16");
         properties.put("lookup.jdbc.read.batch.queue-size", "16");
         properties.put("lookup.jdbc.read.thread-size", "1");
-        properties.put("source.use-flight-sql", "false");
-        properties.put("source.flight-sql-port", "9040");
+        properties.put("source.use-flight-sql", "true");
+        properties.put("source.flight-sql-port", "-1");
         DynamicTableSource actual = createTableSource(SCHEMA, properties);
         DorisOptions options =
                 DorisOptions.builder()
@@ -100,8 +102,8 @@ public class DorisDynamicTableFactoryTest {
                 .setRequestReadTimeoutMs(DORIS_REQUEST_READ_TIMEOUT_MS_DEFAULT)
                 .setRequestRetries(DORIS_REQUEST_RETRIES_DEFAULT)
                 .setRequestTabletSize(DORIS_TABLET_SIZE_DEFAULT)
-                .setUseFlightSql(false)
-                .setFlightSqlPort(9040);
+                .setUseFlightSql(USE_FLIGHT_SQL_DEFAULT)
+                .setFlightSqlPort(FLIGHT_SQL_PORT_DEFAULT);
         DorisDynamicTableSource expected =
                 new DorisDynamicTableSource(
                         options,
@@ -186,8 +188,8 @@ public class DorisDynamicTableFactoryTest {
                 .setRequestReadTimeoutMs(DORIS_REQUEST_READ_TIMEOUT_MS_DEFAULT)
                 .setRequestRetries(DORIS_REQUEST_RETRIES_DEFAULT)
                 .setRequestTabletSize(DORIS_TABLET_SIZE_DEFAULT)
-                .setUseFlightSql(false)
-                .setFlightSqlPort(9040);
+                .setUseFlightSql(USE_FLIGHT_SQL_DEFAULT)
+                .setFlightSqlPort(FLIGHT_SQL_PORT_DEFAULT);
         DorisDynamicTableSink expected =
                 new DorisDynamicTableSink(
                         options,

@@ -23,6 +23,7 @@ import org.apache.flink.util.Preconditions;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -95,6 +96,8 @@ public class RestService implements Serializable {
     private static final String TABLE_SCHEMA_API = "http://%s/api/%s/%s/_schema";
     private static final String CATALOG_TABLE_SCHEMA_API = "http://%s/api/%s/%s/%s/_schema";
     private static final String QUERY_PLAN_API = "http://%s/api/%s/%s/_query_plan";
+    private static final String STATEMENT_EXEC_API =
+            "http://%s/api/query/default_cluster/information_schema";
 
     /**
      * send request to Doris FE and get response json string.
@@ -423,6 +426,7 @@ public class RestService implements Serializable {
         return parseSchema(response, logger);
     }
 
+    @VisibleForTesting
     public static Schema getSchema(
             DorisOptions dorisOptions, String db, String table, Logger logger) {
         logger.trace("start get " + db + "." + table + " schema from doris.");
@@ -436,8 +440,8 @@ public class RestService implements Serializable {
                             table);
             HttpGetWithEntity httpGet = new HttpGetWithEntity(tableSchemaUri);
             httpGet.setHeader(HttpHeaders.AUTHORIZATION, authHeader(dorisOptions));
-            Map<String, Object> responseMap = handleResponse(httpGet, logger);
-            responseData = responseMap.get("data");
+            JsonNode response = handleResponse(httpGet, logger);
+            responseData = response.path("data");
             String schemaStr = objectMapper.writeValueAsString(responseData);
             return objectMapper.readValue(schemaStr, Schema.class);
         } catch (JsonProcessingException | IllegalArgumentException e) {
@@ -446,25 +450,73 @@ public class RestService implements Serializable {
         }
     }
 
-    private static Map handleResponse(HttpUriRequest request, Logger logger) {
+    @VisibleForTesting
+    public static JsonNode handleResponse(HttpUriRequest request, Logger logger) {
         try (CloseableHttpClient httpclient = HttpClients.createDefault()) {
             CloseableHttpResponse response = httpclient.execute(request);
             final int statusCode = response.getStatusLine().getStatusCode();
             final String reasonPhrase = response.getStatusLine().getReasonPhrase();
             if (statusCode == 200 && response.getEntity() != null) {
                 String responseEntity = EntityUtils.toString(response.getEntity());
-                return objectMapper.readValue(responseEntity, Map.class);
+                return objectMapper.readTree(responseEntity);
             } else {
-                throw new DorisSchemaChangeException(
-                        "Failed to schemaChange, status: "
+                throw new DorisRuntimeException(
+                        "Failed to parse response, status: "
                                 + statusCode
                                 + ", reason: "
                                 + reasonPhrase);
             }
         } catch (Exception e) {
-            logger.trace("SchemaChange request error,", e);
-            throw new DorisSchemaChangeException(
-                    "SchemaChange request error with " + e.getMessage());
+            logger.trace("request error,", e);
+            throw new DorisRuntimeException("request error with " + e.getMessage());
+        }
+    }
+
+    /** Try to get the ArrowFlightSqlPort port */
+    public static Integer tryGetArrowFlightSqlPort(
+            DorisOptions options, DorisReadOptions readOptions, Logger logger) {
+        if (readOptions.getFlightSqlPort() != null && readOptions.getFlightSqlPort() > 0) {
+            return readOptions.getFlightSqlPort();
+        }
+        try {
+            Map<String, String> param = new HashMap<>();
+            param.put("stmt", "show frontends");
+            String requestUrl =
+                    String.format(STATEMENT_EXEC_API, randomEndpoint(options.getFenodes(), logger));
+            HttpPost httpPost = new HttpPost(requestUrl);
+            httpPost.setHeader(HttpHeaders.AUTHORIZATION, authHeader(options));
+            httpPost.setHeader(
+                    HttpHeaders.CONTENT_TYPE,
+                    String.format("application/json;charset=%s", "UTF-8"));
+            httpPost.setEntity(new StringEntity(objectMapper.writeValueAsString(param), "UTF-8"));
+
+            JsonNode response = handleResponse(httpPost, logger);
+            logger.info("Get ArrowFlightSqlPort response is '{}'.", response);
+            return getArrowFlightSqlPort(response);
+        } catch (Exception ex) {
+            logger.warn("Failed to get ArrowFlightSqlPort, cause " + ex.getMessage());
+            return -1;
+        }
+    }
+
+    @VisibleForTesting
+    public static int getArrowFlightSqlPort(JsonNode rootNode) throws JsonProcessingException {
+        JsonNode metaNode = rootNode.path("data").path("meta");
+        JsonNode dataNode = rootNode.path("data").path("data");
+
+        int columnIndex = -1;
+        for (int i = 0; i < metaNode.size(); i++) {
+            if ("ArrowFlightSqlPort".equals(metaNode.get(i).path("name").asText())) {
+                columnIndex = i;
+                break;
+            }
+        }
+
+        if (columnIndex != -1 && dataNode.size() > 0) {
+            int arrowFlightSqlPort = dataNode.get(0).get(columnIndex).asInt();
+            return arrowFlightSqlPort;
+        } else {
+            throw new java.lang.IllegalArgumentException("ArrowFlightSqlPort not found");
         }
     }
 

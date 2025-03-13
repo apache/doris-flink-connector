@@ -292,15 +292,13 @@ public class DorisSourceITCase extends AbstractITCaseService {
                                 + " 'doris.exec.mem.limit' = '2048mb',"
                                 + " 'doris.deserialize.arrow.async' = 'true',"
                                 + " 'doris.deserialize.queue.size' = '32',"
-                                + " 'source.use-flight-sql' = '%s',"
-                                + " 'source.flight-sql-port' = '%s'"
+                                + " 'source.use-flight-sql' = '%s'"
                                 + ")",
                         getFenodes(),
                         DATABASE + "." + TABLE_READ_TBL_ALL_OPTIONS,
                         getDorisUsername(),
                         getDorisPassword(),
-                        useFlightSql,
-                        flightSqlPort);
+                        useFlightSql);
         tEnv.executeSql(sourceDDL);
         TableResult tableResult = tEnv.executeSql("SELECT * FROM doris_source_all_options");
 
@@ -334,15 +332,13 @@ public class DorisSourceITCase extends AbstractITCaseService {
                                 + " 'table.identifier' = '%s',"
                                 + " 'username' = '%s',"
                                 + " 'password' = '%s',"
-                                + " 'source.use-flight-sql' = '%s',"
-                                + " 'source.flight-sql-port' = '%s'"
+                                + " 'source.use-flight-sql' = '%s'"
                                 + ")",
                         getFenodes(),
                         DATABASE + "." + TABLE_READ_TBL_PUSH_DOWN,
                         getDorisUsername(),
                         getDorisPassword(),
-                        useFlightSql,
-                        flightSqlPort);
+                        useFlightSql);
         tEnv.executeSql(sourceDDL);
         TableResult tableResult =
                 tEnv.executeSql(
@@ -516,15 +512,13 @@ public class DorisSourceITCase extends AbstractITCaseService {
                                 + " 'table.identifier' = '%s',"
                                 + " 'username' = '%s',"
                                 + " 'password' = '%s',"
-                                + " 'source.use-flight-sql' = '%s',"
-                                + " 'source.flight-sql-port' = '%s'"
+                                + " 'source.use-flight-sql' = '%s'"
                                 + ")",
                         getFenodes(),
                         DATABASE + "." + TABLE_READ_TBL_PUSH_DOWN_WITH_UNION_ALL,
                         getDorisUsername(),
                         getDorisPassword(),
-                        useFlightSql,
-                        flightSqlPort);
+                        useFlightSql);
         tEnv.executeSql(sourceDDL);
         String querySql =
                 "  SELECT * FROM doris_source_filter_with_union_all where age = '18'"
