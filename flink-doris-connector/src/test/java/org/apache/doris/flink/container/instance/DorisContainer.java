@@ -46,6 +46,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TimeZone;
 import java.util.concurrent.locks.LockSupport;
 
 public class DorisContainer implements ContainerService {
@@ -83,7 +84,10 @@ public class DorisContainer implements ContainerService {
                         .withCopyFileToContainer(
                                 MountableFile.forClasspathResource("docker/doris/fe.conf"),
                                 "/opt/apache-doris/fe/conf/fe.conf")
-                        .withEnv("TZ", "Asia/Shanghai")
+                        // These exposed ports are used to connect to Doris. They are the default ports for yagagagaga/doris-standalone:2.1.7.
+                        // For more information, see: https://hub.docker.com/r/yagagagaga/doris-standalone
+                        .withExposedPorts(FE.HTTP_PORT, FE.QUERY_PORT, BE.THRIFT_PORT, BE.WEBSERVICE_PORT, FE.FLIGHT_SQL_PORT, BE.FLIGHT_SQL_PORT)
+                        .withEnv("TZ", TimeZone.getDefault().getID())
                         .withStartupTimeout(Duration.ofMinutes(5));
 
         container.setPortBindings(
