@@ -17,6 +17,9 @@
 
 package org.apache.doris.flink.rest;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.exception.DorisException;
@@ -459,5 +462,59 @@ public class TestRestService {
         DorisReadOptions readOptions = DorisReadOptions.defaults();
         thrown.expect(DorisRuntimeException.class);
         RestService.isUniqueKeyType(options, readOptions, logger);
+    }
+
+    @Test
+    public void testGetSchema() throws JsonProcessingException, DorisException {
+        DorisOptions options =
+                DorisOptions.builder()
+                        .setFenodes("127.0.0.1:8030")
+                        .setUsername("root")
+                        .setPassword("")
+                        .build();
+
+        try (MockedStatic<RestService> restServiceMockedStatic = mockStatic(RestService.class)) {
+            String res =
+                    "{\"msg\":\"success\",\"code\":0,\"data\":{\"keysType\":\"UNIQUE_KEYS\",\"properties\":[{\"name\":\"name\",\"aggregation_type\":\"\",\"comment\":\"\",\"type\":\"VARCHAR\"},{\"name\":\"age\",\"aggregation_type\":\"REPLACE\",\"comment\":\"\",\"type\":\"INT\"}],\"status\":200},\"count\":0}";
+            JsonNode jsonNode = new ObjectMapper().readTree(res);
+            restServiceMockedStatic
+                    .when(() -> RestService.handleResponse(any(), any()))
+                    .thenReturn(jsonNode);
+            restServiceMockedStatic
+                    .when(() -> RestService.getSchema(any(), any(), any(), any()))
+                    .thenCallRealMethod();
+            Schema schema = RestService.getSchema(options, "db", "tbl", logger);
+            Assert.assertEquals(200, schema.getStatus());
+            Assert.assertEquals("UNIQUE_KEYS", schema.getKeysType());
+            Assert.assertEquals(2, schema.getProperties().size());
+        }
+    }
+
+    @Test
+    public void tryGetArrowFlightSqlPort() throws Exception {
+        DorisReadOptions readOptions = DorisReadOptions.builder().build();
+        String response =
+                "{\"data\":{\"type\":\"result_set\",\"meta\":[{\"name\":\"Name\",\"type\":\"CHAR\"},{\"name\":\"Host\",\"type\":\"CHAR\"},{\"name\":\"EditLogPort\",\"type\":\"CHAR\"},{\"name\":\"HttpPort\",\"type\":\"CHAR\"},{\"name\":\"QueryPort\",\"type\":\"CHAR\"},{\"name\":\"RpcPort\",\"type\":\"CHAR\"},{\"name\":\"ArrowFlightSqlPort\",\"type\":\"CHAR\"},{\"name\":\"Role\",\"type\":\"CHAR\"},{\"name\":\"IsMaster\",\"type\":\"CHAR\"},{\"name\":\"ClusterId\",\"type\":\"CHAR\"},{\"name\":\"Join\",\"type\":\"CHAR\"},{\"name\":\"Alive\",\"type\":\"CHAR\"},{\"name\":\"ReplayedJournalId\",\"type\":\"CHAR\"},{\"name\":\"LastStartTime\",\"type\":\"CHAR\"},{\"name\":\"LastHeartbeat\",\"type\":\"CHAR\"},{\"name\":\"IsHelper\",\"type\":\"CHAR\"},{\"name\":\"ErrMsg\",\"type\":\"CHAR\"},{\"name\":\"Version\",\"type\":\"CHAR\"},{\"name\":\"CurrentConnected\",\"type\":\"CHAR\"}],\"data\":[[\"fe_47fe8191_eecf_4e24_9692_d448a480abe1\",\"127.0.0.1\",\"29717\",\"28737\",\"29737\",\"29727\",\"29747\",\"FOLLOWER\",\"true\",\"1786414395\",\"true\",\"true\",\"8378795\",\"2025-03-11 17:19:02\",\"2025-03-12 17:34:47\",\"true\",\"\",\"doris-2.1.3-rc09-2dc65ce356\",\"Yes\"]],\"time\":14},\"msg\":\"success\",\"code\":0}";
+        JsonNode jsonNode = new ObjectMapper().readTree(response);
+
+        try (MockedStatic<RestService> restServiceMockedStatic = mockStatic(RestService.class)) {
+            restServiceMockedStatic
+                    .when(() -> RestService.handleResponse(any(), any()))
+                    .thenReturn(jsonNode);
+            restServiceMockedStatic
+                    .when(() -> RestService.getArrowFlightSqlPort(any()))
+                    .thenCallRealMethod();
+            restServiceMockedStatic
+                    .when(() -> RestService.tryGetArrowFlightSqlPort(any(), any(), any()))
+                    .thenCallRealMethod();
+            DorisOptions options =
+                    DorisOptions.builder()
+                            .setFenodes("127.0.0.1:8030")
+                            .setUsername("root")
+                            .setPassword("")
+                            .build();
+            Integer port = RestService.tryGetArrowFlightSqlPort(options, readOptions, logger);
+            Assert.assertEquals(29747, port.intValue());
+        }
     }
 }

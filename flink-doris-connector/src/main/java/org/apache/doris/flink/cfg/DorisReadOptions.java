@@ -17,8 +17,6 @@
 
 package org.apache.doris.flink.cfg;
 
-import org.apache.flink.util.Preconditions;
-
 import java.io.Serializable;
 import java.util.Objects;
 
@@ -141,6 +139,10 @@ public class DorisReadOptions implements Serializable {
         return flightSqlPort;
     }
 
+    public void setFlightSqlPort(Integer flightSqlPort) {
+        this.flightSqlPort = flightSqlPort;
+    }
+
     public Long getRowLimit() {
         return rowLimit;
     }
@@ -243,7 +245,7 @@ public class DorisReadOptions implements Serializable {
                 ConfigurationOptions.DORIS_DESERIALIZE_ARROW_ASYNC_DEFAULT;
         private Boolean useOldApi = false;
         private Boolean useFlightSql = ConfigurationOptions.USE_FLIGHT_SQL_DEFAULT;
-        private Integer flightSqlPort;
+        private Integer flightSqlPort = ConfigurationOptions.FLIGHT_SQL_PORT_DEFAULT;
         private Long rowLimit;
 
         /**
@@ -410,12 +412,6 @@ public class DorisReadOptions implements Serializable {
          * @return a DorisReadOptions with the settings made for this builder.
          */
         public DorisReadOptions build() {
-
-            if (useFlightSql) {
-                Preconditions.checkNotNull(
-                        flightSqlPort, "flight sql port must be set when use flight sql to read.");
-            }
-
             return new DorisReadOptions(
                     readFields,
                     filterQuery,
