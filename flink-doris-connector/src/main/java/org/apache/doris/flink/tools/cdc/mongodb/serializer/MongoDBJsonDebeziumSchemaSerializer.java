@@ -29,6 +29,7 @@ import org.apache.doris.flink.sink.writer.serializer.jsondebezium.CdcDataChange;
 import org.apache.doris.flink.sink.writer.serializer.jsondebezium.CdcSchemaChange;
 import org.apache.doris.flink.sink.writer.serializer.jsondebezium.JsonDebeziumChangeContext;
 import org.apache.doris.flink.tools.cdc.DorisTableConfig;
+import org.apache.doris.flink.tools.cdc.converter.TableNameConverter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,6 +63,7 @@ public class MongoDBJsonDebeziumSchemaSerializer implements DorisRecordSerialize
 
     private String targetTablePrefix;
     private String targetTableSuffix;
+    private TableNameConverter tableNameConverter;
 
     public MongoDBJsonDebeziumSchemaSerializer(
             DorisOptions dorisOptions,
@@ -72,7 +74,8 @@ public class MongoDBJsonDebeziumSchemaSerializer implements DorisRecordSerialize
             DorisTableConfig dorisTableConfig,
             String targetDatabase,
             String targetTablePrefix,
-            String targetTableSuffix) {
+            String targetTableSuffix,
+            TableNameConverter tableNameConverter) {
         this.dorisOptions = dorisOptions;
         this.pattern = pattern;
         this.sourceTableName = sourceTableName;
@@ -85,6 +88,7 @@ public class MongoDBJsonDebeziumSchemaSerializer implements DorisRecordSerialize
         this.targetDatabase = targetDatabase;
         this.targetTablePrefix = targetTablePrefix;
         this.targetTableSuffix = targetTableSuffix;
+        this.tableNameConverter = tableNameConverter;
         if (executionOptions != null) {
             this.lineDelimiter =
                     executionOptions
@@ -111,6 +115,7 @@ public class MongoDBJsonDebeziumSchemaSerializer implements DorisRecordSerialize
                         targetTablePrefix,
                         targetTableSuffix,
                         enableDelete);
+        changeContext.setTableNameConverter(tableNameConverter);
         this.dataChange = new MongoJsonDebeziumDataChange(changeContext);
         this.schemaChange = new MongoJsonDebeziumSchemaChange(changeContext);
     }
@@ -143,6 +148,7 @@ public class MongoDBJsonDebeziumSchemaSerializer implements DorisRecordSerialize
         private String targetDatabase;
         private String targetTablePrefix = "";
         private String targetTableSuffix = "";
+        private TableNameConverter tableNameConverter;
 
         public MongoDBJsonDebeziumSchemaSerializer.Builder setDorisOptions(
                 DorisOptions dorisOptions) {
@@ -192,6 +198,24 @@ public class MongoDBJsonDebeziumSchemaSerializer implements DorisRecordSerialize
             return this;
         }
 
+        public MongoDBJsonDebeziumSchemaSerializer.Builder setTargetTablePrefix(
+                String targetTablePrefix) {
+            this.targetTablePrefix = targetTablePrefix;
+            return this;
+        }
+
+        public MongoDBJsonDebeziumSchemaSerializer.Builder setTargetTableSuffix(
+                String targetTableSuffix) {
+            this.targetTableSuffix = targetTableSuffix;
+            return this;
+        }
+
+        public MongoDBJsonDebeziumSchemaSerializer.Builder setTableNameConverter(
+                TableNameConverter converter) {
+            this.tableNameConverter = converter;
+            return this;
+        }
+
         public MongoDBJsonDebeziumSchemaSerializer build() {
             return new MongoDBJsonDebeziumSchemaSerializer(
                     dorisOptions,
@@ -202,7 +226,8 @@ public class MongoDBJsonDebeziumSchemaSerializer implements DorisRecordSerialize
                     dorisTableConfig,
                     targetDatabase,
                     targetTablePrefix,
-                    targetTableSuffix);
+                    targetTableSuffix,
+                    tableNameConverter);
         }
     }
 }
