@@ -95,7 +95,7 @@ public class DorisContainer implements ContainerService {
                                 BE.WEBSERVICE_PORT,
                                 FE.FLIGHT_SQL_PORT,
                                 BE.FLIGHT_SQL_PORT)
-                        .withEnv("TZ", TimeZone.getDefault().getID())
+                        .withEnv("TZ", "Asia/Shanghai")
                         .withStartupTimeout(Duration.ofMinutes(5));
 
         container.setPortBindings(
