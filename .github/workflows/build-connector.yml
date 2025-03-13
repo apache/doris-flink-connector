@@ -23,59 +23,56 @@ on:
 
 jobs:
   build-extension:
-    name: "Build Connector"
+    name: "Build Connector (Flink ${{ matrix.flink-version }})"
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        flink-version: ['1.15', '1.16', '1.17', '1.18', '1.19', '1.20']
+        include:
+          - flink-version: '1.15'
+            flink-full-version: '1.15.0'
+            flink-python-id: 'flink-python_2.12'
+          - flink-version: '1.16'
+            flink-full-version: '1.16.0'
+            flink-python-id: 'flink-python'
+          - flink-version: '1.17'
+            flink-full-version: '1.17.0'
+            flink-python-id: 'flink-python'
+          - flink-version: '1.18'
+            flink-full-version: '1.18.0'
+            flink-python-id: 'flink-python'
+          - flink-version: '1.19'
+            flink-full-version: '1.19.0'
+            flink-python-id: 'flink-python'
+          - flink-version: '1.20'
+            flink-full-version: '1.20.0'
+            flink-python-id: 'flink-python'
     defaults:
       run:
         shell: bash
     steps:
-    - name: Checkout
-      uses: actions/checkout@master
+      - name: Checkout
+        uses: actions/checkout@v4
 
-    - name: Setup java
-      uses: actions/setup-java@v2
-      with:
-        distribution: adopt
-        java-version: '8'
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '8'
+          cache: 'maven'
 
-    - name: Build flink connector 1.15
-      run: |
-        cd flink-doris-connector && mvn clean package \
-          -Dflink.version=1.15.0 \
-          -Dflink.minor.version=1.15 \
-          -Dflink.python.id=flink-python_2.12
+      - name: Cache Maven Repository
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+            ${{ runner.os }}-maven-
 
-    - name: Build flink connector 1.16
-      run: |
-        cd flink-doris-connector && mvn clean package \
-          -Dflink.version=1.16.0 \
-          -Dflink.minor.version=1.16 \
-          -Dflink.python.id=flink-python
-
-    - name: Build flink connector 1.17
-      run: |
-        cd flink-doris-connector && mvn clean package \
-          -Dflink.version=1.17.0 \
-          -Dflink.minor.version=1.17 \
-          -Dflink.python.id=flink-python
-
-    - name: Build flink connector 1.18
-      run: |
-        cd flink-doris-connector && mvn clean package \
-          -Dflink.version=1.18.0 \
-          -Dflink.minor.version=1.18 \
-          -Dflink.python.id=flink-python
-
-    - name: Build flink connector 1.19
-      run: |
-        cd flink-doris-connector && mvn clean package \
-          -Dflink.version=1.19.0 \
-          -Dflink.minor.version=1.19 \
-          -Dflink.python.id=flink-python
-
-    - name: Build flink connector 1.20
-      run: |
-        cd flink-doris-connector && mvn clean package \
-          -Dflink.version=1.20.0 \
-          -Dflink.minor.version=1.20 \
-          -Dflink.python.id=flink-python
+      - name: Build Flink Connector
+        run: |
+          cd flink-doris-connector && mvn clean package \
+            -Dflink.version=${{ matrix.flink-full-version }} \
+            -Dflink.minor.version=${{ matrix.flink-version }} \
+            -Dflink.python.id=${{ matrix.flink-python-id }}
