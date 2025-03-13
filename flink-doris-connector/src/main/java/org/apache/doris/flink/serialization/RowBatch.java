@@ -47,6 +47,7 @@ import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.ipc.ArrowReader;
 import org.apache.arrow.vector.ipc.ArrowStreamReader;
 import org.apache.arrow.vector.types.Types;
+import org.apache.arrow.vector.types.Types.MinorType;
 import org.apache.doris.flink.exception.DorisException;
 import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.apache.doris.flink.rest.models.Schema;
@@ -217,12 +218,12 @@ public class RowBatch {
         try {
             for (int col = 0; col < fieldVectors.size(); col++) {
                 FieldVector fieldVector = fieldVectors.get(col);
-                Types.MinorType minorType = fieldVector.getMinorType();
+                MinorType minorType = fieldVector.getMinorType();
                 final String currentType = schema.get(col).getType();
                 for (int rowIndex = 0; rowIndex < rowCountInOneBatch; rowIndex++) {
                     boolean passed = doConvert(col, rowIndex, minorType, currentType, fieldVector);
                     if (!passed) {
-                        throw new java.lang.IllegalArgumentException(
+                        throw new IllegalArgumentException(
                                 "FLINK type is "
                                         + currentType
                                         + ", but arrow type is "
@@ -239,11 +240,7 @@ public class RowBatch {
 
     @VisibleForTesting
     public boolean doConvert(
-            int col,
-            int rowIndex,
-            Types.MinorType minorType,
-            String currentType,
-            FieldVector fieldVector)
+            int col, int rowIndex, MinorType minorType, String currentType, FieldVector fieldVector)
             throws DorisException {
         switch (currentType) {
             case "NULL_TYPE":
@@ -282,22 +279,36 @@ public class RowBatch {
                 addValueToRow(rowIndex, fieldValue);
                 break;
             case "IPV4":
-                if (!minorType.equals(Types.MinorType.UINT4)
-                        && !minorType.equals(Types.MinorType.INT)) {
+                if (!minorType.equals(MinorType.UINT4)
+                        && !minorType.equals(MinorType.INT)
+                        && !minorType.equals(MinorType.VARCHAR)) {
                     return false;
                 }
-                BaseIntVector ipv4Vector;
-                if (minorType.equals(Types.MinorType.INT)) {
-                    ipv4Vector = (IntVector) fieldVector;
 
-                } else {
-                    ipv4Vector = (UInt4Vector) fieldVector;
+                if (fieldVector.isNull(rowIndex)) {
+                    addValueToRow(rowIndex, null);
+                    break;
                 }
-                fieldValue =
-                        ipv4Vector.isNull(rowIndex)
-                                ? null
-                                : convertLongToIPv4Address(ipv4Vector.getValueAsLong(rowIndex));
-                addValueToRow(rowIndex, fieldValue);
+
+                if (minorType.equals(MinorType.VARCHAR)) {
+                    VarCharVector ipv4VarcharVector = (VarCharVector) fieldVector;
+                    String ipv4Str =
+                            new String(ipv4VarcharVector.get(rowIndex), StandardCharsets.UTF_8);
+                    addValueToRow(rowIndex, ipv4Str);
+                } else {
+                    BaseIntVector ipv4Vector;
+                    if (minorType.equals(Types.MinorType.INT)) {
+                        ipv4Vector = (IntVector) fieldVector;
+
+                    } else {
+                        ipv4Vector = (UInt4Vector) fieldVector;
+                    }
+                    fieldValue =
+                            ipv4Vector.isNull(rowIndex)
+                                    ? null
+                                    : convertLongToIPv4Address(ipv4Vector.getValueAsLong(rowIndex));
+                    addValueToRow(rowIndex, fieldValue);
+                }
                 break;
             case "BIGINT":
                 if (!minorType.equals(Types.MinorType.BIGINT)) {
@@ -480,15 +491,21 @@ public class RowBatch {
                 if (!minorType.equals(Types.MinorType.VARCHAR)) {
                     return false;
                 }
-                VarCharVector ipv6VarcharVector = (VarCharVector) fieldVector;
-                if (ipv6VarcharVector.isNull(rowIndex)) {
+
+                if (fieldVector.isNull(rowIndex)) {
                     addValueToRow(rowIndex, null);
                     break;
                 }
+
+                VarCharVector ipv6VarcharVector = (VarCharVector) fieldVector;
                 String ipv6Str =
                         new String(ipv6VarcharVector.get(rowIndex), StandardCharsets.UTF_8);
-                String ipv6Address = IPUtils.fromBigInteger(new BigInteger(ipv6Str));
-                addValueToRow(rowIndex, ipv6Address);
+                if (ipv6Str.contains(":")) {
+                    addValueToRow(rowIndex, ipv6Str);
+                } else {
+                    String ipv6Address = IPUtils.fromBigInteger(new BigInteger(ipv6Str));
+                    addValueToRow(rowIndex, ipv6Address);
+                }
                 break;
             case "ARRAY":
                 if (!minorType.equals(Types.MinorType.LIST)) {
@@ -627,7 +644,7 @@ public class RowBatch {
         return rowBatch.get(offsetInRowBatch++).getCols();
     }
 
-    private String typeMismatchMessage(final String flinkType, final Types.MinorType arrowType) {
+    private String typeMismatchMessage(final String flinkType, final MinorType arrowType) {
         final String messageTemplate = "FLINK type is %1$s, but arrow type is %2$s.";
         return String.format(messageTemplate, flinkType, arrowType.name());
     }
