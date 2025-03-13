@@ -28,6 +28,7 @@ on:
 jobs:
   build-extension:
     name: "Build Connector"
+    if: ${{ github.event_name == 'push' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     defaults:
       run:
