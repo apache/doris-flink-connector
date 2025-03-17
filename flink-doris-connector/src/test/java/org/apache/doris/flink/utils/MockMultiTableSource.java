@@ -27,6 +27,7 @@ import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.util.SerializableObject;
 
+import org.apache.doris.flink.sink.batch.RecordWithMeta;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,36 +35,51 @@ import java.util.Collections;
 import java.util.Iterator;
 
 /*
- * MockSource is a mock source for testing
+ * MockMultiTableSource is a mock source for testing multi-table source
  * */
-public class MockSource extends RichParallelSourceFunction<String>
+public class MockMultiTableSource extends RichParallelSourceFunction<RecordWithMeta>
         implements CheckpointedFunction, CheckpointListener {
-    private static final Logger LOG = LoggerFactory.getLogger(MockSource.class);
+    private static final Logger LOG = LoggerFactory.getLogger(MockMultiTableSource.class);
     private final Object blocker = new SerializableObject();
     private transient ListState<Long> state;
+    private transient ListState<Integer> tableNumState;
     private Long id = 0L;
     private int numEventsTotal;
     private int failCheckpointId = -1;
     private volatile boolean running = true;
     private volatile long waitNextCheckpoint = 0L;
     private volatile long lastCheckpointConfirmed = 0L;
+    private String database;
+    private String tableName;
+    private int tableNum;
+    private int addTableCheckpointId;
 
-    public MockSource(int numEventsTotal) {
-        this.numEventsTotal = numEventsTotal;
-    }
-
-    public MockSource(int numEventsTotal, int failCheckpointId) {
+    public MockMultiTableSource(
+            int numEventsTotal,
+            int failCheckpointId,
+            String database,
+            String tableName,
+            int tableNum,
+            int addTableCheckpointId) {
         this.numEventsTotal = numEventsTotal;
         this.failCheckpointId = failCheckpointId;
+        this.database = database;
+        this.tableName = tableName;
+        this.tableNum = tableNum;
+        this.addTableCheckpointId = addTableCheckpointId;
     }
 
     @Override
-    public void run(SourceContext<String> ctx) throws Exception {
-
+    public void run(SourceContext<RecordWithMeta> ctx) throws Exception {
         int taskId = getRuntimeContext().getIndexOfThisSubtask();
         while (this.running && id < this.numEventsTotal) {
-            String record = ++id + "," + taskId;
-            ctx.collect(record);
+            id = id + 1;
+            for (int i = 1; i <= tableNum; i++) {
+                String record = id + "," + taskId;
+                RecordWithMeta output = new RecordWithMeta(database, tableName + i, record);
+                ctx.collect(output);
+            }
+
             // Wait for the checkpoint to complete before sending the next record
             waitNextCheckpoint = lastCheckpointConfirmed + 1;
             synchronized (this.blocker) {
@@ -82,11 +98,19 @@ public class MockSource extends RichParallelSourceFunction<String>
     @Override
     public void snapshotState(FunctionSnapshotContext context) throws Exception {
         state.update(Collections.singletonList(id));
-        if (failCheckpointId > 0 && context.getCheckpointId() % failCheckpointId == 0) {
+        if (context.getCheckpointId() == addTableCheckpointId) {
+            tableNum++;
+        }
+        tableNumState.update(Collections.singletonList(tableNum));
+        if (failCheckpointId > 0 && context.getCheckpointId() == failCheckpointId) {
             throw new RuntimeException(
                     "Trigger fail for testing, checkpointId = " + context.getCheckpointId());
         }
-        LOG.info("snapshot state to {} for checkpoint {}", id, context.getCheckpointId());
+        LOG.info(
+                "snapshot state to id={}, tableNum={} for checkpoint {}",
+                id,
+                tableNum,
+                context.getCheckpointId());
     }
 
     @Override
@@ -95,13 +119,22 @@ public class MockSource extends RichParallelSourceFunction<String>
                 context.getOperatorStateStore()
                         .getListState(
                                 new ListStateDescriptor<>("id", TypeInformation.of(Long.class)));
+        tableNumState =
+                context.getOperatorStateStore()
+                        .getListState(
+                                new ListStateDescriptor<>(
+                                        "tableNum", TypeInformation.of(Integer.class)));
         if (context.isRestored()) {
             Iterator<Long> iterator = state.get().iterator();
             while (iterator.hasNext()) {
                 id += iterator.next();
             }
+            Iterator<Integer> tableNumIterator = tableNumState.get().iterator();
+            while (tableNumIterator.hasNext()) {
+                tableNum = tableNumIterator.next();
+            }
         }
-        LOG.info("restore state from {}", id);
+        LOG.info("restore state from id {}, tableNum {}", id, tableNum);
     }
 
     @Override

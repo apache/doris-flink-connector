@@ -21,7 +21,6 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
-import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
@@ -51,6 +50,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 
 import static org.apache.doris.flink.sink.LoadStatus.PUBLISH_TIMEOUT;
 import static org.apache.doris.flink.sink.LoadStatus.SUCCESS;
@@ -86,6 +86,7 @@ public class DorisWriter<IN>
     private SinkWriterMetricGroup sinkMetricGroup;
     private Map<String, DorisWriteMetrics> sinkMetricsMap = new ConcurrentHashMap<>();
     private volatile boolean multiTableLoad = false;
+    private final ReentrantLock checkLock = new ReentrantLock();
 
     public DorisWriter(
             Sink.InitContext initContext,
@@ -104,7 +105,13 @@ public class DorisWriter<IN>
         this.labelPrefix = executionOptions.getLabelPrefix();
         this.subtaskId = initContext.getSubtaskId();
         this.scheduledExecutorService =
-                new ScheduledThreadPoolExecutor(1, new ExecutorThreadFactory("stream-load-check"));
+                new ScheduledThreadPoolExecutor(
+                        1,
+                        r -> {
+                            Thread t = new Thread(r, "stream-load-check-" + subtaskId);
+                            t.setPriority(Thread.MIN_PRIORITY);
+                            return t;
+                        });
         this.serializer = serializer;
         if (StringUtils.isBlank(dorisOptions.getTableIdentifier())) {
             this.multiTableLoad = true;
@@ -132,12 +139,10 @@ public class DorisWriter<IN>
         }
         // get main work thread.
         executorThread = Thread.currentThread();
-        // todo: When writing to multiple tables,
-        //  the checkdone thread may cause problems.
-        if (!multiTableLoad && intervalTime > 1000) {
+        if (intervalTime >= 1000) {
             // when uploading data in streaming mode, we need to regularly detect whether there are
             // exceptions.
-            LOG.info("start stream load checkdone thread.");
+            LOG.info("start stream load checkdone thread with interval {} ms", intervalTime);
             scheduledExecutorService.scheduleWithFixedDelay(
                     this::checkDone, 200, intervalTime, TimeUnit.MILLISECONDS);
         }
@@ -235,57 +240,61 @@ public class DorisWriter<IN>
         if (!globalLoading && loadingMap.values().stream().noneMatch(Boolean::booleanValue)) {
             return Collections.emptyList();
         }
-
         // disable exception checker before stop load.
         globalLoading = false;
-        // submit stream load http request
-        List<DorisCommittable> committableList = new ArrayList<>();
-        for (Map.Entry<String, DorisStreamLoad> streamLoader : dorisStreamLoadMap.entrySet()) {
-            String tableIdentifier = streamLoader.getKey();
-            if (!loadingMap.getOrDefault(tableIdentifier, false)) {
-                LOG.debug("skip table {}, no data need to load.", tableIdentifier);
-                continue;
-            }
-            DorisStreamLoad dorisStreamLoad = streamLoader.getValue();
-            RespContent respContent = dorisStreamLoad.stopLoad();
-            // refresh metrics
-            if (sinkMetricsMap.containsKey(tableIdentifier)) {
-                DorisWriteMetrics dorisWriteMetrics = sinkMetricsMap.get(tableIdentifier);
-                dorisWriteMetrics.flush(respContent);
-            }
-            if (!DORIS_SUCCESS_STATUS.contains(respContent.getStatus())) {
-                if (executionOptions.enabled2PC()
-                        && LoadStatus.LABEL_ALREADY_EXIST.equals(respContent.getStatus())
-                        && !JOB_EXIST_FINISHED.equals(respContent.getExistingJobStatus())) {
-                    LOG.info(
-                            "try to abort {} cause status {}, exist job status {} ",
-                            respContent.getLabel(),
-                            respContent.getStatus(),
-                            respContent.getExistingJobStatus());
-                    dorisStreamLoad.abortLabelExistTransaction(respContent);
-                    throw new LabelAlreadyExistsException("Exist label abort finished, retry");
-                } else {
-                    String errMsg =
-                            String.format(
-                                    "table %s stream load error: %s, see more in %s",
-                                    tableIdentifier,
-                                    respContent.getMessage(),
-                                    respContent.getErrorURL());
-                    LOG.error("Failed to load, {}", errMsg);
-                    throw new DorisRuntimeException(errMsg);
+        checkLock.lockInterruptibly();
+        try {
+            // submit stream load http request
+            List<DorisCommittable> committableList = new ArrayList<>();
+            for (Map.Entry<String, DorisStreamLoad> streamLoader : dorisStreamLoadMap.entrySet()) {
+                String tableIdentifier = streamLoader.getKey();
+                if (!loadingMap.getOrDefault(tableIdentifier, false)) {
+                    LOG.debug("skip table {}, no data need to load.", tableIdentifier);
+                    continue;
+                }
+                DorisStreamLoad dorisStreamLoad = streamLoader.getValue();
+                RespContent respContent = dorisStreamLoad.stopLoad();
+                // refresh metrics
+                if (sinkMetricsMap.containsKey(tableIdentifier)) {
+                    DorisWriteMetrics dorisWriteMetrics = sinkMetricsMap.get(tableIdentifier);
+                    dorisWriteMetrics.flush(respContent);
+                }
+                if (!DORIS_SUCCESS_STATUS.contains(respContent.getStatus())) {
+                    if (executionOptions.enabled2PC()
+                            && LoadStatus.LABEL_ALREADY_EXIST.equals(respContent.getStatus())
+                            && !JOB_EXIST_FINISHED.equals(respContent.getExistingJobStatus())) {
+                        LOG.info(
+                                "try to abort {} cause status {}, exist job status {} ",
+                                respContent.getLabel(),
+                                respContent.getStatus(),
+                                respContent.getExistingJobStatus());
+                        dorisStreamLoad.abortLabelExistTransaction(respContent);
+                        throw new LabelAlreadyExistsException("Exist label abort finished, retry");
+                    } else {
+                        String errMsg =
+                                String.format(
+                                        "table %s stream load error: %s, see more in %s",
+                                        tableIdentifier,
+                                        respContent.getMessage(),
+                                        respContent.getErrorURL());
+                        LOG.error("Failed to load, {}", errMsg);
+                        throw new DorisRuntimeException(errMsg);
+                    }
+                }
+                if (executionOptions.enabled2PC()) {
+                    long txnId = respContent.getTxnId();
+                    committableList.add(
+                            new DorisCommittable(
+                                    dorisStreamLoad.getHostPort(), dorisStreamLoad.getDb(), txnId));
                 }
             }
-            if (executionOptions.enabled2PC()) {
-                long txnId = respContent.getTxnId();
-                committableList.add(
-                        new DorisCommittable(
-                                dorisStreamLoad.getHostPort(), dorisStreamLoad.getDb(), txnId));
-            }
-        }
 
-        // clean loadingMap
-        loadingMap.clear();
-        return committableList;
+            // clean loadingMap
+            loadingMap.clear();
+            return committableList;
+        } finally {
+            checkLock.unlock();
+        }
     }
 
     private void abortPossibleSuccessfulTransaction() {
@@ -351,19 +360,36 @@ public class DorisWriter<IN>
 
     /** Check the streamload http request regularly. */
     private void checkDone() {
-        for (Map.Entry<String, DorisStreamLoad> streamLoadMap : dorisStreamLoadMap.entrySet()) {
-            checkAllDone(streamLoadMap.getKey(), streamLoadMap.getValue());
+        if (!globalLoading) {
+            return;
+        }
+        LOG.debug("start timer checker, interval {} ms", intervalTime);
+        if (checkLock.tryLock()) {
+            try {
+                // double check
+                if (!globalLoading) {
+                    return;
+                }
+                for (Map.Entry<String, DorisStreamLoad> streamLoadMap :
+                        dorisStreamLoadMap.entrySet()) {
+                    checkAllDone(streamLoadMap.getKey(), streamLoadMap.getValue());
+                }
+            } finally {
+                checkLock.unlock();
+            }
         }
     }
 
     private void checkAllDone(String tableIdentifier, DorisStreamLoad dorisStreamLoad) {
         // the load future is done and checked in prepareCommit().
         // this will check error while loading.
-        LOG.debug("start timer checker, interval {} ms", intervalTime);
         if (dorisStreamLoad.getPendingLoadFuture() != null
                 && dorisStreamLoad.getPendingLoadFuture().isDone()) {
             if (!globalLoading || !loadingMap.get(tableIdentifier)) {
-                LOG.debug("not loading, skip timer checker for table {}", tableIdentifier);
+                LOG.debug(
+                        "not loading, skip timer checker for table {}, {}",
+                        tableIdentifier,
+                        globalLoading);
                 return;
             }
 
