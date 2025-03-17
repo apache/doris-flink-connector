@@ -46,7 +46,6 @@ public class JsonNodeExtractUtil {
         return recordMap != null ? recordMap : new HashMap<>();
     }
 
-
     public static Map<String, Object> extractAfterRow(
             JsonNode recordRoot, ObjectMapper objectMapper) {
         Map<String, Object> rowMap = JsonNodeExtractUtil.extractRow(recordRoot, objectMapper);

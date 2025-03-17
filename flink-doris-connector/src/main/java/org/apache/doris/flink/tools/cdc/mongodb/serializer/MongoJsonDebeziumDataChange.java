@@ -145,5 +145,4 @@ public class MongoJsonDebeziumDataChange extends CdcDataChange implements Change
         row.put(ID_FIELD, objectId);
         return row;
     }
-
 }

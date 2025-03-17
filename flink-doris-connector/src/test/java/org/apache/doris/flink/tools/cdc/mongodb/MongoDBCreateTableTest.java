@@ -18,7 +18,6 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
-
 public class MongoDBCreateTableTest extends TestJsonDebeziumChangeBase {
 
     private MongoJsonDebeziumSchemaChange schemaChange;
@@ -34,12 +33,13 @@ public class MongoDBCreateTableTest extends TestJsonDebeziumChangeBase {
     public void setUp() {
         super.setUp();
 
-        DorisOptions validOptions = DorisOptions.builder()
-                .setFenodes("192.168.10.102:8030")
-                .setJdbcUrl("jdbc:mysql://192.168.10.102:9030/")
-                .setUsername("root")
-                .setPassword("123456")
-                .build();
+        DorisOptions validOptions =
+                DorisOptions.builder()
+                        .setFenodes("192.168.10.102:8030")
+                        .setJdbcUrl("jdbc:mysql://192.168.10.102:9030/")
+                        .setUsername("root")
+                        .setPassword("123456")
+                        .build();
 
         Map<String, String> tableConfig = new HashMap<>();
         tableConfig.put(DorisTableConfig.REPLICATION_NUM, "1");
@@ -48,7 +48,7 @@ public class MongoDBCreateTableTest extends TestJsonDebeziumChangeBase {
         changeContext =
                 new JsonDebeziumChangeContext(
                         dorisOptions,
-//                        validOptions,
+                        //                        validOptions,
                         tableMapping,
                         null,
                         dbName,
@@ -63,36 +63,41 @@ public class MongoDBCreateTableTest extends TestJsonDebeziumChangeBase {
                         new TableNameConverter(prefix, suffix),
                         true);
         schemaChange = new MongoJsonDebeziumSchemaChange(changeContext);
-
     }
 
     @Test
     public void testAutoCreateTable() throws IOException {
         String newTableName = "test_table";
-        String record = "{"
-                + "\"_id\":\"{\\\"_id\\\": {\\\"_id\\\": {\\\"$oid\\\": \\\"67d2d13807fe0c4336070cfd\\\"}}}\","
-                + "\"operationType\":\"insert\","
-                + "\"fullDocument\":\"{\\\"_id\\\": {\\\"$oid\\\": \\\"67d2d13807fe0c4336070cfd\\\"}, \\\"name\\\": \\\"John Doe\\\", \\\"age\\\": 30, \\\"city\\\": \\\"New York\\\"}\","
-                + "\"fullDocumentBeforeChange\":null,"
-                + "\"source\":{\"ts_ms\":1741869368000,\"snapshot\":\"false\"},"
-                + "\"ts_ms\":1741869368365,"
-                + "\"ns\":{\"db\":\"testDB\",\"coll\":\"" + newTableName + "\"},"
-                + "\"to\":null,"
-                + "\"documentKey\":\"{\\\"_id\\\": {\\\"$oid\\\": \\\"67d2d13807fe0c4336070cfd\\\"}}\","
-                + "\"updateDescription\":null,"
-                + "\"clusterTime\":\"{\\\"$timestamp\\\": {\\\"t\\\": 1741869368, \\\"i\\\": 2}}\","
-                + "\"txnNumber\":null,"
-                + "\"lsid\":null"
-                + "}";
+        String record =
+                "{"
+                        + "\"_id\":\"{\\\"_id\\\": {\\\"_id\\\": {\\\"$oid\\\": \\\"67d2d13807fe0c4336070cfd\\\"}}}\","
+                        + "\"operationType\":\"insert\","
+                        + "\"fullDocument\":\"{\\\"_id\\\": {\\\"$oid\\\": \\\"67d2d13807fe0c4336070cfd\\\"}, \\\"name\\\": \\\"John Doe\\\", \\\"age\\\": 30, \\\"city\\\": \\\"New York\\\"}\","
+                        + "\"fullDocumentBeforeChange\":null,"
+                        + "\"source\":{\"ts_ms\":1741869368000,\"snapshot\":\"false\"},"
+                        + "\"ts_ms\":1741869368365,"
+                        + "\"ns\":{\"db\":\"testDB\",\"coll\":\""
+                        + newTableName
+                        + "\"},"
+                        + "\"to\":null,"
+                        + "\"documentKey\":\"{\\\"_id\\\": {\\\"$oid\\\": \\\"67d2d13807fe0c4336070cfd\\\"}}\","
+                        + "\"updateDescription\":null,"
+                        + "\"clusterTime\":\"{\\\"$timestamp\\\": {\\\"t\\\": 1741869368, \\\"i\\\": 2}}\","
+                        + "\"txnNumber\":null,"
+                        + "\"lsid\":null"
+                        + "}";
 
         JsonNode recordRoot = objectMapper.readTree(record);
         // 执行schemaChange
         boolean result = schemaChange.schemaChange(recordRoot);
         System.out.println(tableMapping);
-        Assert.assertTrue( tableMapping.containsValue(dbName + "." + new TableNameConverter(prefix, suffix).convert(newTableName)));
+        Assert.assertTrue(
+                tableMapping.containsValue(
+                        dbName
+                                + "."
+                                + new TableNameConverter(prefix, suffix).convert(newTableName)));
 
         // 验证结果
         Assert.assertTrue(result);
     }
-
 }

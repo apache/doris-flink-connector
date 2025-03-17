@@ -28,7 +28,6 @@ import org.apache.doris.flink.catalog.doris.DorisSystem;
 import org.apache.doris.flink.catalog.doris.FieldSchema;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.exception.DorisRuntimeException;
-import org.apache.doris.flink.exception.DorisSystemException;
 import org.apache.doris.flink.exception.IllegalArgumentException;
 import org.apache.doris.flink.sink.schema.SchemaChangeManager;
 import org.apache.doris.flink.sink.writer.serializer.jsondebezium.CdcSchemaChange;
@@ -43,9 +42,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.sql.SQLSyntaxErrorException;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -159,7 +156,6 @@ public class MongoJsonDebeziumSchemaChange extends CdcSchemaChange {
         }
     }
 
-
     private void formatSpecialFieldData(JsonNode logData) {
         logData.fieldNames()
                 .forEachRemaining(
@@ -208,7 +204,6 @@ public class MongoJsonDebeziumSchemaChange extends CdcSchemaChange {
     public Map<String, Object> extractAfterRow(JsonNode recordRoot) {
         return JsonNodeExtractUtil.extractAfterRow(recordRoot, objectMapper);
     }
-
 
     private void checkAndUpdateSchemaChange(
             JsonNode logData, String dorisTableIdentifier, String database, String table) {

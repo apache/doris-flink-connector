@@ -475,7 +475,6 @@ public abstract class DatabaseSync {
         }
     }
 
-
     protected Properties getJdbcProperties() {
         Properties jdbcProps = new Properties();
         for (Map.Entry<String, String> entry : config.toMap().entrySet()) {
