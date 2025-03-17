@@ -172,7 +172,7 @@ public class DorisSinkMultiTblFailoverITCase extends AbstractITCaseService {
                     getDorisQueryConnection(), LOG, expected, queryRes, 2, false);
         } else {
             List<String> actualResult =
-                    ContainerUtils.getResult(getDorisQueryConnection(), LOG, expected, queryRes, 3);
+                    ContainerUtils.getResult(getDorisQueryConnection(), LOG, expected, queryRes, 2);
             LOG.info("actual size: {}, expected size: {}", actualResult.size(), expected.size());
             Assert.assertTrue(
                     actualResult.size() >= expected.size() && actualResult.containsAll(expected));
