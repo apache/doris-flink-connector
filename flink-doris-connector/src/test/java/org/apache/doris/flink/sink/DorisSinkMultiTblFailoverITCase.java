@@ -77,6 +77,7 @@ public class DorisSinkMultiTblFailoverITCase extends AbstractITCaseService {
     @Test
     public void testTableNotExistCornerCase() throws Exception {
         LOG.info("Start to testTableNotExistCornerCase");
+        dropDatabase();
         dropTable(TABLE_MULTI_CSV_NO_EXIST_TBL);
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.getCheckpointConfig().setCheckpointTimeout(300 * 1000);
@@ -384,5 +385,12 @@ public class DorisSinkMultiTblFailoverITCase extends AbstractITCaseService {
                 getDorisQueryConnection(),
                 LOG,
                 String.format("DROP TABLE IF EXISTS %s.%s", DATABASE, table));
+    }
+
+    private void dropDatabase(){
+        ContainerUtils.executeSQLStatement(
+                getDorisQueryConnection(),
+                LOG,
+                String.format("CREATE DATABASE IF NOT EXISTS %s", DATABASE));
     }
 }
