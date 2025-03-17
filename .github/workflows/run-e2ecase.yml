@@ -20,13 +20,12 @@ name: Run E2ECases
 on:
   pull_request:
   push:
-    branches:
-      - master
 
 jobs:
   build-extension:
     name: "Run E2ECases"
     runs-on: ubuntu-latest
+    if: ${{ !(github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) }}
     env:
       TZ: Asia/Shanghai
     defaults:
