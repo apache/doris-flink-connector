@@ -23,8 +23,9 @@ on:
 
 jobs:
   build-extension:
-    name: "Build Connector (Flink ${{ matrix.flink-version }})"
+    name: "Build Connector"
     runs-on: ubuntu-latest
+    if: ${{ !(github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) }}
     strategy:
       matrix:
         flink-version: ['1.15', '1.16', '1.17', '1.18', '1.19', '1.20']
