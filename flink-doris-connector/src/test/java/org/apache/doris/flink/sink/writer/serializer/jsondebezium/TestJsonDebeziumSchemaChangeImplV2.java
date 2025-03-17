@@ -106,7 +106,8 @@ public class TestJsonDebeziumSchemaChangeImplV2 extends TestJsonDebeziumChangeBa
                         "ods_",
                         "_dt",
                         true,
-                        new TableNameConverter("ods_", "_dt"));
+                        new TableNameConverter("ods_", "_dt"),
+                        true);
         schemaChangeWithConvert = new JsonDebeziumSchemaChangeImplV2(convertContext);
     }
 
