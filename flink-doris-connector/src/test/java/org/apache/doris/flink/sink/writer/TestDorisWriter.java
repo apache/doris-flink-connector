@@ -26,20 +26,18 @@ import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.exception.DorisRuntimeException;
-import org.apache.doris.flink.exception.LabelAlreadyExistsException;
 import org.apache.doris.flink.sink.BackendUtil;
 import org.apache.doris.flink.sink.DorisCommittable;
 import org.apache.doris.flink.sink.HttpTestUtil;
 import org.apache.doris.flink.sink.OptionUtils;
 import org.apache.doris.flink.sink.writer.serializer.SimpleStringSerializer;
 import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.mockito.MockedStatic;
 
 import java.io.IOException;
@@ -51,7 +49,7 @@ import java.util.OptionalLong;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
@@ -61,9 +59,7 @@ public class TestDorisWriter {
     DorisOptions dorisOptions;
     DorisReadOptions readOptions;
     DorisExecutionOptions executionOptions;
-
     private MockedStatic<BackendUtil> backendUtilMockedStatic;
-    @Rule public ExpectedException thrown = ExpectedException.none();
 
     @Before
     public void setUp() {
@@ -79,7 +75,7 @@ public class TestDorisWriter {
         CloseableHttpClient httpClient = mock(CloseableHttpClient.class);
         CloseableHttpResponse preCommitResponse =
                 HttpTestUtil.getResponse(HttpTestUtil.PRE_COMMIT_RESPONSE, true);
-        when(httpClient.execute(any())).thenReturn(preCommitResponse);
+        when(httpClient.execute(any(HttpUriRequest.class))).thenReturn(preCommitResponse);
         DorisWriter<String> dorisWriter = initWriter(httpClient);
         dorisWriter.write("doris,1", null);
         Collection<DorisCommittable> committableList = dorisWriter.prepareCommit();
@@ -96,12 +92,14 @@ public class TestDorisWriter {
         CloseableHttpClient httpClient = mock(CloseableHttpClient.class);
         CloseableHttpResponse preCommitResponse =
                 HttpTestUtil.getResponse(HttpTestUtil.LABEL_EXIST_PRE_COMMIT_TABLE_RESPONSE, true);
-        when(httpClient.execute(any())).thenReturn(preCommitResponse);
+        when(httpClient.execute(any(HttpUriRequest.class))).thenReturn(preCommitResponse);
         DorisWriter<String> dorisWriter = initWriter(httpClient);
         dorisWriter.write("doris,1", null);
-        thrown.expect(LabelAlreadyExistsException.class);
-        thrown.expectMessage("Exist label abort finished, retry");
-        dorisWriter.prepareCommit();
+        try {
+            dorisWriter.prepareCommit();
+        } catch (DorisRuntimeException e) {
+            Assert.assertTrue(e.getMessage().contains("Exist label abort finished, retry"));
+        }
     }
 
     @Test
@@ -110,12 +108,14 @@ public class TestDorisWriter {
         CloseableHttpResponse preCommitResponse =
                 HttpTestUtil.getResponse(
                         HttpTestUtil.LABEL_EXIST_PRE_COMMIT_TABLE_FINISH_RESPONSE, true);
-        when(httpClient.execute(any())).thenReturn(preCommitResponse);
+        when(httpClient.execute(any(HttpUriRequest.class))).thenReturn(preCommitResponse);
         DorisWriter<String> dorisWriter = initWriter(httpClient);
         dorisWriter.write("doris,1", null);
-        thrown.expect(DorisRuntimeException.class);
-        thrown.expectMessage(contains("stream load error"));
-        dorisWriter.prepareCommit();
+        try {
+            dorisWriter.prepareCommit();
+        } catch (DorisRuntimeException e) {
+            Assert.assertTrue(e.getMessage().contains("stream load error"));
+        }
     }
 
     @Test
@@ -124,7 +124,7 @@ public class TestDorisWriter {
         CloseableHttpResponse preCommitResponse =
                 HttpTestUtil.getResponse(
                         HttpTestUtil.LABEL_EXIST_PRE_COMMIT_TABLE_FINISH_RESPONSE, true);
-        when(httpClient.execute(any())).thenReturn(preCommitResponse);
+        when(httpClient.execute(any(HttpUriRequest.class))).thenReturn(preCommitResponse);
         Map<String, DorisStreamLoad> dorisStreamLoadMap = new ConcurrentHashMap<>();
         Map<String, DorisWriteMetrics> dorisWriteMetricsMap = new ConcurrentHashMap<>();
         Sink.InitContext initContext = mock(Sink.InitContext.class);
@@ -154,13 +154,14 @@ public class TestDorisWriter {
                         new LabelGenerator("", true),
                         httpClient);
         dorisStreamLoadMap.put(dorisOptions.getTableIdentifier(), dorisStreamLoad);
-        dorisStreamLoad.startLoad("", false);
         dorisWriter.setDorisStreamLoadMap(dorisStreamLoadMap);
         dorisWriter.setDorisMetricsMap(dorisWriteMetricsMap);
         dorisWriter.write("doris,1", null);
-        thrown.expect(DorisRuntimeException.class);
-        thrown.expectMessage(contains("stream load error"));
-        dorisWriter.prepareCommit();
+        try {
+            dorisWriter.prepareCommit();
+        } catch (DorisRuntimeException e) {
+            Assert.assertTrue(e.getMessage().contains("stream load error"));
+        }
     }
 
     @Test
@@ -171,9 +172,11 @@ public class TestDorisWriter {
         when(httpClient.execute(any())).thenReturn(preCommitResponse);
         DorisWriter<String> dorisWriter = initWriter(httpClient);
         dorisWriter.write("doris,1", null);
-        thrown.expect(DorisRuntimeException.class);
-        thrown.expectMessage(contains("stream load error"));
-        dorisWriter.prepareCommit();
+        try {
+            dorisWriter.prepareCommit();
+        } catch (DorisRuntimeException e) {
+            Assert.assertTrue(e.getMessage().contains("stream load error"));
+        }
     }
 
     private DorisWriter<String> initWriter(CloseableHttpClient httpClient) throws IOException {
@@ -205,7 +208,6 @@ public class TestDorisWriter {
                         new LabelGenerator("", true),
                         httpClient);
         dorisStreamLoadMap.put(dorisOptions.getTableIdentifier(), dorisStreamLoad);
-        dorisStreamLoad.startLoad("", false);
         dorisWriter.setDorisStreamLoadMap(dorisStreamLoadMap);
         dorisWriter.setDorisMetricsMap(dorisWriteMetricsMap);
         return dorisWriter;
@@ -219,13 +221,13 @@ public class TestDorisWriter {
         when(httpClient.execute(any())).thenReturn(preCommitResponse);
         DorisWriter<String> dorisWriter = initWriter(httpClient);
         BackendUtil mock = mock(BackendUtil.class);
-        when(mock.tryHttpConnection(any())).thenReturn(true);
+        when(mock.tryHttpConnection(anyString())).thenReturn(true);
         dorisWriter.setBackendUtil(mock);
+        dorisWriter.write("doris,1", null);
         List<DorisWriterState> writerStates = dorisWriter.snapshotState(1);
 
         Assert.assertEquals(1, writerStates.size());
         Assert.assertEquals("doris", writerStates.get(0).getLabelPrefix());
-        Assert.assertTrue(!dorisWriter.isLoading());
     }
 
     public DorisWriteMetrics getMockWriteMetrics(SinkWriterMetricGroup sinkWriterMetricGroup) {

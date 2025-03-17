@@ -64,25 +64,21 @@ public class RecordBuffer {
         }
     }
 
-    public void stopBufferData() throws IOException {
-        try {
-            // add Empty buffer as finish flag.
-            boolean isEmpty = false;
-            if (currentWriteBuffer != null) {
-                currentWriteBuffer.flip();
-                // check if the current write buffer is empty.
-                isEmpty = currentWriteBuffer.limit() == 0;
-                readQueue.put(currentWriteBuffer);
-                currentWriteBuffer = null;
-            }
-            if (!isEmpty) {
-                ByteBuffer byteBuffer = writeQueue.take();
-                byteBuffer.flip();
-                Preconditions.checkState(byteBuffer.limit() == 0);
-                readQueue.put(byteBuffer);
-            }
-        } catch (Exception e) {
-            throw new IOException(e);
+    public void stopBufferData() throws InterruptedException {
+        // add Empty buffer as finish flag.
+        boolean isEmpty = false;
+        if (currentWriteBuffer != null) {
+            currentWriteBuffer.flip();
+            // check if the current write buffer is empty.
+            isEmpty = currentWriteBuffer.limit() == 0;
+            readQueue.put(currentWriteBuffer);
+            currentWriteBuffer = null;
+        }
+        if (!isEmpty) {
+            ByteBuffer byteBuffer = writeQueue.take();
+            byteBuffer.flip();
+            Preconditions.checkState(byteBuffer.limit() == 0);
+            readQueue.put(byteBuffer);
         }
     }
 

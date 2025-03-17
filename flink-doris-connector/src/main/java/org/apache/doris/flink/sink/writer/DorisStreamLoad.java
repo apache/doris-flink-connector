@@ -28,10 +28,12 @@ import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.exception.DorisException;
 import org.apache.doris.flink.exception.DorisRuntimeException;
+import org.apache.doris.flink.exception.LabelAlreadyExistsException;
 import org.apache.doris.flink.exception.StreamLoadException;
 import org.apache.doris.flink.rest.models.RespContent;
 import org.apache.doris.flink.sink.EscapeHandler;
 import org.apache.doris.flink.sink.HttpPutBuilder;
+import org.apache.doris.flink.sink.LoadStatus;
 import org.apache.doris.flink.sink.ResponseUtil;
 import org.apache.http.client.entity.GzipCompressingEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -47,6 +49,7 @@ import java.net.NoRouteToHostException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -61,6 +64,7 @@ import static org.apache.doris.flink.sink.writer.LoadConstants.ARROW;
 import static org.apache.doris.flink.sink.writer.LoadConstants.COMPRESS_TYPE;
 import static org.apache.doris.flink.sink.writer.LoadConstants.COMPRESS_TYPE_GZ;
 import static org.apache.doris.flink.sink.writer.LoadConstants.CSV;
+import static org.apache.doris.flink.sink.writer.LoadConstants.DORIS_SUCCESS_STATUS;
 import static org.apache.doris.flink.sink.writer.LoadConstants.FORMAT_KEY;
 import static org.apache.doris.flink.sink.writer.LoadConstants.GROUP_COMMIT;
 import static org.apache.doris.flink.sink.writer.LoadConstants.GROUP_COMMIT_OFF_MODE;
@@ -88,7 +92,7 @@ public class DorisStreamLoad implements Serializable {
     private final boolean enableDelete;
     private final Properties streamLoadProp;
     private final RecordStream recordStream;
-    private volatile Future<CloseableHttpResponse> pendingLoadFuture;
+    private volatile Future<RespContent> pendingLoadFuture;
     private volatile Exception httpException = null;
     private final CloseableHttpClient httpClient;
     private final ExecutorService executorService;
@@ -175,7 +179,7 @@ public class DorisStreamLoad implements Serializable {
         this.abortUrlStr = String.format(ABORT_URL_PATTERN, hostPort, db);
     }
 
-    public Future<CloseableHttpResponse> getPendingLoadFuture() {
+    public Future<RespContent> getPendingLoadFuture() {
         return pendingLoadFuture;
     }
 
@@ -254,19 +258,29 @@ public class DorisStreamLoad implements Serializable {
      * @param record
      * @throws IOException
      */
-    public void writeRecord(byte[] record) throws IOException {
+    public void writeRecord(byte[] record) throws InterruptedException {
         checkLoadException();
-        if (loadBatchFirstRecord) {
-            loadBatchFirstRecord = false;
-        } else if (lineDelimiter != null) {
-            recordStream.write(lineDelimiter);
+        try {
+            if (loadBatchFirstRecord) {
+                loadBatchFirstRecord = false;
+            } else if (lineDelimiter != null) {
+                recordStream.write(lineDelimiter);
+            }
+            recordStream.write(record);
+        } catch (InterruptedException e) {
+            if (httpException != null) {
+                throw new DorisRuntimeException(httpException.getMessage(), httpException);
+            } else {
+                LOG.info("write record interrupted, cause " + e.getClass());
+                throw e;
+            }
         }
-        recordStream.write(record);
     }
 
     private void checkLoadException() {
         if (httpException != null) {
-            throw new RuntimeException("Stream load http request error, ", httpException);
+            throw new RuntimeException(
+                    "Stream load http request error, " + httpException.getMessage(), httpException);
         }
     }
 
@@ -292,26 +306,31 @@ public class DorisStreamLoad implements Serializable {
         throw new StreamLoadException("stream load error: " + response.getStatusLine().toString());
     }
 
-    public RespContent stopLoad() throws IOException {
-        recordStream.endInput();
-        if (enableGroupCommit) {
-            LOG.info("table {} stream load stopped with group commit on host {}", table, hostPort);
-        } else {
-            LOG.info(
-                    "table {} stream load stopped for {} on host {}",
-                    table,
-                    currentLabel,
-                    hostPort);
-        }
-
-        Preconditions.checkState(pendingLoadFuture != null);
+    public RespContent stopLoad() throws InterruptedException {
         try {
-            return handlePreCommitResponse(pendingLoadFuture.get());
-        } catch (NoRouteToHostException nex) {
-            LOG.error("Failed to connect, cause ", nex);
-            throw new DorisRuntimeException(
-                    "No Route to Host to " + hostPort + ", exception: " + nex);
-        } catch (Exception e) {
+            recordStream.endInput();
+            if (enableGroupCommit) {
+                LOG.info(
+                        "table {} stream load stopped with group commit on host {}",
+                        table,
+                        hostPort);
+            } else {
+                LOG.info(
+                        "table {} stream load stopped for {} on host {}",
+                        table,
+                        currentLabel,
+                        hostPort);
+            }
+
+            Preconditions.checkState(pendingLoadFuture != null);
+            return pendingLoadFuture.get();
+        } catch (InterruptedException e) {
+            if (httpException != null) {
+                throw new DorisRuntimeException(httpException.getMessage(), httpException);
+            } else {
+                throw e;
+            }
+        } catch (ExecutionException e) {
             throw new DorisRuntimeException(e);
         }
     }
@@ -365,7 +384,46 @@ public class DorisStreamLoad implements Serializable {
                             () -> {
                                 LOG.info(executeMessage);
                                 try {
-                                    return httpClient.execute(putBuilder.build());
+                                    CloseableHttpResponse execute =
+                                            httpClient.execute(putBuilder.build());
+                                    RespContent respContent = handlePreCommitResponse(execute);
+
+                                    if (!DORIS_SUCCESS_STATUS.contains(respContent.getStatus())) {
+                                        if (enable2PC
+                                                && LoadStatus.LABEL_ALREADY_EXIST.equals(
+                                                        respContent.getStatus())
+                                                && !JOB_EXIST_FINISHED.equals(
+                                                        respContent.getExistingJobStatus())) {
+                                            LOG.info(
+                                                    "try to abort {} cause status {}, exist job status {} ",
+                                                    respContent.getLabel(),
+                                                    respContent.getStatus(),
+                                                    respContent.getExistingJobStatus());
+                                            abortLabelExistTransaction(respContent);
+                                            throw new LabelAlreadyExistsException(
+                                                    "Exist label abort finished, retry");
+                                        } else {
+                                            String errMsg =
+                                                    String.format(
+                                                            "table %s.%s stream load error: %s, see more in %s",
+                                                            getDb(),
+                                                            getTable(),
+                                                            respContent.getMessage(),
+                                                            respContent.getErrorURL());
+                                            LOG.error("Failed to load, {}", errMsg);
+                                            throw new DorisRuntimeException(errMsg);
+                                        }
+                                    }
+                                    return respContent;
+                                } catch (NoRouteToHostException nex) {
+                                    LOG.error("Failed to connect, cause ", nex);
+                                    httpException = nex;
+                                    mainThread.interrupt();
+                                    throw new DorisRuntimeException(
+                                            "No Route to Host to "
+                                                    + hostPort
+                                                    + ", exception: "
+                                                    + nex);
                                 } catch (Exception e) {
                                     LOG.error("Failed to execute load, cause ", e);
                                     httpException = e;

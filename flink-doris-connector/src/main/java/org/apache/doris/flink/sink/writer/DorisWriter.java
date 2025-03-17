@@ -27,7 +27,6 @@ import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.exception.DorisRuntimeException;
-import org.apache.doris.flink.exception.LabelAlreadyExistsException;
 import org.apache.doris.flink.exception.StreamLoadException;
 import org.apache.doris.flink.rest.models.RespContent;
 import org.apache.doris.flink.sink.BackendUtil;
@@ -41,7 +40,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -49,12 +47,6 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.ReentrantLock;
-
-import static org.apache.doris.flink.sink.LoadStatus.PUBLISH_TIMEOUT;
-import static org.apache.doris.flink.sink.LoadStatus.SUCCESS;
-import static org.apache.doris.flink.sink.writer.DorisStreamLoad.JOB_EXIST_FINISHED;
 
 /**
  * Doris Writer will load data to doris.
@@ -64,8 +56,6 @@ import static org.apache.doris.flink.sink.writer.DorisStreamLoad.JOB_EXIST_FINIS
 public class DorisWriter<IN>
         implements DorisAbstractWriter<IN, DorisWriterState, DorisCommittable> {
     private static final Logger LOG = LoggerFactory.getLogger(DorisWriter.class);
-    private static final List<String> DORIS_SUCCESS_STATUS =
-            new ArrayList<>(Arrays.asList(SUCCESS, PUBLISH_TIMEOUT));
     private final long lastCheckpointId;
     private long curCheckpointId;
     private Map<String, DorisStreamLoad> dorisStreamLoadMap = new ConcurrentHashMap<>();
@@ -86,7 +76,6 @@ public class DorisWriter<IN>
     private SinkWriterMetricGroup sinkMetricGroup;
     private Map<String, DorisWriteMetrics> sinkMetricsMap = new ConcurrentHashMap<>();
     private volatile boolean multiTableLoad = false;
-    private final ReentrantLock checkLock = new ReentrantLock();
 
     public DorisWriter(
             Sink.InitContext initContext,
@@ -139,13 +128,6 @@ public class DorisWriter<IN>
         }
         // get main work thread.
         executorThread = Thread.currentThread();
-        if (intervalTime >= 1000) {
-            // when uploading data in streaming mode, we need to regularly detect whether there are
-            // exceptions.
-            LOG.info("start stream load checkdone thread with interval {} ms", intervalTime);
-            scheduledExecutorService.scheduleWithFixedDelay(
-                    this::checkDone, 200, intervalTime, TimeUnit.MILLISECONDS);
-        }
     }
 
     @VisibleForTesting
@@ -242,59 +224,32 @@ public class DorisWriter<IN>
         }
         // disable exception checker before stop load.
         globalLoading = false;
-        checkLock.lockInterruptibly();
-        try {
-            // submit stream load http request
-            List<DorisCommittable> committableList = new ArrayList<>();
-            for (Map.Entry<String, DorisStreamLoad> streamLoader : dorisStreamLoadMap.entrySet()) {
-                String tableIdentifier = streamLoader.getKey();
-                if (!loadingMap.getOrDefault(tableIdentifier, false)) {
-                    LOG.debug("skip table {}, no data need to load.", tableIdentifier);
-                    continue;
-                }
-                DorisStreamLoad dorisStreamLoad = streamLoader.getValue();
-                RespContent respContent = dorisStreamLoad.stopLoad();
-                // refresh metrics
-                if (sinkMetricsMap.containsKey(tableIdentifier)) {
-                    DorisWriteMetrics dorisWriteMetrics = sinkMetricsMap.get(tableIdentifier);
-                    dorisWriteMetrics.flush(respContent);
-                }
-                if (!DORIS_SUCCESS_STATUS.contains(respContent.getStatus())) {
-                    if (executionOptions.enabled2PC()
-                            && LoadStatus.LABEL_ALREADY_EXIST.equals(respContent.getStatus())
-                            && !JOB_EXIST_FINISHED.equals(respContent.getExistingJobStatus())) {
-                        LOG.info(
-                                "try to abort {} cause status {}, exist job status {} ",
-                                respContent.getLabel(),
-                                respContent.getStatus(),
-                                respContent.getExistingJobStatus());
-                        dorisStreamLoad.abortLabelExistTransaction(respContent);
-                        throw new LabelAlreadyExistsException("Exist label abort finished, retry");
-                    } else {
-                        String errMsg =
-                                String.format(
-                                        "table %s stream load error: %s, see more in %s",
-                                        tableIdentifier,
-                                        respContent.getMessage(),
-                                        respContent.getErrorURL());
-                        LOG.error("Failed to load, {}", errMsg);
-                        throw new DorisRuntimeException(errMsg);
-                    }
-                }
-                if (executionOptions.enabled2PC()) {
-                    long txnId = respContent.getTxnId();
-                    committableList.add(
-                            new DorisCommittable(
-                                    dorisStreamLoad.getHostPort(), dorisStreamLoad.getDb(), txnId));
-                }
+        // submit stream load http request
+        List<DorisCommittable> committableList = new ArrayList<>();
+        for (Map.Entry<String, DorisStreamLoad> streamLoader : dorisStreamLoadMap.entrySet()) {
+            String tableIdentifier = streamLoader.getKey();
+            if (!loadingMap.getOrDefault(tableIdentifier, false)) {
+                LOG.debug("skip table {}, no data need to load.", tableIdentifier);
+                continue;
             }
-
-            // clean loadingMap
-            loadingMap.clear();
-            return committableList;
-        } finally {
-            checkLock.unlock();
+            DorisStreamLoad dorisStreamLoad = streamLoader.getValue();
+            RespContent respContent = dorisStreamLoad.stopLoad();
+            // refresh metrics
+            if (sinkMetricsMap.containsKey(tableIdentifier)) {
+                DorisWriteMetrics dorisWriteMetrics = sinkMetricsMap.get(tableIdentifier);
+                dorisWriteMetrics.flush(respContent);
+            }
+            if (executionOptions.enabled2PC()) {
+                long txnId = respContent.getTxnId();
+                committableList.add(
+                        new DorisCommittable(
+                                dorisStreamLoad.getHostPort(), dorisStreamLoad.getDb(), txnId));
+            }
         }
+
+        // clean loadingMap
+        loadingMap.clear();
+        return committableList;
     }
 
     private void abortPossibleSuccessfulTransaction() {
@@ -358,25 +313,15 @@ public class DorisWriter<IN>
                                 new HttpUtil(dorisReadOptions).getHttpClient()));
     }
 
-    /** Check the streamload http request regularly. */
+    /** Http throws an exception actively, there is no need to check regularly. */
+    @Deprecated
     private void checkDone() {
         if (!globalLoading) {
             return;
         }
         LOG.debug("start timer checker, interval {} ms", intervalTime);
-        if (checkLock.tryLock()) {
-            try {
-                // double check
-                if (!globalLoading) {
-                    return;
-                }
-                for (Map.Entry<String, DorisStreamLoad> streamLoadMap :
-                        dorisStreamLoadMap.entrySet()) {
-                    checkAllDone(streamLoadMap.getKey(), streamLoadMap.getValue());
-                }
-            } finally {
-                checkLock.unlock();
-            }
+        for (Map.Entry<String, DorisStreamLoad> streamLoadMap : dorisStreamLoadMap.entrySet()) {
+            checkAllDone(streamLoadMap.getKey(), streamLoadMap.getValue());
         }
     }
 
@@ -401,6 +346,7 @@ public class DorisWriter<IN>
                 // use send cached data to new txn, then notify to restart the stream
                 if (executionOptions.isUseCache()) {
                     try {
+
                         dorisStreamLoad.setHostPort(backendUtil.getAvailableBackend(subtaskId));
                         if (executionOptions.enabled2PC()) {
                             dorisStreamLoad.abortPreCommit(labelPrefix, curCheckpointId);
@@ -419,9 +365,7 @@ public class DorisWriter<IN>
                 } else {
                     String errorMsg;
                     try {
-                        RespContent content =
-                                dorisStreamLoad.handlePreCommitResponse(
-                                        dorisStreamLoad.getPendingLoadFuture().get());
+                        RespContent content = dorisStreamLoad.getPendingLoadFuture().get();
                         if (executionOptions.enabled2PC()
                                 && LoadStatus.LABEL_ALREADY_EXIST.equals(content.getStatus())) {
                             LOG.info(

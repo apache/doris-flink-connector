@@ -22,6 +22,7 @@ import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.source.SourceFunction;
 
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
@@ -48,6 +49,7 @@ import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
+import static org.apache.flink.api.common.JobStatus.FINISHED;
 import static org.apache.flink.api.common.JobStatus.RUNNING;
 
 /** DorisSink abnormal case of multi-table writing */
@@ -57,6 +59,7 @@ public class DorisSinkMultiTblFailoverITCase extends AbstractITCaseService {
             LoggerFactory.getLogger(DorisSinkMultiTblFailoverITCase.class);
     static final String DATABASE = "test_multi_failover_sink";
     static final String TABLE_MULTI_CSV = "tbl_multi_csv";
+    static final String TABLE_MULTI_CSV_NO_EXIST_TBL = "tbl_multi_csv_no_exist";
     private final boolean batchMode;
 
     public DorisSinkMultiTblFailoverITCase(boolean batchMode) {
@@ -69,11 +72,119 @@ public class DorisSinkMultiTblFailoverITCase extends AbstractITCaseService {
     }
 
     /**
+     * In an extreme case, during a checkpoint, a piece of data written is bufferCount*bufferSize
+     */
+    @Test
+    public void testTableNotExistCornerCase() throws Exception {
+        LOG.info("Start to testTableNotExistCornerCase");
+        dropTable(TABLE_MULTI_CSV_NO_EXIST_TBL);
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.getCheckpointConfig().setCheckpointTimeout(300 * 1000);
+        env.setParallelism(1);
+        int checkpointIntervalMs = 10000;
+        env.enableCheckpointing(checkpointIntervalMs);
+
+        Properties properties = new Properties();
+        properties.setProperty("column_separator", ",");
+        properties.setProperty("format", "csv");
+        DorisSink.Builder<RecordWithMeta> builder = DorisSink.builder();
+        DorisExecutionOptions.Builder executionBuilder = DorisExecutionOptions.builder();
+        executionBuilder
+                .setLabelPrefix(UUID.randomUUID().toString())
+                .enable2PC()
+                .setBatchMode(batchMode)
+                .setFlushQueueSize(1)
+                .setBufferSize(1)
+                .setBufferCount(3)
+                .setCheckInterval(0)
+                .setStreamLoadProp(properties);
+        DorisOptions.Builder dorisBuilder = DorisOptions.builder();
+        dorisBuilder
+                .setFenodes(getFenodes())
+                .setTableIdentifier("")
+                .setUsername(getDorisUsername())
+                .setPassword(getDorisPassword());
+
+        builder.setDorisReadOptions(DorisReadOptions.builder().build())
+                .setDorisExecutionOptions(executionBuilder.build())
+                .setSerializer(new RecordWithMetaSerializer())
+                .setDorisOptions(dorisBuilder.build());
+
+        DataStreamSource<RecordWithMeta> mockSource =
+                env.addSource(
+                        new SourceFunction<RecordWithMeta>() {
+                            @Override
+                            public void run(SourceContext<RecordWithMeta> ctx) throws Exception {
+                                RecordWithMeta record3 =
+                                        new RecordWithMeta(
+                                                DATABASE, TABLE_MULTI_CSV_NO_EXIST_TBL, "1,3");
+                                ctx.collect(record3);
+                            }
+
+                            @Override
+                            public void cancel() {}
+                        });
+
+        mockSource.sinkTo(builder.build());
+        JobClient jobClient = env.executeAsync();
+        CompletableFuture<JobStatus> jobStatus = jobClient.getJobStatus();
+        LOG.info("Job status: {}", jobStatus);
+
+        waitForJobStatus(
+                jobClient,
+                Collections.singletonList(RUNNING),
+                Deadline.fromNow(Duration.ofSeconds(60)));
+        // wait checkpoint failure
+        List<JobStatus> errorStatus =
+                Arrays.asList(
+                        JobStatus.FAILING,
+                        JobStatus.CANCELLING,
+                        JobStatus.CANCELED,
+                        JobStatus.FAILED,
+                        JobStatus.RESTARTING);
+
+        waitForJobStatus(jobClient, errorStatus, Deadline.fromNow(Duration.ofSeconds(30)));
+
+        LOG.info("start to create add table");
+        initializeTable(TABLE_MULTI_CSV_NO_EXIST_TBL);
+
+        LOG.info("wait job restart success");
+        // wait table restart success
+        waitForJobStatus(
+                jobClient,
+                Collections.singletonList(RUNNING),
+                Deadline.fromNow(Duration.ofSeconds(60)));
+
+        LOG.info("wait job running finished");
+        waitForJobStatus(
+                jobClient,
+                Collections.singletonList(FINISHED),
+                Deadline.fromNow(Duration.ofSeconds(60)));
+
+        String queryRes =
+                String.format(
+                        "select id,task_id from %s.%s ", DATABASE, TABLE_MULTI_CSV_NO_EXIST_TBL);
+        List<String> expected = Arrays.asList("1,3");
+
+        if (!batchMode) {
+            ContainerUtils.checkResult(
+                    getDorisQueryConnection(), LOG, expected, queryRes, 2, false);
+        } else {
+            List<String> actualResult =
+                    ContainerUtils.getResult(getDorisQueryConnection(), LOG, expected, queryRes, 3);
+            LOG.info("actual size: {}, expected size: {}", actualResult.size(), expected.size());
+            Assert.assertTrue(
+                    actualResult.size() >= expected.size() && actualResult.containsAll(expected));
+        }
+    }
+
+    /**
      * Four exceptions are simulated in one job 1. Add a table that does not exist 2. flink
      * checkpoint failed 3. doris cluster restart 4. stream load fail
      */
     @Test
-    public void testDorisClusterFailoverSink() throws Exception {
+    public void testMultiTblFailoverSink() throws Exception {
+        LOG.info("Start to testMultiTblFailoverSink");
         int totalTblNum = 3;
         for (int i = 1; i <= totalTblNum; i++) {
             String tableName = TABLE_MULTI_CSV + i;
