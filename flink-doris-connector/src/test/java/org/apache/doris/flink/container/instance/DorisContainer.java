@@ -148,6 +148,8 @@ public class DorisContainer implements ContainerService {
                         .restartContainerCmd(dorisContainer.getContainerId())) {
             restartCmd.exec();
             LOG.info("Restart command executed, waiting for container services to be ready");
+            // Add service detection logic to ensure Doris container services are fully initialized
+            // and ready.
             waitForContainerRunning();
         } catch (Exception e) {
             LOG.error("Failed to restart Doris container", e);
@@ -205,11 +207,16 @@ public class DorisContainer implements ContainerService {
                                                     "%{http_code}",
                                                     "-m",
                                                     "2",
-                                                    "http://localhost:8030");
+                                                    "http://localhost:" + FE.HTTP_PORT);
                                     boolean ready = result.getStdout().equals("200");
-                                    LOG.info("FE HTTP service on port 8030 is ready: {}", ready);
+                                    LOG.info(
+                                            "FE HTTP service on port {} is ready: {}",
+                                            FE.HTTP_PORT,
+                                            ready);
                                     if (ready) {
-                                        LOG.info("FE HTTP service on port 8030 is ready");
+                                        LOG.info(
+                                                "FE HTTP service on port {} is ready",
+                                                FE.HTTP_PORT);
                                     }
                                     return ready;
                                 } catch (Exception e) {
@@ -236,13 +243,16 @@ public class DorisContainer implements ContainerService {
                                                     "%{http_code}",
                                                     "-m",
                                                     "2",
-                                                    "http://localhost:8040");
+                                                    "http://localhost:" + BE.WEBSERVICE_PORT);
                                     boolean ready = "200".equals(result.getStdout().trim());
                                     if (ready) {
-                                        LOG.info("BE HTTP service on port 8040 is ready");
+                                        LOG.info(
+                                                "BE HTTP service on port {} is ready",
+                                                BE.WEBSERVICE_PORT);
                                     } else {
                                         LOG.debug(
-                                                "BE HTTP service on port 8040 not ready yet, HTTP status: {}",
+                                                "BE HTTP service on port {} not ready yet, HTTP status: {}",
+                                                BE.WEBSERVICE_PORT,
                                                 result.getStdout().trim());
                                     }
                                     return ready;
