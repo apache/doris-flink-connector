@@ -46,7 +46,6 @@ import org.apache.arrow.vector.complex.impl.UnionMapReader;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.ipc.ArrowReader;
 import org.apache.arrow.vector.ipc.ArrowStreamReader;
-import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.Types.MinorType;
 import org.apache.doris.flink.exception.DorisException;
 import org.apache.doris.flink.exception.DorisRuntimeException;
@@ -178,7 +177,7 @@ public class RowBatch {
                     throw new DorisException(
                             "Load Doris data failed, schema size of fetch data is wrong.");
                 }
-                if (fieldVectors.size() == 0 || root.getRowCount() == 0) {
+                if (fieldVectors.isEmpty() || root.getRowCount() == 0) {
                     logger.debug("One batch in arrow has no data.");
                     continue;
                 }
@@ -246,7 +245,7 @@ public class RowBatch {
             case "NULL_TYPE":
                 break;
             case "BOOLEAN":
-                if (!minorType.equals(Types.MinorType.BIT)) {
+                if (!minorType.equals(MinorType.BIT)) {
                     return false;
                 }
                 BitVector bitVector = (BitVector) fieldVector;
@@ -255,7 +254,7 @@ public class RowBatch {
                 addValueToRow(rowIndex, fieldValue);
                 break;
             case "TINYINT":
-                if (!minorType.equals(Types.MinorType.TINYINT)) {
+                if (!minorType.equals(MinorType.TINYINT)) {
                     return false;
                 }
                 TinyIntVector tinyIntVector = (TinyIntVector) fieldVector;
@@ -263,7 +262,7 @@ public class RowBatch {
                 addValueToRow(rowIndex, fieldValue);
                 break;
             case "SMALLINT":
-                if (!minorType.equals(Types.MinorType.SMALLINT)) {
+                if (!minorType.equals(MinorType.SMALLINT)) {
                     return false;
                 }
                 SmallIntVector smallIntVector = (SmallIntVector) fieldVector;
@@ -271,7 +270,7 @@ public class RowBatch {
                 addValueToRow(rowIndex, fieldValue);
                 break;
             case "INT":
-                if (!minorType.equals(Types.MinorType.INT)) {
+                if (!minorType.equals(MinorType.INT)) {
                     return false;
                 }
                 IntVector intVector = (IntVector) fieldVector;
@@ -297,7 +296,7 @@ public class RowBatch {
                     addValueToRow(rowIndex, ipv4Str);
                 } else {
                     BaseIntVector ipv4Vector;
-                    if (minorType.equals(Types.MinorType.INT)) {
+                    if (minorType.equals(MinorType.INT)) {
                         ipv4Vector = (IntVector) fieldVector;
 
                     } else {
@@ -311,7 +310,7 @@ public class RowBatch {
                 }
                 break;
             case "BIGINT":
-                if (!minorType.equals(Types.MinorType.BIGINT)) {
+                if (!minorType.equals(MinorType.BIGINT)) {
                     return false;
                 }
                 BigIntVector bigIntVector = (BigIntVector) fieldVector;
@@ -319,7 +318,7 @@ public class RowBatch {
                 addValueToRow(rowIndex, fieldValue);
                 break;
             case "FLOAT":
-                if (!minorType.equals(Types.MinorType.FLOAT4)) {
+                if (!minorType.equals(MinorType.FLOAT4)) {
                     return false;
                 }
                 Float4Vector float4Vector = (Float4Vector) fieldVector;
@@ -328,7 +327,7 @@ public class RowBatch {
                 break;
             case "TIME":
             case "DOUBLE":
-                if (!minorType.equals(Types.MinorType.FLOAT8)) {
+                if (!minorType.equals(MinorType.FLOAT8)) {
                     return false;
                 }
                 Float8Vector float8Vector = (Float8Vector) fieldVector;
@@ -336,7 +335,7 @@ public class RowBatch {
                 addValueToRow(rowIndex, fieldValue);
                 break;
             case "BINARY":
-                if (!minorType.equals(Types.MinorType.VARBINARY)) {
+                if (!minorType.equals(MinorType.VARBINARY)) {
                     return false;
                 }
                 VarBinaryVector varBinaryVector = (VarBinaryVector) fieldVector;
@@ -350,7 +349,7 @@ public class RowBatch {
             case "DECIMAL64":
             case "DECIMAL128I":
             case "DECIMAL128":
-                if (!minorType.equals(Types.MinorType.DECIMAL)) {
+                if (!minorType.equals(MinorType.DECIMAL)) {
                     return false;
                 }
                 DecimalVector decimalVector = (DecimalVector) fieldVector;
@@ -363,11 +362,10 @@ public class RowBatch {
                 break;
             case "DATE":
             case "DATEV2":
-                if (!minorType.equals(Types.MinorType.DATEDAY)
-                        && !minorType.equals(Types.MinorType.VARCHAR)) {
+                if (!minorType.equals(MinorType.DATEDAY) && !minorType.equals(MinorType.VARCHAR)) {
                     return false;
                 }
-                if (minorType.equals(Types.MinorType.VARCHAR)) {
+                if (minorType.equals(MinorType.VARCHAR)) {
                     VarCharVector date = (VarCharVector) fieldVector;
                     if (date.isNull(rowIndex)) {
                         addValueToRow(rowIndex, null);
@@ -387,7 +385,7 @@ public class RowBatch {
                 }
                 break;
             case "DATETIME":
-                if (minorType.equals(Types.MinorType.VARCHAR)) {
+                if (minorType.equals(MinorType.VARCHAR)) {
                     VarCharVector varCharVector = (VarCharVector) fieldVector;
                     if (varCharVector.isNull(rowIndex)) {
                         addValueToRow(rowIndex, null);
@@ -411,7 +409,7 @@ public class RowBatch {
                 }
                 break;
             case "DATETIMEV2":
-                if (minorType.equals(Types.MinorType.VARCHAR)) {
+                if (minorType.equals(MinorType.VARCHAR)) {
                     VarCharVector varCharVector = (VarCharVector) fieldVector;
                     if (varCharVector.isNull(rowIndex)) {
                         addValueToRow(rowIndex, null);
@@ -435,11 +433,11 @@ public class RowBatch {
                 }
                 break;
             case "LARGEINT":
-                if (!minorType.equals(Types.MinorType.FIXEDSIZEBINARY)
-                        && !minorType.equals(Types.MinorType.VARCHAR)) {
+                if (!minorType.equals(MinorType.FIXEDSIZEBINARY)
+                        && !minorType.equals(MinorType.VARCHAR)) {
                     return false;
                 }
-                if (minorType.equals(Types.MinorType.FIXEDSIZEBINARY)) {
+                if (minorType.equals(MinorType.FIXEDSIZEBINARY)) {
                     FixedSizeBinaryVector largeIntVector = (FixedSizeBinaryVector) fieldVector;
                     if (largeIntVector.isNull(rowIndex)) {
                         addValueToRow(rowIndex, null);
@@ -475,7 +473,7 @@ public class RowBatch {
             case "JSONB":
             case "JSON":
             case "VARIANT":
-                if (!minorType.equals(Types.MinorType.VARCHAR)) {
+                if (!minorType.equals(MinorType.VARCHAR)) {
                     return false;
                 }
                 VarCharVector varCharVector = (VarCharVector) fieldVector;
@@ -488,7 +486,7 @@ public class RowBatch {
                 addValueToRow(rowIndex, stringValue);
                 break;
             case "IPV6":
-                if (!minorType.equals(Types.MinorType.VARCHAR)) {
+                if (!minorType.equals(MinorType.VARCHAR)) {
                     return false;
                 }
 
@@ -508,7 +506,7 @@ public class RowBatch {
                 }
                 break;
             case "ARRAY":
-                if (!minorType.equals(Types.MinorType.LIST)) {
+                if (!minorType.equals(MinorType.LIST)) {
                     return false;
                 }
                 ListVector listVector = (ListVector) fieldVector;
@@ -518,7 +516,7 @@ public class RowBatch {
                 addValueToRow(rowIndex, listValue);
                 break;
             case "MAP":
-                if (!minorType.equals(Types.MinorType.MAP)) {
+                if (!minorType.equals(MinorType.MAP)) {
                     return false;
                 }
                 MapVector mapVector = (MapVector) fieldVector;
@@ -539,7 +537,7 @@ public class RowBatch {
                 addValueToRow(rowIndex, mapValue);
                 break;
             case "STRUCT":
-                if (!minorType.equals(Types.MinorType.STRUCT)) {
+                if (!minorType.equals(MinorType.STRUCT)) {
                     return false;
                 }
                 StructVector structVector = (StructVector) fieldVector;
