@@ -387,7 +387,7 @@ public class DorisSinkMultiTblFailoverITCase extends AbstractITCaseService {
                 String.format("DROP TABLE IF EXISTS %s.%s", DATABASE, table));
     }
 
-    private void dropDatabase(){
+    private void dropDatabase() {
         ContainerUtils.executeSQLStatement(
                 getDorisQueryConnection(),
                 LOG,
