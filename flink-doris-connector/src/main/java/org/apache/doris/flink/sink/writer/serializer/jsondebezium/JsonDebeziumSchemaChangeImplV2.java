@@ -55,8 +55,9 @@ import java.util.regex.Pattern;
 
 /**
  * Extract the columns that need to be changed based on the change records of the upstream data
- * source.
+ * source. Recommended use SQLParserSchemaChange.
  */
+@Deprecated
 public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
     private static final Logger LOG = LoggerFactory.getLogger(JsonDebeziumSchemaChangeImplV2.class);
     private static final Pattern renameDDLPattern =
@@ -183,6 +184,7 @@ public class JsonDebeziumSchemaChangeImplV2 extends JsonDebeziumSchemaChange {
         // remove backtick
         ddl = ddl.replace("`", "");
         // rename ddl
+        // It is better to use sql_parser mode for rename
         Matcher renameDdlMatcher = renameDDLPattern.matcher(ddl);
         if (renameDdlMatcher.find()) {
             String oldColumnName = renameDdlMatcher.group(2);
