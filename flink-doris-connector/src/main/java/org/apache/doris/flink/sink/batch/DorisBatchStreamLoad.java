@@ -550,6 +550,7 @@ public class DorisBatchStreamLoad implements Serializable {
                 try {
                     Thread.sleep(retry * 1000);
                 } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
                     throw new RuntimeException(e);
                 }
             }
