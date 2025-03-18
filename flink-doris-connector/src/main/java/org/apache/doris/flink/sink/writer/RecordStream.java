@@ -45,7 +45,7 @@ public class RecordStream extends InputStream {
         recordBuffer.startBufferData();
     }
 
-    public void endInput() throws IOException {
+    public void endInput() throws InterruptedException {
         recordBuffer.stopBufferData();
     }
 
@@ -54,15 +54,16 @@ public class RecordStream extends InputStream {
         try {
             return recordBuffer.read(buff);
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             throw new RuntimeException(e);
         }
     }
 
-    public void write(byte[] buff) throws IOException {
+    public void write(byte[] buff) throws InterruptedException {
         try {
             recordBuffer.write(buff);
         } catch (InterruptedException e) {
-            throw new RuntimeException(e);
+            throw e;
         }
     }
 }

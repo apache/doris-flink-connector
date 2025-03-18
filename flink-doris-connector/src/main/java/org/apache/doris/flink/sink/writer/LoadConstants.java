@@ -17,6 +17,13 @@
 
 package org.apache.doris.flink.sink.writer;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+import static org.apache.doris.flink.sink.LoadStatus.PUBLISH_TIMEOUT;
+import static org.apache.doris.flink.sink.LoadStatus.SUCCESS;
+
 /** Constants for load. */
 public class LoadConstants {
     public static final String COLUMNS_KEY = "columns";
@@ -35,4 +42,6 @@ public class LoadConstants {
     public static final String GROUP_COMMIT_OFF_MODE = "off_mode";
     public static final String COMPRESS_TYPE = "compress_type";
     public static final String COMPRESS_TYPE_GZ = "gz";
+    public static final List<String> DORIS_SUCCESS_STATUS =
+            new ArrayList<>(Arrays.asList(SUCCESS, PUBLISH_TIMEOUT));
 }
