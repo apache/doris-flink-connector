@@ -268,6 +268,7 @@ public class DorisStreamLoad implements Serializable {
             }
             recordStream.write(record);
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             if (httpException != null) {
                 throw new DorisRuntimeException(httpException.getMessage(), httpException);
             } else {
@@ -325,6 +326,7 @@ public class DorisStreamLoad implements Serializable {
             Preconditions.checkState(pendingLoadFuture != null);
             return pendingLoadFuture.get();
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             if (httpException != null) {
                 throw new DorisRuntimeException(httpException.getMessage(), httpException);
             } else {

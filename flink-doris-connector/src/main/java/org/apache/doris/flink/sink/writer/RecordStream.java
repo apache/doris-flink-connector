@@ -54,6 +54,7 @@ public class RecordStream extends InputStream {
         try {
             return recordBuffer.read(buff);
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             throw new RuntimeException(e);
         }
     }
