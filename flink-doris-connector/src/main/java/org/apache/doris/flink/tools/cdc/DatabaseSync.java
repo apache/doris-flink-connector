@@ -348,7 +348,6 @@ public abstract class DatabaseSync {
                 .setTargetTablePrefix(tablePrefix)
                 .setTargetTableSuffix(tableSuffix)
                 .setTableNameConverter(converter)
-                .setIsIgnoreIncompatible(ignoreIncompatible)
                 .build();
     }
 

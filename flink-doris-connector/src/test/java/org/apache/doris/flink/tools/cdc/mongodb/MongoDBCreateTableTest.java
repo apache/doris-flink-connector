@@ -47,8 +47,8 @@ public class MongoDBCreateTableTest extends TestJsonDebeziumChangeBase {
 
         changeContext =
                 new JsonDebeziumChangeContext(
-                        dorisOptions,
-                        //                        validOptions,
+                        //                        dorisOptions,
+                        validOptions,
                         tableMapping,
                         null,
                         dbName,
@@ -60,8 +60,7 @@ public class MongoDBCreateTableTest extends TestJsonDebeziumChangeBase {
                         prefix,
                         suffix,
                         true,
-                        new TableNameConverter(prefix, suffix),
-                        true);
+                        new TableNameConverter(prefix, suffix));
         schemaChange = new MongoJsonDebeziumSchemaChange(changeContext);
     }
 
@@ -88,16 +87,13 @@ public class MongoDBCreateTableTest extends TestJsonDebeziumChangeBase {
                         + "}";
 
         JsonNode recordRoot = objectMapper.readTree(record);
-        // 执行schemaChange
         boolean result = schemaChange.schemaChange(recordRoot);
-        System.out.println(tableMapping);
+
         Assert.assertTrue(
                 tableMapping.containsValue(
                         dbName
                                 + "."
                                 + new TableNameConverter(prefix, suffix).convert(newTableName)));
-
-        // 验证结果
         Assert.assertTrue(result);
     }
 }

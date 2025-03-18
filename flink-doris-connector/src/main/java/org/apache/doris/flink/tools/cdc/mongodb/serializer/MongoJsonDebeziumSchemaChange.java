@@ -130,8 +130,7 @@ public class MongoJsonDebeziumSchemaChange extends CdcSchemaChange {
                         targetDb,
                         dorisTable,
                         mongoSchema,
-                        changeContext.getDorisTableConf(),
-                        changeContext.getIsIgnoreIncompatible());
+                        changeContext.getDorisTableConf());
             }
 
             String[] tableInfo = dorisTableIdentifier.split("\\.");

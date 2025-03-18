@@ -78,6 +78,17 @@ public class DorisTableUtil {
         }
     }
 
+    /** Overloaded method without ignoreIncompatible parameter. */
+    public static void tryCreateTableIfAbsent(
+            DorisSystem dorisSystem,
+            String targetDb,
+            String dorisTable,
+            SourceSchema schema,
+            DorisTableConfig tableConfig)
+            throws DorisSystemException {
+        tryCreateTableIfAbsent(dorisSystem, targetDb, dorisTable, schema, tableConfig, false);
+    }
+
     /**
      * Handle table creation failure.
      *

@@ -243,7 +243,6 @@ public class MongoDBDatabaseSync extends DatabaseSync {
                 .setTargetTablePrefix(tablePrefix)
                 .setTargetTableSuffix(tableSuffix)
                 .setTableNameConverter(converter)
-                .setIgnoreIncompatible(ignoreIncompatible)
                 .build();
     }
 

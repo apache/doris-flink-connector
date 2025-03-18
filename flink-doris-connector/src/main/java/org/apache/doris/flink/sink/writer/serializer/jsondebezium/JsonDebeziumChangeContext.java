@@ -48,7 +48,6 @@ public class JsonDebeziumChangeContext implements Serializable {
     private final String targetTablePrefix;
     private final String targetTableSuffix;
     private TableNameConverter tableNameConverter;
-    private boolean ignoreIncompatible;
 
     public JsonDebeziumChangeContext(
             DorisOptions dorisOptions,
@@ -90,8 +89,7 @@ public class JsonDebeziumChangeContext implements Serializable {
             String targetTablePrefix,
             String targetTableSuffix,
             boolean enableDelete,
-            TableNameConverter tableNameConverter,
-            Boolean ignoreIncompatible) {
+            TableNameConverter tableNameConverter) {
         this(
                 dorisOptions,
                 tableMapping,
@@ -105,7 +103,6 @@ public class JsonDebeziumChangeContext implements Serializable {
                 targetTablePrefix,
                 targetTableSuffix,
                 enableDelete);
-        this.ignoreIncompatible = ignoreIncompatible;
         this.tableNameConverter = tableNameConverter;
     }
 
@@ -171,14 +168,5 @@ public class JsonDebeziumChangeContext implements Serializable {
     @VisibleForTesting
     public void setTableNameConverter(TableNameConverter tableNameConverter) {
         this.tableNameConverter = tableNameConverter;
-    }
-
-    public boolean getIsIgnoreIncompatible() {
-        return ignoreIncompatible;
-    }
-
-    @VisibleForTesting
-    public void setIgnoreIncompatible(boolean ignoreIncompatible) {
-        this.ignoreIncompatible = ignoreIncompatible;
     }
 }

@@ -64,7 +64,6 @@ public class MongoDBJsonDebeziumSchemaSerializer implements DorisRecordSerialize
     private String targetTablePrefix;
     private String targetTableSuffix;
     private TableNameConverter tableNameConverter;
-    protected boolean ignoreIncompatible;
 
     public MongoDBJsonDebeziumSchemaSerializer(
             DorisOptions dorisOptions,
@@ -76,8 +75,7 @@ public class MongoDBJsonDebeziumSchemaSerializer implements DorisRecordSerialize
             String targetDatabase,
             String targetTablePrefix,
             String targetTableSuffix,
-            TableNameConverter tableNameConverter,
-            Boolean ignoreIncompatible) {
+            TableNameConverter tableNameConverter) {
         this.dorisOptions = dorisOptions;
         this.pattern = pattern;
         this.sourceTableName = sourceTableName;
@@ -91,7 +89,6 @@ public class MongoDBJsonDebeziumSchemaSerializer implements DorisRecordSerialize
         this.targetTablePrefix = targetTablePrefix;
         this.targetTableSuffix = targetTableSuffix;
         this.tableNameConverter = tableNameConverter;
-        this.ignoreIncompatible = ignoreIncompatible;
         if (executionOptions != null) {
             this.lineDelimiter =
                     executionOptions
@@ -118,7 +115,6 @@ public class MongoDBJsonDebeziumSchemaSerializer implements DorisRecordSerialize
                         targetTablePrefix,
                         targetTableSuffix,
                         enableDelete);
-        changeContext.setIgnoreIncompatible(ignoreIncompatible);
         changeContext.setTableNameConverter(tableNameConverter);
         this.dataChange = new MongoJsonDebeziumDataChange(changeContext);
         this.schemaChange = new MongoJsonDebeziumSchemaChange(changeContext);
@@ -153,7 +149,6 @@ public class MongoDBJsonDebeziumSchemaSerializer implements DorisRecordSerialize
         private String targetTablePrefix = "";
         private String targetTableSuffix = "";
         private TableNameConverter tableNameConverter;
-        private boolean ignoreIncompatible;
 
         public MongoDBJsonDebeziumSchemaSerializer.Builder setDorisOptions(
                 DorisOptions dorisOptions) {
@@ -221,12 +216,6 @@ public class MongoDBJsonDebeziumSchemaSerializer implements DorisRecordSerialize
             return this;
         }
 
-        public MongoDBJsonDebeziumSchemaSerializer.Builder setIgnoreIncompatible(
-                Boolean ignoreIncompatible) {
-            this.ignoreIncompatible = ignoreIncompatible;
-            return this;
-        }
-
         public MongoDBJsonDebeziumSchemaSerializer build() {
             return new MongoDBJsonDebeziumSchemaSerializer(
                     dorisOptions,
@@ -238,8 +227,7 @@ public class MongoDBJsonDebeziumSchemaSerializer implements DorisRecordSerialize
                     targetDatabase,
                     targetTablePrefix,
                     targetTableSuffix,
-                    tableNameConverter,
-                    ignoreIncompatible);
+                    tableNameConverter);
         }
     }
 }
