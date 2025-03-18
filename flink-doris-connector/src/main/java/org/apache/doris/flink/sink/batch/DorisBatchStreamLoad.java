@@ -546,6 +546,13 @@ public class DorisBatchStreamLoad implements Serializable {
                 refreshLoadUrl(buffer.getDatabase(), buffer.getTable());
                 putBuilder.setUrl(loadUrl);
                 putBuilder.setLabel(label + "_" + retry);
+
+                try {
+                    Thread.sleep(retry * 1000);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new RuntimeException(e);
+                }
             }
             buffer.clear();
             buffer = null;
