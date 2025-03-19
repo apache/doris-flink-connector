@@ -61,7 +61,6 @@ public class Doris2DorisE2ECase extends AbstractContainerTestBase {
         env.setParallelism(2);
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
         final StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
-        tEnv.getConfig().getConfiguration().setString("table.local-time-zone", "Asia/Tokyo");
         String sourceDDL =
                 String.format(
                         "CREATE TABLE doris_source ("
