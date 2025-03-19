@@ -24,6 +24,7 @@ import org.apache.doris.flink.container.config.DorisPorts.FE;
 import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.Container.ExecResult;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
@@ -32,7 +33,6 @@ import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.shaded.org.awaitility.Awaitility;
 import org.testcontainers.shaded.org.awaitility.core.ConditionTimeoutException;
 import org.testcontainers.utility.DockerLoggerFactory;
-import org.testcontainers.utility.MountableFile;
 
 import java.io.BufferedReader;
 import java.io.InputStream;
@@ -88,13 +88,14 @@ public class DorisContainer implements ContainerService {
                                 "sh",
                                 "-c",
                                 "chmod -R 644 /root/be/conf/be.conf /root/fe/conf/fe.conf && chmod -R 755 /root/be/conf /root/fe/conf && chown -R root:root /root/be/conf /root/fe/conf")
-                        // use customer conf
-                        .withCopyFileToContainer(
-                                MountableFile.forClasspathResource("docker/doris/be.conf"),
-                                "/opt/apache-doris/be/conf/be.conf")
-                        .withCopyFileToContainer(
-                                MountableFile.forClasspathResource("docker/doris/fe.conf"),
-                                "/opt/apache-doris/fe/conf/fe.conf")
+                        .withClasspathResourceMapping(
+                                "docker/doris/be.conf",
+                                "/root/be/conf/be.conf",
+                                BindMode.READ_WRITE)
+                        .withClasspathResourceMapping(
+                                "docker/doris/fe.conf",
+                                "/root/fe/conf/fe.conf",
+                                BindMode.READ_WRITE)
                         // These exposed ports are used to connect to Doris. They are the default
                         // ports for yagagagaga/doris-standalone:2.1.7.
                         // For more information, see:
@@ -107,8 +108,7 @@ public class DorisContainer implements ContainerService {
                                 FE.FLIGHT_SQL_PORT,
                                 BE.FLIGHT_SQL_PORT)
                         .withStartupTimeout(Duration.ofMinutes(5))
-                        .withEnv("TZ", systemTimeZone)
-                        .waitingFor(Wait.forListeningPort());
+                        .withEnv("TZ", systemTimeZone);
 
         container.setPortBindings(
                 Lists.newArrayList(
@@ -128,6 +128,10 @@ public class DorisContainer implements ContainerService {
             dorisContainer.start();
             // Wait for container to reach running state during first startup
             waitForContainerRunning();
+            ExecResult feExecResult = dorisContainer.execInContainer("cat", "/root/fe/conf/fe.conf");
+            ExecResult beExecResult = dorisContainer.execInContainer("cat", "/root/be/conf/be.conf");
+            LOG.info("FE config: {}", feExecResult.getStdout());
+            LOG.info("BE config: {}", beExecResult.getStdout());
             initializeJdbcConnection();
             initializeVariables();
             printClusterStatus();
