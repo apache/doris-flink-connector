@@ -31,7 +31,6 @@ import org.junit.runners.Parameterized;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
@@ -62,9 +61,7 @@ public class Doris2DorisE2ECase extends AbstractContainerTestBase {
         env.setParallelism(2);
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
         final StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
-        tEnv.getConfig()
-                .getConfiguration()
-                .setString("table.local-time-zone", ZoneId.systemDefault().getId());
+        tEnv.getConfig().getConfiguration().setString("table.local-time-zone", "Asia/Tokyo");
         String sourceDDL =
                 String.format(
                         "CREATE TABLE doris_source ("
