@@ -17,10 +17,13 @@
 
 package org.apache.doris.flink.tools.cdc.mongodb.serializer;
 
+import org.apache.flink.util.StringUtils;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.NullNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.apache.doris.flink.catalog.doris.DataModel;
 import org.apache.doris.flink.catalog.doris.DorisSystem;
 import org.apache.doris.flink.catalog.doris.FieldSchema;
 import org.apache.doris.flink.cfg.DorisOptions;
@@ -30,8 +33,11 @@ import org.apache.doris.flink.sink.schema.SchemaChangeManager;
 import org.apache.doris.flink.sink.writer.serializer.jsondebezium.CdcSchemaChange;
 import org.apache.doris.flink.sink.writer.serializer.jsondebezium.JsonDebeziumChangeContext;
 import org.apache.doris.flink.tools.cdc.SourceSchema;
+import org.apache.doris.flink.tools.cdc.mongodb.MongoDBSchema;
 import org.apache.doris.flink.tools.cdc.mongodb.MongoDBType;
 import org.apache.doris.flink.tools.cdc.mongodb.MongoDateConverter;
+import org.apache.doris.flink.tools.cdc.utils.DorisTableUtil;
+import org.apache.doris.flink.tools.cdc.utils.JsonNodeExtractUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -66,11 +72,13 @@ public class MongoJsonDebeziumSchemaChange extends CdcSchemaChange {
 
     public Map<String, String> tableMapping;
     private final DorisOptions dorisOptions;
+    public JsonDebeziumChangeContext changeContext;
 
     private final Set<String> specialFields =
             new HashSet<>(Arrays.asList(DATE_FIELD, TIMESTAMP_FIELD, DECIMAL_FIELD, LONG_FIELD));
 
     public MongoJsonDebeziumSchemaChange(JsonDebeziumChangeContext changeContext) {
+        this.changeContext = changeContext;
         this.objectMapper = changeContext.getObjectMapper();
         this.dorisOptions = changeContext.getDorisOptions();
         this.tableFields = new HashMap<>();
@@ -96,6 +104,35 @@ public class MongoJsonDebeziumSchemaChange extends CdcSchemaChange {
             String cdcTableIdentifier = getCdcTableIdentifier(recordRoot);
             String dorisTableIdentifier =
                     getDorisTableIdentifier(cdcTableIdentifier, dorisOptions, tableMapping);
+
+            // if table dorisTableIdentifier is null, create table
+            if (StringUtils.isNullOrWhitespaceOnly(dorisTableIdentifier)) {
+                String[] split = cdcTableIdentifier.split("\\.");
+                String targetDb = changeContext.getTargetDatabase();
+                String sourceTable = split[1];
+                String dorisTable = changeContext.getTableNameConverter().convert(sourceTable);
+                LOG.info(
+                        "The table [{}.{}] does not exist. Attempting to create a new table named: {}.{}",
+                        targetDb,
+                        sourceTable,
+                        targetDb,
+                        dorisTable);
+                tableMapping.put(cdcTableIdentifier, String.format("%s.%s", targetDb, dorisTable));
+                dorisTableIdentifier = tableMapping.get(cdcTableIdentifier);
+                Map<String, Object> stringObjectMap = extractAfterRow(logData);
+                JsonNode jsonNode = objectMapper.valueToTree(stringObjectMap);
+
+                MongoDBSchema mongoSchema = new MongoDBSchema(jsonNode, targetDb, dorisTable, "");
+
+                mongoSchema.setModel(DataModel.UNIQUE);
+                DorisTableUtil.tryCreateTableIfAbsent(
+                        dorisSystem,
+                        targetDb,
+                        dorisTable,
+                        mongoSchema,
+                        changeContext.getDorisTableConf());
+            }
+
             String[] tableInfo = dorisTableIdentifier.split("\\.");
             if (tableInfo.length != 2) {
                 throw new DorisRuntimeException();
@@ -161,6 +198,10 @@ public class MongoJsonDebeziumSchemaChange extends CdcSchemaChange {
         } catch (IOException e) {
             throw new DorisRuntimeException("Failed to parse fullDocument JSON", e);
         }
+    }
+
+    public Map<String, Object> extractAfterRow(JsonNode recordRoot) {
+        return JsonNodeExtractUtil.extractAfterRow(recordRoot, objectMapper);
     }
 
     private void checkAndUpdateSchemaChange(

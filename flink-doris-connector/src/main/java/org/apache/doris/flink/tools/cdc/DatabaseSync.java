@@ -28,14 +28,12 @@ import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
-import org.apache.doris.flink.catalog.doris.DorisSchemaFactory;
 import org.apache.doris.flink.catalog.doris.DorisSystem;
 import org.apache.doris.flink.catalog.doris.TableSchema;
 import org.apache.doris.flink.cfg.DorisConnectionOptions;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
-import org.apache.doris.flink.exception.DorisSystemException;
 import org.apache.doris.flink.sink.DorisSink;
 import org.apache.doris.flink.sink.schema.SchemaChangeMode;
 import org.apache.doris.flink.sink.writer.WriteMode;
@@ -44,12 +42,12 @@ import org.apache.doris.flink.sink.writer.serializer.JsonDebeziumSchemaSerialize
 import org.apache.doris.flink.table.DorisConfigOptions;
 import org.apache.doris.flink.tools.cdc.converter.TableNameConverter;
 import org.apache.doris.flink.tools.cdc.oracle.OracleDatabaseSync;
+import org.apache.doris.flink.tools.cdc.utils.DorisTableUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.sql.SQLSyntaxErrorException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -150,7 +148,13 @@ public abstract class DatabaseSync {
             // Calculate the mapping relationship between upstream and downstream tables
             tableMapping.put(
                     schema.getTableIdentifier(), String.format("%s.%s", targetDb, dorisTable));
-            tryCreateTableIfAbsent(dorisSystem, targetDb, dorisTable, schema);
+            DorisTableUtil.tryCreateTableIfAbsent(
+                    dorisSystem,
+                    targetDb,
+                    dorisTable,
+                    schema,
+                    dorisTableConfig,
+                    ignoreIncompatible);
 
             if (!dorisTables.contains(Tuple2.of(targetDb, dorisTable))) {
                 dorisTables.add(Tuple2.of(targetDb, dorisTable));
@@ -467,40 +471,6 @@ public abstract class DatabaseSync {
                     return;
                 }
             }
-        }
-    }
-
-    private void tryCreateTableIfAbsent(
-            DorisSystem dorisSystem, String targetDb, String dorisTable, SourceSchema schema) {
-        if (!dorisSystem.tableExists(targetDb, dorisTable)) {
-            if (dorisTableConfig.isConvertUniqToPk()
-                    && CollectionUtil.isNullOrEmpty(schema.primaryKeys)
-                    && !CollectionUtil.isNullOrEmpty(schema.uniqueIndexs)) {
-                schema.primaryKeys = new ArrayList<>(schema.uniqueIndexs);
-            }
-            TableSchema dorisSchema =
-                    DorisSchemaFactory.createTableSchema(
-                            targetDb,
-                            dorisTable,
-                            schema.getFields(),
-                            schema.getPrimaryKeys(),
-                            dorisTableConfig,
-                            schema.getTableComment());
-            try {
-                dorisSystem.createTable(dorisSchema);
-            } catch (Exception ex) {
-                handleTableCreationFailure(ex);
-            }
-        }
-    }
-
-    private void handleTableCreationFailure(Exception ex) throws DorisSystemException {
-        if (ignoreIncompatible && ex.getCause() instanceof SQLSyntaxErrorException) {
-            LOG.warn(
-                    "Doris schema and source table schema are not compatible. Error: {} ",
-                    ex.getCause().toString());
-        } else {
-            throw new DorisSystemException("Failed to create table due to: ", ex);
         }
     }
 
