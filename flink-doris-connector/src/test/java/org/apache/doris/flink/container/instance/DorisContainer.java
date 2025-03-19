@@ -29,12 +29,12 @@ import org.testcontainers.containers.Container.ExecResult;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
 import org.testcontainers.containers.output.Slf4jLogConsumer;
-import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.shaded.org.awaitility.Awaitility;
 import org.testcontainers.shaded.org.awaitility.core.ConditionTimeoutException;
 import org.testcontainers.utility.DockerLoggerFactory;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.MalformedURLException;
@@ -53,6 +53,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.LockSupport;
 
 public class DorisContainer implements ContainerService {
@@ -69,6 +70,8 @@ public class DorisContainer implements ContainerService {
     private static final String PASSWORD = "";
     private final GenericContainer<?> dorisContainer;
     private final String systemTimeZone = ZoneId.systemDefault().getId();
+    private static URLClassLoader jdbcClassLoader;
+    private static final AtomicBoolean driverInitialized = new AtomicBoolean(false);
 
     public DorisContainer() {
         dorisContainer = createDorisContainer();
@@ -123,13 +126,17 @@ public class DorisContainer implements ContainerService {
 
     public void startContainer() {
         try {
+            if (dorisContainer.isRunning()) {
+                return;
+            }
             LOG.info("Starting doris containers.");
             // singleton doris container
             dorisContainer.start();
-            // Wait for container to reach running state during first startup
-            waitForContainerRunning();
-            ExecResult feExecResult = dorisContainer.execInContainer("cat", "/root/fe/conf/fe.conf");
-            ExecResult beExecResult = dorisContainer.execInContainer("cat", "/root/be/conf/be.conf");
+            // print Doris configuration information.
+            ExecResult feExecResult =
+                    dorisContainer.execInContainer("cat", "/root/fe/conf/fe.conf");
+            ExecResult beExecResult =
+                    dorisContainer.execInContainer("cat", "/root/be/conf/be.conf");
             LOG.info("FE config: {}", feExecResult.getStdout());
             LOG.info("BE config: {}", beExecResult.getStdout());
             initializeJdbcConnection();
@@ -152,9 +159,7 @@ public class DorisContainer implements ContainerService {
                         .restartContainerCmd(dorisContainer.getContainerId())) {
             restartCmd.exec();
             LOG.info("Restart command executed, waiting for container services to be ready");
-            // Add service detection logic to ensure Doris container services are fully initialized
-            // and ready.
-            waitForContainerRunning();
+            initializeJdbcConnection();
         } catch (Exception e) {
             LOG.error("Failed to restart Doris container", e);
             throw new RuntimeException("Container restart failed", e);
@@ -188,89 +193,6 @@ public class DorisContainer implements ContainerService {
             statement.executeQuery("SET PROPERTY FOR 'root' 'max_user_connections' = '1024';");
         }
         LOG.info("Init variables successfully.");
-    }
-
-    // wait for container running
-    private void waitForContainerRunning() {
-        LOG.info("Waiting for Doris services to be accessible...");
-
-        try {
-            Awaitility.await("FE HTTP Service")
-                    .atMost(5, TimeUnit.MINUTES)
-                    .pollInterval(1, TimeUnit.SECONDS)
-                    .until(
-                            () -> {
-                                try {
-                                    ExecResult result =
-                                            dorisContainer.execInContainer(
-                                                    "curl",
-                                                    "-s",
-                                                    "-o",
-                                                    "/dev/null",
-                                                    "-w",
-                                                    "%{http_code}",
-                                                    "-m",
-                                                    "2",
-                                                    "http://localhost:" + FE.HTTP_PORT);
-                                    boolean ready = result.getStdout().equals("200");
-                                    LOG.info(
-                                            "FE HTTP service on port {} is ready: {}",
-                                            FE.HTTP_PORT,
-                                            ready);
-                                    if (ready) {
-                                        LOG.info(
-                                                "FE HTTP service on port {} is ready",
-                                                FE.HTTP_PORT);
-                                    }
-                                    return ready;
-                                } catch (Exception e) {
-                                    LOG.debug(
-                                            "Exception while checking FE HTTP service: {}",
-                                            e.getMessage());
-                                    return false;
-                                }
-                            });
-
-            Awaitility.await("BE HTTP Service")
-                    .atMost(5, TimeUnit.MINUTES)
-                    .pollInterval(1, TimeUnit.SECONDS)
-                    .until(
-                            () -> {
-                                try {
-                                    ExecResult result =
-                                            dorisContainer.execInContainer(
-                                                    "curl",
-                                                    "-s",
-                                                    "-o",
-                                                    "/dev/null",
-                                                    "-w",
-                                                    "%{http_code}",
-                                                    "-m",
-                                                    "2",
-                                                    "http://localhost:" + BE.WEBSERVICE_PORT);
-                                    boolean ready = "200".equals(result.getStdout().trim());
-                                    if (ready) {
-                                        LOG.info(
-                                                "BE HTTP service on port {} is ready",
-                                                BE.WEBSERVICE_PORT);
-                                    } else {
-                                        LOG.debug(
-                                                "BE HTTP service on port {} not ready yet, HTTP status: {}",
-                                                BE.WEBSERVICE_PORT,
-                                                result.getStdout().trim());
-                                    }
-                                    return ready;
-                                } catch (Exception e) {
-                                    LOG.debug(
-                                            "Exception while checking BE HTTP service: {}",
-                                            e.getMessage());
-                                    return false;
-                                }
-                            });
-
-        } catch (ConditionTimeoutException e) {
-            LOG.warn("Timed out after 5 minutes waiting for Doris services to be ready");
-        }
     }
 
     @Override
@@ -314,18 +236,34 @@ public class DorisContainer implements ContainerService {
             dorisContainer.close();
             LOG.info("Doris container closed successfully.");
         }
+
+        closeJdbcClassLoader();
     }
 
     private void initializeJDBCDriver() throws MalformedURLException {
-        URLClassLoader urlClassLoader =
-                new URLClassLoader(
-                        new URL[] {new URL(DRIVER_JAR)}, DorisContainer.class.getClassLoader());
-        LOG.info("Try to connect to Doris.");
-        Thread.currentThread().setContextClassLoader(urlClassLoader);
+        // Checks if the driver has already been initialized to avoid memory leak and class loading
+        // issues.
+        if (driverInitialized.get()) {
+            LOG.debug("JDBC driver already initialized, skipping initialization");
+            return;
+        }
+
+        LOG.info("Initializing JDBC driver");
+        if (jdbcClassLoader == null) {
+            jdbcClassLoader =
+                    new URLClassLoader(
+                            new URL[] {new URL(DRIVER_JAR)}, DorisContainer.class.getClassLoader());
+        }
+
+        Thread.currentThread().setContextClassLoader(jdbcClassLoader);
+        driverInitialized.set(true);
     }
 
     private void initializeJdbcConnection() throws Exception {
         initializeJDBCDriver();
+        // before connecting to Doris, wait for Doris FE to start,which is to avoid connect Doris
+        // failed when Doris FE is not ready.
+        waitDorisFeRunning();
         try (Connection connection = getQueryConnection();
                 Statement statement = connection.createStatement()) {
             ResultSet resultSet;
@@ -335,6 +273,71 @@ public class DorisContainer implements ContainerService {
             } while (!isBeReady(resultSet, Duration.ofSeconds(1L)));
         }
         LOG.info("Connected to Doris successfully.");
+    }
+
+    private synchronized void closeJdbcClassLoader() {
+        if (jdbcClassLoader != null) {
+            try {
+                jdbcClassLoader.close();
+                jdbcClassLoader = null;
+                driverInitialized.set(false);
+                LOG.info("JDBC class loader closed successfully");
+            } catch (IOException e) {
+                LOG.warn("Failed to close JDBC class loader", e);
+            }
+        }
+    }
+
+    /**
+     * Wait for Doris container to running. If the Doris FE not startup completely, try to connect
+     * it again until the doris FE is ready.
+     */
+    private void waitDorisFeRunning() {
+        LOG.info("Waiting for Doris services to be accessible...");
+
+        // Poll Doris FE HTTP service every second with a maximum wait time of 5 minutes
+        // If the service is not available within this time, a timeout exception will be thrown
+        try {
+            Awaitility.await("FE HTTP Service")
+                    .atMost(5, TimeUnit.MINUTES)
+                    .pollInterval(1, TimeUnit.SECONDS)
+                    .until(
+                            () -> {
+                                try {
+                                    ExecResult result =
+                                            dorisContainer.execInContainer(
+                                                    "curl",
+                                                    "-s",
+                                                    "-o",
+                                                    "/dev/null",
+                                                    "-w",
+                                                    "%{http_code}",
+                                                    "-m",
+                                                    "2",
+                                                    "http://localhost:" + FE.HTTP_PORT);
+                                    boolean ready = result.getStdout().equals("200");
+                                    LOG.info(
+                                            "FE HTTP service on port {} is ready: {}",
+                                            FE.HTTP_PORT,
+                                            ready);
+
+                                    if (ready) {
+                                        LOG.info(
+                                                "FE HTTP service on port {} is ready",
+                                                FE.HTTP_PORT);
+                                    }
+                                    return ready;
+                                } catch (Exception e) {
+                                    LOG.debug(
+                                            "Exception while checking FE HTTP service: {}",
+                                            e.getMessage());
+                                    return false;
+                                }
+                            });
+
+        } catch (ConditionTimeoutException e) {
+            LOG.warn("Timed out after 5 minutes waiting for Doris services to be ready");
+        }
     }
 
     private boolean isBeReady(ResultSet rs, Duration duration) throws SQLException {
