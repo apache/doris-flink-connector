@@ -46,12 +46,13 @@ import java.util.regex.Pattern;
 /**
  * Synchronize the schema change in the upstream data source to the doris database table.
  *
- * <p>There are two schema change modes:<br>
+ * <p>There are three schema change modes:<br>
  * 1. {@link JsonDebeziumSchemaChangeImpl} only supports table column name and column type changes,
  * and this mode is used by default. <br>
  * 2. {@link JsonDebeziumSchemaChangeImplV2} supports table column name, column type, default,
  * comment synchronization, supports multi-column changes, and supports column name rename. Need to
- * be enabled by configuring use-new-schema-change.
+ * be enabled by configuring use-new-schema-change. <br>
+ * 3. {@link SQLParserSchemaChange} Schema Change by parsing upstream DDL.
  */
 public abstract class JsonDebeziumSchemaChange extends CdcSchemaChange {
     private static final Logger LOG = LoggerFactory.getLogger(JsonDebeziumSchemaChange.class);

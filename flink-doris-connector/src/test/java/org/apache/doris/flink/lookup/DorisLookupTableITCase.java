@@ -353,7 +353,11 @@ public class DorisLookupTableITCase extends AbstractITCaseService {
                                 + "'password' = '%s',"
                                 + "'lookup.jdbc.async' = '%s',"
                                 + "'lookup.cache.ttl' = '10m',"
-                                + "'lookup.cache.max-rows' = '3'"
+                                + "'lookup.cache.max-rows' = '3',"
+                                + "'lookup.max-retries' = '1',"
+                                + "'lookup.jdbc.read.batch.size' = '2',"
+                                + "'lookup.jdbc.read.batch.queue-size' = '25',"
+                                + "'lookup.jdbc.read.thread-size' = '5'"
                                 + ")",
                         getFenodes(),
                         getDorisQueryUrl(),
