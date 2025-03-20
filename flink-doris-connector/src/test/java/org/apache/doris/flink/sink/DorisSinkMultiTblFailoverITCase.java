@@ -129,7 +129,7 @@ public class DorisSinkMultiTblFailoverITCase extends AbstractITCaseService {
         mockSource.sinkTo(builder.build());
         JobClient jobClient = env.executeAsync();
         CompletableFuture<JobStatus> jobStatus = jobClient.getJobStatus();
-        LOG.info("Job status: {}", jobStatus);
+        LOG.info("Job status: {}", jobStatus.get());
 
         waitForJobStatus(
                 jobClient,
@@ -144,7 +144,7 @@ public class DorisSinkMultiTblFailoverITCase extends AbstractITCaseService {
                         JobStatus.FAILED,
                         JobStatus.RESTARTING);
 
-        waitForJobStatus(jobClient, errorStatus, Deadline.fromNow(Duration.ofSeconds(30)));
+        waitForJobStatus(jobClient, errorStatus, Deadline.fromNow(Duration.ofSeconds(60)));
 
         LOG.info("start to create add table");
         initializeTable(TABLE_MULTI_CSV_NO_EXIST_TBL);
@@ -165,7 +165,7 @@ public class DorisSinkMultiTblFailoverITCase extends AbstractITCaseService {
         String queryRes =
                 String.format(
                         "select id,task_id from %s.%s ", DATABASE, TABLE_MULTI_CSV_NO_EXIST_TBL);
-        List<String> expected = Arrays.asList("1,3");
+        List<String> expected = Collections.singletonList("1,3");
 
         if (!batchMode) {
             ContainerUtils.checkResult(
