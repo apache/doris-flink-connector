@@ -34,7 +34,6 @@ import org.testcontainers.shaded.org.awaitility.core.ConditionTimeoutException;
 import org.testcontainers.utility.DockerLoggerFactory;
 
 import java.io.BufferedReader;
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.MalformedURLException;
@@ -53,7 +52,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.LockSupport;
 
 public class DorisContainer implements ContainerService {
@@ -70,8 +68,6 @@ public class DorisContainer implements ContainerService {
     private static final String PASSWORD = "";
     private final GenericContainer<?> dorisContainer;
     private final String systemTimeZone = ZoneId.systemDefault().getId();
-    private static URLClassLoader jdbcClassLoader;
-    private static final AtomicBoolean driverInitialized = new AtomicBoolean(false);
 
     public DorisContainer() {
         dorisContainer = createDorisContainer();
@@ -126,9 +122,6 @@ public class DorisContainer implements ContainerService {
 
     public void startContainer() {
         try {
-            if (dorisContainer.isRunning()) {
-                return;
-            }
             LOG.info("Starting doris containers.");
             // singleton doris container
             dorisContainer.start();
@@ -139,6 +132,7 @@ public class DorisContainer implements ContainerService {
                     dorisContainer.execInContainer("cat", "/root/be/conf/be.conf");
             LOG.info("FE config: {}", feExecResult.getStdout());
             LOG.info("BE config: {}", beExecResult.getStdout());
+            waitDorisFeRunning();
             initializeJdbcConnection();
             initializeVariables();
             printClusterStatus();
@@ -159,7 +153,7 @@ public class DorisContainer implements ContainerService {
                         .restartContainerCmd(dorisContainer.getContainerId())) {
             restartCmd.exec();
             LOG.info("Restart command executed, waiting for container services to be ready");
-            initializeJdbcConnection();
+            waitDorisFeRunning();
         } catch (Exception e) {
             LOG.error("Failed to restart Doris container", e);
             throw new RuntimeException("Container restart failed", e);
@@ -236,27 +230,14 @@ public class DorisContainer implements ContainerService {
             dorisContainer.close();
             LOG.info("Doris container closed successfully.");
         }
-
-        closeJdbcClassLoader();
     }
 
     private void initializeJDBCDriver() throws MalformedURLException {
-        // Checks if the driver has already been initialized to avoid memory leak and class loading
-        // issues.
-        if (driverInitialized.get()) {
-            LOG.debug("JDBC driver already initialized, skipping initialization");
-            return;
-        }
-
-        LOG.info("Initializing JDBC driver");
-        if (jdbcClassLoader == null) {
-            jdbcClassLoader =
-                    new URLClassLoader(
-                            new URL[] {new URL(DRIVER_JAR)}, DorisContainer.class.getClassLoader());
-        }
-
-        Thread.currentThread().setContextClassLoader(jdbcClassLoader);
-        driverInitialized.set(true);
+        URLClassLoader urlClassLoader =
+                new URLClassLoader(
+                        new URL[] {new URL(DRIVER_JAR)}, DorisContainer.class.getClassLoader());
+        LOG.info("Try to connect to Doris.");
+        Thread.currentThread().setContextClassLoader(urlClassLoader);
     }
 
     private void initializeJdbcConnection() throws Exception {
@@ -273,19 +254,6 @@ public class DorisContainer implements ContainerService {
             } while (!isBeReady(resultSet, Duration.ofSeconds(1L)));
         }
         LOG.info("Connected to Doris successfully.");
-    }
-
-    private synchronized void closeJdbcClassLoader() {
-        if (jdbcClassLoader != null) {
-            try {
-                jdbcClassLoader.close();
-                jdbcClassLoader = null;
-                driverInitialized.set(false);
-                LOG.info("JDBC class loader closed successfully");
-            } catch (IOException e) {
-                LOG.warn("Failed to close JDBC class loader", e);
-            }
-        }
     }
 
     /**
