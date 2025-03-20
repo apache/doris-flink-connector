@@ -31,6 +31,7 @@ jobs:
         java-version: [8]
     env:
       TZ: Asia/Shanghai
+      DORIS_IMAGE: "yagagagaga/doris-standalone:2.1.7"
     defaults:
       run:
         shell: bash
@@ -44,6 +45,7 @@ jobs:
         with:
           java-version: ${{ matrix.java-version }}
           distribution: 'temurin'
+          cache: 'maven'
 
       - name: Cache Maven Repository
         uses: actions/cache@v4
@@ -53,6 +55,18 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-maven-
 
+      - name: Free Disk Space
+        run: |
+          df -h
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          df -h
+
+      - name: Pull Doris Docker Image
+        run: docker pull ${DORIS_IMAGE}
+
       - name: Run ITCases
         run: |
-          cd flink-doris-connector && mvn test -Dtest="*ITCase" -Dimage="yagagagaga/doris-standalone:2.1.7"
+          cd flink-doris-connector && mvn test -Dtest="*ITCase" -Dimage="yagagagaga/doris-standalone:2.1.7" -B -V -Dfail-fast=true -DfailIfNoTests=true
