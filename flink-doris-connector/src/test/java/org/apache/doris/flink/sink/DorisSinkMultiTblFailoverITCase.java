@@ -129,7 +129,7 @@ public class DorisSinkMultiTblFailoverITCase extends AbstractITCaseService {
         mockSource.sinkTo(builder.build());
         JobClient jobClient = env.executeAsync();
         CompletableFuture<JobStatus> jobStatus = jobClient.getJobStatus();
-        LOG.info("Job status: {}", jobStatus.get());
+        LOG.info("batch Mode:{} Job status: {}", batchMode, jobStatus.get());
 
         waitForJobStatus(
                 jobClient,
@@ -143,20 +143,20 @@ public class DorisSinkMultiTblFailoverITCase extends AbstractITCaseService {
                         JobStatus.CANCELED,
                         JobStatus.FAILED,
                         JobStatus.RESTARTING);
-
+        LOG.info("batch Mode:{} wait job error status", batchMode);
         waitForJobStatus(jobClient, errorStatus, Deadline.fromNow(Duration.ofSeconds(60)));
 
-        LOG.info("start to create add table");
+        LOG.info("batch Mode:{} start to create add table", batchMode);
         initializeTable(TABLE_MULTI_CSV_NO_EXIST_TBL);
 
-        LOG.info("wait job restart success");
+        LOG.info("batch Mode:{} wait job restart success", batchMode);
         // wait table restart success
         waitForJobStatus(
                 jobClient,
                 Collections.singletonList(RUNNING),
                 Deadline.fromNow(Duration.ofSeconds(60)));
 
-        LOG.info("wait job running finished");
+        LOG.info("batch Mode:{} wait job running finished", batchMode);
         waitForJobStatus(
                 jobClient,
                 Collections.singletonList(FINISHED),
@@ -168,9 +168,11 @@ public class DorisSinkMultiTblFailoverITCase extends AbstractITCaseService {
         List<String> expected = Collections.singletonList("1,3");
 
         if (!batchMode) {
+            LOG.info("check stream mode result!");
             ContainerUtils.checkResult(
                     getDorisQueryConnection(), LOG, expected, queryRes, 2, false);
         } else {
+            LOG.info("check batch mode result!");
             List<String> actualResult =
                     ContainerUtils.getResult(getDorisQueryConnection(), LOG, expected, queryRes, 2);
             LOG.info("actual size: {}, expected size: {}", actualResult.size(), expected.size());
