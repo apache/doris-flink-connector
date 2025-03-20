@@ -58,7 +58,7 @@ import java.util.concurrent.locks.LockSupport;
 
 public class DorisContainer implements ContainerService {
     private static final Logger LOG = LoggerFactory.getLogger(DorisContainer.class);
-    private static final String DEFAULT_DOCKER_IMAGE = "yagagagaga/doris-standalone:2.1.7";
+    private static final String DEFAULT_DOCKER_IMAGE = "yagagagaga/doris-standalone:3.0.4";
     private static final String DORIS_DOCKER_IMAGE =
             System.getProperty("image") == null
                     ? DEFAULT_DOCKER_IMAGE
