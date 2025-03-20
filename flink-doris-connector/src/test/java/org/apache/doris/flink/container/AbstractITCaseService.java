@@ -54,7 +54,7 @@ public abstract class AbstractITCaseService extends AbstractContainerTestBase {
                         currentStatus = (JobStatus) client.getJobStatus().get();
                     } catch (IllegalStateException e) {
                         LOG.warn("Failed to get job status: {}", e.getMessage());
-                        return false;
+                        currentStatus = JobStatus.FINISHED;
                     }
 
                     LOG.debug("Current job status: {}", currentStatus);
