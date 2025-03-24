@@ -64,8 +64,8 @@ public class MongoDBCreateTableTest extends TestJsonDebeziumChangeBase {
 
         changeContext =
                 new JsonDebeziumChangeContext(
-                        //                        dorisOptions,
-                        validOptions,
+                        dorisOptions,
+                        //                        validOptions,
                         tableMapping,
                         null,
                         dbName,
