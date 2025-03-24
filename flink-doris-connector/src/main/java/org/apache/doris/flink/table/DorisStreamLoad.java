@@ -108,7 +108,7 @@ public class DorisStreamLoad implements Serializable {
 
     public void load(String value) throws StreamLoadException {
         LoadResponse loadResponse = loadBatch(value);
-        LOG.info("Streamload Response:{}", loadResponse);
+        LOG.info("stream load response:{}", loadResponse);
         if (loadResponse.status != 200) {
             throw new StreamLoadException("stream load error: " + loadResponse.respContent);
         } else {
@@ -133,6 +133,7 @@ public class DorisStreamLoad implements Serializable {
                     UUID.randomUUID().toString().replaceAll("-", ""));
         }
 
+        LOG.info("stream load started for {} on host {}", label, hostPort);
         try {
             HttpPut put = new HttpPut(loadUrlStr);
             put.setHeader(HttpHeaders.EXPECT, "100-continue");
