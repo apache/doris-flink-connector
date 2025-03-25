@@ -18,7 +18,9 @@
 package org.apache.doris.flink.tools.cdc.mongodb;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import org.apache.doris.flink.catalog.doris.DorisSystem;
 import org.apache.doris.flink.cfg.DorisOptions;
+import org.apache.doris.flink.sink.schema.SchemaChangeManager;
 import org.apache.doris.flink.sink.writer.serializer.jsondebezium.JsonDebeziumChangeContext;
 import org.apache.doris.flink.sink.writer.serializer.jsondebezium.TestJsonDebeziumChangeBase;
 import org.apache.doris.flink.tools.cdc.DorisTableConfig;
@@ -28,6 +30,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
@@ -38,9 +41,14 @@ import java.util.Map;
 public class MongoDBCreateTableTest extends TestJsonDebeziumChangeBase {
 
     private MongoJsonDebeziumSchemaChange schemaChange;
-    private JsonDebeziumChangeContext changeContext;
 
     @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+
+    @Mock private DorisSystem mockDorisSystem;
+
+    @Mock private DorisOptions mockDorisOptions;
+
+    @Mock private SchemaChangeManager mockSchemaManager;
 
     private final String dbName = "test_db";
     private final String prefix = "ods_";
@@ -50,22 +58,13 @@ public class MongoDBCreateTableTest extends TestJsonDebeziumChangeBase {
     public void setUp() {
         super.setUp();
 
-        DorisOptions validOptions =
-                DorisOptions.builder()
-                        .setFenodes("192.168.10.102:8030")
-                        .setJdbcUrl("jdbc:mysql://192.168.10.102:9030/")
-                        .setUsername("root")
-                        .setPassword("123456")
-                        .build();
-
         Map<String, String> tableConfig = new HashMap<>();
         tableConfig.put(DorisTableConfig.REPLICATION_NUM, "1");
         tableConfig.put(DorisTableConfig.TABLE_BUCKETS, ".*:1");
 
-        changeContext =
+        JsonDebeziumChangeContext changeContext =
                 new JsonDebeziumChangeContext(
-                        dorisOptions,
-                        //                        validOptions,
+                        mockDorisOptions,
                         tableMapping,
                         null,
                         dbName,
@@ -102,10 +101,11 @@ public class MongoDBCreateTableTest extends TestJsonDebeziumChangeBase {
                         + "\"txnNumber\":null,"
                         + "\"lsid\":null"
                         + "}";
+        schemaChange.setSchemaChangeManager(mockSchemaManager);
+        schemaChange.setDorisSystem(mockDorisSystem);
 
         JsonNode recordRoot = objectMapper.readTree(record);
         boolean result = schemaChange.schemaChange(recordRoot);
-
         Assert.assertTrue(
                 tableMapping.containsValue(
                         dbName

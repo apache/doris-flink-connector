@@ -17,6 +17,7 @@
 
 package org.apache.doris.flink.tools.cdc.mongodb.serializer;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.StringUtils;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -66,9 +67,9 @@ public class MongoJsonDebeziumSchemaChange extends CdcSchemaChange {
 
     private final Map<String, Map<String, String>> tableFields;
 
-    private final SchemaChangeManager schemaChangeManager;
+    private SchemaChangeManager schemaChangeManager;
 
-    private final DorisSystem dorisSystem;
+    private DorisSystem dorisSystem;
 
     public Map<String, String> tableMapping;
     private final DorisOptions dorisOptions;
@@ -247,5 +248,15 @@ public class MongoJsonDebeziumSchemaChange extends CdcSchemaChange {
         String table = nameSpace.get(FIELD_TABLE).asText();
         String db = nameSpace.get(FIELD_DATABASE).asText();
         return SourceSchema.getString(db, null, table);
+    }
+
+    @VisibleForTesting
+    public void setDorisSystem(DorisSystem dorisSystem) {
+        this.dorisSystem = dorisSystem;
+    }
+
+    @VisibleForTesting
+    public void setSchemaChangeManager(SchemaChangeManager schemaChangeManager) {
+        this.schemaChangeManager = schemaChangeManager;
     }
 }
