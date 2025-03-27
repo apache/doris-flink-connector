@@ -20,7 +20,6 @@ package org.apache.doris.flink.tools.cdc.mongodb.serializer;
 import org.apache.flink.util.StringUtils;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.NullNode;
@@ -30,6 +29,7 @@ import org.apache.doris.flink.sink.writer.serializer.DorisRecord;
 import org.apache.doris.flink.sink.writer.serializer.jsondebezium.CdcDataChange;
 import org.apache.doris.flink.sink.writer.serializer.jsondebezium.JsonDebeziumChangeContext;
 import org.apache.doris.flink.tools.cdc.SourceSchema;
+import org.apache.doris.flink.tools.cdc.utils.JsonNodeExtractUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -127,16 +127,7 @@ public class MongoJsonDebeziumDataChange extends CdcDataChange implements Change
     @Override
     public Map<String, Object> extractAfterRow(JsonNode recordRoot) {
         JsonNode dataNode = recordRoot.get(FIELD_DATA);
-        Map<String, Object> rowMap = extractRow(dataNode);
-        String objectId;
-        // if user specifies the `_id` field manually, the $oid field may not exist
-        if (rowMap.get(ID_FIELD) instanceof Map<?, ?>) {
-            objectId = ((Map<?, ?>) rowMap.get(ID_FIELD)).get(OID_FIELD).toString();
-        } else {
-            objectId = rowMap.get(ID_FIELD).toString();
-        }
-        rowMap.put(ID_FIELD, objectId);
-        return rowMap;
+        return JsonNodeExtractUtil.extractAfterRow(dataNode, objectMapper);
     }
 
     private Map<String, Object> extractDeleteRow(JsonNode recordRoot)
@@ -153,11 +144,5 @@ public class MongoJsonDebeziumDataChange extends CdcDataChange implements Change
         Map<String, Object> row = new HashMap<>();
         row.put(ID_FIELD, objectId);
         return row;
-    }
-
-    private Map<String, Object> extractRow(JsonNode recordRow) {
-        Map<String, Object> recordMap =
-                objectMapper.convertValue(recordRow, new TypeReference<Map<String, Object>>() {});
-        return recordMap != null ? recordMap : new HashMap<>();
     }
 }

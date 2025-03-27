@@ -20,6 +20,7 @@ package org.apache.doris.flink.tools.cdc.mongodb;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.tuple.Tuple2;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import org.apache.doris.flink.catalog.doris.DorisType;
 import org.apache.doris.flink.catalog.doris.FieldSchema;
 import org.apache.doris.flink.tools.cdc.SourceSchema;
@@ -62,6 +63,28 @@ public class MongoDBSchema extends SourceSchema {
 
         primaryKeys = new ArrayList<>();
         primaryKeys.add("_id");
+    }
+
+    public MongoDBSchema(
+            JsonNode jsonData, String databaseName, String tableName, String tableComment)
+            throws Exception {
+        super(databaseName, null, tableName, tableComment);
+        fields = new LinkedHashMap<>();
+        processSampleData(jsonData);
+
+        primaryKeys = new ArrayList<>();
+        primaryKeys.add("_id");
+    }
+
+    @VisibleForTesting
+    protected void processSampleData(JsonNode data) {
+        data.fieldNames()
+                .forEachRemaining(
+                        fieldName -> {
+                            JsonNode value = data.get(fieldName);
+                            String dorisType = MongoDBType.jsonNodeToDorisType(value);
+                            fields.put(fieldName, new FieldSchema(fieldName, dorisType, null));
+                        });
     }
 
     @VisibleForTesting
