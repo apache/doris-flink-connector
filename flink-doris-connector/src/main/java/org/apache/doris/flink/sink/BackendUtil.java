@@ -119,7 +119,7 @@ public class BackendUtil {
                     responseMessage);
             return false;
         } catch (Exception ex) {
-            LOG.warn("Failed to connect to host:{}", host, ex);
+            LOG.warn("Failed to connect to host: {} ", host, ex);
             return false;
         }
     }
