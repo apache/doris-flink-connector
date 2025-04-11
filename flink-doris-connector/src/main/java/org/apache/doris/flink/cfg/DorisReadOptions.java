@@ -139,6 +139,10 @@ public class DorisReadOptions implements Serializable {
         return flightSqlPort;
     }
 
+    public void setFlightSqlPort(Integer flightSqlPort) {
+        this.flightSqlPort = flightSqlPort;
+    }
+
     public Long getRowLimit() {
         return rowLimit;
     }
@@ -241,7 +245,7 @@ public class DorisReadOptions implements Serializable {
                 ConfigurationOptions.DORIS_DESERIALIZE_ARROW_ASYNC_DEFAULT;
         private Boolean useOldApi = false;
         private Boolean useFlightSql = ConfigurationOptions.USE_FLIGHT_SQL_DEFAULT;
-        private Integer flightSqlPort;
+        private Integer flightSqlPort = ConfigurationOptions.FLIGHT_SQL_PORT_DEFAULT;
         private Long rowLimit;
 
         /**

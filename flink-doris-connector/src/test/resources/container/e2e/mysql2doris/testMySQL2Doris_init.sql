@@ -29,7 +29,7 @@ CREATE TABLE test_e2e_mysql.tbl4 (
     `name` varchar(256) primary key,
     `age` int
 );
-
+insert into test_e2e_mysql.tbl4 values ('doris_4',4);
 
 DROP TABLE IF EXISTS  test_e2e_mysql.tbl5;
 CREATE TABLE test_e2e_mysql.tbl5 (

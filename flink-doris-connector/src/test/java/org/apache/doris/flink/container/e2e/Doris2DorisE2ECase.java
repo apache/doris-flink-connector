@@ -19,28 +19,38 @@ package org.apache.doris.flink.container.e2e;
 
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
-import org.apache.flink.types.Row;
-import org.apache.flink.util.CloseableIterator;
 
 import org.apache.doris.flink.container.AbstractContainerTestBase;
 import org.apache.doris.flink.container.ContainerUtils;
 import org.apache.doris.flink.table.DorisConfigOptions;
-import org.junit.Assert;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
+@RunWith(Parameterized.class)
 public class Doris2DorisE2ECase extends AbstractContainerTestBase {
     private static final Logger LOG = LoggerFactory.getLogger(Doris2DorisE2ECase.class);
     private static final String DATABASE_SOURCE = "test_doris2doris_source";
     private static final String DATABASE_SINK = "test_doris2doris_sink";
     private static final String TABLE = "test_tbl";
+
+    private final boolean useFlightRead;
+
+    public Doris2DorisE2ECase(boolean useFlightRead) {
+        this.useFlightRead = useFlightRead;
+    }
+
+    @Parameterized.Parameters(name = "useFlightRead: {0}")
+    public static Object[] parameters() {
+        return new Object[][] {new Object[] {false}, new Object[] {true}};
+    }
 
     @Test
     public void testDoris2Doris() throws Exception {
@@ -68,10 +78,12 @@ public class Doris2DorisE2ECase extends AbstractContainerTestBase {
                                 + "c11  TIMESTAMP, \n"
                                 + "c12  char(1), \n"
                                 + "c13  varchar(256), \n"
-                                + "c14  Array<String>, \n"
-                                + "c15  Map<String, String>, \n"
-                                + "c16  ROW<name String, age int>, \n"
-                                + "c17  STRING \n"
+                                + "c14  STRING, \n"
+                                + "c15  Array<String>, \n"
+                                + "c16  Map<String, String>, \n"
+                                + "c17  ROW<name String, age int>, \n"
+                                + "c18  STRING, \n"
+                                + "c19  STRING\n"
                                 + ") WITH ("
                                 + " 'connector' = '"
                                 + DorisConfigOptions.IDENTIFIER
@@ -82,12 +94,15 @@ public class Doris2DorisE2ECase extends AbstractContainerTestBase {
                                 + UUID.randomUUID()
                                 + "',"
                                 + " 'username' = '%s',"
-                                + " 'password' = '%s'"
+                                + " 'password' = '%s',"
+                                + " 'source.use-flight-sql' = '%s',\n"
+                                + " 'source.flight-sql-port' = '9611'"
                                 + ")",
                         getFenodes(),
                         DATABASE_SOURCE + "." + TABLE,
                         getDorisUsername(),
-                        getDorisPassword());
+                        getDorisPassword(),
+                        useFlightRead);
         tEnv.executeSql(sourceDDL);
 
         String sinkDDL =
@@ -107,10 +122,12 @@ public class Doris2DorisE2ECase extends AbstractContainerTestBase {
                                 + "c11  TIMESTAMP, \n"
                                 + "c12  char(1), \n"
                                 + "c13  varchar(256), \n"
-                                + "c14  Array<String>, \n"
-                                + "c15  Map<String, String>, \n"
-                                + "c16  ROW<name String, age int>, \n"
-                                + "c17  STRING \n"
+                                + "c14  STRING, \n"
+                                + "c15  Array<String>, \n"
+                                + "c16  Map<String, String>, \n"
+                                + "c17  ROW<name String, age int>, \n"
+                                + "c18  STRING, \n"
+                                + "c19  STRING\n"
                                 + ") WITH ("
                                 + " 'connector' = '"
                                 + DorisConfigOptions.IDENTIFIER
@@ -131,21 +148,15 @@ public class Doris2DorisE2ECase extends AbstractContainerTestBase {
 
         tEnv.executeSql("INSERT INTO doris_sink SELECT * FROM doris_source").await();
 
-        TableResult tableResult = tEnv.executeSql("SELECT * FROM doris_sink");
-        List<Object> actual = new ArrayList<>();
-        try (CloseableIterator<Row> iterator = tableResult.collect()) {
-            while (iterator.hasNext()) {
-                actual.add(iterator.next().toString());
-            }
-        }
-        LOG.info("The actual data in the doris sink table is, actual={}", actual);
+        List<String> excepted =
+                Arrays.asList(
+                        "1,true,127,32767,2147483647,9223372036854775807,170141183460469231731687303715884105727,3.14,2.71828,12345.6789,2025-03-11,2025-03-11T12:34:56,A,Hello, Doris!,This is a string,[\"Alice\", \"Bob\"],{\"key1\":\"value1\", \"key2\":\"value2\"},{\"name\": \"Tom\", \"age\": 30},{\"key\":\"value\"},{\"data\":123,\"type\":\"variant\"}",
+                        "2,false,-128,-32768,-2147483648,-9223372036854775808,-170141183460469231731687303715884105728,-1.23,1.0E-4,-9999.9999,2024-12-25,2024-12-25T23:59:59,B,Doris Test,Another string!,[\"Charlie\", \"David\"],{\"k1\":\"v1\", \"k2\":\"v2\"},{\"name\": \"Jerry\", \"age\": 25},{\"status\":\"ok\"},{\"data\":[1,2,3]}",
+                        "3,true,0,0,0,0,0,0.0,0.0,0.0000,2023-06-15,2023-06-15T08:00,C,Test Doris,Sample text,[\"Eve\", \"Frank\"],{\"alpha\":\"beta\"},{\"name\": \"Alice\", \"age\": 40},{\"nested\":{\"key\":\"value\"}},{\"variant\":\"test\"}",
+                        "4,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null");
 
-        String[] expected =
-                new String[] {
-                    "+I[1, true, 127, 32767, 2147483647, 9223372036854775807, 123456789012345678901234567890, 3.14, 2.7182818284, 12345.6789, 2023-05-22, 2023-05-22T12:34:56, A, Example text, [item1, item2, item3], {key1=value1, key2=value2}, +I[John Doe, 30], {\"key\":\"value\"}]",
-                    "+I[2, false, -128, -32768, -2147483648, -9223372036854775808, -123456789012345678901234567890, -3.14, -2.7182818284, -12345.6789, 2024-01-01, 2024-01-01T00:00, B, Another example, [item4, item5, item6], {key3=value3, key4=value4}, +I[Jane Doe, 25], {\"another_key\":\"another_value\"}]"
-                };
-        Assert.assertArrayEquals(expected, actual.toArray(new String[0]));
+        String query = String.format("SELECT * FROM %s.%s", DATABASE_SINK, TABLE);
+        ContainerUtils.checkResult(getDorisQueryConnection(), LOG, excepted, query, 20, false);
     }
 
     private void initializeDorisTable() {

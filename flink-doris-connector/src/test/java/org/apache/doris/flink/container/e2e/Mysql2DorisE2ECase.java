@@ -99,10 +99,22 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
 
         // wait 2 times checkpoint
         Thread.sleep(20000);
+        LOG.info("Start to verify create table result.");
+        String tblQuery =
+                String.format(
+                        "SELECT TABLE_NAME \n"
+                                + "FROM INFORMATION_SCHEMA.TABLES \n"
+                                + "WHERE TABLE_SCHEMA = '%s'",
+                        DATABASE);
+        List<String> expectedTables =
+                Arrays.asList("ods_tbl1_incr", "ods_tbl2_incr", "ods_tbl3_incr", "ods_tbl5_incr");
+        ContainerUtils.checkResult(
+                getDorisQueryConnection(), LOG, expectedTables, tblQuery, 1, false);
+
         LOG.info("Start to verify init result.");
         List<String> expected = Arrays.asList("doris_1,1", "doris_2,2", "doris_3,3", "doris_5,5");
         String sql1 =
-                "select * from ( select * from test_e2e_mysql.tbl1 union all select * from test_e2e_mysql.tbl2 union all select * from test_e2e_mysql.tbl3 union all select * from test_e2e_mysql.tbl5) res order by 1";
+                "select * from ( select * from test_e2e_mysql.ods_tbl1_incr union all select * from test_e2e_mysql.ods_tbl2_incr union all select * from test_e2e_mysql.ods_tbl3_incr union all select * from test_e2e_mysql.ods_tbl5_incr) res order by 1";
         ContainerUtils.checkResult(getDorisQueryConnection(), LOG, expected, sql1, 2);
 
         // add incremental data
@@ -121,28 +133,47 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
                 Arrays.asList(
                         "doris_1,18", "doris_1_1,10", "doris_2_1,11", "doris_3,3", "doris_3_1,12");
         String sql2 =
-                "select * from ( select * from test_e2e_mysql.tbl1 union all select * from test_e2e_mysql.tbl2 union all select * from test_e2e_mysql.tbl3 ) res order by 1";
+                "select * from ( select * from test_e2e_mysql.ods_tbl1_incr union all select * from test_e2e_mysql.ods_tbl2_incr union all select * from test_e2e_mysql.ods_tbl3_incr ) res order by 1";
         ContainerUtils.checkResult(getDorisQueryConnection(), LOG, expected2, sql2, 2);
 
-        // mock schema change
+        // mock schema change ALTER TABLE table_name RENAME COLUMN old_column_name TO
+        // new_column_name
         LOG.info("start to schema change in mysql.");
         ContainerUtils.executeSQLStatement(
                 getMySQLQueryConnection(),
                 LOG,
                 "alter table test_e2e_mysql.tbl1 add column c1 varchar(128)",
-                "alter table test_e2e_mysql.tbl1 drop column age");
+                "alter table test_e2e_mysql.tbl1 drop column age",
+                "alter table test_e2e_mysql.tbl2 rename column age to age_new_1",
+                "alter table test_e2e_mysql.tbl3 change column age age_new_2 int");
         Thread.sleep(10000);
         ContainerUtils.executeSQLStatement(
                 getMySQLQueryConnection(),
                 LOG,
-                "insert into test_e2e_mysql.tbl1  values ('doris_1_1_1','c1_val')");
+                "insert into test_e2e_mysql.tbl1  values ('doris_1_1_1','c1_val')",
+                "insert into test_e2e_mysql.tbl2  values ('doris_tbl2_rename_test',18)",
+                "insert into test_e2e_mysql.tbl3  values ('doris_tbl3_rename_test',38)");
         Thread.sleep(20000);
-        LOG.info("verify tal1 schema change.");
+        LOG.info("verify tbl1 schema change.");
         List<String> schemaChangeExpected =
                 Arrays.asList("doris_1,null", "doris_1_1,null", "doris_1_1_1,c1_val");
-        String schemaChangeSql = "select * from test_e2e_mysql.tbl1 order by 1";
+        String schemaChangeSql = "select name,c1 from test_e2e_mysql.ods_tbl1_incr order by 1";
         ContainerUtils.checkResult(
                 getDorisQueryConnection(), LOG, schemaChangeExpected, schemaChangeSql, 2);
+
+        LOG.info("verify tbl2 schema change.");
+        schemaChangeExpected = Arrays.asList("doris_2_1,11", "doris_tbl2_rename_test,18");
+        schemaChangeSql = "select name,age_new_1 from test_e2e_mysql.ods_tbl2_incr order by 1";
+        ContainerUtils.checkResult(
+                getDorisQueryConnection(), LOG, schemaChangeExpected, schemaChangeSql, 2);
+
+        LOG.info("verify tbl3 schema change.");
+        schemaChangeExpected =
+                Arrays.asList("doris_3,3", "doris_3_1,12", "doris_tbl3_rename_test,38");
+        schemaChangeSql = "select name,age_new_2 from test_e2e_mysql.ods_tbl3_incr order by 1";
+        ContainerUtils.checkResult(
+                getDorisQueryConnection(), LOG, schemaChangeExpected, schemaChangeSql, 2);
+
         cancelE2EJob(jobName);
     }
 

@@ -218,7 +218,7 @@ public class DorisConfigOptions {
                     .durationType()
                     .defaultValue(Duration.ofMillis(0))
                     .withDescription(
-                            "check exception with the interval while loading, The default is 0, disabling the checker thread");
+                            "check exception with the interval while loading, 0 means disabling the checker thread");
     public static final ConfigOption<Integer> SINK_MAX_RETRIES =
             ConfigOptions.key("sink.max-retries")
                     .intType()
@@ -310,12 +310,12 @@ public class DorisConfigOptions {
     public static final ConfigOption<Boolean> USE_FLIGHT_SQL =
             ConfigOptions.key("source.use-flight-sql")
                     .booleanType()
-                    .defaultValue(Boolean.FALSE)
-                    .withDescription("use flight sql flag");
+                    .defaultValue(Boolean.TRUE)
+                    .withDescription("use arrow flight sql read");
     public static final ConfigOption<Integer> FLIGHT_SQL_PORT =
             ConfigOptions.key("source.flight-sql-port")
                     .intType()
-                    .defaultValue(9040)
+                    .defaultValue(-1)
                     .withDescription("flight sql port");
     // Prefix for Doris StreamLoad specific properties.
     public static final String STREAM_LOAD_PROP_PREFIX = "sink.properties.";

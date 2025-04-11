@@ -54,8 +54,8 @@ public interface ConfigurationOptions {
     Integer DORIS_DESERIALIZE_QUEUE_SIZE_DEFAULT = 64;
 
     String USE_FLIGHT_SQL = "source.use-flight-sql";
-    Boolean USE_FLIGHT_SQL_DEFAULT = false;
+    Boolean USE_FLIGHT_SQL_DEFAULT = true;
 
     String FLIGHT_SQL_PORT = "source.flight-sql-port";
-    Integer FLIGHT_SQL_PORT_DEFAULT = 9040;
+    Integer FLIGHT_SQL_PORT_DEFAULT = -1;
 }

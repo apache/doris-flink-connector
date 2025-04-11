@@ -1,7 +1,12 @@
 mysql-sync-database
     --database test_e2e_mysql
     --mysql-conf database-name=test_e2e_mysql
+    --table-prefix ods_
+    --table-suffix _incr
     --including-tables "tbl.*"
+    --excluding-tables "tbl4"
+    --sink-conf sink.ignore.update-before=false
     --table-conf replication_num=1
     --single-sink true
     --ignore-default-value false
+    --schema-change-mode sql_parser

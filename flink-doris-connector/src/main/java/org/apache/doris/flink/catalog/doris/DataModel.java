@@ -20,5 +20,6 @@ package org.apache.doris.flink.catalog.doris;
 public enum DataModel {
     DUPLICATE,
     UNIQUE,
+    UNIQUE_MOR,
     AGGREGATE
 }

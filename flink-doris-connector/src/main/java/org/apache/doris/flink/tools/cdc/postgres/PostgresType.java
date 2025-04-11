@@ -75,7 +75,7 @@ public class PostgresType {
         switch (postgresType) {
             case INT2:
             case SMALLSERIAL:
-                return DorisType.TINYINT;
+                return DorisType.SMALLINT;
             case INT4:
             case SERIAL:
                 return DorisType.INT;

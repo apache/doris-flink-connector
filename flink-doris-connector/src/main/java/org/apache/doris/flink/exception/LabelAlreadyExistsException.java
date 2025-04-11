@@ -17,7 +17,7 @@
 
 package org.apache.doris.flink.exception;
 
-public class LabelAlreadyExistsException extends RuntimeException {
+public class LabelAlreadyExistsException extends DorisRuntimeException {
     public LabelAlreadyExistsException() {
         super();
     }

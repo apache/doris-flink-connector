@@ -32,6 +32,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.List;
 
+/** Schema changes are made by parsing upstream DDL statements. */
 public class SQLParserSchemaChange extends JsonDebeziumSchemaChange {
     private static final Logger LOG = LoggerFactory.getLogger(SQLParserSchemaChange.class);
     private final SQLParserSchemaManager sqlParserSchemaManager;

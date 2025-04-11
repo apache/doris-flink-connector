@@ -25,6 +25,10 @@ public interface ContainerService {
 
     void startContainer();
 
+    default void restartContainer() {
+        throw new DorisRuntimeException("Only doris docker container can implemented.");
+    }
+
     boolean isRunning();
 
     Connection getQueryConnection();
