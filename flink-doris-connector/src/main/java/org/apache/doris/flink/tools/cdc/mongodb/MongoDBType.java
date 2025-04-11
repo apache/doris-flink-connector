@@ -62,7 +62,7 @@ public class MongoDBType {
         } else if (value instanceof String) {
             return DorisType.STRING;
         } else if (value instanceof ObjectId) {
-            return DorisType.VARCHAR + "(30)";
+            return DorisType.VARCHAR + "(36)";
         } else if (value instanceof List) {
             return DorisType.ARRAY + "<" + DorisType.STRING + ">";
         } else if (value instanceof Decimal128) {
