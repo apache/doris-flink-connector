@@ -55,7 +55,7 @@ public class MongoDBTypeTest {
         assertEquals(DorisType.BOOLEAN, MongoDBType.toDorisType(new Boolean(true)));
         assertEquals(DorisType.STRING, MongoDBType.toDorisType("string"));
         assertEquals(
-                DorisType.VARCHAR + "(30)",
+                DorisType.VARCHAR + "(36)",
                 MongoDBType.toDorisType(new ObjectId("66583533791a67a6f8c5a339")));
         assertEquals(
                 "DECIMALV3(10,5)",
