@@ -17,15 +17,21 @@
 
 package org.apache.doris.flink.container.instance;
 
+import com.github.dockerjava.api.command.RestartContainerCmd;
 import com.google.common.collect.Lists;
+import org.apache.doris.flink.container.config.DorisPorts.BE;
+import org.apache.doris.flink.container.config.DorisPorts.FE;
 import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testcontainers.containers.BindMode;
+import org.testcontainers.containers.Container.ExecResult;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
 import org.testcontainers.containers.output.Slf4jLogConsumer;
+import org.testcontainers.shaded.org.awaitility.Awaitility;
+import org.testcontainers.shaded.org.awaitility.core.ConditionTimeoutException;
 import org.testcontainers.utility.DockerLoggerFactory;
-import org.testcontainers.utility.MountableFile;
 
 import java.io.BufferedReader;
 import java.io.InputStream;
@@ -40,15 +46,17 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.Duration;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 
 public class DorisContainer implements ContainerService {
     private static final Logger LOG = LoggerFactory.getLogger(DorisContainer.class);
-    private static final String DEFAULT_DOCKER_IMAGE = "apache/doris:doris-all-in-one-2.1.0";
+    private static final String DEFAULT_DOCKER_IMAGE = "yagagagaga/doris-standalone:3.0.4";
     private static final String DORIS_DOCKER_IMAGE =
             System.getProperty("image") == null
                     ? DEFAULT_DOCKER_IMAGE
@@ -58,15 +66,16 @@ public class DorisContainer implements ContainerService {
     private static final String JDBC_URL = "jdbc:mysql://%s:9030";
     private static final String USERNAME = "root";
     private static final String PASSWORD = "";
-    private final GenericContainer dorisContainer;
+    private final GenericContainer<?> dorisContainer;
+    private final String systemTimeZone = ZoneId.systemDefault().getId();
 
     public DorisContainer() {
         dorisContainer = createDorisContainer();
     }
 
-    public GenericContainer createDorisContainer() {
+    public GenericContainer<?> createDorisContainer() {
         LOG.info("Will create doris containers.");
-        GenericContainer container =
+        GenericContainer<?> container =
                 new GenericContainer<>(DORIS_DOCKER_IMAGE)
                         .withNetwork(Network.newNetwork())
                         .withNetworkAliases("DorisContainer")
@@ -74,23 +83,40 @@ public class DorisContainer implements ContainerService {
                         .withLogConsumer(
                                 new Slf4jLogConsumer(
                                         DockerLoggerFactory.getLogger(DORIS_DOCKER_IMAGE)))
-                        // use customer conf
-                        .withCopyFileToContainer(
-                                MountableFile.forClasspathResource("docker/doris/be.conf"),
-                                "/opt/apache-doris/be/conf/be.conf")
-                        .withCopyFileToContainer(
-                                MountableFile.forClasspathResource("docker/doris/fe.conf"),
-                                "/opt/apache-doris/fe/conf/fe.conf")
-                        .withExposedPorts(8030, 9030, 8040, 9060, 9611, 9610);
+                        .withCommand(
+                                "sh",
+                                "-c",
+                                "chmod -R 644 /root/be/conf/be.conf /root/fe/conf/fe.conf && chmod -R 755 /root/be/conf /root/fe/conf && chown -R root:root /root/be/conf /root/fe/conf")
+                        .withClasspathResourceMapping(
+                                "docker/doris/be.conf",
+                                "/root/be/conf/be.conf",
+                                BindMode.READ_WRITE)
+                        .withClasspathResourceMapping(
+                                "docker/doris/fe.conf",
+                                "/root/fe/conf/fe.conf",
+                                BindMode.READ_WRITE)
+                        // These exposed ports are used to connect to Doris. They are the default
+                        // ports for yagagagaga/doris-standalone:2.1.7.
+                        // For more information, see:
+                        // https://hub.docker.com/r/yagagagaga/doris-standalone
+                        .withExposedPorts(
+                                FE.HTTP_PORT,
+                                FE.QUERY_PORT,
+                                BE.THRIFT_PORT,
+                                BE.WEBSERVICE_PORT,
+                                FE.FLIGHT_SQL_PORT,
+                                BE.FLIGHT_SQL_PORT)
+                        .withStartupTimeout(Duration.ofMinutes(5))
+                        .withEnv("TZ", systemTimeZone);
 
         container.setPortBindings(
                 Lists.newArrayList(
-                        String.format("%s:%s", "8030", "8030"),
-                        String.format("%s:%s", "9030", "9030"),
-                        String.format("%s:%s", "9060", "9060"),
-                        String.format("%s:%s", "8040", "8040"),
-                        String.format("%s:%s", "9611", "9611"),
-                        String.format("%s:%s", "9610", "9610")));
+                        String.format("%s:%s", FE.HTTP_PORT, FE.HTTP_PORT),
+                        String.format("%s:%s", FE.QUERY_PORT, FE.QUERY_PORT),
+                        String.format("%s:%s", BE.THRIFT_PORT, BE.THRIFT_PORT),
+                        String.format("%s:%s", BE.WEBSERVICE_PORT, BE.WEBSERVICE_PORT),
+                        String.format("%s:%s", FE.FLIGHT_SQL_PORT, FE.FLIGHT_SQL_PORT),
+                        String.format("%s:%s", BE.FLIGHT_SQL_PORT, BE.FLIGHT_SQL_PORT)));
         return container;
     }
 
@@ -99,6 +125,14 @@ public class DorisContainer implements ContainerService {
             LOG.info("Starting doris containers.");
             // singleton doris container
             dorisContainer.start();
+            // print Doris configuration information.
+            ExecResult feExecResult =
+                    dorisContainer.execInContainer("cat", "/root/fe/conf/fe.conf");
+            ExecResult beExecResult =
+                    dorisContainer.execInContainer("cat", "/root/be/conf/be.conf");
+            LOG.info("FE config: {}", feExecResult.getStdout());
+            LOG.info("BE config: {}", beExecResult.getStdout());
+            waitDorisFeRunning();
             initializeJdbcConnection();
             initializeVariables();
             printClusterStatus();
@@ -111,11 +145,21 @@ public class DorisContainer implements ContainerService {
 
     @Override
     public void restartContainer() {
-        LOG.info("Restart doris container.");
-        dorisContainer
-                .getDockerClient()
-                .restartContainerCmd(dorisContainer.getContainerId())
-                .exec();
+        LOG.info("Restarting Doris container...");
+
+        try (RestartContainerCmd restartCmd =
+                dorisContainer
+                        .getDockerClient()
+                        .restartContainerCmd(dorisContainer.getContainerId())) {
+            restartCmd.exec();
+            LOG.info("Restart command executed, waiting for container services to be ready");
+            waitDorisFeRunning();
+        } catch (Exception e) {
+            LOG.error("Failed to restart Doris container", e);
+            throw new RuntimeException("Container restart failed", e);
+        }
+
+        LOG.info("Doris container successfully restarted and services are ready");
     }
 
     @Override
@@ -172,18 +216,20 @@ public class DorisContainer implements ContainerService {
 
     @Override
     public String getFenodes() {
-        return dorisContainer.getHost() + ":8030";
+        return dorisContainer.getHost() + ":" + FE.HTTP_PORT;
     }
 
     @Override
     public String getBenodes() {
-        return dorisContainer.getHost() + ":8040";
+        return dorisContainer.getHost() + ":" + BE.WEBSERVICE_PORT;
     }
 
     public void close() {
-        LOG.info("Doris container is about to be close.");
-        dorisContainer.close();
-        LOG.info("Doris container closed successfully.");
+        if (dorisContainer != null) {
+            LOG.info("Doris container is about to be close.");
+            dorisContainer.close();
+            LOG.info("Doris container closed successfully.");
+        }
     }
 
     private void initializeJDBCDriver() throws MalformedURLException {
@@ -196,6 +242,9 @@ public class DorisContainer implements ContainerService {
 
     private void initializeJdbcConnection() throws Exception {
         initializeJDBCDriver();
+        // before connecting to Doris, wait for Doris FE to start,which is to avoid connect Doris
+        // failed when Doris FE is not ready.
+        waitDorisFeRunning();
         try (Connection connection = getQueryConnection();
                 Statement statement = connection.createStatement()) {
             ResultSet resultSet;
@@ -205,6 +254,58 @@ public class DorisContainer implements ContainerService {
             } while (!isBeReady(resultSet, Duration.ofSeconds(1L)));
         }
         LOG.info("Connected to Doris successfully.");
+    }
+
+    /**
+     * Wait for Doris container to running. If the Doris FE not startup completely, try to connect
+     * it again until the doris FE is ready.
+     */
+    private void waitDorisFeRunning() {
+        LOG.info("Waiting for Doris services to be accessible...");
+
+        // Poll Doris FE HTTP service every second with a maximum wait time of 5 minutes
+        // If the service is not available within this time, a timeout exception will be thrown
+        try {
+            Awaitility.await("FE HTTP Service")
+                    .atMost(5, TimeUnit.MINUTES)
+                    .pollInterval(1, TimeUnit.SECONDS)
+                    .until(
+                            () -> {
+                                try {
+                                    ExecResult result =
+                                            dorisContainer.execInContainer(
+                                                    "curl",
+                                                    "-s",
+                                                    "-o",
+                                                    "/dev/null",
+                                                    "-w",
+                                                    "%{http_code}",
+                                                    "-m",
+                                                    "2",
+                                                    "http://localhost:" + FE.HTTP_PORT);
+                                    boolean ready = result.getStdout().equals("200");
+                                    LOG.info(
+                                            "FE HTTP service on port {} is ready: {}",
+                                            FE.HTTP_PORT,
+                                            ready);
+
+                                    if (ready) {
+                                        LOG.info(
+                                                "FE HTTP service on port {} is ready",
+                                                FE.HTTP_PORT);
+                                    }
+                                    return ready;
+                                } catch (Exception e) {
+                                    LOG.debug(
+                                            "Exception while checking FE HTTP service: {}",
+                                            e.getMessage());
+                                    return false;
+                                }
+                            });
+
+        } catch (ConditionTimeoutException e) {
+            LOG.warn("Timed out after 5 minutes waiting for Doris services to be ready");
+        }
     }
 
     private boolean isBeReady(ResultSet rs, Duration duration) throws SQLException {
@@ -249,12 +350,12 @@ public class DorisContainer implements ContainerService {
             reader.close();
             p.destroy();
         } catch (Exception e) {
-            e.printStackTrace();
+            LOG.info("Execute command in docker container failed. ", e);
         }
     }
 
-    private List<Map> convertList(ResultSet rs) throws SQLException {
-        List<Map> list = new ArrayList<>();
+    private List<Map<String, Object>> convertList(ResultSet rs) throws SQLException {
+        List<Map<String, Object>> list = new ArrayList<>();
         ResultSetMetaData metaData = rs.getMetaData();
         int columnCount = metaData.getColumnCount();
         while (rs.next()) {

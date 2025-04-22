@@ -23,6 +23,7 @@ import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 
 import org.apache.doris.flink.container.AbstractContainerTestBase;
 import org.apache.doris.flink.container.ContainerUtils;
+import org.apache.doris.flink.container.config.DorisPorts.FE;
 import org.apache.doris.flink.table.DorisConfigOptions;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -60,7 +61,6 @@ public class Doris2DorisE2ECase extends AbstractContainerTestBase {
         env.setParallelism(2);
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
         final StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
-
         String sourceDDL =
                 String.format(
                         "CREATE TABLE doris_source ("
@@ -96,13 +96,14 @@ public class Doris2DorisE2ECase extends AbstractContainerTestBase {
                                 + " 'username' = '%s',"
                                 + " 'password' = '%s',"
                                 + " 'source.use-flight-sql' = '%s',\n"
-                                + " 'source.flight-sql-port' = '9611'"
+                                + " 'source.flight-sql-port' = '%s'"
                                 + ")",
                         getFenodes(),
                         DATABASE_SOURCE + "." + TABLE,
                         getDorisUsername(),
                         getDorisPassword(),
-                        useFlightRead);
+                        useFlightRead,
+                        FE.FLIGHT_SQL_PORT);
         tEnv.executeSql(sourceDDL);
 
         String sinkDDL =
@@ -150,9 +151,9 @@ public class Doris2DorisE2ECase extends AbstractContainerTestBase {
 
         List<String> excepted =
                 Arrays.asList(
-                        "1,true,127,32767,2147483647,9223372036854775807,170141183460469231731687303715884105727,3.14,2.71828,12345.6789,2025-03-11,2025-03-11T12:34:56,A,Hello, Doris!,This is a string,[\"Alice\", \"Bob\"],{\"key1\":\"value1\", \"key2\":\"value2\"},{\"name\": \"Tom\", \"age\": 30},{\"key\":\"value\"},{\"data\":123,\"type\":\"variant\"}",
-                        "2,false,-128,-32768,-2147483648,-9223372036854775808,-170141183460469231731687303715884105728,-1.23,1.0E-4,-9999.9999,2024-12-25,2024-12-25T23:59:59,B,Doris Test,Another string!,[\"Charlie\", \"David\"],{\"k1\":\"v1\", \"k2\":\"v2\"},{\"name\": \"Jerry\", \"age\": 25},{\"status\":\"ok\"},{\"data\":[1,2,3]}",
-                        "3,true,0,0,0,0,0,0.0,0.0,0.0000,2023-06-15,2023-06-15T08:00,C,Test Doris,Sample text,[\"Eve\", \"Frank\"],{\"alpha\":\"beta\"},{\"name\": \"Alice\", \"age\": 40},{\"nested\":{\"key\":\"value\"}},{\"variant\":\"test\"}",
+                        "1,true,127,32767,2147483647,9223372036854775807,170141183460469231731687303715884105727,3.14,2.71828,12345.6789,2025-03-11,2025-03-11T12:34:56,A,Hello, Doris!,This is a string,[\"Alice\", \"Bob\"],{\"key1\":\"value1\", \"key2\":\"value2\"},{\"name\":\"Tom\", \"age\":30},{\"key\":\"value\"},{\"data\":123,\"type\":\"variant\"}",
+                        "2,false,-128,-32768,-2147483648,-9223372036854775808,-170141183460469231731687303715884105728,-1.23,1.0E-4,-9999.9999,2024-12-25,2024-12-25T23:59:59,B,Doris Test,Another string!,[\"Charlie\", \"David\"],{\"k1\":\"v1\", \"k2\":\"v2\"},{\"name\":\"Jerry\", \"age\":25},{\"status\":\"ok\"},{\"data\":[1,2,3]}",
+                        "3,true,0,0,0,0,0,0.0,0.0,0.0000,2023-06-15,2023-06-15T08:00,C,Test Doris,Sample text,[\"Eve\", \"Frank\"],{\"alpha\":\"beta\"},{\"name\":\"Alice\", \"age\":40},{\"nested\":{\"key\":\"value\"}},{\"variant\":\"test\"}",
                         "4,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null");
 
         String query = String.format("SELECT * FROM %s.%s", DATABASE_SINK, TABLE);
