@@ -249,9 +249,8 @@ public class DorisDynamicOutputFormat<T> extends RichOutputFormat<T> {
             StringJoiner value = new StringJoiner(this.fieldDelimiter);
             for (int i = 0; i < rowData.getArity() && i < fieldGetters.length; ++i) {
                 Object field = fieldGetters[i].getFieldOrNull(rowData);
-                LogicalType logicalType = logicalTypes[i];
                 // Compatible date types
-                if(LogicalTypeRoot.DATE.equals(logicalType.getTypeRoot())) {
+                if(field != null && LogicalTypeRoot.DATE.equals(logicalTypes[i].getTypeRoot())) {
                     field = Date.valueOf(LocalDate.ofEpochDay((int) field));
                 }
                 if (jsonFormat) {
