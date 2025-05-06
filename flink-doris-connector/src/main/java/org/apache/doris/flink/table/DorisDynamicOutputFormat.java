@@ -31,6 +31,7 @@ import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.CollectionUtil;
 import org.slf4j.Logger;
@@ -38,6 +39,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.sql.Date;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -80,6 +83,7 @@ public class DorisDynamicOutputFormat<T> extends RichOutputFormat<T> {
     private final String[] fieldNames;
     private final boolean jsonFormat;
     private final RowData.FieldGetter[] fieldGetters;
+    private final LogicalType[] logicalTypes;
     private final List batch = new ArrayList<>();
     private long batchBytes = 0L;
     private String fieldDelimiter;
@@ -111,6 +115,7 @@ public class DorisDynamicOutputFormat<T> extends RichOutputFormat<T> {
 
 
         handleStreamloadProp();
+        this.logicalTypes = logicalTypes;
         this.fieldGetters = new RowData.FieldGetter[logicalTypes.length];
         for (int i = 0; i < logicalTypes.length; i++) {
             fieldGetters[i] = createFieldGetter(logicalTypes[i], i);
@@ -244,6 +249,11 @@ public class DorisDynamicOutputFormat<T> extends RichOutputFormat<T> {
             StringJoiner value = new StringJoiner(this.fieldDelimiter);
             for (int i = 0; i < rowData.getArity() && i < fieldGetters.length; ++i) {
                 Object field = fieldGetters[i].getFieldOrNull(rowData);
+                LogicalType logicalType = logicalTypes[i];
+                // Compatible date types
+                if(LogicalTypeRoot.DATE.equals(logicalType.getTypeRoot())) {
+                    field = Date.valueOf(LocalDate.ofEpochDay((int) field));
+                }
                 if (jsonFormat) {
                     String data = field != null ? field.toString() : null;
                     valueMap.put(this.fieldNames[i], data);
