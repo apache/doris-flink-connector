@@ -78,6 +78,7 @@ import static org.apache.doris.flink.table.DorisConfigOptions.SINK_IGNORE_UPDATE
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_LABEL_PREFIX;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_MAX_RETRIES;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_PARALLELISM;
+import static org.apache.doris.flink.table.DorisConfigOptions.SINK_SOCKET_TIMEOUT;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_USE_CACHE;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_WRITE_MODE;
 import static org.apache.doris.flink.table.DorisConfigOptions.SOURCE_USE_OLD_API;
@@ -162,6 +163,8 @@ public final class DorisDynamicTableFactory
 
         options.add(USE_FLIGHT_SQL);
         options.add(FLIGHT_SQL_PORT);
+
+        options.add(SINK_SOCKET_TIMEOUT);
         return options;
     }
 
@@ -258,6 +261,7 @@ public final class DorisDynamicTableFactory
         builder.setBufferFlushMaxBytes(
                 (int) readableConfig.get(SINK_BUFFER_FLUSH_MAX_BYTES).getBytes());
         builder.setBufferFlushIntervalMs(readableConfig.get(SINK_BUFFER_FLUSH_INTERVAL).toMillis());
+        builder.setSinkSocketTimeoutMs((int) readableConfig.get(SINK_SOCKET_TIMEOUT).toMillis());
         builder.setUseCache(readableConfig.get(SINK_USE_CACHE));
         return builder.build();
     }

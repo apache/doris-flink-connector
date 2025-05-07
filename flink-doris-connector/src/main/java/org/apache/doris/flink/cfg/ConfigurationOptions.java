@@ -58,4 +58,6 @@ public interface ConfigurationOptions {
 
     String FLIGHT_SQL_PORT = "source.flight-sql-port";
     Integer FLIGHT_SQL_PORT_DEFAULT = -1;
+
+    Integer DEFAULT_SINK_SOCKET_TIMEOUT_MS = 9 * 60 * 1000;
 }
