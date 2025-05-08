@@ -51,6 +51,7 @@ import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_REQUEST_QUER
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_REQUEST_READ_TIMEOUT_MS;
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_REQUEST_RETRIES;
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_TABLET_SIZE;
+import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_THRIFT_MAX_MESSAGE_SIZE;
 import static org.apache.doris.flink.table.DorisConfigOptions.FENODES;
 import static org.apache.doris.flink.table.DorisConfigOptions.FLIGHT_SQL_PORT;
 import static org.apache.doris.flink.table.DorisConfigOptions.IDENTIFIER;
@@ -130,6 +131,8 @@ public final class DorisDynamicTableFactory
         options.add(DORIS_DESERIALIZE_QUEUE_SIZE);
         options.add(DORIS_BATCH_SIZE);
         options.add(DORIS_EXEC_MEM_LIMIT);
+        options.add(DORIS_THRIFT_MAX_MESSAGE_SIZE);
+
         options.add(LOOKUP_CACHE_MAX_ROWS);
         options.add(LOOKUP_CACHE_TTL);
         options.add(LOOKUP_MAX_RETRIES);
@@ -210,6 +213,7 @@ public final class DorisDynamicTableFactory
         builder.setDeserializeArrowAsync(readableConfig.get(DORIS_DESERIALIZE_ARROW_ASYNC))
                 .setDeserializeQueueSize(readableConfig.get(DORIS_DESERIALIZE_QUEUE_SIZE))
                 .setExecMemLimit(readableConfig.get(DORIS_EXEC_MEM_LIMIT).getBytes())
+                .setThriftMaxMessageSize(readableConfig.get(DORIS_THRIFT_MAX_MESSAGE_SIZE))
                 .setFilterQuery(readableConfig.get(DORIS_FILTER_QUERY))
                 .setReadFields(readableConfig.get(DORIS_READ_FIELD))
                 .setRequestQueryTimeoutS(
