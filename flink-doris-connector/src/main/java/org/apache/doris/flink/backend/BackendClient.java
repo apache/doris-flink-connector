@@ -54,6 +54,7 @@ public class BackendClient {
     private final int retries;
     private final int socketTimeout;
     private final int connectTimeout;
+    private final int thriftMaxMessageSize;
 
     public BackendClient(Routing routing, DorisReadOptions readOptions) {
         this.routing = routing;
@@ -69,11 +70,16 @@ public class BackendClient {
                 readOptions.getRequestRetries() == null
                         ? ConfigurationOptions.DORIS_REQUEST_RETRIES_DEFAULT
                         : readOptions.getRequestRetries();
+        this.thriftMaxMessageSize =
+                readOptions.getRequestRetries() == null
+                        ? ConfigurationOptions.DORIS_THRIFT_MAX_MESSAGE_SIZE_DEFAULT
+                        : readOptions.getThriftMaxMessageSize();
         logger.trace(
-                "connect timeout set to '{}'. socket timeout set to '{}'. retries set to '{}'.",
+                "connect timeout set to '{}'. socket timeout set to '{}'. retries set to '{}'. thrift MAX_MESSAGE_SIZE set to '{}'",
                 this.connectTimeout,
                 this.socketTimeout,
-                this.retries);
+                this.retries,
+                this.thriftMaxMessageSize);
         open();
     }
 
@@ -84,9 +90,11 @@ public class BackendClient {
             logger.debug("Attempt {} to connect {}.", attempt, routing);
             try {
                 TBinaryProtocol.Factory factory = new TBinaryProtocol.Factory();
+                TConfiguration.Builder configBuilder = TConfiguration.custom();
+                configBuilder.setMaxMessageSize(thriftMaxMessageSize);
                 transport =
                         new TSocket(
-                                new TConfiguration(),
+                                configBuilder.build(),
                                 routing.getHost(),
                                 routing.getPort(),
                                 socketTimeout,

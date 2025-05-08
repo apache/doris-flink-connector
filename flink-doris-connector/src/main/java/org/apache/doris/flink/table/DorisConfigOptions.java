@@ -38,6 +38,7 @@ import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_REQUEST_QUER
 import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_REQUEST_READ_TIMEOUT_MS_DEFAULT;
 import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_REQUEST_RETRIES_DEFAULT;
 import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_TABLET_SIZE_DEFAULT;
+import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_THRIFT_MAX_MESSAGE_SIZE_DEFAULT;
 
 /** Options for the Doris connector. */
 @PublicEvolving
@@ -157,6 +158,13 @@ public class DorisConfigOptions {
                     .defaultValue(false)
                     .withDescription(
                             "Whether to read data using the new interface defined according to the FLIP-27 specification,default false");
+
+    public static final ConfigOption<Integer> DORIS_THRIFT_MAX_MESSAGE_SIZE =
+            ConfigOptions.key("doris.thrift.max.message.size")
+                    .intType()
+                    .defaultValue(DORIS_THRIFT_MAX_MESSAGE_SIZE_DEFAULT)
+                    .withDescription(
+                            "The maximum message size for thrift protocol. The default is Integer.MAX_VALUE.");
 
     // Lookup options
     public static final ConfigOption<Long> LOOKUP_CACHE_MAX_ROWS =

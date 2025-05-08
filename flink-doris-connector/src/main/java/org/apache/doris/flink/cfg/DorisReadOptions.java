@@ -37,6 +37,7 @@ public class DorisReadOptions implements Serializable {
     private Integer deserializeQueueSize;
     private Boolean deserializeArrowAsync;
     private boolean useOldApi;
+    private Integer thriftMaxMessageSize;
 
     public DorisReadOptions(
             String readFields,
@@ -50,7 +51,8 @@ public class DorisReadOptions implements Serializable {
             Long execMemLimit,
             Integer deserializeQueueSize,
             Boolean deserializeArrowAsync,
-            boolean useOldApi) {
+            boolean useOldApi,
+            Integer thriftMaxMessageSize) {
         this.readFields = readFields;
         this.filterQuery = filterQuery;
         this.requestTabletSize = requestTabletSize;
@@ -63,6 +65,7 @@ public class DorisReadOptions implements Serializable {
         this.deserializeQueueSize = deserializeQueueSize;
         this.deserializeArrowAsync = deserializeArrowAsync;
         this.useOldApi = useOldApi;
+        this.thriftMaxMessageSize = thriftMaxMessageSize;
     }
 
     public String getReadFields() {
@@ -113,6 +116,10 @@ public class DorisReadOptions implements Serializable {
         return useOldApi;
     }
 
+    public Integer getThriftMaxMessageSize() {
+        return thriftMaxMessageSize;
+    }
+
     public void setReadFields(String readFields) {
         this.readFields = readFields;
     }
@@ -149,7 +156,8 @@ public class DorisReadOptions implements Serializable {
                 && Objects.equals(requestBatchSize, that.requestBatchSize)
                 && Objects.equals(execMemLimit, that.execMemLimit)
                 && Objects.equals(deserializeQueueSize, that.deserializeQueueSize)
-                && Objects.equals(deserializeArrowAsync, that.deserializeArrowAsync);
+                && Objects.equals(deserializeArrowAsync, that.deserializeArrowAsync)
+                && Objects.equals(thriftMaxMessageSize, that.thriftMaxMessageSize);
     }
 
     @Override
@@ -166,7 +174,8 @@ public class DorisReadOptions implements Serializable {
                 execMemLimit,
                 deserializeQueueSize,
                 deserializeArrowAsync,
-                useOldApi);
+                useOldApi,
+                thriftMaxMessageSize);
     }
 
     /** Builder of {@link DorisReadOptions}. */
@@ -184,6 +193,8 @@ public class DorisReadOptions implements Serializable {
         private Integer deserializeQueueSize;
         private Boolean deserializeArrowAsync;
         private Boolean useOldApi = false;
+        private Integer thriftMaxMessageSize =
+                ConfigurationOptions.DORIS_THRIFT_MAX_MESSAGE_SIZE_DEFAULT;
 
         public Builder setReadFields(String readFields) {
             this.readFields = readFields;
@@ -245,6 +256,11 @@ public class DorisReadOptions implements Serializable {
             return this;
         }
 
+        public Builder setThriftMaxMessageSize(Integer thriftMaxMessageSize) {
+            this.thriftMaxMessageSize = thriftMaxMessageSize;
+            return this;
+        }
+
         public DorisReadOptions build() {
             return new DorisReadOptions(
                     readFields,
@@ -258,7 +274,8 @@ public class DorisReadOptions implements Serializable {
                     execMemLimit,
                     deserializeQueueSize,
                     deserializeArrowAsync,
-                    useOldApi);
+                    useOldApi,
+                    thriftMaxMessageSize);
         }
     }
 }

@@ -40,6 +40,7 @@ import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_REQUEST_QUER
 import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_REQUEST_READ_TIMEOUT_MS_DEFAULT;
 import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_REQUEST_RETRIES_DEFAULT;
 import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_TABLET_SIZE_DEFAULT;
+import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_THRIFT_MAX_MESSAGE_SIZE_DEFAULT;
 import static org.apache.doris.flink.utils.FactoryMocks.SCHEMA;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSink;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSource;
@@ -57,6 +58,7 @@ public class DorisDynamicTableFactoryTest {
         properties.put("doris.exec.mem.limit", "8192mb");
         properties.put("doris.deserialize.arrow.async", "false");
         properties.put("doris.deserialize.queue.size", "64");
+        properties.put("doris.thrift.max.message.size", Integer.MAX_VALUE + "");
 
         properties.put("lookup.cache.max-rows", "100");
         properties.put("lookup.cache.ttl", "20s");
@@ -98,7 +100,8 @@ public class DorisDynamicTableFactoryTest {
                 .setRequestConnectTimeoutMs(DORIS_REQUEST_CONNECT_TIMEOUT_MS_DEFAULT)
                 .setRequestReadTimeoutMs(DORIS_REQUEST_READ_TIMEOUT_MS_DEFAULT)
                 .setRequestRetries(DORIS_REQUEST_RETRIES_DEFAULT)
-                .setRequestTabletSize(DORIS_TABLET_SIZE_DEFAULT);
+                .setRequestTabletSize(DORIS_TABLET_SIZE_DEFAULT)
+                .setThriftMaxMessageSize(DORIS_THRIFT_MAX_MESSAGE_SIZE_DEFAULT);
         DorisDynamicTableSource expected =
                 new DorisDynamicTableSource(
                         options,

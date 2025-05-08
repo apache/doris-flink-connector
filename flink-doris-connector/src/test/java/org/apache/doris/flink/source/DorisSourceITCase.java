@@ -211,6 +211,7 @@ public class DorisSourceITCase extends DorisTestBase {
                                 + " 'doris.request.tablet.size' = '2',"
                                 + " 'doris.batch.size' = '1024',"
                                 + " 'doris.exec.mem.limit' = '2048mb',"
+                                + " 'doris.thrift.max.message.size' = '10485760',"
                                 + " 'doris.deserialize.arrow.async' = 'true',"
                                 + " 'doris.deserialize.queue.size' = '32'"
                                 + ")",
