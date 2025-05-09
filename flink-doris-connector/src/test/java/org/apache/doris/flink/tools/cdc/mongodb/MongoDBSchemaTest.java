@@ -189,4 +189,49 @@ public class MongoDBSchemaTest {
             }
         }
     }
+
+    @Test
+    public void testIntFieldNotConvertedToDecimal() throws Exception {
+        ArrayList<Document> documents = new ArrayList<>();
+        documents.add(new Document("fields1", Integer.MAX_VALUE));
+        documents.add(new Document("fields1", 1234567));
+        documents.add(new Document("fields1", Integer.MIN_VALUE));
+
+        MongoDBSchema mongoDBSchema = new MongoDBSchema(documents, "db_TEST", "test_table", "");
+        FieldSchema fieldSchema = mongoDBSchema.getFields().get("fields1");
+
+        assertEquals("INT", fieldSchema.getTypeString());
+    }
+
+    @Test
+    public void testBigIntFieldNotConvertedToDecimal() throws Exception {
+        ArrayList<Document> documents = new ArrayList<>();
+        documents.add(new Document("fields1", Long.MAX_VALUE));
+        documents.add(new Document("fields1", 12233720368541346L));
+        documents.add(new Document("fields1", Long.MIN_VALUE));
+
+        MongoDBSchema mongoDBSchema = new MongoDBSchema(documents, "db_TEST", "test_table", "");
+        Map<String, FieldSchema> fields = mongoDBSchema.getFields();
+
+        for (Map.Entry<String, FieldSchema> entry : fields.entrySet()) {
+            String fieldName = entry.getKey();
+            FieldSchema fieldSchema = entry.getValue();
+            if (fieldName.equals("fields1")) {
+                assertEquals("BIGINT", fieldSchema.getTypeString());
+            }
+        }
+    }
+
+    @Test
+    public void testMixedIntAndBigIntFieldsShouldConvertToBigInt() throws Exception {
+        ArrayList<Document> documents = new ArrayList<>();
+        documents.add(new Document("fields1", 2147483647));
+        documents.add(new Document("fields1", 9223372036854775807L));
+        documents.add(new Document("fields1", 12234));
+
+        MongoDBSchema mongoDBSchema = new MongoDBSchema(documents, "db_TEST", "test_table", "");
+        FieldSchema fieldSchema = mongoDBSchema.getFields().get("fields1");
+
+        assertEquals("BIGINT", fieldSchema.getTypeString());
+    }
 }
