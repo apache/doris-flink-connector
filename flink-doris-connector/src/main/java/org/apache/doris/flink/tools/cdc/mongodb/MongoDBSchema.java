@@ -106,6 +106,13 @@ public class MongoDBSchema extends SourceSchema {
                         && existingField.getTypeString().equals(DorisType.STRING))) {
             return DorisType.STRING;
         }
+        if (existingField != null) {
+            String existingType = existingField.getTypeString();
+            if (isDowngrade(existingType, dorisType)) {
+                return existingType;
+            }
+        }
+
         // Check and process for decimal types
         DecimalJudgement decimalJudgement = judgeDecimalField(fieldName, dorisType);
         if (DecimalJudgement.needProcessing(decimalJudgement)) {
@@ -118,6 +125,27 @@ public class MongoDBSchema extends SourceSchema {
         return dorisType;
     }
 
+    /**
+     * Check whether the newType is a downgrade from the existingType. Currently only considers
+     * numeric types: TINYINT < SMALLINT < INT < BIGINT.
+     */
+    private boolean isDowngrade(String existingType, String newType) {
+        List<String> typeHierarchy =
+                Arrays.asList(
+                        DorisType.TINYINT, DorisType.SMALLINT, DorisType.INT, DorisType.BIGINT);
+
+        int existingIndex = typeHierarchy.indexOf(existingType);
+        int newIndex = typeHierarchy.indexOf(newType);
+
+        return newIndex != -1 && existingIndex != -1 && newIndex < existingIndex;
+    }
+
+    /**
+     * Determine whether the field should be treated as a decimal type: - If the existing type is
+     * already decimal and current value is also decimal, return CERTAIN_DECIMAL. - If the field's
+     * type is convertible (e.g., INT, BIGINT) and the current value is decimal or double, return
+     * CONVERT_TO_DECIMAL. - Otherwise, no decimal processing is needed.
+     */
     private DecimalJudgement judgeDecimalField(String fieldName, String dorisType) {
         FieldSchema existingField = fields.get(fieldName);
         if (existingField == null) {
@@ -127,7 +155,7 @@ public class MongoDBSchema extends SourceSchema {
         boolean isDecimal = dorisType.startsWith(DorisType.DECIMAL);
         if (existDecimal && isDecimal) {
             return DecimalJudgement.CERTAIN_DECIMAL;
-        } else if (CONVERT_TYPE.contains(dorisType)) {
+        } else if (existDecimal && CONVERT_TYPE.contains(dorisType)) {
             return DecimalJudgement.CONVERT_TO_DECIMAL;
         }
         return DecimalJudgement.NOT_DECIMAL;
