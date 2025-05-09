@@ -41,6 +41,7 @@ public class DorisReadOptions implements Serializable {
     private Integer flightSqlPort;
     // for flink sql limit push down
     private Long rowLimit;
+    private Integer thriftMaxMessageSize;
 
     public DorisReadOptions(
             String readFields,
@@ -57,7 +58,8 @@ public class DorisReadOptions implements Serializable {
             boolean useOldApi,
             boolean useFlightSql,
             Integer flightSqlPort,
-            Long rowLimit) {
+            Long rowLimit,
+            Integer thriftMaxMessageSize) {
         this.readFields = readFields;
         this.filterQuery = filterQuery;
         this.requestTabletSize = requestTabletSize;
@@ -73,6 +75,7 @@ public class DorisReadOptions implements Serializable {
         this.useFlightSql = useFlightSql;
         this.flightSqlPort = flightSqlPort;
         this.rowLimit = rowLimit;
+        this.thriftMaxMessageSize = thriftMaxMessageSize;
     }
 
     public String getReadFields() {
@@ -151,6 +154,10 @@ public class DorisReadOptions implements Serializable {
         this.rowLimit = rowLimit;
     }
 
+    public Integer getThriftMaxMessageSize() {
+        return thriftMaxMessageSize;
+    }
+
     public static Builder builder() {
         return new Builder();
     }
@@ -182,7 +189,8 @@ public class DorisReadOptions implements Serializable {
                 && Objects.equals(deserializeArrowAsync, that.deserializeArrowAsync)
                 && Objects.equals(useFlightSql, that.useFlightSql)
                 && Objects.equals(flightSqlPort, that.flightSqlPort)
-                && Objects.equals(rowLimit, that.rowLimit);
+                && Objects.equals(rowLimit, that.rowLimit)
+                && Objects.equals(thriftMaxMessageSize, that.thriftMaxMessageSize);
     }
 
     @Override
@@ -202,7 +210,8 @@ public class DorisReadOptions implements Serializable {
                 useOldApi,
                 useFlightSql,
                 flightSqlPort,
-                rowLimit);
+                rowLimit,
+                thriftMaxMessageSize);
     }
 
     public DorisReadOptions copy() {
@@ -221,7 +230,8 @@ public class DorisReadOptions implements Serializable {
                 useOldApi,
                 useFlightSql,
                 flightSqlPort,
-                rowLimit);
+                rowLimit,
+                thriftMaxMessageSize);
     }
 
     /** Builder of {@link DorisReadOptions}. */
@@ -247,7 +257,8 @@ public class DorisReadOptions implements Serializable {
         private Boolean useFlightSql = ConfigurationOptions.USE_FLIGHT_SQL_DEFAULT;
         private Integer flightSqlPort = ConfigurationOptions.FLIGHT_SQL_PORT_DEFAULT;
         private Long rowLimit;
-
+        private Integer thriftMaxMessageSize =
+                ConfigurationOptions.DORIS_THRIFT_MAX_MESSAGE_SIZE_DEFAULT;
         /**
          * Sets the readFields for doris table to push down projection, such as name,age.
          *
@@ -407,6 +418,17 @@ public class DorisReadOptions implements Serializable {
         }
 
         /**
+         * Sets the thriftMaxMessageSize for DorisReadOptions.
+         *
+         * @param thriftMaxMessageSize
+         * @return
+         */
+        public Builder setThriftMaxMessageSize(Integer thriftMaxMessageSize) {
+            this.thriftMaxMessageSize = thriftMaxMessageSize;
+            return this;
+        }
+
+        /**
          * Build the {@link DorisReadOptions}.
          *
          * @return a DorisReadOptions with the settings made for this builder.
@@ -427,7 +449,8 @@ public class DorisReadOptions implements Serializable {
                     useOldApi,
                     useFlightSql,
                     flightSqlPort,
-                    rowLimit);
+                    rowLimit,
+                    thriftMaxMessageSize);
         }
     }
 }

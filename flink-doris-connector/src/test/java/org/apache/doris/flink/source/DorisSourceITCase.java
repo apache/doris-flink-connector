@@ -291,6 +291,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
                                 + " 'doris.batch.size' = '1024',"
                                 + " 'doris.exec.mem.limit' = '2048mb',"
                                 + " 'doris.deserialize.arrow.async' = 'true',"
+                                + " 'doris.thrift.max.message.size' = '10485760',"
                                 + " 'doris.deserialize.queue.size' = '32',"
                                 + " 'source.use-flight-sql' = '%s'"
                                 + ")",

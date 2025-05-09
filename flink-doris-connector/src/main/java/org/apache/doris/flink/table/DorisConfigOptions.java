@@ -38,6 +38,7 @@ import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_REQUEST_QUER
 import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_REQUEST_READ_TIMEOUT_MS_DEFAULT;
 import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_REQUEST_RETRIES_DEFAULT;
 import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_TABLET_SIZE_DEFAULT;
+import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_THRIFT_MAX_MESSAGE_SIZE_DEFAULT;
 
 /** Options for the Doris connector. */
 @PublicEvolving
@@ -151,6 +152,14 @@ public class DorisConfigOptions {
                     .memoryType()
                     .defaultValue(MemorySize.parse(DORIS_EXEC_MEM_LIMIT_DEFAULT_STR))
                     .withDescription("Memory limit for a single query. The default is 8192mb.");
+
+    public static final ConfigOption<Integer> DORIS_THRIFT_MAX_MESSAGE_SIZE =
+            ConfigOptions.key("doris.thrift.max.message.size")
+                    .intType()
+                    .defaultValue(DORIS_THRIFT_MAX_MESSAGE_SIZE_DEFAULT)
+                    .withDescription(
+                            "The maximum message size for thrift protocol. The default is Integer.MAX_VALUE.");
+
     public static final ConfigOption<Boolean> SOURCE_USE_OLD_API =
             ConfigOptions.key("source.use-old-api")
                     .booleanType()

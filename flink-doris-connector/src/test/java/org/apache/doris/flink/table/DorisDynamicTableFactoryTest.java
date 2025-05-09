@@ -40,6 +40,7 @@ import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_REQUEST_QUER
 import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_REQUEST_READ_TIMEOUT_MS_DEFAULT;
 import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_REQUEST_RETRIES_DEFAULT;
 import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_TABLET_SIZE_DEFAULT;
+import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_THRIFT_MAX_MESSAGE_SIZE_DEFAULT;
 import static org.apache.doris.flink.cfg.ConfigurationOptions.FLIGHT_SQL_PORT_DEFAULT;
 import static org.apache.doris.flink.cfg.ConfigurationOptions.USE_FLIGHT_SQL_DEFAULT;
 import static org.apache.doris.flink.utils.FactoryMocks.SCHEMA;
@@ -59,6 +60,7 @@ public class DorisDynamicTableFactoryTest {
         properties.put("doris.exec.mem.limit", "8192mb");
         properties.put("doris.deserialize.arrow.async", "false");
         properties.put("doris.deserialize.queue.size", "64");
+        properties.put("doris.thrift.max.message.size", Integer.MAX_VALUE + "");
 
         properties.put("lookup.cache.max-rows", "100");
         properties.put("lookup.cache.ttl", "20s");
@@ -103,7 +105,8 @@ public class DorisDynamicTableFactoryTest {
                 .setRequestRetries(DORIS_REQUEST_RETRIES_DEFAULT)
                 .setRequestTabletSize(DORIS_TABLET_SIZE_DEFAULT)
                 .setUseFlightSql(USE_FLIGHT_SQL_DEFAULT)
-                .setFlightSqlPort(FLIGHT_SQL_PORT_DEFAULT);
+                .setFlightSqlPort(FLIGHT_SQL_PORT_DEFAULT)
+                .setThriftMaxMessageSize(DORIS_THRIFT_MAX_MESSAGE_SIZE_DEFAULT);
         DorisDynamicTableSource expected =
                 new DorisDynamicTableSource(
                         options,
