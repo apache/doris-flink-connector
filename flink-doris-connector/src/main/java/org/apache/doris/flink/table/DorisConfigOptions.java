@@ -29,6 +29,7 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.Properties;
 
+import static org.apache.doris.flink.cfg.ConfigurationOptions.DEFAULT_SINK_SOCKET_TIMEOUT_MS;
 import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_BATCH_SIZE_DEFAULT;
 import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_DESERIALIZE_ARROW_ASYNC_DEFAULT;
 import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_DESERIALIZE_QUEUE_SIZE_DEFAULT;
@@ -302,6 +303,13 @@ public class DorisConfigOptions {
                     .withDescription(
                             "the flush interval mills, over this time, asynchronous threads will flush data. The "
                                     + "default value is 10s.");
+
+    public static final ConfigOption<Duration> SINK_SOCKET_TIMEOUT =
+            ConfigOptions.key("sink.socket.timeout")
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(DEFAULT_SINK_SOCKET_TIMEOUT_MS))
+                    .withDescription(
+                            "the socket timeout for stream load, the default value is 9min, only effective in batch mode.");
 
     public static final ConfigOption<Boolean> SINK_IGNORE_UPDATE_BEFORE =
             ConfigOptions.key("sink.ignore.update-before")
