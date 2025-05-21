@@ -38,6 +38,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /** cdc sync tools. */
 public class CdcTools {
@@ -221,7 +223,33 @@ public class CdcTools {
         for (String param : params.getMultiParameter(key)) {
             String[] kv = param.split("=", 2);
             if (kv.length == 2) {
-                map.put(kv[0].trim(), kv[1].trim());
+                String originalValue = kv[1].trim();
+                String resolvedValue = originalValue;
+
+                // Regex to find environment variables like $VAR or ${VAR}
+                Pattern pattern =
+                        Pattern.compile(
+                                "\\$(?:([A-Za-z_][A-Za-z0-9_]*)|\\{([A-Za-z_][A-Za-z0-9_]*)\\})");
+                Matcher matcher = pattern.matcher(originalValue);
+                StringBuffer sb = new StringBuffer();
+                boolean varFound = false;
+                while (matcher.find()) {
+                    varFound = true;
+                    String varName = matcher.group(1) != null ? matcher.group(1) : matcher.group(2);
+                    String envValue = System.getenv(varName);
+                    if (envValue != null) {
+                        // Replace with environment variable value
+                        matcher.appendReplacement(sb, Matcher.quoteReplacement(envValue));
+                    } else {
+                        // If environment variable is not found, keep the original placeholder
+                        matcher.appendReplacement(sb, Matcher.quoteReplacement(matcher.group(0)));
+                    }
+                }
+                if (varFound) {
+                    matcher.appendTail(sb);
+                    resolvedValue = sb.toString();
+                }
+                map.put(kv[0].trim(), resolvedValue);
                 continue;
             } else if (kv.length == 1 && EMPTY_KEYS.contains(kv[0])) {
                 map.put(kv[0].trim(), "");
