@@ -45,6 +45,11 @@ import java.util.regex.Pattern;
 public class CdcTools {
     private static final List<String> EMPTY_KEYS =
             Collections.singletonList(DatabaseSyncConfig.PASSWORD);
+
+    // Regex pattern to find environment variables like $VAR or ${VAR}
+    private static final Pattern ENV_VAR_PATTERN =
+            Pattern.compile("\\$(?:([A-Za-z_][A-Za-z0-9_]*)|\\{([A-Za-z_][A-Za-z0-9_]*)\\})");
+
     private static StreamExecutionEnvironment flinkEnvironmentForTesting;
     private static JobClient jobClient;
 
@@ -226,11 +231,8 @@ public class CdcTools {
                 String originalValue = kv[1].trim();
                 String resolvedValue = originalValue;
 
-                // Regex to find environment variables like $VAR or ${VAR}
-                Pattern pattern =
-                        Pattern.compile(
-                                "\\$(?:([A-Za-z_][A-Za-z0-9_]*)|\\{([A-Za-z_][A-Za-z0-9_]*)\\})");
-                Matcher matcher = pattern.matcher(originalValue);
+                // Use pre-compiled pattern to find environment variables like $VAR or ${VAR}
+                Matcher matcher = ENV_VAR_PATTERN.matcher(originalValue);
                 StringBuffer sb = new StringBuffer();
                 boolean varFound = false;
                 while (matcher.find()) {
