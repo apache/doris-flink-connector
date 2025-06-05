@@ -175,7 +175,7 @@ public class SchemaChangeHelper {
                                 DorisSchemaFactory.quoteTableIdentifier(tableIdentifier),
                                 DorisSchemaFactory.identifier(columnName),
                                 dataType));
-        if (StringUtils.isNotBlank(defaultValue)) {
+        if (defaultValue != null) {
             modifyDDL
                     .append(" DEFAULT ")
                     .append(DorisSchemaFactory.quoteDefaultValue(defaultValue));
