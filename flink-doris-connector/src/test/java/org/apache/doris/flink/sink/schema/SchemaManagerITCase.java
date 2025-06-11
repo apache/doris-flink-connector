@@ -292,6 +292,37 @@ public class SchemaManagerITCase extends AbstractITCaseService {
     }
 
     @Test
+    public void testModifyColumnTypeWithDefault2()
+            throws IOException, IllegalArgumentException, InterruptedException {
+        String modifyColumnTbls = "modify_column_type_with_default_value2";
+        ContainerUtils.executeSQLStatement(
+                getDorisQueryConnection(),
+                LOG,
+                String.format("CREATE DATABASE IF NOT EXISTS %s", DATABASE),
+                String.format("DROP TABLE IF EXISTS %s.%s", DATABASE, modifyColumnTbls),
+                String.format(
+                        "CREATE TABLE %s.%s ( \n"
+                                + "`id` int not null,\n"
+                                + "`cname` varchar(10) NOT NULL DEFAULT ''\n"
+                                + ")"
+                                + "UNIQUE KEY(`id`)\n"
+                                + "DISTRIBUTED BY HASH(`id`) BUCKETS 1\n"
+                                + "PROPERTIES (\n"
+                                + "\"replication_num\" = \"1\"\n"
+                                + ")\n",
+                        DATABASE, modifyColumnTbls));
+
+        String columnName = "cname";
+        String newColumnType = "varchar(11)";
+        FieldSchema field = new FieldSchema(columnName, newColumnType, "");
+        schemaChangeManager.modifyColumnDataType(DATABASE, modifyColumnTbls, field);
+
+        Thread.sleep(3_000);
+        String columnType = getColumnType(modifyColumnTbls, columnName);
+        Assert.assertEquals("varchar", columnType.toLowerCase());
+    }
+
+    @Test
     public void testModifyColumnTypeWithDefaultAndChange()
             throws IOException, IllegalArgumentException, InterruptedException {
         String modifyColumnTbls = "modify_column_type_with_default_value_and_change";
