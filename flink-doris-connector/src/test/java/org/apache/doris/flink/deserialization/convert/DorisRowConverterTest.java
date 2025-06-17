@@ -21,6 +21,7 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.data.DecimalData;
+import org.apache.flink.table.data.GenericArrayData;
 import org.apache.flink.table.data.GenericMapData;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.StringData;
@@ -365,5 +366,61 @@ public class DorisRowConverterTest implements Serializable {
                 Column.physical("f15", DataTypes.MAP(DataTypes.CHAR(1), DataTypes.CHAR(1))),
                 Column.physical(
                         "f16", DataTypes.MAP(DataTypes.VARCHAR(256), DataTypes.VARCHAR(256))));
+    }
+
+    @Test
+    public void testArrayExternalConvert() {
+        ResolvedSchema schema =
+                ResolvedSchema.of(
+                        // list with string
+                        Column.physical("f1", DataTypes.ARRAY(DataTypes.STRING())),
+                        // list with list
+                        Column.physical("f2", DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.STRING()))),
+                        // list with row
+                        Column.physical(
+                                "f3",
+                                DataTypes.ARRAY(
+                                        DataTypes.ROW(
+                                                DataTypes.FIELD("l1", DataTypes.STRING()),
+                                                DataTypes.FIELD("l2", DataTypes.INT())))),
+                        // list with map
+                        Column.physical(
+                                "f4",
+                                DataTypes.ARRAY(
+                                        DataTypes.MAP(DataTypes.STRING(), DataTypes.INT()))),
+                        // list with date
+                        Column.physical("f5", DataTypes.ARRAY(DataTypes.DATE())));
+
+        DorisRowConverter converter =
+                new DorisRowConverter((RowType) schema.toPhysicalRowDataType().getLogicalType());
+
+        Map<String, Integer> mapData1 = createMapAndPut(new HashMap<>(), "hello", 1);
+        Map<String, Integer> mapData2 = createMapAndPut(new HashMap<>(), "world", 2);
+        GenericRowData rowData =
+                GenericRowData.of(
+                        new GenericArrayData(new String[] {"1", "2", "3"}),
+                        new GenericArrayData(
+                                new GenericArrayData[] {
+                                    new GenericArrayData(new String[] {"1", "2", "3"}),
+                                    new GenericArrayData(new String[] {"4", "5", "6"})
+                                }),
+                        new GenericArrayData(
+                                new GenericRowData[] {
+                                    GenericRowData.of(StringData.fromString("on"), 1),
+                                    GenericRowData.of(StringData.fromString("off"), 2)
+                                }),
+                        new GenericArrayData(
+                                new GenericMapData[] {
+                                    new GenericMapData(mapData1), new GenericMapData(mapData2)
+                                }),
+                        new GenericArrayData(new int[] {1, 2, 3}));
+
+        List<Object> row = new ArrayList<>();
+        for (int i = 0; i < rowData.getArity(); i++) {
+            row.add(converter.convertExternal(rowData, i));
+        }
+        String expected =
+                "[[1, 2, 3], [[1, 2, 3], [4, 5, 6]], [{\"l1\":\"on\",\"l2\":\"1\"}, {\"l1\":\"off\",\"l2\":\"2\"}], [{\"hello\":\"1\"}, {\"world\":\"2\"}], [1970-01-02, 1970-01-03, 1970-01-04]]";
+        Assert.assertEquals(expected, row.toString());
     }
 }
