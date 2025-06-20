@@ -339,26 +339,40 @@ public class DorisRowConverter implements Serializable {
     }
 
     private static List<Object> convertArrayData(ArrayData array, LogicalType type) {
+        LogicalType elementType = ((ArrayType) type).getElementType();
+        List<Object> values;
         if (array instanceof GenericArrayData) {
-            return Arrays.asList(((GenericArrayData) array).toObjectArray());
+            values = Arrays.asList(((GenericArrayData) array).toObjectArray());
+        } else if (array instanceof BinaryArrayData) {
+            values = Arrays.asList(((BinaryArrayData) array).toObjectArray(elementType));
+        } else {
+            throw new UnsupportedOperationException("Unsupported array data: " + array.getClass());
         }
-        if (array instanceof BinaryArrayData) {
-            LogicalType elementType = ((ArrayType) type).getElementType();
-            List<Object> values =
-                    Arrays.asList(((BinaryArrayData) array).toObjectArray(elementType));
-            if (LogicalTypeRoot.DATE.equals(elementType.getTypeRoot())) {
-                return values.stream()
-                        .map(date -> Date.valueOf(LocalDate.ofEpochDay((Integer) date)))
-                        .collect(Collectors.toList());
-            }
-            if (LogicalTypeRoot.ARRAY.equals(elementType.getTypeRoot())) {
-                return values.stream()
-                        .map(arr -> convertArrayData((ArrayData) arr, elementType))
-                        .collect(Collectors.toList());
-            }
-            return values;
+
+        if (LogicalTypeRoot.DATE.equals(elementType.getTypeRoot())) {
+            return values.stream()
+                    .map(date -> Date.valueOf(LocalDate.ofEpochDay((Integer) date)))
+                    .collect(Collectors.toList());
         }
-        throw new UnsupportedOperationException("Unsupported array data: " + array.getClass());
+        if (LogicalTypeRoot.ARRAY.equals(elementType.getTypeRoot())) {
+            return values.stream()
+                    .map(arr -> convertArrayData((ArrayData) arr, elementType))
+                    .collect(Collectors.toList());
+        }
+        if (LogicalTypeRoot.MAP.equals(elementType.getTypeRoot())) {
+            return values.stream()
+                    .map(arr -> writeValueAsString(convertMapData((MapData) arr, elementType)))
+                    .collect(Collectors.toList());
+        }
+        if (LogicalTypeRoot.ROW.equals(elementType.getTypeRoot())) {
+            return values.stream()
+                    .map(
+                            arr ->
+                                    writeValueAsString(
+                                            convertRowData(GenericRowData.of(arr), 0, elementType)))
+                    .collect(Collectors.toList());
+        }
+        return values;
     }
 
     private static Object convertMapData(MapData map, LogicalType type) {
