@@ -167,12 +167,13 @@ public class DorisBatchStreamLoad implements Serializable {
                         0L,
                         TimeUnit.MILLISECONDS,
                         new LinkedBlockingQueue<>(1),
-                        new DefaultThreadFactory("streamload-executor"),
+                        new DefaultThreadFactory("streamload-executor-" + subTaskId),
                         new ThreadPoolExecutor.AbortPolicy());
         this.started = new AtomicBoolean(true);
         this.loadExecutorService.execute(loadAsyncExecutor);
         this.subTaskId = subTaskId;
-        this.httpClientBuilder = new HttpUtil(dorisReadOptions).getHttpClientBuilderForBatch();
+        this.httpClientBuilder =
+                new HttpUtil(dorisReadOptions).getHttpClientBuilderForBatch(executionOptions);
     }
 
     /**
