@@ -17,7 +17,6 @@
 
 package org.apache.doris.flink.sink.batch;
 
-import org.apache.doris.flink.sink.writer.LoadConstants;
 import org.apache.flink.api.common.time.Deadline;
 
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
@@ -27,6 +26,7 @@ import org.apache.doris.flink.sink.BackendUtil;
 import org.apache.doris.flink.sink.HttpTestUtil;
 import org.apache.doris.flink.sink.TestUtil;
 import org.apache.doris.flink.sink.writer.LabelGenerator;
+import org.apache.doris.flink.sink.writer.LoadConstants;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
@@ -233,7 +233,8 @@ public class TestDorisBatchStreamLoad {
     public void mergeBufferNullDelimiterTest() {
         DorisReadOptions readOptions = DorisReadOptions.builder().build();
         Properties streamProperties = new Properties();
-        streamProperties.setProperty(LoadConstants.FORMAT_KEY, LoadConstants.ARROW); // this makes lineDelimiter null
+        streamProperties.setProperty(
+                LoadConstants.FORMAT_KEY, LoadConstants.ARROW); // this makes lineDelimiter null
         DorisExecutionOptions executionOptions =
                 DorisExecutionOptions.builder().setStreamLoadProp(streamProperties).build();
         DorisOptions options =
@@ -248,12 +249,10 @@ public class TestDorisBatchStreamLoad {
                         options, readOptions, executionOptions, new LabelGenerator("xx", false), 0);
 
         List<BatchRecordBuffer> bufferList = new ArrayList<>();
-        BatchRecordBuffer recordBuffer =
-                new BatchRecordBuffer("db", "tbl", null, 0);
+        BatchRecordBuffer recordBuffer = new BatchRecordBuffer("db", "tbl", null, 0);
         recordBuffer.insert("111".getBytes(StandardCharsets.UTF_8));
         recordBuffer.setLabelName("label2");
-        BatchRecordBuffer buffer =
-                new BatchRecordBuffer("db", "tbl", null, 0);
+        BatchRecordBuffer buffer = new BatchRecordBuffer("db", "tbl", null, 0);
         buffer.insert("222".getBytes(StandardCharsets.UTF_8));
         buffer.setLabelName("label1");
 
