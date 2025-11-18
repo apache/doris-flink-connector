@@ -25,6 +25,7 @@ import java.io.Serializable;
 import java.util.Objects;
 import java.util.Properties;
 
+import static org.apache.doris.flink.cfg.ConfigurationOptions.DEFAULT_SINK_SOCKET_TIMEOUT_MS;
 import static org.apache.doris.flink.sink.writer.LoadConstants.FORMAT_KEY;
 import static org.apache.doris.flink.sink.writer.LoadConstants.JSON;
 import static org.apache.doris.flink.sink.writer.LoadConstants.READ_JSON_BY_LINE;
@@ -66,6 +67,7 @@ public class DorisExecutionOptions implements Serializable {
     private final boolean ignoreUpdateBefore;
     private final WriteMode writeMode;
     private final boolean ignoreCommitError;
+    private final int sinkSocketTimeoutMs;
 
     public DorisExecutionOptions(
             int checkInterval,
@@ -85,7 +87,8 @@ public class DorisExecutionOptions implements Serializable {
             boolean ignoreUpdateBefore,
             boolean force2PC,
             WriteMode writeMode,
-            boolean ignoreCommitError) {
+            boolean ignoreCommitError,
+            int sinkSocketTimeoutMs) {
         Preconditions.checkArgument(maxRetries >= 0);
         this.checkInterval = checkInterval;
         this.maxRetries = maxRetries;
@@ -107,6 +110,8 @@ public class DorisExecutionOptions implements Serializable {
         this.ignoreUpdateBefore = ignoreUpdateBefore;
         this.writeMode = writeMode;
         this.ignoreCommitError = ignoreCommitError;
+
+        this.sinkSocketTimeoutMs = sinkSocketTimeoutMs;
     }
 
     public static Builder builder() {
@@ -214,6 +219,10 @@ public class DorisExecutionOptions implements Serializable {
         return ignoreCommitError;
     }
 
+    public int getSinkSocketTimeoutMs() {
+        return sinkSocketTimeoutMs;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -240,7 +249,8 @@ public class DorisExecutionOptions implements Serializable {
                 && Objects.equals(streamLoadProp, that.streamLoadProp)
                 && Objects.equals(enableDelete, that.enableDelete)
                 && Objects.equals(enable2PC, that.enable2PC)
-                && writeMode == that.writeMode;
+                && writeMode == that.writeMode
+                && sinkSocketTimeoutMs == that.sinkSocketTimeoutMs;
     }
 
     @Override
@@ -263,7 +273,8 @@ public class DorisExecutionOptions implements Serializable {
                 enableBatchMode,
                 ignoreUpdateBefore,
                 writeMode,
-                ignoreCommitError);
+                ignoreCommitError,
+                sinkSocketTimeoutMs);
     }
 
     /** Builder of {@link DorisExecutionOptions}. */
@@ -291,6 +302,8 @@ public class DorisExecutionOptions implements Serializable {
         private boolean ignoreUpdateBefore = true;
         private WriteMode writeMode = WriteMode.STREAM_LOAD;
         private boolean ignoreCommitError = false;
+
+        private int sinkSocketTimeoutMs = DEFAULT_SINK_SOCKET_TIMEOUT_MS;
 
         /**
          * Sets the checkInterval to check exception with the interval while loading, The default is
@@ -498,6 +511,17 @@ public class DorisExecutionOptions implements Serializable {
         }
 
         /**
+         * Set http socket timeout, only effective in batch mode.
+         *
+         * @param sinkSocketTimeoutMs
+         * @return this DorisExecutionOptions.builder.
+         */
+        public Builder setSinkSocketTimeoutMs(int sinkSocketTimeoutMs) {
+            this.sinkSocketTimeoutMs = sinkSocketTimeoutMs;
+            return this;
+        }
+
+        /**
          * Build the {@link DorisExecutionOptions}.
          *
          * @return a DorisExecutionOptions with the settings made for this builder.
@@ -540,7 +564,8 @@ public class DorisExecutionOptions implements Serializable {
                     ignoreUpdateBefore,
                     force2PC,
                     writeMode,
-                    ignoreCommitError);
+                    ignoreCommitError,
+                    sinkSocketTimeoutMs);
         }
     }
 }
