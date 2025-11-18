@@ -380,7 +380,7 @@ public class DorisBatchStreamLoad implements Serializable {
         if (buffer.getBuffer().isEmpty()) {
             return false;
         }
-        if (!mergeBuffer.getBuffer().isEmpty()) {
+        if (!mergeBuffer.getBuffer().isEmpty() && mergeBuffer.getLineDelimiter() != null) {
             mergeBuffer.getBuffer().add(mergeBuffer.getLineDelimiter());
             mergeBuffer.setBufferSizeBytes(
                     mergeBuffer.getBufferSizeBytes() + mergeBuffer.getLineDelimiter().length);
