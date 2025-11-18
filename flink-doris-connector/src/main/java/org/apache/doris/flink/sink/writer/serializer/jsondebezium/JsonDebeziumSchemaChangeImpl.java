@@ -148,12 +148,12 @@ public class JsonDebeziumSchemaChangeImpl extends JsonDebeziumSchemaChange {
         if (type == null || "".equals(type)) {
             return "";
         }
-        // varchar len * 3
+        // varchar len * 4
         Pattern pattern = Pattern.compile("varchar\\(([1-9][0-9]*)\\)", Pattern.CASE_INSENSITIVE);
         Matcher matcher = pattern.matcher(type);
         if (matcher.find()) {
             String len = matcher.group(1);
-            return String.format("varchar(%d)", Math.min(Integer.parseInt(len) * 3, 65533));
+            return String.format("varchar(%d)", Math.min(Integer.parseInt(len) * 4, 65533));
         }
 
         return type;

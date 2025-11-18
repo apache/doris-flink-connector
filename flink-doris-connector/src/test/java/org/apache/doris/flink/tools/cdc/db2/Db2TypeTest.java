@@ -36,10 +36,10 @@ public class Db2TypeTest {
         assertEquals("DECIMALV3(31,31)", Db2Type.toDorisType("DECIMAL", 31, 31));
         assertEquals("DECIMALV3(31,0)", Db2Type.toDorisType("NUMERIC", 31, 0));
         assertEquals("DECIMALV3(31,31)", Db2Type.toDorisType("NUMERIC", 31, 31));
-        assertEquals("VARCHAR(600)", Db2Type.toDorisType("VARCHAR", 200, null));
+        assertEquals("VARCHAR(800)", Db2Type.toDorisType("VARCHAR", 200, null));
         assertEquals(DorisType.STRING, Db2Type.toDorisType("VARCHAR", 32672, null));
-        assertEquals(DorisType.VARCHAR + "(3)", Db2Type.toDorisType("CHAR", 1, null));
-        assertEquals(DorisType.VARCHAR + "(765)", Db2Type.toDorisType("CHAR", 255, null));
+        assertEquals(DorisType.VARCHAR + "(4)", Db2Type.toDorisType("CHAR", 1, null));
+        assertEquals(DorisType.VARCHAR + "(1020)", Db2Type.toDorisType("CHAR", 255, null));
         assertEquals(DorisType.DATETIME_V2 + "(0)", Db2Type.toDorisType("TIMESTAMP", 26, 0));
         assertEquals(DorisType.DATETIME_V2 + "(6)", Db2Type.toDorisType("TIMESTAMP", 26, 6));
         assertEquals(DorisType.DATETIME_V2 + "(6)", Db2Type.toDorisType("TIMESTAMP", 26, 9));
