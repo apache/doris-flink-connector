@@ -91,9 +91,9 @@ public class OracleType {
             case NCHAR:
             case NVARCHAR2:
                 Preconditions.checkNotNull(precision);
-                return precision * 3 > 65533
+                return precision * 4 > 65533
                         ? DorisType.STRING
-                        : String.format("%s(%s)", DorisType.VARCHAR, precision * 3);
+                        : String.format("%s(%s)", DorisType.VARCHAR, precision * 4);
             case LONG:
             case RAW:
             case LONG_RAW:
