@@ -86,6 +86,7 @@ import static org.apache.doris.flink.table.DorisConfigOptions.STREAM_LOAD_PROP_P
 import static org.apache.doris.flink.table.DorisConfigOptions.TABLE_IDENTIFIER;
 import static org.apache.doris.flink.table.DorisConfigOptions.USERNAME;
 import static org.apache.doris.flink.table.DorisConfigOptions.USE_FLIGHT_SQL;
+import static org.apache.doris.flink.table.DorisConfigOptions.SINK_HTTP_UTF8_CHARSET;
 
 /**
  * The {@link DorisDynamicTableFactory} translates the catalog table to a table source.
@@ -165,6 +166,7 @@ public final class DorisDynamicTableFactory
 
         options.add(USE_FLIGHT_SQL);
         options.add(FLIGHT_SQL_PORT);
+        options.add(SINK_HTTP_UTF8_CHARSET);
         return options;
     }
 
@@ -263,6 +265,7 @@ public final class DorisDynamicTableFactory
                 (int) readableConfig.get(SINK_BUFFER_FLUSH_MAX_BYTES).getBytes());
         builder.setBufferFlushIntervalMs(readableConfig.get(SINK_BUFFER_FLUSH_INTERVAL).toMillis());
         builder.setUseCache(readableConfig.get(SINK_USE_CACHE));
+        builder.setHttpUtf8Charset(readableConfig.get(SINK_HTTP_UTF8_CHARSET));
         return builder.build();
     }
 
