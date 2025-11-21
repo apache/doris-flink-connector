@@ -71,7 +71,7 @@ public class BackendClient {
                         ? ConfigurationOptions.DORIS_REQUEST_RETRIES_DEFAULT
                         : readOptions.getRequestRetries();
         this.thriftMaxMessageSize =
-                readOptions.getRequestRetries() == null
+                readOptions.getThriftMaxMessageSize() == null
                         ? ConfigurationOptions.DORIS_THRIFT_MAX_MESSAGE_SIZE_DEFAULT
                         : readOptions.getThriftMaxMessageSize();
         logger.trace(
