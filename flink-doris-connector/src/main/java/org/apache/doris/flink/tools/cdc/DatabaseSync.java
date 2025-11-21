@@ -326,6 +326,9 @@ public abstract class DatabaseSync {
         sinkConfig
                 .getOptional(DorisConfigOptions.SINK_IGNORE_COMMIT_ERROR)
                 .ifPresent(executionBuilder::setIgnoreCommitError);
+        sinkConfig
+                .getOptional(DorisConfigOptions.SINK_HTTP_UTF8_CHARSET)
+                .ifPresent(executionBuilder::setHttpUtf8Charset);
 
         DorisExecutionOptions executionOptions = executionBuilder.build();
         builder.setDorisReadOptions(DorisReadOptions.builder().build())

@@ -310,7 +310,7 @@ public class DorisWriter<IN>
                                 dorisOptions,
                                 executionOptions,
                                 labelGenerator,
-                                new HttpUtil(dorisReadOptions).getHttpClient()));
+                                new HttpUtil(dorisReadOptions, executionOptions.isHttpUtf8Charset()).getHttpClient()));
     }
 
     /** Http throws an exception actively, there is no need to check regularly. */

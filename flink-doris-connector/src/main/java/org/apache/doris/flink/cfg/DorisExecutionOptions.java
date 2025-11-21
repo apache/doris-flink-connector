@@ -49,6 +49,7 @@ public class DorisExecutionOptions implements Serializable {
     private final int bufferCount;
     private final String labelPrefix;
     private final boolean useCache;
+    private final boolean httpUtf8Charset;
 
     /** Properties for the StreamLoad. */
     private final Properties streamLoadProp;
@@ -74,6 +75,7 @@ public class DorisExecutionOptions implements Serializable {
             int bufferCount,
             String labelPrefix,
             boolean useCache,
+            boolean httpUtf8Charset,
             Properties streamLoadProp,
             Boolean enableDelete,
             Boolean enable2PC,
@@ -93,6 +95,7 @@ public class DorisExecutionOptions implements Serializable {
         this.bufferCount = bufferCount;
         this.labelPrefix = labelPrefix;
         this.useCache = useCache;
+        this.httpUtf8Charset = httpUtf8Charset;
         this.streamLoadProp = streamLoadProp;
         this.enableDelete = enableDelete;
         this.enable2PC = enable2PC;
@@ -162,6 +165,10 @@ public class DorisExecutionOptions implements Serializable {
         return useCache;
     }
 
+    public boolean isHttpUtf8Charset() {
+        return httpUtf8Charset;
+    }
+
     public Properties getStreamLoadProp() {
         return streamLoadProp;
     }
@@ -228,6 +235,7 @@ public class DorisExecutionOptions implements Serializable {
                 && bufferSize == that.bufferSize
                 && bufferCount == that.bufferCount
                 && useCache == that.useCache
+                && httpUtf8Charset == that.httpUtf8Charset
                 && force2PC == that.force2PC
                 && flushQueueSize == that.flushQueueSize
                 && bufferFlushMaxRows == that.bufferFlushMaxRows
@@ -252,6 +260,7 @@ public class DorisExecutionOptions implements Serializable {
                 bufferCount,
                 labelPrefix,
                 useCache,
+                httpUtf8Charset,
                 streamLoadProp,
                 enableDelete,
                 enable2PC,
@@ -274,6 +283,7 @@ public class DorisExecutionOptions implements Serializable {
         private int bufferCount = DEFAULT_BUFFER_COUNT;
         private String labelPrefix = "";
         private boolean useCache = false;
+        private boolean httpUtf8Charset = false;
         private Properties streamLoadProp = new Properties();
         private boolean enableDelete = true;
         private boolean enable2PC = true;
@@ -358,6 +368,17 @@ public class DorisExecutionOptions implements Serializable {
          */
         public Builder setUseCache(boolean useCache) {
             this.useCache = useCache;
+            return this;
+        }
+
+        /**
+         * Sets whether to set http utf8 charset for stream load.
+         *
+         * @param httpUtf8Charset
+         * @return this DorisExecutionOptions.builder.
+         */
+        public Builder setHttpUtf8Charset(boolean httpUtf8Charset) {
+            this.httpUtf8Charset = httpUtf8Charset;
             return this;
         }
 
@@ -529,6 +550,7 @@ public class DorisExecutionOptions implements Serializable {
                     bufferCount,
                     labelPrefix,
                     useCache,
+                    httpUtf8Charset,
                     streamLoadProp,
                     enableDelete,
                     enable2PC,

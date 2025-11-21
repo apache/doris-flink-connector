@@ -62,6 +62,7 @@ public class DorisExecutionOptionsTest {
                         .setUseCache(true)
                         .setFlushQueueSize(2)
                         .setIgnoreUpdateBefore(true)
+                        .setHttpUtf8Charset(true)
                         .build();
 
         DorisExecutionOptions.Builder builder =
@@ -81,7 +82,8 @@ public class DorisExecutionOptionsTest {
                         .setBatchMode(false)
                         .setUseCache(true)
                         .setFlushQueueSize(2)
-                        .setIgnoreUpdateBefore(true);
+                        .setIgnoreUpdateBefore(true)
+                        .setHttpUtf8Charset(true);
 
         Assert.assertNotEquals(exceptOptions, null);
         Assert.assertEquals(exceptOptions, exceptOptions);
@@ -147,9 +149,9 @@ public class DorisExecutionOptionsTest {
         Assert.assertNotEquals(exceptOptions, builder.build());
         builder.setFlushQueueSize(2);
 
-        builder.setIgnoreUpdateBefore(false);
+        builder.setHttpUtf8Charset(false);
         Assert.assertNotEquals(exceptOptions, builder.build());
-        builder.setIgnoreUpdateBefore(true);
+        builder.setHttpUtf8Charset(true);
     }
 
     @Test(expected = IllegalArgumentException.class)

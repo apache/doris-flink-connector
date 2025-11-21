@@ -40,7 +40,9 @@ import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_REQUEST_RETR
 import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_TABLET_SIZE_DEFAULT;
 import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_THRIFT_MAX_MESSAGE_SIZE_DEFAULT;
 
-/** Options for the Doris connector. */
+/**
+ * Options for the Doris connector.
+ */
 @PublicEvolving
 public class DorisConfigOptions {
 
@@ -340,4 +342,11 @@ public class DorisConfigOptions {
         }
         return streamLoadProp;
     }
+
+    public static final ConfigOption<Boolean> SINK_HTTP_UTF8_CHARSET =
+            ConfigOptions.key("sink.http-utf8-charset")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription("Set sink http client default charset to utf8 for support unicode characters in header, the default value is false");
+
 }

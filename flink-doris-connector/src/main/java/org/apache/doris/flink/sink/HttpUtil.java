@@ -19,6 +19,7 @@ package org.apache.doris.flink.sink;
 
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.http.client.config.RequestConfig;
+import org.apache.http.config.ConnectionConfig;
 import org.apache.http.impl.NoConnectionReuseStrategy;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.DefaultRedirectStrategy;
@@ -27,29 +28,45 @@ import org.apache.http.impl.client.HttpClients;
 import org.apache.http.protocol.HttpRequestExecutor;
 import org.apache.http.protocol.RequestContent;
 
+import java.nio.charset.CodingErrorAction;
+import java.nio.charset.StandardCharsets;
+
 import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_REQUEST_CONNECT_TIMEOUT_MS_DEFAULT;
+import static org.apache.doris.flink.cfg.ConfigurationOptions.SINK_HTTP_UTF8_CHARSET_DEFAULT;
 
 /** util to build http client. */
 public class HttpUtil {
     private final int connectTimeout;
     private final int waitForContinueTimeout;
+    private final boolean httpUtf8Charset;
     private HttpClientBuilder httpClientBuilder;
 
     public HttpUtil() {
         this.connectTimeout = DORIS_REQUEST_CONNECT_TIMEOUT_MS_DEFAULT;
         this.waitForContinueTimeout = DORIS_REQUEST_CONNECT_TIMEOUT_MS_DEFAULT;
+        this.httpUtf8Charset = SINK_HTTP_UTF8_CHARSET_DEFAULT;
         settingStreamHttpClientBuilder();
     }
 
-    public HttpUtil(DorisReadOptions readOptions) {
+    public HttpUtil(DorisReadOptions readOptions, boolean httpUtf8Charset) {
         this.connectTimeout = readOptions.getRequestConnectTimeoutMs();
         this.waitForContinueTimeout = readOptions.getRequestConnectTimeoutMs();
+        this.httpUtf8Charset = httpUtf8Charset;
         settingStreamHttpClientBuilder();
     }
 
     private void settingStreamHttpClientBuilder() {
+        ConnectionConfig connectionConfig = ConnectionConfig.DEFAULT;
+        if (httpUtf8Charset) {
+            connectionConfig = ConnectionConfig.custom()
+                    .setCharset(StandardCharsets.UTF_8)
+                    .setMalformedInputAction(CodingErrorAction.REPLACE)
+                    .setUnmappableInputAction(CodingErrorAction.REPLACE)
+                    .build();
+        }
         this.httpClientBuilder =
                 HttpClients.custom()
+                        .setDefaultConnectionConfig(connectionConfig)
                         // default timeout 3s, maybe report 307 error when fe busy
                         .setRequestExecutor(new HttpRequestExecutor(waitForContinueTimeout))
                         .setRedirectStrategy(
@@ -84,7 +101,16 @@ public class HttpUtil {
      * @return
      */
     public HttpClientBuilder getHttpClientBuilderForBatch() {
+        ConnectionConfig connectionConfig = ConnectionConfig.DEFAULT;
+        if (httpUtf8Charset) {
+            connectionConfig = ConnectionConfig.custom()
+                    .setCharset(StandardCharsets.UTF_8)
+                    .setMalformedInputAction(CodingErrorAction.REPLACE)
+                    .setUnmappableInputAction(CodingErrorAction.REPLACE)
+                    .build();
+        }
         return HttpClients.custom()
+                .setDefaultConnectionConfig(connectionConfig)
                 .setRedirectStrategy(
                         new DefaultRedirectStrategy() {
                             @Override

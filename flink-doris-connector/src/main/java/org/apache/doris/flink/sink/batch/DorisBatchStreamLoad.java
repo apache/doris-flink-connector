@@ -172,7 +172,7 @@ public class DorisBatchStreamLoad implements Serializable {
         this.started = new AtomicBoolean(true);
         this.loadExecutorService.execute(loadAsyncExecutor);
         this.subTaskId = subTaskId;
-        this.httpClientBuilder = new HttpUtil(dorisReadOptions).getHttpClientBuilderForBatch();
+        this.httpClientBuilder = new HttpUtil(dorisReadOptions, executionOptions.isHttpUtf8Charset()).getHttpClientBuilderForBatch();
     }
 
     /**
