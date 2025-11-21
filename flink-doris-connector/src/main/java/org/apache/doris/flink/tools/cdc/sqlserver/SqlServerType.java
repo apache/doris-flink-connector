@@ -94,9 +94,9 @@ public class SqlServerType {
             case VARCHAR:
             case NCHAR:
             case NVARCHAR:
-                return precision * 3 > 65533
+                return precision * 4 > 65533
                         ? DorisType.STRING
-                        : String.format("%s(%s)", DorisType.VARCHAR, precision * 3);
+                        : String.format("%s(%s)", DorisType.VARCHAR, precision * 4);
             case TEXT:
             case NTEXT:
             case TIME:
