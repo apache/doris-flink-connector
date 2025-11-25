@@ -192,9 +192,9 @@ public class MysqlType {
             case CHAR:
             case VARCHAR:
                 Preconditions.checkNotNull(length);
-                return length * 3 > 65533
+                return length * 4 > 65533
                         ? DorisType.STRING
-                        : String.format("%s(%s)", DorisType.VARCHAR, length * 3);
+                        : String.format("%s(%s)", DorisType.VARCHAR, length * 4);
             case TINYTEXT:
             case TEXT:
             case MEDIUMTEXT:

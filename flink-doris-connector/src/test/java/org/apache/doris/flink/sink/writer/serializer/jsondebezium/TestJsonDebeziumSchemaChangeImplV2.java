@@ -199,7 +199,7 @@ public class TestJsonDebeziumSchemaChangeImplV2 extends TestJsonDebeziumChangeBa
     public void testFillOriginSchema() throws IOException {
         Map<String, FieldSchema> srcFiledSchemaMap = new LinkedHashMap<>();
         srcFiledSchemaMap.put("id", new FieldSchema("id", "INT", null, null));
-        srcFiledSchemaMap.put("name", new FieldSchema("name", "VARCHAR(150)", null, null));
+        srcFiledSchemaMap.put("name", new FieldSchema("name", "VARCHAR(200)", null, null));
         srcFiledSchemaMap.put(
                 "test_time", new FieldSchema("test_time", "DATETIMEV2(0)", null, null));
         srcFiledSchemaMap.put("c1", new FieldSchema("c1", "INT", "100", null));
@@ -313,7 +313,7 @@ public class TestJsonDebeziumSchemaChangeImplV2 extends TestJsonDebeziumChangeBa
         Map<String, Map<String, FieldSchema>> scrFiledSchema = new LinkedHashMap<>();
         Map<String, FieldSchema> filedSchemaMap1 = new LinkedHashMap<>();
         filedSchemaMap1.put("id", new FieldSchema("id", "INT", null, null));
-        filedSchemaMap1.put("name", new FieldSchema("name", "VARCHAR(150)", null, null));
+        filedSchemaMap1.put("name", new FieldSchema("name", "VARCHAR(200)", null, null));
         filedSchemaMap1.put("test_time", new FieldSchema("test_time", "DATETIMEV2(0)", null, null));
         filedSchemaMap1.put("c1", new FieldSchema("c1", "INT", "100", null));
         scrFiledSchema.put(tab1, filedSchemaMap1);
@@ -321,7 +321,7 @@ public class TestJsonDebeziumSchemaChangeImplV2 extends TestJsonDebeziumChangeBa
         Map<String, FieldSchema> filedSchemaMap2 = new LinkedHashMap<>();
         filedSchemaMap2.put("id", new FieldSchema("id", "INT", "10000", null));
         filedSchemaMap2.put("c2", new FieldSchema("c2", "INT", null, null));
-        filedSchemaMap2.put("c555", new FieldSchema("c555", "VARCHAR(300)", null, null));
+        filedSchemaMap2.put("c555", new FieldSchema("c555", "VARCHAR(400)", null, null));
         filedSchemaMap2.put("c666", new FieldSchema("c666", "INT", "100", null));
         filedSchemaMap2.put("c4", new FieldSchema("c4", "BIGINT", "555", null));
         filedSchemaMap2.put("c199", new FieldSchema("c199", "INT", null, null));
@@ -370,7 +370,7 @@ public class TestJsonDebeziumSchemaChangeImplV2 extends TestJsonDebeziumChangeBa
         schemaChange.setSourceConnector("oracle");
         JsonNode columns = objectMapper.readTree(columnInfo);
         String dorisTypeName = schemaChange.buildDorisTypeName(columns);
-        Assert.assertEquals(dorisTypeName, "VARCHAR(384)");
+        Assert.assertEquals(dorisTypeName, "VARCHAR(512)");
         columnInfo =
                 "{\"name\":\"NAME\",\"jdbcType\":12,\"nativeType\":null,\"typeName\":\"FLOAT\",\"typeExpression\":\"FLOAT\",\"charsetName\":null,\"length\":0,\"scale\":null,\"position\":2,\"optional\":false,\"autoIncremented\":false,\"generated\":false,\"comment\":null}";
         columns = objectMapper.readTree(columnInfo);
@@ -385,7 +385,7 @@ public class TestJsonDebeziumSchemaChangeImplV2 extends TestJsonDebeziumChangeBa
         schemaChange.setSourceConnector("postgres");
         JsonNode columns = objectMapper.readTree(columnInfo);
         String dorisTypeName = schemaChange.buildDorisTypeName(columns);
-        Assert.assertEquals(dorisTypeName, "VARCHAR(384)");
+        Assert.assertEquals(dorisTypeName, "VARCHAR(512)");
     }
 
     @Test
@@ -395,7 +395,7 @@ public class TestJsonDebeziumSchemaChangeImplV2 extends TestJsonDebeziumChangeBa
         schemaChange.setSourceConnector("sqlserver");
         JsonNode columns = objectMapper.readTree(columnInfo);
         String dorisTypeName = schemaChange.buildDorisTypeName(columns);
-        Assert.assertEquals(dorisTypeName, "VARCHAR(384)");
+        Assert.assertEquals(dorisTypeName, "VARCHAR(512)");
     }
 
     @Test
@@ -636,7 +636,7 @@ public class TestJsonDebeziumSchemaChangeImplV2 extends TestJsonDebeziumChangeBa
         Assert.assertTrue(result.containsKey("other_no"));
         fieldSchema = result.get("other_no");
         Assert.assertEquals(fieldSchema.getName().toLowerCase(), "other_no");
-        Assert.assertEquals(fieldSchema.getTypeString().toLowerCase(), "varchar(150)");
+        Assert.assertEquals(fieldSchema.getTypeString().toLowerCase(), "varchar(200)");
         Assert.assertEquals(fieldSchema.getDefaultValue().toLowerCase(), "");
         Assert.assertEquals(fieldSchema.getComment(), "comment");
     }

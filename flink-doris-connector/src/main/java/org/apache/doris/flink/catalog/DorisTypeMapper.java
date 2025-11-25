@@ -155,7 +155,7 @@ public class DorisTypeMapper {
 
         @Override
         public String visit(CharType charType) {
-            long length = charType.getLength() * 3L;
+            long length = charType.getLength() * 4L;
             if (length <= MAX_CHAR_SIZE) {
                 return String.format("%s(%s)", DorisType.CHAR, length);
             } else {
@@ -166,7 +166,7 @@ public class DorisTypeMapper {
         @Override
         public String visit(VarCharType varCharType) {
             // Flink varchar length max value is int, it may overflow after multiplying by 3
-            long length = varCharType.getLength() * 3L;
+            long length = varCharType.getLength() * 4L;
             return length >= MAX_VARCHAR_SIZE ? STRING : String.format("%s(%s)", VARCHAR, length);
         }
 

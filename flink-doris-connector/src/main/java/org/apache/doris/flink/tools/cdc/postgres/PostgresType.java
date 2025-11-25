@@ -107,9 +107,9 @@ public class PostgresType {
             case BPCHAR:
             case VARCHAR:
                 Preconditions.checkNotNull(precision);
-                return precision * 3 > 65533
+                return precision * 4 > 65533
                         ? DorisType.STRING
-                        : String.format("%s(%s)", DorisType.VARCHAR, precision * 3);
+                        : String.format("%s(%s)", DorisType.VARCHAR, precision * 4);
             case POINT:
             case LINE:
             case LSEG:
