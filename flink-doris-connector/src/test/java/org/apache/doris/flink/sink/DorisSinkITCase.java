@@ -317,6 +317,7 @@ public class DorisSinkITCase extends AbstractITCaseService {
                                 + " 'sink.ignore.update-before' = 'false',"
                                 + " 'sink.enable.batch-mode' = '%s',"
                                 + " 'sink.enable-delete' = 'true',"
+                                + " 'sink.socket.timeout' = '5m',"
                                 + " 'sink.flush.queue-size' = '2',"
                                 + " 'sink.buffer-flush.max-rows' = '10000',"
                                 + " 'sink.buffer-flush.max-bytes' = '10MB',"

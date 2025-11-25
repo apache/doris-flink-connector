@@ -17,8 +17,10 @@
 
 package org.apache.doris.flink.sink;
 
+import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.http.client.config.RequestConfig;
+import org.apache.http.config.SocketConfig;
 import org.apache.http.impl.NoConnectionReuseStrategy;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.DefaultRedirectStrategy;
@@ -83,7 +85,7 @@ public class HttpUtil {
      *
      * @return
      */
-    public HttpClientBuilder getHttpClientBuilderForBatch() {
+    public HttpClientBuilder getHttpClientBuilderForBatch(DorisExecutionOptions executionOptions) {
         return HttpClients.custom()
                 .setRedirectStrategy(
                         new DefaultRedirectStrategy() {
@@ -96,10 +98,10 @@ public class HttpUtil {
                         RequestConfig.custom()
                                 .setConnectTimeout(connectTimeout)
                                 .setConnectionRequestTimeout(connectTimeout)
-                                // todo: Need to be extracted to DorisExecutionOption
-                                // default checkpoint timeout is 10min
-                                .setSocketTimeout(9 * 60 * 1000)
-                                .build());
+                                // default socket timeout 9min, checkpoint timeout default 10min
+                                .setSocketTimeout(executionOptions.getSinkSocketTimeoutMs())
+                                .build())
+                .setDefaultSocketConfig(SocketConfig.custom().setSoKeepAlive(true).build());
     }
 
     public HttpClientBuilder getHttpClientBuilderForCopyBatch() {

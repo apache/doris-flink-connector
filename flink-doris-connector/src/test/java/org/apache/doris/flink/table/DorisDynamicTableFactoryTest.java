@@ -146,6 +146,7 @@ public class DorisDynamicTableFactoryTest {
         properties.put("sink.ignore.update-before", "true");
         properties.put("sink.ignore.commit-error", "false");
         properties.put("sink.parallelism", "1");
+        properties.put("sink.socket.timeout", "9m");
 
         DynamicTableSink actual = createTableSink(SCHEMA, properties);
         DorisOptions options =
@@ -178,6 +179,7 @@ public class DorisDynamicTableFactoryTest {
                         .setFlushQueueSize(2)
                         .setUseCache(true)
                         .setIgnoreCommitError(false)
+                        .setSinkSocketTimeoutMs(9 * 60 * 1000)
                         .build();
 
         final DorisReadOptions.Builder readOptionBuilder = DorisReadOptions.builder();
