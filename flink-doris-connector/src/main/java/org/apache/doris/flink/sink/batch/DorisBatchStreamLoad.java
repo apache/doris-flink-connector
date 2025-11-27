@@ -334,6 +334,7 @@ public class DorisBatchStreamLoad implements Serializable {
             BatchRecordBuffer empty = new BatchRecordBuffer();
             putRecordToFlushQueue(empty);
         }
+        checkFlushException();
     }
 
     private String getTableIdentifier(String database, String table) {
