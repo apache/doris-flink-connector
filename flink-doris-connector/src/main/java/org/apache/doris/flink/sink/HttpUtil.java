@@ -58,11 +58,12 @@ public class HttpUtil {
     private void settingStreamHttpClientBuilder() {
         ConnectionConfig connectionConfig = ConnectionConfig.DEFAULT;
         if (httpUtf8Charset) {
-            connectionConfig = ConnectionConfig.custom()
-                    .setCharset(StandardCharsets.UTF_8)
-                    .setMalformedInputAction(CodingErrorAction.REPLACE)
-                    .setUnmappableInputAction(CodingErrorAction.REPLACE)
-                    .build();
+            connectionConfig =
+                    ConnectionConfig.custom()
+                            .setCharset(StandardCharsets.UTF_8)
+                            .setMalformedInputAction(CodingErrorAction.REPLACE)
+                            .setUnmappableInputAction(CodingErrorAction.REPLACE)
+                            .build();
         }
         this.httpClientBuilder =
                 HttpClients.custom()
@@ -103,11 +104,12 @@ public class HttpUtil {
     public HttpClientBuilder getHttpClientBuilderForBatch() {
         ConnectionConfig connectionConfig = ConnectionConfig.DEFAULT;
         if (httpUtf8Charset) {
-            connectionConfig = ConnectionConfig.custom()
-                    .setCharset(StandardCharsets.UTF_8)
-                    .setMalformedInputAction(CodingErrorAction.REPLACE)
-                    .setUnmappableInputAction(CodingErrorAction.REPLACE)
-                    .build();
+            connectionConfig =
+                    ConnectionConfig.custom()
+                            .setCharset(StandardCharsets.UTF_8)
+                            .setMalformedInputAction(CodingErrorAction.REPLACE)
+                            .setUnmappableInputAction(CodingErrorAction.REPLACE)
+                            .build();
         }
         return HttpClients.custom()
                 .setDefaultConnectionConfig(connectionConfig)

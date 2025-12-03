@@ -63,5 +63,4 @@ public interface ConfigurationOptions {
 
     String SINK_HTTP_UTF8_CHARSET = "sink.http-utf8-charset";
     Boolean SINK_HTTP_UTF8_CHARSET_DEFAULT = false;
-
 }

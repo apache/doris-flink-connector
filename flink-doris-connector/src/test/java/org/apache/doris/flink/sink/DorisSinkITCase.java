@@ -801,14 +801,15 @@ public class DorisSinkITCase extends AbstractITCaseService {
                 dorisBuilder.build(),
                 executionBuilder.build(),
                 new String[] {
-                        new ObjectMapper().writeValueAsString(row1),
-                        new ObjectMapper().writeValueAsString(row2)
+                    new ObjectMapper().writeValueAsString(row1),
+                    new ObjectMapper().writeValueAsString(row2)
                 });
 
         Thread.sleep(10000);
         List<String> expected = Arrays.asList("doris1,1", "doris2,2");
-        String query = String.format("select `名称`,`年龄` from %s.%s order by 1", DATABASE, TABLE_UNICODE_COLUMN);
+        String query =
+                String.format(
+                        "select `名称`,`年龄` from %s.%s order by 1", DATABASE, TABLE_UNICODE_COLUMN);
         ContainerUtils.checkResult(getDorisQueryConnection(), LOG, expected, query, 2);
     }
-
 }

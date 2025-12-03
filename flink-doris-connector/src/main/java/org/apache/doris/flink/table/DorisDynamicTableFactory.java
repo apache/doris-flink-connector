@@ -74,6 +74,7 @@ import static org.apache.doris.flink.table.DorisConfigOptions.SINK_ENABLE_2PC;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_ENABLE_BATCH_MODE;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_ENABLE_DELETE;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_FLUSH_QUEUE_SIZE;
+import static org.apache.doris.flink.table.DorisConfigOptions.SINK_HTTP_UTF8_CHARSET;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_IGNORE_COMMIT_ERROR;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_IGNORE_UPDATE_BEFORE;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_LABEL_PREFIX;
@@ -86,7 +87,6 @@ import static org.apache.doris.flink.table.DorisConfigOptions.STREAM_LOAD_PROP_P
 import static org.apache.doris.flink.table.DorisConfigOptions.TABLE_IDENTIFIER;
 import static org.apache.doris.flink.table.DorisConfigOptions.USERNAME;
 import static org.apache.doris.flink.table.DorisConfigOptions.USE_FLIGHT_SQL;
-import static org.apache.doris.flink.table.DorisConfigOptions.SINK_HTTP_UTF8_CHARSET;
 
 /**
  * The {@link DorisDynamicTableFactory} translates the catalog table to a table source.
