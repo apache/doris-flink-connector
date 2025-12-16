@@ -74,6 +74,7 @@ import static org.apache.doris.flink.table.DorisConfigOptions.SINK_ENABLE_2PC;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_ENABLE_BATCH_MODE;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_ENABLE_DELETE;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_FLUSH_QUEUE_SIZE;
+import static org.apache.doris.flink.table.DorisConfigOptions.SINK_HTTP_UTF8_CHARSET;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_IGNORE_COMMIT_ERROR;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_IGNORE_UPDATE_BEFORE;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_LABEL_PREFIX;
@@ -165,6 +166,7 @@ public final class DorisDynamicTableFactory
 
         options.add(USE_FLIGHT_SQL);
         options.add(FLIGHT_SQL_PORT);
+        options.add(SINK_HTTP_UTF8_CHARSET);
         return options;
     }
 
@@ -263,6 +265,7 @@ public final class DorisDynamicTableFactory
                 (int) readableConfig.get(SINK_BUFFER_FLUSH_MAX_BYTES).getBytes());
         builder.setBufferFlushIntervalMs(readableConfig.get(SINK_BUFFER_FLUSH_INTERVAL).toMillis());
         builder.setUseCache(readableConfig.get(SINK_USE_CACHE));
+        builder.setHttpUtf8Charset(readableConfig.get(SINK_HTTP_UTF8_CHARSET));
         return builder.build();
     }
 

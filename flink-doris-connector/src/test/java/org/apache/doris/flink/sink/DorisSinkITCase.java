@@ -78,6 +78,7 @@ public class DorisSinkITCase extends AbstractITCaseService {
     static final String TABLE_GZ_FORMAT = "tbl_gz_format";
     static final String TABLE_CSV_JM = "tbl_csv_jm";
     static final String TABLE_CSV_TM = "tbl_csv_tm";
+    static final String TABLE_UNICODE_COLUMN = "tbl_unicode_column";
 
     private final boolean batchMode;
 
@@ -731,5 +732,84 @@ public class DorisSinkITCase extends AbstractITCaseService {
                         table,
                         max,
                         model));
+    }
+
+    private void initializeUnicodeColumnTable(String table, DataModel dataModel) {
+        String max = DataModel.AGGREGATE.equals(dataModel) ? "MAX" : "";
+        String morProps =
+                !DataModel.UNIQUE_MOR.equals(dataModel)
+                        ? ""
+                        : ",\"enable_unique_key_merge_on_write\" = \"false\"";
+        String model =
+                dataModel.equals(DataModel.UNIQUE_MOR)
+                        ? DataModel.UNIQUE.toString()
+                        : dataModel.toString();
+        ContainerUtils.executeSQLStatement(
+                getDorisQueryConnection(),
+                LOG,
+                String.format("CREATE DATABASE IF NOT EXISTS %s", DATABASE),
+                String.format("DROP TABLE IF EXISTS %s.%s", DATABASE, table),
+                "SET enable_unicode_name_support = true;",
+                String.format(
+                        "CREATE TABLE %s.%s ( \n"
+                                + "`名称` varchar(256),\n"
+                                + "`年龄` int %s\n"
+                                + ") "
+                                + " %s KEY(`名称`) "
+                                + " DISTRIBUTED BY HASH(`名称`) BUCKETS 1\n"
+                                + "PROPERTIES ("
+                                + "\"replication_num\" = \"1\"\n"
+                                + morProps
+                                + ")",
+                        DATABASE,
+                        table,
+                        max,
+                        model));
+    }
+
+    @Test
+    public void testSinkUnicodeColumn() throws Exception {
+        initializeUnicodeColumnTable(TABLE_UNICODE_COLUMN, DataModel.UNIQUE);
+        Properties properties = new Properties();
+        properties.setProperty("read_json_by_line", "true");
+        properties.setProperty("format", "json");
+
+        // mock data
+        Map<String, Object> row1 = new HashMap<>();
+        row1.put("名称", "doris1");
+        row1.put("年龄", 1);
+        Map<String, Object> row2 = new HashMap<>();
+        row2.put("名称", "doris2");
+        row2.put("年龄", 2);
+
+        DorisExecutionOptions.Builder executionBuilder = DorisExecutionOptions.builder();
+        executionBuilder
+                .setLabelPrefix(UUID.randomUUID().toString())
+                .setBatchMode(batchMode)
+                .setStreamLoadProp(properties)
+                // uniq need to be false
+                .setDeletable(false)
+                .setHttpUtf8Charset(true);
+        DorisOptions.Builder dorisBuilder = DorisOptions.builder();
+        dorisBuilder
+                .setFenodes(getFenodes())
+                .setTableIdentifier(DATABASE + "." + TABLE_UNICODE_COLUMN)
+                .setUsername(getDorisUsername())
+                .setPassword(getDorisPassword());
+
+        submitJob(
+                dorisBuilder.build(),
+                executionBuilder.build(),
+                new String[] {
+                    new ObjectMapper().writeValueAsString(row1),
+                    new ObjectMapper().writeValueAsString(row2)
+                });
+
+        Thread.sleep(10000);
+        List<String> expected = Arrays.asList("doris1,1", "doris2,2");
+        String query =
+                String.format(
+                        "select `名称`,`年龄` from %s.%s order by 1", DATABASE, TABLE_UNICODE_COLUMN);
+        ContainerUtils.checkResult(getDorisQueryConnection(), LOG, expected, query, 2);
     }
 }

@@ -70,7 +70,8 @@ public class DorisCommitter implements Committer<DorisCommittable>, Closeable {
                 dorisOptions,
                 dorisReadOptions,
                 executionOptions,
-                new HttpUtil(dorisReadOptions).getHttpClient());
+                new HttpUtil(dorisReadOptions, executionOptions.isHttpUtf8Charset())
+                        .getHttpClient());
     }
 
     public DorisCommitter(
