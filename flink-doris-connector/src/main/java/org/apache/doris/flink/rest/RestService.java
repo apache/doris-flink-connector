@@ -362,6 +362,8 @@ public class RestService implements Serializable {
         List<BackendRowV2> nodeList = new ArrayList<>();
         for (String node : feNodeList) {
             String[] split = node.split(":");
+            Preconditions.checkArgument(
+                    split.length == 2, "Invalid format: %s, Expected [host:port]", node);
             nodeList.add(BackendRowV2.of(split[0], Integer.valueOf(split[1]), true));
         }
         return nodeList;
