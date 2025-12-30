@@ -26,6 +26,7 @@ import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;
 import org.apache.arrow.vector.DateDayVector;
+import org.apache.arrow.vector.Decimal256Vector;
 import org.apache.arrow.vector.DecimalVector;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.FixedSizeBinaryVector;
@@ -479,6 +480,84 @@ public class TestRowBatch {
         Assert.assertEquals(
                 DecimalData.fromBigDecimal(new BigDecimal(10.000000000), 11, 9),
                 DecimalData.fromBigDecimal((BigDecimal) actualRow2.get(0), 11, 9));
+
+        Assert.assertFalse(rowBatch.hasNext());
+        thrown.expect(NoSuchElementException.class);
+        thrown.expectMessage(startsWith("Get row offset:"));
+        rowBatch.next();
+    }
+
+    @Test
+    public void testDecimal256() throws Exception {
+        List<Field> childrenBuilder = new ArrayList<>();
+        childrenBuilder.add(
+                new Field("k8", FieldType.nullable(new ArrowType.Decimal(38, 18, 256)), null));
+
+        VectorSchemaRoot root =
+                VectorSchemaRoot.create(
+                        new org.apache.arrow.vector.types.pojo.Schema(childrenBuilder, null),
+                        new RootAllocator(Integer.MAX_VALUE));
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        ArrowStreamWriter arrowStreamWriter =
+                new ArrowStreamWriter(
+                        root, new DictionaryProvider.MapDictionaryProvider(), outputStream);
+
+        arrowStreamWriter.start();
+        root.setRowCount(3);
+
+        FieldVector vector = root.getVector("k8");
+        Decimal256Vector decimal256Vector = (Decimal256Vector) vector;
+        decimal256Vector.setInitialCapacity(3);
+        decimal256Vector.allocateNew();
+        decimal256Vector.setIndexDefined(0);
+        decimal256Vector.setSafe(0, new BigDecimal("123456789012345678.123456789012345678"));
+        decimal256Vector.setIndexDefined(1);
+        decimal256Vector.setSafe(1, new BigDecimal("987654321098765432.987654321098765432"));
+        decimal256Vector.setIndexDefined(2);
+        decimal256Vector.setSafe(2, new BigDecimal("111111111111111111.111111111111111111"));
+        vector.setValueCount(3);
+
+        arrowStreamWriter.writeBatch();
+
+        arrowStreamWriter.end();
+        arrowStreamWriter.close();
+
+        TStatus status = new TStatus();
+        status.setStatusCode(TStatusCode.OK);
+        TScanBatchResult scanBatchResult = new TScanBatchResult();
+        scanBatchResult.setStatus(status);
+        scanBatchResult.setEos(false);
+        scanBatchResult.setRows(outputStream.toByteArray());
+
+        String schemaStr =
+                "{\"properties\":[{\"type\":\"DECIMAL256\",\"scale\": 18,"
+                        + "\"precision\": 38, \"name\":\"k8\",\"comment\":\"\"}], "
+                        + "\"status\":200}";
+
+        Schema schema = RestService.parseSchema(schemaStr, logger);
+
+        RowBatch rowBatch = new RowBatch(scanBatchResult, schema).readArrow();
+
+        Assert.assertTrue(rowBatch.hasNext());
+        List<Object> actualRow0 = rowBatch.next();
+        Assert.assertEquals(
+                DecimalData.fromBigDecimal(
+                        new BigDecimal("123456789012345678.123456789012345678"), 38, 18),
+                DecimalData.fromBigDecimal((BigDecimal) actualRow0.get(0), 38, 18));
+
+        Assert.assertTrue(rowBatch.hasNext());
+        List<Object> actualRow1 = rowBatch.next();
+        Assert.assertEquals(
+                DecimalData.fromBigDecimal(
+                        new BigDecimal("987654321098765432.987654321098765432"), 38, 18),
+                DecimalData.fromBigDecimal((BigDecimal) actualRow1.get(0), 38, 18));
+
+        Assert.assertTrue(rowBatch.hasNext());
+        List<Object> actualRow2 = rowBatch.next();
+        Assert.assertEquals(
+                DecimalData.fromBigDecimal(
+                        new BigDecimal("111111111111111111.111111111111111111"), 38, 18),
+                DecimalData.fromBigDecimal((BigDecimal) actualRow2.get(0), 38, 18));
 
         Assert.assertFalse(rowBatch.hasNext());
         thrown.expect(NoSuchElementException.class);

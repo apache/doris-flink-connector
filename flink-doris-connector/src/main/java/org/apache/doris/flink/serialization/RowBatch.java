@@ -24,6 +24,7 @@ import org.apache.arrow.vector.BaseIntVector;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;
 import org.apache.arrow.vector.DateDayVector;
+import org.apache.arrow.vector.Decimal256Vector;
 import org.apache.arrow.vector.DecimalVector;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.FixedSizeBinaryVector;
@@ -219,6 +220,7 @@ public class RowBatch {
                 FieldVector fieldVector = fieldVectors.get(col);
                 MinorType minorType = fieldVector.getMinorType();
                 final String currentType = schema.get(col).getType();
+                final String colName = schema.get(col).getName();
                 for (int rowIndex = 0; rowIndex < rowCountInOneBatch; rowIndex++) {
                     boolean passed = doConvert(col, rowIndex, minorType, currentType, fieldVector);
                     if (!passed) {
@@ -227,7 +229,8 @@ public class RowBatch {
                                         + currentType
                                         + ", but arrow type is "
                                         + minorType.name()
-                                        + ".");
+                                        + ", column Name is "
+                                        + colName);
                     }
                 }
             }
@@ -359,6 +362,18 @@ public class RowBatch {
                 }
                 BigDecimal value = decimalVector.getObject(rowIndex).stripTrailingZeros();
                 addValueToRow(rowIndex, value);
+                break;
+            case "DECIMAL256":
+                if (!minorType.equals(MinorType.DECIMAL256)) {
+                    return false;
+                }
+                Decimal256Vector decimal256Vector = (Decimal256Vector) fieldVector;
+                if (decimal256Vector.isNull(rowIndex)) {
+                    addValueToRow(rowIndex, null);
+                    break;
+                }
+                BigDecimal value256 = decimal256Vector.getObject(rowIndex).stripTrailingZeros();
+                addValueToRow(rowIndex, value256);
                 break;
             case "DATE":
             case "DATEV2":
