@@ -159,7 +159,6 @@ public class PostgresDatabaseSync extends DatabaseSync {
             startupOptions = StartupOptions.committed();
         }
 
-
         // debezium properties set
         Properties debeziumProperties = new Properties();
         debeziumProperties.putAll(PostgresDateConverter.DEFAULT_PROPS);
