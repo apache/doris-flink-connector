@@ -50,6 +50,7 @@ public class DatabaseSyncConfig {
     public static final String SCAN_STARTUP_MODE_VALUE_SPECIFIC_OFFSET = "specific-offset";
     public static final String SCAN_STARTUP_MODE_VALUE_LATEST_OFFSET = "latest-offset";
     public static final String SCAN_STARTUP_MODE_VALUE_TIMESTAMP = "timestamp";
+    public static final String SCAN_STARTUP_MODE_VALUE_COMMITTED_OFFSET = "committed-offset";
     public static final String DECIMAL_HANDLING_MODE = "decimal.handling.mode";
 
     ////////// sink-conf /////////////

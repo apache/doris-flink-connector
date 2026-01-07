@@ -154,7 +154,11 @@ public class PostgresDatabaseSync extends DatabaseSync {
         } else if (DatabaseSyncConfig.SCAN_STARTUP_MODE_VALUE_LATEST_OFFSET.equalsIgnoreCase(
                 startupMode)) {
             startupOptions = StartupOptions.latest();
+        } else if (DatabaseSyncConfig.SCAN_STARTUP_MODE_VALUE_COMMITTED_OFFSET.equalsIgnoreCase(
+                startupMode)) {
+            startupOptions = StartupOptions.committed();
         }
+
 
         // debezium properties set
         Properties debeziumProperties = new Properties();
