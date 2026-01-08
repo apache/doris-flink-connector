@@ -94,7 +94,7 @@ under the License.
         <jsqlparser.version>4.9</jsqlparser.version>
         <mysql.driver.version>8.0.26</mysql.driver.version>
         <ojdbc.version>19.3.0.0</ojdbc.version>
-        <log4j.version>2.17.1</log4j.version>
+        <log4j.version>2.25.3</log4j.version>
         <arrow.version>15.0.2</arrow.version>
         <adbc.version>0.12.0</adbc.version>
     </properties>
