@@ -46,17 +46,21 @@ public abstract class AbstractITCaseService extends AbstractContainerTestBase {
 
     protected static void waitForJobStatus(
             JobClient client, List<JobStatus> expectedStatus, Deadline deadline) throws Exception {
+        LOG.info("Waiting for job to reach one of the expected states: {}", expectedStatus);
         waitUntilCondition(
                 () -> {
                     JobStatus currentStatus;
                     try {
                         currentStatus = (JobStatus) client.getJobStatus().get();
                     } catch (IllegalStateException e) {
-                        LOG.warn("Failed to get state, cause " + e.getMessage());
+                        LOG.warn("Failed to get job status: {}", e.getMessage());
                         currentStatus = JobStatus.FINISHED;
                     }
 
+                    LOG.debug("Current job status: {}", currentStatus);
+
                     if (expectedStatus.contains(currentStatus)) {
+                        LOG.info("Job reached expected status: {}", currentStatus);
                         return true;
                     } else if (currentStatus.isTerminalState()) {
                         try {
