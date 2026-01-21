@@ -76,9 +76,9 @@ public class Db2Type {
             case VARCHAR:
             case LONG_VARCHAR:
                 Preconditions.checkNotNull(precision);
-                return precision * 3 > 65533
+                return precision * 4 > 65533
                         ? DorisType.STRING
-                        : String.format("%s(%s)", DorisType.VARCHAR, precision * 3);
+                        : String.format("%s(%s)", DorisType.VARCHAR, precision * 4);
             case TIMESTAMP:
                 return String.format(
                         "%s(%s)", DorisType.DATETIME_V2, Math.min(scale == null ? 0 : scale, 6));

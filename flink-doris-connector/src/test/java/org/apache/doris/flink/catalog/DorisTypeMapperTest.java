@@ -109,9 +109,9 @@ public class DorisTypeMapperTest {
         DataType result = DorisTypeMapper.toFlinkType("col", "CHAR", 10, 0);
         assertEquals(DataTypes.CHAR(10), result);
         String dorisType = DorisTypeMapper.toDorisType(DataTypes.CHAR(10));
-        assertEquals("CHAR(30)", dorisType);
+        assertEquals("CHAR(40)", dorisType);
         dorisType = DorisTypeMapper.toDorisType(DataTypes.CHAR(100));
-        assertEquals("VARCHAR(300)", dorisType);
+        assertEquals("VARCHAR(400)", dorisType);
     }
 
     @Test
@@ -119,7 +119,7 @@ public class DorisTypeMapperTest {
         DataType result = DorisTypeMapper.toFlinkType("col", "VARCHAR", 50, 0);
         assertEquals(DataTypes.VARCHAR(50), result);
         String dorisType = DorisTypeMapper.toDorisType(DataTypes.VARCHAR(50));
-        assertEquals("VARCHAR(150)", dorisType);
+        assertEquals("VARCHAR(200)", dorisType);
     }
 
     @Test
