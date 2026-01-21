@@ -597,9 +597,9 @@ public class RowBatch {
     public static LocalDateTime longToLocalDateTime(long time) {
         Instant instant;
         // Determine the timestamp accuracy and process it
-        if (time < 10_000_000_000L) { // Second timestamp
+        if (time > -10_000_000_000L && time < 10_000_000_000L) { // Second timestamp
             instant = Instant.ofEpochSecond(time);
-        } else if (time < 10_000_000_000_000L) { // milli second
+        } else if (time > -10_000_000_000_000L && time < 10_000_000_000_000L) { // milli second
             instant = Instant.ofEpochMilli(time);
         } else { // micro second
             instant = Instant.ofEpochSecond(time / 1_000_000, (time % 1_000_000) * 1_000);
