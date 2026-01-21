@@ -31,6 +31,7 @@ import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 public class Mysql2DorisE2ECase extends AbstractE2EService {
     private static final Logger LOG = LoggerFactory.getLogger(Mysql2DorisE2ECase.class);
@@ -579,6 +580,117 @@ public class Mysql2DorisE2ECase extends AbstractE2EService {
         ContainerUtils.checkResult(getDorisQueryConnection(), LOG, incrExpected3, sql3, 3, false);
 
         cancelE2EJob(jobName);
+    }
+
+    @Test
+    public void testMySQL2DorisEnvVar() throws Exception {
+        String jobName = "testMySQL2DorisEnvVar";
+        String resourcePath = "container/e2e/mysql2doris/testMySQL2DorisEnvVar.txt";
+
+        // Set environment variables for testing
+        setEnvironmentVariable("TABLE_PREFIX", "env_");
+        setEnvironmentVariable("TABLE_SUFFIX", "_test");
+
+        try {
+            initEnvironment(jobName, "container/e2e/mysql2doris/testMySQL2DorisEnvVar_init.sql");
+            startMysql2DorisJob(jobName, resourcePath);
+
+            // wait 2 times checkpoint
+            Thread.sleep(20000);
+            LOG.info("Start to verify create table result with environment variable resolution.");
+            String tblQuery =
+                    String.format(
+                            "SELECT TABLE_NAME \n"
+                                    + "FROM INFORMATION_SCHEMA.TABLES \n"
+                                    + "WHERE TABLE_SCHEMA = '%s'",
+                            "test_e2e_mysql_env");
+            // Verify that tables are created with env variable resolved prefix and suffix
+            List<String> expectedTables =
+                    Arrays.asList(
+                            "env_tbl1_test", "env_tbl2_test", "env_tbl3_test", "env_tbl5_test");
+            ContainerUtils.checkResult(
+                    getDorisQueryConnection(), LOG, expectedTables, tblQuery, 1, false);
+
+            LOG.info("Start to verify init result with environment variable resolution.");
+            List<String> expected =
+                    Arrays.asList(
+                            "doris_env_1,1", "doris_env_2,2", "doris_env_3,3", "doris_env_5,5");
+            String sql1 =
+                    "select * from ( select * from test_e2e_mysql_env.env_tbl1_test union all select * from test_e2e_mysql_env.env_tbl2_test union all select * from test_e2e_mysql_env.env_tbl3_test union all select * from test_e2e_mysql_env.env_tbl5_test) res order by 1";
+            ContainerUtils.checkResult(getDorisQueryConnection(), LOG, expected, sql1, 2);
+
+            // add incremental data to verify CDC continues working with env vars
+            ContainerUtils.executeSQLStatement(
+                    getMySQLQueryConnection(),
+                    LOG,
+                    "insert into test_e2e_mysql_env.tbl1 values ('doris_env_1_1',10)",
+                    "insert into test_e2e_mysql_env.tbl2 values ('doris_env_2_1',11)",
+                    "update test_e2e_mysql_env.tbl1 set age=18 where name='doris_env_1'",
+                    "delete from test_e2e_mysql_env.tbl2 where name='doris_env_2'");
+            Thread.sleep(20000);
+
+            LOG.info(
+                    "Start to verify incremental data result with environment variable resolution.");
+            List<String> expected2 =
+                    Arrays.asList(
+                            "doris_env_1,18",
+                            "doris_env_1_1,10",
+                            "doris_env_2_1,11",
+                            "doris_env_3,3");
+            String sql2 =
+                    "select * from ( select * from test_e2e_mysql_env.env_tbl1_test union all select * from test_e2e_mysql_env.env_tbl2_test union all select * from test_e2e_mysql_env.env_tbl3_test ) res order by 1";
+            ContainerUtils.checkResult(getDorisQueryConnection(), LOG, expected2, sql2, 2);
+
+            cancelE2EJob(jobName);
+        } finally {
+            // Clean up environment variables
+            unsetEnvironmentVariable("TABLE_PREFIX");
+            unsetEnvironmentVariable("TABLE_SUFFIX");
+        }
+    }
+
+    /** Set environment variable using reflection (for testing purposes only) */
+    @SuppressWarnings("unchecked")
+    private void setEnvironmentVariable(String key, String value) {
+        try {
+            Class<?> processEnvironmentClass = Class.forName("java.lang.ProcessEnvironment");
+            java.lang.reflect.Field theEnvironmentField =
+                    processEnvironmentClass.getDeclaredField("theEnvironment");
+            theEnvironmentField.setAccessible(true);
+            Map<String, String> env = (Map<String, String>) theEnvironmentField.get(null);
+            env.put(key, value);
+
+            java.lang.reflect.Field theCaseInsensitiveEnvironmentField =
+                    processEnvironmentClass.getDeclaredField("theCaseInsensitiveEnvironment");
+            theCaseInsensitiveEnvironmentField.setAccessible(true);
+            Map<String, String> cienv =
+                    (Map<String, String>) theCaseInsensitiveEnvironmentField.get(null);
+            cienv.put(key, value);
+        } catch (Exception e) {
+            LOG.warn("Failed to set environment variable: " + key + "=" + value, e);
+        }
+    }
+
+    /** Unset environment variable using reflection (for testing purposes only) */
+    @SuppressWarnings("unchecked")
+    private void unsetEnvironmentVariable(String key) {
+        try {
+            Class<?> processEnvironmentClass = Class.forName("java.lang.ProcessEnvironment");
+            java.lang.reflect.Field theEnvironmentField =
+                    processEnvironmentClass.getDeclaredField("theEnvironment");
+            theEnvironmentField.setAccessible(true);
+            Map<String, String> env = (Map<String, String>) theEnvironmentField.get(null);
+            env.remove(key);
+
+            java.lang.reflect.Field theCaseInsensitiveEnvironmentField =
+                    processEnvironmentClass.getDeclaredField("theCaseInsensitiveEnvironment");
+            theCaseInsensitiveEnvironmentField.setAccessible(true);
+            Map<String, String> cienv =
+                    (Map<String, String>) theCaseInsensitiveEnvironmentField.get(null);
+            cienv.remove(key);
+        } catch (Exception e) {
+            LOG.warn("Failed to unset environment variable: " + key, e);
+        }
     }
 
     @After

@@ -115,4 +115,91 @@ public class CdcToolsTest {
             Assert.assertTrue(valueConf.contains(value));
         }
     }
+
+    @Test
+    public void testGetConfigMapWithEnvironmentVariables() {
+        // Test cases for environment variable substitution.
+        // We assume these environment variables are NOT set in the test environment,
+        // so they should resolve to their placeholder strings.
+
+        // Case 1: Simple env var placeholder
+        MultipleParameterTool params1 =
+                MultipleParameterTool.fromArgs(
+                        new String[] {"--test-conf", "db.user=$DB_USER_UNSET"});
+        Map<String, String> expected1 = new HashMap<>();
+        expected1.put("db.user", "$DB_USER_UNSET");
+        Assert.assertEquals(expected1, CdcTools.getConfigMap(params1, "test-conf"));
+
+        // Case 2: Env var with braces placeholder
+        MultipleParameterTool params2 =
+                MultipleParameterTool.fromArgs(
+                        new String[] {"--test-conf", "db.pass=${DB_PASS_UNSET}"});
+        Map<String, String> expected2 = new HashMap<>();
+        expected2.put("db.pass", "${DB_PASS_UNSET}");
+        Assert.assertEquals(expected2, CdcTools.getConfigMap(params2, "test-conf"));
+
+        // Case 3: Mix of plain string and env var placeholder
+        MultipleParameterTool params3 =
+                MultipleParameterTool.fromArgs(
+                        new String[] {
+                            "--test-conf",
+                            "db.host=localhost",
+                            "--test-conf",
+                            "db.port=$DB_PORT_UNSET"
+                        });
+        Map<String, String> expected3 = new HashMap<>();
+        expected3.put("db.host", "localhost");
+        expected3.put("db.port", "$DB_PORT_UNSET");
+        Assert.assertEquals(expected3, CdcTools.getConfigMap(params3, "test-conf"));
+
+        // Case 4: Env var within a string
+        MultipleParameterTool params4 =
+                MultipleParameterTool.fromArgs(
+                        new String[] {
+                            "--test-conf", "conn.string=jdbc:mysql://$DB_HOST_UNSET:3306/mydb"
+                        });
+        Map<String, String> expected4 = new HashMap<>();
+        expected4.put("conn.string", "jdbc:mysql://$DB_HOST_UNSET:3306/mydb");
+        Assert.assertEquals(expected4, CdcTools.getConfigMap(params4, "test-conf"));
+
+        // Case 5: Multiple env vars in one string
+        MultipleParameterTool params5 =
+                MultipleParameterTool.fromArgs(
+                        new String[] {
+                            "--test-conf", "credentials=user:$USER_UNSET,pass:$PASS_UNSET"
+                        });
+        Map<String, String> expected5 = new HashMap<>();
+        expected5.put("credentials", "user:$USER_UNSET,pass:$PASS_UNSET");
+        Assert.assertEquals(expected5, CdcTools.getConfigMap(params5, "test-conf"));
+
+        // Case 6: No env vars (regular behavior)
+        MultipleParameterTool params6 =
+                MultipleParameterTool.fromArgs(
+                        new String[] {"--test-conf", "key1=value1", "--test-conf", "key2=value2"});
+        Map<String, String> expected6 = new HashMap<>();
+        expected6.put("key1", "value1");
+        expected6.put("key2", "value2");
+        Assert.assertEquals(expected6, CdcTools.getConfigMap(params6, "test-conf"));
+
+        // Case 7: Env var for a key that allows empty value (e.g. password), resolves to
+        // placeholder
+        MultipleParameterTool params7 =
+                MultipleParameterTool.fromArgs(
+                        new String[] {"--test-conf", "password=$PASSWORD_UNSET"});
+        Map<String, String> expected7 = new HashMap<>();
+        expected7.put(
+                "password", "$PASSWORD_UNSET"); // DatabaseSyncConfig.PASSWORD is in EMPTY_KEYS
+        Assert.assertEquals(expected7, CdcTools.getConfigMap(params7, "test-conf"));
+
+        // Case 8: Env var that resolves to an empty string (if it were set to empty)
+        // For this test, we simulate it by having the placeholder itself, as we can't set it to
+        // empty easily here.
+        // If $EMPTY_VAR was set to "", the result for "key" would be "".
+        // Since it's not set, it remains "$EMPTY_VAR".
+        MultipleParameterTool params8 =
+                MultipleParameterTool.fromArgs(new String[] {"--test-conf", "key=$EMPTY_VAR"});
+        Map<String, String> expected8 = new HashMap<>();
+        expected8.put("key", "$EMPTY_VAR");
+        Assert.assertEquals(expected8, CdcTools.getConfigMap(params8, "test-conf"));
+    }
 }
