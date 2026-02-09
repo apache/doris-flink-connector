@@ -17,6 +17,9 @@
 
 package org.apache.doris.flink.serialization;
 
+import org.apache.doris.flink.exception.DorisException;
+import org.apache.doris.flink.rest.models.Schema;
+import org.apache.doris.sdk.thrift.TScanBatchResult;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;
@@ -32,13 +35,9 @@ import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.ipc.ArrowStreamReader;
 import org.apache.arrow.vector.types.Types;
-import org.apache.doris.flink.exception.DorisException;
-import org.apache.doris.flink.rest.models.Schema;
-import org.apache.doris.thrift.TScanBatchResult;
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -104,7 +103,7 @@ public class RowBatch {
             this.root = arrowStreamReader.getVectorSchemaRoot();
             while (arrowStreamReader.loadNextBatch()) {
                 fieldVectors = root.getFieldVectors();
-                if (fieldVectors.size() != schema.size()) {
+                if (fieldVectors.size() > schema.size()) {
                     logger.error("Schema size '{}' is not equal to arrow field size '{}'.",
                             fieldVectors.size(), schema.size());
                     throw new DorisException("Load Doris data failed, schema size of fetch data is wrong.");
@@ -236,6 +235,10 @@ public class RowBatch {
                         break;
                     case "DECIMAL":
                     case "DECIMALV2":
+                    case "DECIMAL32":
+                    case "DECIMAL64":
+                    case "DECIMAL128I":
+                    case "DECIMAL128":
                         Preconditions.checkArgument(mt.equals(Types.MinorType.DECIMAL),
                                 typeMismatchMessage(currentType, mt));
                         DecimalVector decimalVector = (DecimalVector) curFieldVector;

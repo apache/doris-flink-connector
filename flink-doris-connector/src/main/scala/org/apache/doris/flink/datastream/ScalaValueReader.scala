@@ -28,7 +28,7 @@ import org.apache.doris.flink.rest.models.Schema
 import org.apache.doris.flink.serialization.{Routing, RowBatch}
 import org.apache.doris.flink.util.ErrorMessages
 import org.apache.doris.flink.util.ErrorMessages._
-import org.apache.doris.thrift.{TScanCloseParams, TScanNextBatchParams, TScanOpenParams, TScanOpenResult}
+import org.apache.doris.sdk.thrift.{TScanCloseParams, TScanNextBatchParams, TScanOpenParams, TScanOpenResult}
 import org.apache.log4j.Logger
 
 import scala.collection.JavaConversions._
