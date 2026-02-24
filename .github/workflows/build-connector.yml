@@ -41,41 +41,47 @@ jobs:
     - name: Build flink connector 1.15
       run: |
         cd flink-doris-connector && mvn clean package \
+          -pl flink-doris-connector-1.20 -am \
           -Dflink.version=1.15.0 \
-          -Dflink.minor.version=1.15 \
+          -Dflink.major.version=1.15 \
           -Dflink.python.id=flink-python_2.12
 
     - name: Build flink connector 1.16
       run: |
         cd flink-doris-connector && mvn clean package \
+          -pl flink-doris-connector-1.20 -am \
           -Dflink.version=1.16.0 \
-          -Dflink.minor.version=1.16 \
+          -Dflink.major.version=1.16 \
           -Dflink.python.id=flink-python
 
     - name: Build flink connector 1.17
       run: |
         cd flink-doris-connector && mvn clean package \
+          -pl flink-doris-connector-1.20 -am \
           -Dflink.version=1.17.0 \
-          -Dflink.minor.version=1.17 \
+          -Dflink.major.version=1.17 \
           -Dflink.python.id=flink-python
 
     - name: Build flink connector 1.18
       run: |
         cd flink-doris-connector && mvn clean package \
+          -pl flink-doris-connector-1.20 -am \
           -Dflink.version=1.18.0 \
-          -Dflink.minor.version=1.18 \
+          -Dflink.major.version=1.18 \
           -Dflink.python.id=flink-python
 
     - name: Build flink connector 1.19
       run: |
         cd flink-doris-connector && mvn clean package \
+          -pl flink-doris-connector-1.20 -am \
           -Dflink.version=1.19.0 \
-          -Dflink.minor.version=1.19 \
+          -Dflink.major.version=1.19 \
           -Dflink.python.id=flink-python
 
     - name: Build flink connector 1.20
       run: |
         cd flink-doris-connector && mvn clean package \
+          -pl flink-doris-connector-1.20 -am \
           -Dflink.version=1.20.0 \
-          -Dflink.minor.version=1.20 \
+          -Dflink.major.version=1.20 \
           -Dflink.python.id=flink-python

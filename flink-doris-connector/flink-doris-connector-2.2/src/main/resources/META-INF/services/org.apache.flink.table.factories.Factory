@@ -14,34 +14,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
----
-name: Run ITCases
-on:
-  pull_request:
-  push:
 
-jobs:
-  build-extension:
-    name: "Run ITCases"
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        shell: bash
-    steps:
-    - name: Checkout
-      uses: actions/checkout@master
-
-    - name: Setup java
-      uses: actions/setup-java@v2
-      with:
-        distribution: adopt
-        java-version: '8'
-
-    - name: Run ITCases (Flink 1.x module)
-      run: |
-        cd flink-doris-connector && mvn test \
-          -pl flink-doris-connector-1.20 -am \
-          -Dtest="*ITCase" \
-          -Dimage="apache/doris:doris-all-in-one-2.1.0"
-
+org.apache.doris.flink.table.DorisDynamicTableFactory
+org.apache.doris.flink.catalog.DorisCatalogFactory
