@@ -17,8 +17,9 @@
 
 package org.apache.doris.flink.tools.cdc.db2;
 
-import org.apache.doris.flink.catalog.doris.DorisType;
 import org.apache.flink.util.Preconditions;
+
+import org.apache.doris.flink.catalog.doris.DorisType;
 
 public class Db2Type {
     private static final String BOOLEAN = "BOOLEAN";

@@ -51,7 +51,7 @@ public class DataGen2DorisExample {
                         + "    ) "
                         + "    WITH ("
                         + "      'connector' = 'doris',"
-                        + "      'fenodes' = '127.0.0.1:8030',"
+                        + "      'fenodes' = '10.16.10.6:28737',"
                         + "      'table.identifier' = 'test.student',"
                         + "      'username' = 'root',"
                         + "      'password' = '',"

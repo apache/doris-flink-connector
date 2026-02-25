@@ -1,19 +1,22 @@
 package org.apache.doris.flink.source;
 
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.util.CloseableIterator;
+
 import org.apache.doris.flink.catalog.doris.DataModel;
 import org.apache.doris.flink.cfg.DorisStreamOptions;
 import org.apache.doris.flink.container.AbstractITCaseService;
 import org.apache.doris.flink.datastream.DorisSourceFunction;
 import org.apache.doris.flink.deserialization.SimpleListDeserializationSchema;
-import static org.apache.doris.flink.source.DorisSourceITCase.checkResultInAnyOrder;
-import static org.apache.doris.flink.source.DorisSourceITCase.initializeTable;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.util.CloseableIterator;
 import org.junit.Test;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
+
+import static org.apache.doris.flink.source.DorisSourceITCase.checkResultInAnyOrder;
+import static org.apache.doris.flink.source.DorisSourceITCase.initializeTable;
 
 public class DorisSourceITCaseForOldApi extends AbstractITCaseService {
 

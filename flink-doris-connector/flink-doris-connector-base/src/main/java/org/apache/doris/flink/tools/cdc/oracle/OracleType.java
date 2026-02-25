@@ -17,8 +17,9 @@
 
 package org.apache.doris.flink.tools.cdc.oracle;
 
-import org.apache.doris.flink.catalog.doris.DorisType;
 import org.apache.flink.util.Preconditions;
+
+import org.apache.doris.flink.catalog.doris.DorisType;
 
 public class OracleType {
     private static final String VARCHAR2 = "VARCHAR2";

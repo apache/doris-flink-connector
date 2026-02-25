@@ -17,17 +17,19 @@
 
 package org.apache.doris.flink.example;
 
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.cdc.connectors.mysql.source.MySqlSource;
+import org.apache.flink.cdc.connectors.shaded.org.apache.kafka.connect.json.JsonConverterConfig;
+import org.apache.flink.cdc.debezium.JsonDebeziumDeserializationSchema;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.sink.DorisSink;
 import org.apache.doris.flink.sink.writer.serializer.JsonDebeziumSchemaSerializer;
 import org.apache.doris.flink.utils.DateToStringConverter;
-import org.apache.flink.api.common.eventtime.WatermarkStrategy;
-import org.apache.flink.cdc.connectors.mysql.source.MySqlSource;
-import org.apache.flink.cdc.connectors.shaded.org.apache.kafka.connect.json.JsonConverterConfig;
-import org.apache.flink.cdc.debezium.JsonDebeziumDeserializationSchema;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;

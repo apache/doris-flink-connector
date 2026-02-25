@@ -17,8 +17,9 @@
 
 package org.apache.doris.flink.tools.cdc.postgres;
 
-import org.apache.doris.flink.catalog.doris.DorisType;
 import org.apache.flink.util.Preconditions;
+
+import org.apache.doris.flink.catalog.doris.DorisType;
 
 public class PostgresType {
     private static final String INT2 = "int2";

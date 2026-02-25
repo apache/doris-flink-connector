@@ -17,10 +17,12 @@
 
 package org.apache.doris.flink.tools.cdc.mysql;
 
-import org.apache.doris.flink.catalog.doris.DorisType;
-import static org.apache.doris.flink.catalog.DorisTypeMapper.MAX_SUPPORTED_DATE_TIME_PRECISION;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.util.Preconditions;
+
+import org.apache.doris.flink.catalog.doris.DorisType;
+
+import static org.apache.doris.flink.catalog.DorisTypeMapper.MAX_SUPPORTED_DATE_TIME_PRECISION;
 
 public class MysqlType {
 
