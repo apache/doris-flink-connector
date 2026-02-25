@@ -89,13 +89,7 @@ public class DorisRowDataJdbcLookupFunction extends TableFunction<RowData> {
         this.lookupMetrics = new LookupMetrics(context.getMetricGroup());
     }
 
-    /**
-     * This is a lookup method which is called by Flink framework in runtime.
-     *
-     * @param keys lookup keys
-     */
-    public void eval(Object... keys) throws IOException {
-        RowData keyRow = GenericRowData.of(keys);
+    public void eval(RowData keyRow) throws IOException {
         if (cache != null) {
             List<RowData> cachedRows = cache.getIfPresent(keyRow);
             if (cachedRows != null) {
@@ -112,6 +106,16 @@ public class DorisRowDataJdbcLookupFunction extends TableFunction<RowData> {
             }
         }
         queryRecord(keyRow);
+    }
+
+    /**
+     * This is a lookup method which is called by Flink framework in runtime.
+     *
+     * @param keys lookup keys
+     */
+    public void eval(Object... keys) throws IOException {
+        RowData keyRow = GenericRowData.of(keys);
+        eval(keyRow);
     }
 
     private void queryRecord(RowData keyRow) throws IOException {

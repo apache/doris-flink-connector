@@ -17,7 +17,6 @@
 
 package org.apache.doris.flink.sink.writer;
 
-import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
@@ -45,7 +44,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.OptionalLong;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -129,10 +127,7 @@ public class TestDorisWriter {
         when(httpClient.execute(any(HttpUriRequest.class))).thenReturn(preCommitResponse);
         Map<String, DorisStreamLoad> dorisStreamLoadMap = new ConcurrentHashMap<>();
         Map<String, DorisWriteMetrics> dorisWriteMetricsMap = new ConcurrentHashMap<>();
-        Sink.InitContext initContext = mock(Sink.InitContext.class);
         SinkWriterMetricGroup sinkWriterMetricGroup = mock(SinkWriterMetricGroup.class);
-        when(initContext.getRestoredCheckpointId()).thenReturn(OptionalLong.of(1));
-        when(initContext.getSubtaskId()).thenReturn(1);
         DorisWriteMetrics mockWriteMetrics = getMockWriteMetrics(sinkWriterMetricGroup);
         dorisWriteMetricsMap.put(dorisOptions.getTableIdentifier(), mockWriteMetrics);
         // skip abort in init
@@ -140,7 +135,9 @@ public class TestDorisWriter {
         executionOptions.setEnable2PC(false);
         DorisWriter<String> dorisWriter =
                 new DorisWriter<String>(
-                        initContext,
+                        1,
+                        1,
+                        sinkWriterMetricGroup,
                         Collections.emptyList(),
                         new SimpleStringSerializer(),
                         dorisOptions,
@@ -184,17 +181,16 @@ public class TestDorisWriter {
     private DorisWriter<String> initWriter(CloseableHttpClient httpClient) throws IOException {
         Map<String, DorisStreamLoad> dorisStreamLoadMap = new ConcurrentHashMap<>();
         Map<String, DorisWriteMetrics> dorisWriteMetricsMap = new ConcurrentHashMap<>();
-        Sink.InitContext initContext = mock(Sink.InitContext.class);
         SinkWriterMetricGroup sinkWriterMetricGroup = mock(SinkWriterMetricGroup.class);
-        when(initContext.getRestoredCheckpointId()).thenReturn(OptionalLong.of(1));
-        when(initContext.getSubtaskId()).thenReturn(1);
         DorisWriteMetrics mockWriteMetrics = getMockWriteMetrics(sinkWriterMetricGroup);
         dorisWriteMetricsMap.put(dorisOptions.getTableIdentifier(), mockWriteMetrics);
         // skip abort in init
         dorisOptions.setTableIdentifier("");
         DorisWriter<String> dorisWriter =
                 new DorisWriter<String>(
-                        initContext,
+                        1,
+                        1,
+                        sinkWriterMetricGroup,
                         Collections.emptyList(),
                         new SimpleStringSerializer(),
                         dorisOptions,

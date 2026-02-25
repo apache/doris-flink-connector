@@ -131,27 +131,27 @@ public class PostgresType {
             case JSON:
             case JSONB:
                 return DorisType.JSONB;
-                /* Compatible with doris1.2 array type can only be used in dup table,
-                   and then converted to array in the next version
-                case _BOOL:
-                    return String.format("%s<%s>", DorisType.ARRAY, DorisType.BOOLEAN);
-                case _INT2:
-                    return String.format("%s<%s>", DorisType.ARRAY, DorisType.TINYINT);
-                case _INT4:
-                    return String.format("%s<%s>", DorisType.ARRAY, DorisType.INT);
-                case _INT8:
-                    return String.format("%s<%s>", DorisType.ARRAY, DorisType.BIGINT);
-                case _FLOAT4:
-                    return String.format("%s<%s>", DorisType.ARRAY, DorisType.FLOAT);
-                case _FLOAT8:
-                    return String.format("%s<%s>", DorisType.ARRAY, DorisType.DOUBLE);
-                case _TEXT:
-                    return String.format("%s<%s>", DorisType.ARRAY, DorisType.STRING);
-                case _DATE:
-                    return String.format("%s<%s>", DorisType.ARRAY, DorisType.DATE_V2);
-                case _TIMESTAMP:
-                    return String.format("%s<%s>", DorisType.ARRAY, DorisType.DATETIME_V2);
-                **/
+            /* Compatible with doris1.2 array type can only be used in dup table,
+               and then converted to array in the next version
+            case _BOOL:
+                return String.format("%s<%s>", DorisType.ARRAY, DorisType.BOOLEAN);
+            case _INT2:
+                return String.format("%s<%s>", DorisType.ARRAY, DorisType.TINYINT);
+            case _INT4:
+                return String.format("%s<%s>", DorisType.ARRAY, DorisType.INT);
+            case _INT8:
+                return String.format("%s<%s>", DorisType.ARRAY, DorisType.BIGINT);
+            case _FLOAT4:
+                return String.format("%s<%s>", DorisType.ARRAY, DorisType.FLOAT);
+            case _FLOAT8:
+                return String.format("%s<%s>", DorisType.ARRAY, DorisType.DOUBLE);
+            case _TEXT:
+                return String.format("%s<%s>", DorisType.ARRAY, DorisType.STRING);
+            case _DATE:
+                return String.format("%s<%s>", DorisType.ARRAY, DorisType.DATE_V2);
+            case _TIMESTAMP:
+                return String.format("%s<%s>", DorisType.ARRAY, DorisType.DATETIME_V2);
+            **/
             default:
                 throw new UnsupportedOperationException(
                         "Unsupported Postgres Type: " + postgresType);

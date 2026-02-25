@@ -18,8 +18,7 @@
 package org.apache.doris.flink.sink.copy;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.connector.sink2.Sink;
-import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
+import org.apache.flink.api.connector.sink2.SinkWriter.Context;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
@@ -27,7 +26,6 @@ import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
-import org.apache.doris.flink.sink.writer.DorisAbstractWriter;
 import org.apache.doris.flink.sink.writer.DorisWriterState;
 import org.apache.doris.flink.sink.writer.LabelGenerator;
 import org.apache.doris.flink.sink.writer.serializer.DorisRecord;
@@ -46,8 +44,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-public class DorisCopyWriter<IN>
-        implements DorisAbstractWriter<IN, DorisWriterState, DorisCopyCommittable> {
+public class DorisCopyWriter<IN> {
 
     private static final Logger LOG = LoggerFactory.getLogger(DorisCopyWriter.class);
     private final long lastCheckpointId;
@@ -65,7 +62,8 @@ public class DorisCopyWriter<IN>
     private String table;
 
     public DorisCopyWriter(
-            Sink.InitContext initContext,
+            long lastCheckpointId,
+            int subtaskId,
             DorisRecordSerializer<IN> serializer,
             DorisOptions dorisOptions,
             DorisReadOptions dorisReadOptions,
@@ -78,17 +76,14 @@ public class DorisCopyWriter<IN>
             this.database = tableInfo[0];
             this.table = tableInfo[1];
         }
-        this.lastCheckpointId =
-                initContext
-                        .getRestoredCheckpointId()
-                        .orElse(CheckpointIDCounter.INITIAL_CHECKPOINT_ID - 1);
+        this.lastCheckpointId = lastCheckpointId;
         LOG.info("restore checkpointId {}", lastCheckpointId);
         LOG.info("labelPrefix {}", executionOptions.getLabelPrefix());
         this.labelPrefix =
                 executionOptions.getLabelPrefix()
                         + "_"
                         + UUID.randomUUID().toString().replaceAll("-", "");
-        this.labelGenerator = new LabelGenerator(labelPrefix, false, initContext.getSubtaskId());
+        this.labelGenerator = new LabelGenerator(labelPrefix, false, subtaskId);
         this.scheduledExecutorService =
                 new ScheduledThreadPoolExecutor(
                         1, new ExecutorThreadFactory("copy-upload-interval"));
@@ -121,7 +116,6 @@ public class DorisCopyWriter<IN>
         }
     }
 
-    @Override
     public void write(IN in, Context context) throws IOException, InterruptedException {
         checkFlushException();
         writeOneDorisRecord(serializer.serialize(in));
@@ -142,7 +136,6 @@ public class DorisCopyWriter<IN>
         batchStageLoad.writeRecord(db, tbl, record.getRow());
     }
 
-    @Override
     public void flush(boolean b) throws IOException, InterruptedException {
         checkFlushException();
         writeOneDorisRecord(serializer.flush());
@@ -150,7 +143,6 @@ public class DorisCopyWriter<IN>
         batchStageLoad.flush(null, true);
     }
 
-    @Override
     public Collection<DorisCopyCommittable> prepareCommit()
             throws IOException, InterruptedException {
         Preconditions.checkState(batchStageLoad != null);
@@ -168,7 +160,6 @@ public class DorisCopyWriter<IN>
         return committables;
     }
 
-    @Override
     public List<DorisWriterState> snapshotState(long checkpointId) throws IOException {
         Preconditions.checkState(batchStageLoad != null);
         if (!batchStageLoad.getFileListMap().isEmpty()) {
@@ -181,7 +172,6 @@ public class DorisCopyWriter<IN>
         return Collections.emptyList();
     }
 
-    @Override
     public void close() throws Exception {
         LOG.info("DorisBatchWriter Close");
         if (scheduledExecutorService != null) {

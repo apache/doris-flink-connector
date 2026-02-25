@@ -31,6 +31,7 @@ public class DorisConnectionOptions implements Serializable {
     protected final String password;
     protected String jdbcUrl;
     protected String benodes;
+
     /**
      * Used to enable automatic redirection of fe, When it is not enabled, it will actively request
      * the be list, and the polling will initiate a streamload request to be.

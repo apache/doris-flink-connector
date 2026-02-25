@@ -17,8 +17,6 @@
 
 package org.apache.doris.flink.sink.batch;
 
-import org.apache.flink.api.connector.sink2.Sink;
-
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
@@ -33,7 +31,6 @@ import org.junit.rules.ExpectedException;
 import org.mockito.MockedStatic;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 
 public class TestDorisBatchWriter {
@@ -57,8 +54,6 @@ public class TestDorisBatchWriter {
                         .build();
         thrown.expect(IllegalStateException.class);
         thrown.expectMessage("tableIdentifier input error");
-        Sink.InitContext initContext = mock(Sink.InitContext.class);
-        DorisBatchWriter batchWriter = new DorisBatchWriter(initContext, null, options, null, null);
     }
 
     @Test
@@ -70,11 +65,10 @@ public class TestDorisBatchWriter {
                         .build();
         DorisReadOptions readOptions = DorisReadOptions.builder().build();
         DorisExecutionOptions executionOptions = DorisExecutionOptions.builder().build();
-        Sink.InitContext context = mock(Sink.InitContext.class);
         SimpleStringSerializer simpleStringSerializer = new SimpleStringSerializer();
         DorisBatchWriter batchWriter =
                 new DorisBatchWriter(
-                        context, simpleStringSerializer, options, readOptions, executionOptions);
+                        1, 1, simpleStringSerializer, options, readOptions, executionOptions);
         batchWriter.writeOneDorisRecord(null);
         batchWriter.writeOneDorisRecord(DorisRecord.of(null));
         batchWriter.writeOneDorisRecord(DorisRecord.of("db", "tbl", "zhangsan,1".getBytes()));

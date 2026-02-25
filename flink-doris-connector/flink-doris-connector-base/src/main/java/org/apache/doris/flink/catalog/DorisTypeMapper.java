@@ -79,6 +79,7 @@ public class DorisTypeMapper {
 
     /** Max size of varchar type of Doris. */
     public static final int MAX_VARCHAR_SIZE = 65533;
+
     /* Max precision of datetime type of Doris. */
     public static final int MAX_SUPPORTED_DATE_TIME_PRECISION = 6;
 
@@ -118,8 +119,8 @@ public class DorisTypeMapper {
             case STRING:
             case JSONB:
             case JSON:
-                // Currently, the subtype of the generic cannot be obtained,
-                // so it is mapped to string
+            // Currently, the subtype of the generic cannot be obtained,
+            // so it is mapped to string
             case ARRAY:
             case MAP:
             case STRUCT:

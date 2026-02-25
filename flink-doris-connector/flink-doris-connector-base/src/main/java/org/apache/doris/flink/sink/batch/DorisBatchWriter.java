@@ -17,8 +17,7 @@
 
 package org.apache.doris.flink.sink.batch;
 
-import org.apache.flink.api.connector.sink2.Sink;
-import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
+import org.apache.flink.api.connector.sink2.SinkWriter.Context;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
@@ -27,7 +26,6 @@ import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.sink.DorisCommittable;
-import org.apache.doris.flink.sink.writer.DorisAbstractWriter;
 import org.apache.doris.flink.sink.writer.DorisWriterState;
 import org.apache.doris.flink.sink.writer.LabelGenerator;
 import org.apache.doris.flink.sink.writer.serializer.DorisRecord;
@@ -44,9 +42,15 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-/** Doris Batch StreamLoad. */
-public class DorisBatchWriter<IN>
-        implements DorisAbstractWriter<IN, DorisWriterState, DorisCommittable> {
+/**
+ * Doris Batch StreamLoad.
+ *
+ * <p>Core batch stream load writer shared across Flink versions.
+ *
+ * <p>Version-specific modules should wrap this class (for example via DorisBatchWriterV1 /
+ * DorisBatchWriterV2) and implement the appropriate Flink sink interfaces there.
+ */
+public class DorisBatchWriter<IN> {
     private static final Logger LOG = LoggerFactory.getLogger(DorisBatchWriter.class);
     private DorisBatchStreamLoad batchStreamLoad;
     private final DorisOptions dorisOptions;
@@ -63,16 +67,13 @@ public class DorisBatchWriter<IN>
     private int subtaskId;
 
     public DorisBatchWriter(
-            Sink.InitContext initContext,
+            long lastCheckpointId,
+            int subtaskId,
             DorisRecordSerializer<IN> serializer,
             DorisOptions dorisOptions,
             DorisReadOptions dorisReadOptions,
             DorisExecutionOptions executionOptions) {
-
-        long restoreCheckpointId =
-                initContext
-                        .getRestoredCheckpointId()
-                        .orElse(CheckpointIDCounter.INITIAL_CHECKPOINT_ID - 1);
+        long restoreCheckpointId = lastCheckpointId;
         LOG.info("restore from checkpointId {}", restoreCheckpointId);
         if (!StringUtils.isNullOrWhitespaceOnly(dorisOptions.getTableIdentifier())) {
             String[] tableInfo = dorisOptions.getTableIdentifier().split("\\.");
@@ -84,8 +85,8 @@ public class DorisBatchWriter<IN>
         }
 
         LOG.info("labelPrefix " + executionOptions.getLabelPrefix());
-        this.subtaskId = initContext.getSubtaskId();
-        this.labelPrefix = executionOptions.getLabelPrefix() + "_" + initContext.getSubtaskId();
+        this.subtaskId = subtaskId;
+        this.labelPrefix = executionOptions.getLabelPrefix() + "_" + subtaskId;
         this.labelGenerator = new LabelGenerator(labelPrefix, false);
         this.scheduledExecutorService =
                 new ScheduledThreadPoolExecutor(
@@ -122,13 +123,11 @@ public class DorisBatchWriter<IN>
         }
     }
 
-    @Override
     public void write(IN in, Context context) throws IOException, InterruptedException {
         checkFlushException();
         writeOneDorisRecord(serializer.serialize(in));
     }
 
-    @Override
     public void flush(boolean flush) throws IOException, InterruptedException {
         checkFlushException();
         writeOneDorisRecord(serializer.flush());
@@ -136,13 +135,11 @@ public class DorisBatchWriter<IN>
         batchStreamLoad.checkpointFlush();
     }
 
-    @Override
     public Collection<DorisCommittable> prepareCommit() throws IOException, InterruptedException {
         checkFlushException();
         return Collections.emptyList();
     }
 
-    @Override
     public List<DorisWriterState> snapshotState(long checkpointId) throws IOException {
         checkFlushException();
         return new ArrayList<>();
@@ -163,7 +160,6 @@ public class DorisBatchWriter<IN>
         batchStreamLoad.writeRecord(db, tbl, record.getRow());
     }
 
-    @Override
     public void close() throws Exception {
         LOG.info("DorisBatchWriter Close");
         if (scheduledExecutorService != null) {

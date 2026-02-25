@@ -18,7 +18,6 @@
 package org.apache.doris.flink.sink.copy;
 
 import org.apache.flink.api.common.time.Deadline;
-import org.apache.flink.api.connector.sink2.Sink;
 
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
@@ -68,11 +67,10 @@ public class TestDorisCopyWriter {
         CloseableHttpResponse uploadResponse = HttpTestUtil.getResponse("", false, true);
         CloseableHttpResponse preCommitResponse = HttpTestUtil.getResponse("", true, false);
         when(httpClient.execute(any())).thenReturn(uploadResponse).thenReturn(preCommitResponse);
-        Sink.InitContext initContext = mock(Sink.InitContext.class);
-        // when(initContext.getRestoredCheckpointId()).thenReturn(OptionalLong.of(1));
         DorisCopyWriter<String> copyWriter =
                 new DorisCopyWriter<String>(
-                        initContext,
+                        1,
+                        1,
                         new SimpleStringSerializer(),
                         dorisOptions,
                         readOptions,
@@ -109,11 +107,10 @@ public class TestDorisCopyWriter {
 
     @Test
     public void testSnapshot() throws Exception {
-        Sink.InitContext initContext = mock(Sink.InitContext.class);
-        // when(initContext.getRestoredCheckpointId()).thenReturn(OptionalLong.of(1));
         DorisCopyWriter<String> copyWriter =
                 new DorisCopyWriter<String>(
-                        initContext,
+                        1,
+                        1,
                         new SimpleStringSerializer(),
                         dorisOptions,
                         readOptions,

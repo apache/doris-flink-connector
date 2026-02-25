@@ -259,6 +259,7 @@ public class DorisReadOptions implements Serializable {
         private Long rowLimit;
         private Integer thriftMaxMessageSize =
                 ConfigurationOptions.DORIS_THRIFT_MAX_MESSAGE_SIZE_DEFAULT;
+
         /**
          * Sets the readFields for doris table to push down projection, such as name,age.
          *

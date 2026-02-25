@@ -102,6 +102,7 @@ under the License.
         <module>flink-doris-connector-base</module>
         <module>flink-doris-connector-1.20</module>
         <module>flink-doris-connector-2.2</module>
+        <module>flink-doris-connector-it</module>
     </modules>
 
     <dependencyManagement>
@@ -329,58 +330,6 @@ under the License.
 
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-shade-plugin</artifactId>
-                    <version>3.4.1</version>
-                    <configuration>
-                        <relocations>
-                            <relocation>
-                                <pattern>org.apache.arrow</pattern>
-                                <shadedPattern>org.apache.doris.shaded.org.apache.arrow</shadedPattern>
-                            </relocation>
-                            <relocation>
-                                <pattern>io.netty</pattern>
-                                <shadedPattern>org.apache.doris.shaded.io.netty</shadedPattern>
-                            </relocation>
-                            <relocation>
-                                <pattern>com.fasterxml.jackson</pattern>
-                                <shadedPattern>org.apache.doris.shaded.com.fasterxml.jackson</shadedPattern>
-                            </relocation>
-                            <relocation>
-                                <pattern>org.apache.commons.codec</pattern>
-                                <shadedPattern>org.apache.doris.shaded.org.apache.commons.codec</shadedPattern>
-                            </relocation>
-                            <relocation>
-                                <pattern>com.google</pattern>
-                                <shadedPattern>org.apache.doris.shaded.com.google</shadedPattern>
-                            </relocation>
-                            <relocation>
-                                <pattern>org.apache.thrift</pattern>
-                                <shadedPattern>org.apache.doris.shaded.org.apache.thrift</shadedPattern>
-                            </relocation>
-                        </relocations>
-                        <filters>
-                            <filter>
-                                <artifact>*:*</artifact>
-                                <excludes>
-                                    <exclude>META-INF/*.SF</exclude>
-                                    <exclude>META-INF/*.DSA</exclude>
-                                    <exclude>META-INF/*.RSA</exclude>
-                                </excludes>
-                            </filter>
-                        </filters>
-                    </configuration>
-                    <executions>
-                        <execution>
-                            <goals>
-                                <goal>shade</goal>
-                            </goals>
-                            <phase>package</phase>
-                        </execution>
-                    </executions>
-                </plugin>
-
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-compiler-plugin</artifactId>
                     <version>${maven-compiler-plugin.version}</version>
                     <configuration>
@@ -463,6 +412,16 @@ under the License.
                           <include>**/*.java</include>
                      </includes>
                      -->
+                    <argLine>--add-opens=java.base/java.lang=ALL-UNNAMED
+                        --add-opens=java.base/java.lang.reflect=ALL-UNNAMED
+                        --add-opens=java.base/java.util.concurrent=ALL-UNNAMED
+                        --add-opens=java.base/java.util=ALL-UNNAMED
+                        --add-opens=java.sql/java.sql=ALL-UNNAMED
+                        --add-opens=java.base/java.nio=ALL-UNNAMED
+                        --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED
+                        --add-opens java.base/java.net=ALL-UNNAMED
+                        --add-exports=java.base/sun.nio.ch=ALL-UNNAMED
+                    </argLine>
                 </configuration>
             </plugin>
             <plugin>
@@ -476,7 +435,7 @@ under the License.
                 <configuration>
                     <java>
                         <googleJavaFormat>
-                            <version>1.7</version>
+                            <version>1.24.0</version>
                             <style>AOSP</style>
                         </googleJavaFormat>
 
@@ -555,9 +514,36 @@ under the License.
             <properties>
                 <flink.version>2.2.0</flink.version>
                 <flink.major.version>2.2</flink.major.version>
-                <maven.compiler.source>17</maven.compiler.source>
-                <maven.compiler.target>17</maven.compiler.target>
             </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-compiler-plugin</artifactId>
+                        <configuration>
+                            <source>17</source>
+                            <target>17</target>
+                            <compilerArgs combine.children="append">
+                                <arg>--add-exports=java.base/sun.net.util=ALL-UNNAMED</arg>
+                                <arg>--add-exports=java.management/sun.management=ALL-UNNAMED</arg>
+                                <arg>--add-exports=java.rmi/sun.rmi.registry=ALL-UNNAMED</arg>
+                                <arg>--add-exports=java.security.jgss/sun.security.krb5=ALL-UNNAMED</arg>
+                                <arg>--add-exports=java.base/java.util=ALL-UNNAMED</arg>
+                                <arg>--add-opens</arg>
+                                <arg>java.base/java.lang=ALL-UNNAMED</arg>
+                                <arg>--add-opens</arg>
+                                <arg>java.base/java.lang.reflect=ALL-UNNAMED</arg>
+                                <arg>--add-opens</arg>
+                                <arg>java.base/java.util.concurrent=ALL-UNNAMED</arg>
+                                <arg>--add-opens</arg>
+                                <arg>java.base/java.util=ALL-UNNAMED</arg>
+                                <arg>--add-opens</arg>
+                                <arg>java.base/java.nio=ALL-UNNAMED</arg>
+                            </compilerArgs>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
         </profile>
         <!-- for custom internal repository -->
         <profile>

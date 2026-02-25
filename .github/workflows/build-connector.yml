@@ -83,5 +83,4 @@ jobs:
         cd flink-doris-connector && mvn clean package \
           -pl flink-doris-connector-1.20 -am \
           -Dflink.version=1.20.0 \
-          -Dflink.major.version=1.20 \
-          -Dflink.python.id=flink-python
+          -Dflink.major.version=1.20

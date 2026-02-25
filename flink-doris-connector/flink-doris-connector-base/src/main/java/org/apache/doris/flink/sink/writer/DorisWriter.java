@@ -18,9 +18,8 @@
 package org.apache.doris.flink.sink.writer;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.connector.sink2.Sink;
+import org.apache.flink.api.connector.sink2.SinkWriter.Context;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
-import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
@@ -51,10 +50,13 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 /**
  * Doris Writer will load data to doris.
  *
- * @param <IN>
+ * <p>This is the core implementation that is shared across different Flink versions.
+ * Version-specific modules should wrap this class and implement the appropriate Flink sink
+ * interfaces there (for example via DorisWriterV1 / DorisWriterV2).
+ *
+ * @param <IN> record type
  */
-public class DorisWriter<IN>
-        implements DorisAbstractWriter<IN, DorisWriterState, DorisCommittable> {
+public class DorisWriter<IN> {
     private static final Logger LOG = LoggerFactory.getLogger(DorisWriter.class);
     private final long lastCheckpointId;
     private long curCheckpointId;
@@ -78,21 +80,20 @@ public class DorisWriter<IN>
     private volatile boolean multiTableLoad = false;
 
     public DorisWriter(
-            Sink.InitContext initContext,
+            long lastCheckpointId,
+            int subtaskId,
+            SinkWriterMetricGroup sinkMetricGroup,
             Collection<DorisWriterState> state,
             DorisRecordSerializer<IN> serializer,
             DorisOptions dorisOptions,
             DorisReadOptions dorisReadOptions,
             DorisExecutionOptions executionOptions) {
-        this.lastCheckpointId =
-                initContext
-                        .getRestoredCheckpointId()
-                        .orElse(CheckpointIDCounter.INITIAL_CHECKPOINT_ID - 1);
+        this.lastCheckpointId = lastCheckpointId;
         this.curCheckpointId = lastCheckpointId + 1;
         LOG.info("restore from checkpointId {}", lastCheckpointId);
         LOG.info("labelPrefix {}", executionOptions.getLabelPrefix());
         this.labelPrefix = executionOptions.getLabelPrefix();
-        this.subtaskId = initContext.getSubtaskId();
+        this.subtaskId = subtaskId;
         this.scheduledExecutorService =
                 new ScheduledThreadPoolExecutor(
                         1,
@@ -111,7 +112,7 @@ public class DorisWriter<IN>
         this.executionOptions = executionOptions;
         this.intervalTime = executionOptions.checkInterval();
         this.globalLoading = false;
-        sinkMetricGroup = initContext.metricGroup();
+        this.sinkMetricGroup = sinkMetricGroup;
         initializeLoad(state);
         serializer.initial();
     }
@@ -167,13 +168,11 @@ public class DorisWriter<IN>
         }
     }
 
-    @Override
     public void write(IN in, Context context) throws IOException, InterruptedException {
         checkLoadException();
         writeOneDorisRecord(serializer.serialize(in));
     }
 
-    @Override
     public void flush(boolean endOfInput) throws IOException, InterruptedException {
         writeOneDorisRecord(serializer.flush());
     }
@@ -216,7 +215,6 @@ public class DorisWriter<IN>
         sinkMetricsMap.put(tableKey, metrics);
     }
 
-    @Override
     public Collection<DorisCommittable> prepareCommit() throws IOException, InterruptedException {
         // Verify whether data is written during a checkpoint
         if (!globalLoading && loadingMap.values().stream().noneMatch(Boolean::booleanValue)) {
@@ -272,7 +270,6 @@ public class DorisWriter<IN>
         }
     }
 
-    @Override
     public List<DorisWriterState> snapshotState(long checkpointId) throws IOException {
         List<DorisWriterState> writerStates = new ArrayList<>();
         for (DorisStreamLoad dorisStreamLoad : dorisStreamLoadMap.values()) {
@@ -423,7 +420,6 @@ public class DorisWriter<IN>
         this.backendUtil = backendUtil;
     }
 
-    @Override
     public void close() throws Exception {
         LOG.info("Close DorisWriter.");
         if (scheduledExecutorService != null) {
