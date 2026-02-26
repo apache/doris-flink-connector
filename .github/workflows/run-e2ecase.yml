@@ -42,6 +42,7 @@ jobs:
       run: |
         cd flink-doris-connector && mvn test \
           -Pflink1 -pl flink-doris-connector-flink1 -am \
+          -DfailIfNoTests=false \
           -Dtest="*E2ECase" \
           -Dimage="apache/doris:doris-all-in-one-2.1.0"
 
@@ -55,5 +56,6 @@ jobs:
       run: |
         cd flink-doris-connector && mvn test \
           -Pflink2 -pl flink-doris-connector-flink2 -am \
+          -DfailIfNoTests=false \
           -Dtest="*E2ECase" \
           -Dimage="apache/doris:doris-all-in-one-2.1.0"

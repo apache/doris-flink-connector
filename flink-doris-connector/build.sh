@@ -116,7 +116,9 @@ fi
 
 selectFlink() {
   echo 'Flink-Doris-Connector supports multiple versions of flink. Which version do you need ?'
-  select flink in "1.15.x" "1.16.x" "1.17.x" "1.18.x" "1.19.x" "1.20.x"
+  echo '  [Flink 1.x requires JDK 8]'
+  echo '  [Flink 2.x requires JDK 17]'
+  select flink in "1.15.x" "1.16.x" "1.17.x" "1.18.x" "1.19.x" "1.20.x" "2.0.x" "2.1.x" "2.2.x"
   do
     case $flink in
       "1.15.x")
@@ -137,6 +139,15 @@ selectFlink() {
       "1.20.x")
         return 6
         ;;
+      "2.0.x")
+        return 7
+        ;;
+      "2.1.x")
+        return 8
+        ;;
+      "2.2.x")
+        return 9
+        ;;
       *)
         echo "invalid selected, exit.."
         exit 1
@@ -149,6 +160,8 @@ FLINK_VERSION=0
 selectFlink
 flinkVer=$?
 FLINK_PYTHON_ID="flink-python"
+FLINK_MODULE="flink-doris-connector-flink1"
+FLINK_PROFILE="flink1"
 if [ ${flinkVer} -eq 1 ]; then
     FLINK_VERSION="1.15.0"
     FLINK_PYTHON_ID="flink-python_2.12"
@@ -162,17 +175,35 @@ elif [ ${flinkVer} -eq 5 ]; then
     FLINK_VERSION="1.19.0"
 elif [ ${flinkVer} -eq 6 ]; then
     FLINK_VERSION="1.20.0"
+elif [ ${flinkVer} -eq 7 ]; then
+    FLINK_VERSION="2.0.0"
+    FLINK_MODULE="flink-doris-connector-flink2"
+    FLINK_PROFILE="flink2"
+elif [ ${flinkVer} -eq 8 ]; then
+    FLINK_VERSION="2.1.0"
+    FLINK_MODULE="flink-doris-connector-flink2"
+    FLINK_PROFILE="flink2"
+elif [ ${flinkVer} -eq 9 ]; then
+    FLINK_VERSION="2.2.0"
+    FLINK_MODULE="flink-doris-connector-flink2"
+    FLINK_PROFILE="flink2"
 fi
 
 # extract major version:
-# eg: 3.1.2 -> 3
+# eg: 3.1.2 -> 3.1
 FLINK_MAJOR_VERSION=0
 [ ${FLINK_VERSION} != 0 ] && FLINK_MAJOR_VERSION=${FLINK_VERSION%.*}
 
 echo_g " flink version: ${FLINK_VERSION}, major version: ${FLINK_MAJOR_VERSION}"
 echo_g " build starting..."
 
-${MVN_BIN} clean package -Dflink.version=${FLINK_VERSION} -Dflink.major.version=${FLINK_MAJOR_VERSION} -Dflink.python.id=${FLINK_PYTHON_ID} "$@"
+${MVN_BIN} clean package \
+  -pl ${FLINK_MODULE} -am \
+  -P${FLINK_PROFILE} \
+  -Dflink.version=${FLINK_VERSION} \
+  -Dflink.major.version=${FLINK_MAJOR_VERSION} \
+  -Dflink.python.id=${FLINK_PYTHON_ID} \
+  "$@"
 
 EXIT_CODE=$?
 if [ $EXIT_CODE -eq 0 ]; then

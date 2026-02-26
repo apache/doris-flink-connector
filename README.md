@@ -24,7 +24,19 @@ under the License.
 
 ## Flink Doris Connector
 
-Flink Doris Connector now support flink version from 1.11 to 1.20.
+Flink Doris Connector supports the following Flink versions:
+
+| Flink Version | JDK Requirement |
+|:--------------|:----------------|
+| 1.15.x        | JDK 8           |
+| 1.16.x        | JDK 8           |
+| 1.17.x        | JDK 8           |
+| 1.18.x        | JDK 8           |
+| 1.19.x        | JDK 8           |
+| 1.20.x        | JDK 8           |
+| 2.0.x         | JDK 17          |
+| 2.1.x         | JDK 17          |
+| 2.2.x         | JDK 17          |
 
 If you wish to contribute or use a connector from flink 1.13 (and earlier), please use the [branch-for-flink-before-1.13](https://github.com/apache/doris-flink-connector/tree/branch-for-flink-before-1.13)
 
@@ -37,6 +49,9 @@ More information about compilation and usage, please visit [Flink Doris Connecto
 ## How to Build
 
 You need to copy customer_env.sh.tpl to customer_env.sh before build and you need to configure it before build.
+
+> **JDK requirement:** Use JDK 8 for Flink 1.x, and JDK 17 for Flink 2.x.
+
 ```shell
 git clone git@github.com:apache/doris-flink-connector.git
 cd doris-flink-connector/flink-doris-connector
