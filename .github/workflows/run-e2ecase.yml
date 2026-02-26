@@ -41,7 +41,7 @@ jobs:
     - name: Run E2ECases (Flink1 module)
       run: |
         cd flink-doris-connector && mvn test \
-          -Pflink1 -pl flink-doris-connector1 -am \
+          -Pflink1 -pl flink-doris-connector-flink1 -am \
           -Dtest="*E2ECase" \
           -Dimage="apache/doris:doris-all-in-one-2.1.0"
 
