@@ -41,7 +41,7 @@ jobs:
     - name: Run ITCases (Flink1 module)
       run: |
         cd flink-doris-connector && mvn test -Pflink1 \
-          -pl flink-doris-connector-flink1 -am \
+          -pl flink-doris-connector-it -am \
           -DfailIfNoTests=false \
           -Dtest="*ITCase" \
           -Dimage="apache/doris:doris-all-in-one-2.1.0"
@@ -55,7 +55,7 @@ jobs:
     - name: Run ITCases (Flink2 module)
       run: |
         cd flink-doris-connector && mvn test -Pflink2 \
-          -pl flink-doris-connector-flink2 -am \
+          -pl flink-doris-connector-it -am \
           -DfailIfNoTests=false \
           -Dtest="*ITCase" \
           -Dimage="apache/doris:doris-all-in-one-2.1.0"
