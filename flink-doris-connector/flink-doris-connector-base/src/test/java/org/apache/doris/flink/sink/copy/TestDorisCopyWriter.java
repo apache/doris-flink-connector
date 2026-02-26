@@ -69,8 +69,8 @@ public class TestDorisCopyWriter {
         when(httpClient.execute(any())).thenReturn(uploadResponse).thenReturn(preCommitResponse);
         DorisCopyWriter<String> copyWriter =
                 new DorisCopyWriter<String>(
-                        1,
-                        1,
+                        0,
+                        0,
                         new SimpleStringSerializer(),
                         dorisOptions,
                         readOptions,

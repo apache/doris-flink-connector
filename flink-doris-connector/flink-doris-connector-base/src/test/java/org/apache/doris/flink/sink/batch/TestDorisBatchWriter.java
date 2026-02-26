@@ -54,6 +54,7 @@ public class TestDorisBatchWriter {
                         .build();
         thrown.expect(IllegalStateException.class);
         thrown.expectMessage("tableIdentifier input error");
+        DorisBatchWriter batchWriter = new DorisBatchWriter(1, 1, null, options, null, null);
     }
 
     @Test

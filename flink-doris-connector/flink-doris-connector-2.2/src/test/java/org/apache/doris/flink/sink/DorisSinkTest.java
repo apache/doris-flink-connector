@@ -17,17 +17,15 @@
 
 package org.apache.doris.flink.sink;
 
-import org.apache.flink.api.connector.sink2.Sink;
+import org.apache.flink.api.common.TaskInfo;
+import org.apache.flink.api.connector.sink2.WriterInitContext;
 
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
-import org.apache.doris.flink.sink.batch.DorisBatchWriter;
 import org.apache.doris.flink.sink.batch.DorisBatchWriterAdapter;
-import org.apache.doris.flink.sink.copy.DorisCopyWriter;
 import org.apache.doris.flink.sink.copy.DorisCopyWriterAdapter;
 import org.apache.doris.flink.sink.writer.DorisAbstractWriter;
-import org.apache.doris.flink.sink.writer.DorisWriter;
 import org.apache.doris.flink.sink.writer.DorisWriterAdapter;
 import org.apache.doris.flink.sink.writer.WriteMode;
 import org.apache.doris.flink.sink.writer.serializer.DorisRecordSerializer;
@@ -43,6 +41,7 @@ import java.util.Collections;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.when;
 
 public class DorisSinkTest {
 
@@ -59,7 +58,9 @@ public class DorisSinkTest {
         DorisOptions dorisOptions = OptionUtils.buildDorisOptions();
         DorisReadOptions dorisReadOptions = OptionUtils.buildDorisReadOptions();
         DorisRecordSerializer<String> serializer = new SimpleStringSerializer();
-        Sink.InitContext initContext = mock(Sink.InitContext.class);
+        WriterInitContext initContext = mock(WriterInitContext.class);
+        TaskInfo taskInfo = mock(TaskInfo.class);
+        when(initContext.getTaskInfo()).thenReturn(taskInfo);
 
         DorisExecutionOptions dorisExecutionOptions =
                 DorisExecutionOptions.builder().disable2PC().build();

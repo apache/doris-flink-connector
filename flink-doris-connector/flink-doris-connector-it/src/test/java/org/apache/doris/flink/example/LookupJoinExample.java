@@ -20,10 +20,11 @@ package org.apache.doris.flink.example;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.types.Row;
+
+import org.apache.doris.flink.utils.MockSourceFunction;
 
 import java.util.UUID;
 
@@ -40,7 +41,7 @@ public class LookupJoinExample {
 
         DataStreamSource<Tuple2<Integer, String>> source =
                 env.addSource(
-                        new SourceFunction<Tuple2<Integer, String>>() {
+                        new MockSourceFunction<Tuple2<Integer, String>>() {
                             private Integer id = 1;
 
                             @Override

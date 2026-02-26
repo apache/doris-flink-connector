@@ -17,12 +17,11 @@
 
 package org.apache.doris.flink.example;
 
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.environment.CheckpointConfig;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction.SourceContext;
 
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
@@ -30,7 +29,9 @@ import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.sink.DorisSink;
 import org.apache.doris.flink.sink.batch.RecordWithMeta;
 import org.apache.doris.flink.sink.writer.serializer.RecordWithMetaSerializer;
+import org.apache.doris.flink.utils.MockSourceFunction;
 
+import java.time.Duration;
 import java.util.Properties;
 import java.util.UUID;
 
@@ -38,13 +39,15 @@ public class DorisSinkStreamMultiTableExample {
     public static void main(String[] args) throws Exception {
         Configuration config = new Configuration();
         // config.setString("execution.savepoint.path","/tmp/checkpoint/chk-6");
+        config.set(CheckpointingOptions.CHECKPOINT_STORAGE, "filesystem");
+        config.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, "file:///tmp/checkpoints");
+        config.set(RestartStrategyOptions.RESTART_STRATEGY, "fixed-delay");
+        config.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 3);
+        config.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY,
+                Duration.ofSeconds(10000));
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
         env.setParallelism(1);
-        env.getCheckpointConfig().setCheckpointStorage("file:///tmp/checkpoint/");
-        env.getCheckpointConfig()
-                .enableExternalizedCheckpoints(
-                        CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(5, Time.milliseconds(10000)));
         env.enableCheckpointing(10000);
         DorisSink.Builder<RecordWithMeta> builder = DorisSink.builder();
         final DorisReadOptions.Builder readOptionBuilder = DorisReadOptions.builder();
@@ -78,7 +81,7 @@ public class DorisSinkStreamMultiTableExample {
         // stringDataStreamSource.sinkTo(builder.build());
 
         env.addSource(
-                        new ParallelSourceFunction<RecordWithMeta>() {
+                        new MockSourceFunction<RecordWithMeta>() {
                             private Long id = 1000000L;
 
                             @Override

@@ -19,7 +19,6 @@ package org.apache.doris.flink.example;
 
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
 
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
@@ -28,6 +27,7 @@ import org.apache.doris.flink.sink.DorisSink;
 import org.apache.doris.flink.sink.batch.DorisBatchSink;
 import org.apache.doris.flink.sink.writer.WriteMode;
 import org.apache.doris.flink.sink.writer.serializer.SimpleStringSerializer;
+import org.apache.doris.flink.utils.MockSourceFunction;
 
 import java.util.Arrays;
 import java.util.Properties;
@@ -81,7 +81,7 @@ public class DorisSinkBatchExample {
                 .setDorisOptions(dorisBuilder.build());
 
         env.addSource(
-                        new SourceFunction<String>() {
+                        new MockSourceFunction<String>() {
                             private Long id = 0L;
 
                             @Override

@@ -29,7 +29,7 @@ under the License.
 
     <artifactId>flink-doris-connector-${flink.major.version}</artifactId>
     <name>Flink Doris Connector (Flink ${flink.version})</name>
-    <description>Flink Doris Connector for Flink 1.x including CDC tools</description>
+    <description>Flink Doris Connector for Flink 1.15 - Flink 1.20</description>
 
     <properties>
         <flink.version>1.20.0</flink.version>
@@ -53,6 +53,10 @@ under the License.
         <dependency>
             <groupId>org.apache.flink</groupId>
             <artifactId>flink-table-runtime</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-connector-base</artifactId>
         </dependency>
 
         <!-- Flink CDC (only in 1.20 module) -->
@@ -192,8 +196,8 @@ under the License.
                 <artifactId>maven-compiler-plugin</artifactId>
                 <!-- Compile with JDK 8 for Flink 1.x compatibility -->
                 <configuration>
-                    <source>8</source>
-                    <target>8</target>
+                    <source>${maven.compiler.source}</source>
+                    <target>${maven.compiler.target}</target>
                 </configuration>
             </plugin>
             <plugin>
