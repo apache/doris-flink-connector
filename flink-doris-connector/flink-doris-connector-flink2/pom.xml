@@ -27,14 +27,15 @@ under the License.
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>flink-doris-connector-{flink.major.version}</artifactId>
+    <artifactId>flink-doris-connector-${flink.major.version}</artifactId>
     <name>Flink Doris Connector (Flink ${flink.version})</name>
     <description>Flink Doris Connector for Flink 2.0+ </description>
 
     <properties>
         <flink.version>2.2.0</flink.version>
         <flink.major.version>2.2</flink.major.version>
-        <flink.python.id>flink-python</flink.python.id>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
     </properties>
 
     <dependencies>

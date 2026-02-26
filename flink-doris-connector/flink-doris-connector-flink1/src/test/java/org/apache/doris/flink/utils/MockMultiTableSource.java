@@ -71,7 +71,7 @@ public class MockMultiTableSource extends RichParallelSourceFunction<RecordWithM
 
     @Override
     public void run(SourceContext<RecordWithMeta> ctx) throws Exception {
-        int taskId = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
+        int taskId = getRuntimeContext().getIndexOfThisSubtask();
         while (this.running && id < this.numEventsTotal) {
             id = id + 1;
             for (int i = 1; i <= tableNum; i++) {

@@ -102,8 +102,6 @@ under the License.
 
     <modules>
         <module>flink-doris-connector-base</module>
-        <module>flink-doris-connector-1.20</module>
-        <module>flink-doris-connector-2.2</module>
         <module>flink-doris-connector-it</module>
     </modules>
 
@@ -488,27 +486,28 @@ under the License.
     </build>
 
     <profiles>
-        <!-- Flink version profiles: use -Pflink-1.20 or -Pflink-2.2 to set default flink.version and JDK -->
         <profile>
-            <id>flink-1.20</id>
+            <id>flink1</id>
             <activation>
                 <activeByDefault>true</activeByDefault>
             </activation>
             <properties>
                 <flink.version>1.20.0</flink.version>
                 <flink.major.version>1.20</flink.major.version>
-                <maven.compiler.source>8</maven.compiler.source>
-                <maven.compiler.target>8</maven.compiler.target>
             </properties>
+            <modules>
+                <module>flink-doris-connector-flink1</module>
+            </modules>
         </profile>
         <profile>
-            <id>flink-2.2</id>
+            <id>flink2</id>
             <properties>
                 <flink.version>2.2.0</flink.version>
                 <flink.major.version>2.2</flink.major.version>
-                <maven.compiler.source>17</maven.compiler.source>
-                <maven.compiler.target>17</maven.compiler.target>
             </properties>
+            <modules>
+                <module>flink-doris-connector-flink2</module>
+            </modules>
         </profile>
 
         <profile>

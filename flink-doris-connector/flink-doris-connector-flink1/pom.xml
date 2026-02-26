@@ -34,7 +34,8 @@ under the License.
     <properties>
         <flink.version>1.20.0</flink.version>
         <flink.major.version>1.20</flink.major.version>
-        <flink.python.id>flink-python</flink.python.id>
+        <maven.compiler.source>8</maven.compiler.source>
+        <maven.compiler.target>8</maven.compiler.target>
     </properties>
 
     <dependencies>
