@@ -547,7 +547,9 @@ public class DorisBatchStreamLoad implements Serializable {
                 // get available backend retry
                 refreshLoadUrl(buffer.getDatabase(), buffer.getTable());
                 putBuilder.setUrl(loadUrl);
-                putBuilder.setLabel(label + "_" + retry);
+                if (!enableGroupCommit && label != null) {
+                    putBuilder.setLabel(label + "_" + retry);
+                }
 
                 try {
                     Thread.sleep(retry * 1000);
