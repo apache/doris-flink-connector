@@ -170,8 +170,8 @@ public class TestDorisWriter {
                 HttpTestUtil.getResponse(HttpTestUtil.PRE_COMMIT_FAIL_RESPONSE, true);
         when(httpClient.execute(any())).thenReturn(preCommitResponse);
         DorisWriter<String> dorisWriter = initWriter(httpClient);
-        dorisWriter.write("doris,1", null);
         try {
+            dorisWriter.write("doris,1", null);
             dorisWriter.prepareCommit();
         } catch (DorisRuntimeException e) {
             Assert.assertTrue(e.getMessage().contains("stream load error"));
