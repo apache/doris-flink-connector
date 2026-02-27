@@ -200,6 +200,7 @@ echo_g " build starting..."
 ${MVN_BIN} clean package \
   -pl ${FLINK_MODULE} -am \
   -P${FLINK_PROFILE} \
+  -DskipTests \
   -Dflink.version=${FLINK_VERSION} \
   -Dflink.major.version=${FLINK_MAJOR_VERSION} \
   -Dflink.python.id=${FLINK_PYTHON_ID} \
@@ -209,9 +210,9 @@ EXIT_CODE=$?
 if [ $EXIT_CODE -eq 0 ]; then
   DIST_DIR=${DORIS_HOME}/dist
   [ ! -d "$DIST_DIR" ] && mkdir "$DIST_DIR"
-  dist_jar=$(ls "${ROOT}"/target | grep "flink-doris-" | grep -v "sources.jar" | grep -v "original-")
+  dist_jar=$(ls "${ROOT}/${FLINK_MODULE}/target" | grep "flink-doris-" | grep -v "sources.jar" | grep -v "original-")
   rm -rf "${DIST_DIR}"/"${dist_jar}"
-  cp "${ROOT}"/target/"${dist_jar}" "$DIST_DIR"
+  cp "${ROOT}/${FLINK_MODULE}/target/${dist_jar}" "$DIST_DIR"
   echo_g "*****************************************************************"
   echo_g "Successfully build Flink-Doris-Connector"
   echo_g "dist: $DIST_DIR/$dist_jar "
