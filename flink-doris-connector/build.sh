@@ -210,7 +210,7 @@ EXIT_CODE=$?
 if [ $EXIT_CODE -eq 0 ]; then
   DIST_DIR=${DORIS_HOME}/dist
   [ ! -d "$DIST_DIR" ] && mkdir "$DIST_DIR"
-  dist_jar=$(ls "${ROOT}/${FLINK_MODULE}/target" | grep "flink-doris-" | grep -v "sources.jar" | grep -v "original-")
+  dist_jar=$(ls "${ROOT}/${FLINK_MODULE}/target" | grep "flink-doris-" | grep -v "sources.jar" | grep -v "original-" | grep -v "\-tests\.jar")
   rm -rf "${DIST_DIR}"/"${dist_jar}"
   cp "${ROOT}/${FLINK_MODULE}/target/${dist_jar}" "$DIST_DIR"
   echo_g "*****************************************************************"

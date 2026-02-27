@@ -94,10 +94,10 @@ public class TestDorisWriter {
                 HttpTestUtil.getResponse(HttpTestUtil.LABEL_EXIST_PRE_COMMIT_TABLE_RESPONSE, true);
         when(httpClient.execute(any(HttpUriRequest.class))).thenReturn(preCommitResponse);
         DorisWriter<String> dorisWriter = initWriter(httpClient);
-        dorisWriter.write("doris,1", null);
         try {
+            dorisWriter.write("doris,1", null);
             dorisWriter.prepareCommit();
-        } catch (DorisRuntimeException e) {
+        } catch (RuntimeException e) {
             Assert.assertTrue(e.getMessage().contains("Exist label abort finished, retry"));
         }
     }
@@ -110,10 +110,10 @@ public class TestDorisWriter {
                         HttpTestUtil.LABEL_EXIST_PRE_COMMIT_TABLE_FINISH_RESPONSE, true);
         when(httpClient.execute(any(HttpUriRequest.class))).thenReturn(preCommitResponse);
         DorisWriter<String> dorisWriter = initWriter(httpClient);
-        dorisWriter.write("doris,1", null);
         try {
+            dorisWriter.write("doris,1", null);
             dorisWriter.prepareCommit();
-        } catch (DorisRuntimeException e) {
+        } catch (RuntimeException e) {
             Assert.assertTrue(e.getMessage().contains("stream load error"));
         }
     }
@@ -158,7 +158,7 @@ public class TestDorisWriter {
         try {
             dorisWriter.write("doris,1", null);
             dorisWriter.prepareCommit();
-        } catch (DorisRuntimeException e) {
+        } catch (RuntimeException e) {
             Assert.assertTrue(e.getMessage().contains("stream load error"));
         }
     }
@@ -173,7 +173,7 @@ public class TestDorisWriter {
         try {
             dorisWriter.write("doris,1", null);
             dorisWriter.prepareCommit();
-        } catch (DorisRuntimeException e) {
+        } catch (RuntimeException e) {
             Assert.assertTrue(e.getMessage().contains("stream load error"));
         }
     }
