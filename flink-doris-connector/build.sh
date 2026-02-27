@@ -194,6 +194,23 @@ fi
 FLINK_MAJOR_VERSION=0
 [ ${FLINK_VERSION} != 0 ] && FLINK_MAJOR_VERSION=${FLINK_VERSION%.*}
 
+# Sanity check: Flink 1.x requires JDK 1.8, Flink 2.x requires JDK 17
+JAVA_VERSION=$(java -version 2>&1 | awk -F'"' '/version/ {print $2}')
+if [ "${FLINK_PROFILE}" = "flink1" ]; then
+    if [[ "${JAVA_VERSION}" != 1.8* ]]; then
+        echo_r "Error: Flink ${FLINK_VERSION} requires JDK 1.8, but found version '${JAVA_VERSION}'."
+        echo_r "Please switch to JDK 1.8 before building Flink 1.x."
+        exit 1
+    fi
+elif [ "${FLINK_PROFILE}" = "flink2" ]; then
+    if [[ "${JAVA_VERSION}" != 17* ]]; then
+        echo_r "Error: Flink ${FLINK_VERSION} requires JDK 17, but found version '${JAVA_VERSION}'."
+        echo_r "Please switch to JDK 17 before building Flink 2.x."
+        exit 1
+    fi
+fi
+echo_g " JDK version check passed: ${JAVA_VERSION}"
+
 echo_g " flink version: ${FLINK_VERSION}, major version: ${FLINK_MAJOR_VERSION}"
 echo_g " build starting..."
 
