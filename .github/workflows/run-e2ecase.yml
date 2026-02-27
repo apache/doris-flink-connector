@@ -41,7 +41,7 @@ jobs:
     - name: Run E2ECases (Flink1 module)
       run: |
         cd flink-doris-connector && mvn test \
-          -Pflink1 -pl flink-doris-connector-flink1 -am \
+          -Pflink1 -pl flink-doris-connector-it -am \
           -DfailIfNoTests=false \
           -Dtest="*E2ECase" \
           -Dimage="apache/doris:doris-all-in-one-2.1.0"
@@ -55,7 +55,7 @@ jobs:
     - name: Run E2ECases (Flink2 module)
       run: |
         cd flink-doris-connector && mvn test \
-          -Pflink2 -pl flink-doris-connector-flink2 -am \
+          -Pflink2 -pl flink-doris-connector-it -am \
           -DfailIfNoTests=false \
           -Dtest="*E2ECase" \
           -Dimage="apache/doris:doris-all-in-one-2.1.0"

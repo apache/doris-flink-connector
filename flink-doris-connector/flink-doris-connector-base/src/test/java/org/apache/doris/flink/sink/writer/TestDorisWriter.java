@@ -155,8 +155,8 @@ public class TestDorisWriter {
         dorisStreamLoadMap.put(dorisOptions.getTableIdentifier(), dorisStreamLoad);
         dorisWriter.setDorisStreamLoadMap(dorisStreamLoadMap);
         dorisWriter.setDorisMetricsMap(dorisWriteMetricsMap);
-        dorisWriter.write("doris,1", null);
         try {
+            dorisWriter.write("doris,1", null);
             dorisWriter.prepareCommit();
         } catch (DorisRuntimeException e) {
             Assert.assertTrue(e.getMessage().contains("stream load error"));
