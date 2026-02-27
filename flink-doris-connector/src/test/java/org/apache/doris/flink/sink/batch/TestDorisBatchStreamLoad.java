@@ -205,41 +205,49 @@ public class TestDorisBatchStreamLoad {
                         new LabelGenerator("label", false),
                         0);
 
-        TestUtil.waitUntilCondition(
-                () -> loader.isLoadThreadAlive(),
-                Deadline.fromNow(Duration.ofSeconds(10)),
-                100L,
-                "testGroupCommitRetryShouldNotSetLabel wait loader start failed.");
-        Assert.assertTrue(loader.isLoadThreadAlive());
+        try {
+            TestUtil.waitUntilCondition(
+                    () -> loader.isLoadThreadAlive(),
+                    Deadline.fromNow(Duration.ofSeconds(10)),
+                    100L,
+                    "testGroupCommitRetryShouldNotSetLabel wait loader start failed.");
+            Assert.assertTrue(loader.isLoadThreadAlive());
 
-        BackendUtil backendUtil = mock(BackendUtil.class);
-        HttpClientBuilder httpClientBuilder = mock(HttpClientBuilder.class);
-        CloseableHttpClient httpClient = mock(CloseableHttpClient.class);
-        CloseableHttpResponse failResponse = HttpTestUtil.getResponse("server error 404", false);
-        CloseableHttpResponse successResponse =
-                HttpTestUtil.getResponse(HttpTestUtil.PRE_COMMIT_TABLE_RESPONSE, true);
-        ArgumentCaptor<HttpUriRequest> requestCaptor =
-                ArgumentCaptor.forClass(HttpUriRequest.class);
+            BackendUtil backendUtil = mock(BackendUtil.class);
+            HttpClientBuilder httpClientBuilder = mock(HttpClientBuilder.class);
+            CloseableHttpClient httpClient = mock(CloseableHttpClient.class);
+            CloseableHttpResponse failResponse =
+                    HttpTestUtil.getResponse("server error 404", false);
+            CloseableHttpResponse successResponse =
+                    HttpTestUtil.getResponse(HttpTestUtil.PRE_COMMIT_TABLE_RESPONSE, true);
+            ArgumentCaptor<HttpUriRequest> requestCaptor =
+                    ArgumentCaptor.forClass(HttpUriRequest.class);
 
-        loader.setBackendUtil(backendUtil);
-        loader.setHttpClientBuilder(httpClientBuilder);
-        when(backendUtil.getAvailableBackend(anyInt())).thenReturn("127.0.0.1:1");
-        when(httpClientBuilder.build()).thenReturn(httpClient);
-        when(httpClient.execute(requestCaptor.capture())).thenReturn(failResponse, successResponse);
+            loader.setBackendUtil(backendUtil);
+            loader.setHttpClientBuilder(httpClientBuilder);
+            when(backendUtil.getAvailableBackend(anyInt())).thenReturn("127.0.0.1:1");
+            when(httpClientBuilder.build()).thenReturn(httpClient);
+            when(httpClient.execute(requestCaptor.capture()))
+                    .thenReturn(failResponse, successResponse);
 
-        loader.writeRecord("db", "tbl", "1,data".getBytes(StandardCharsets.UTF_8));
-        loader.checkpointFlush();
+            loader.writeRecord("db", "tbl", "1,data".getBytes(StandardCharsets.UTF_8));
+            loader.checkpointFlush();
 
-        List<HttpUriRequest> requests = requestCaptor.getAllValues();
-        Assert.assertEquals(2, requests.size());
-        Assert.assertNull(requests.get(0).getFirstHeader("label"));
-        Assert.assertNull(requests.get(1).getFirstHeader("label"));
-        Assert.assertNotNull(requests.get(0).getFirstHeader(LoadConstants.GROUP_COMMIT));
-        Assert.assertNotNull(requests.get(1).getFirstHeader(LoadConstants.GROUP_COMMIT));
-        Assert.assertEquals(
-                "sync_mode", requests.get(0).getFirstHeader(LoadConstants.GROUP_COMMIT).getValue());
-        Assert.assertEquals(
-                "sync_mode", requests.get(1).getFirstHeader(LoadConstants.GROUP_COMMIT).getValue());
+            List<HttpUriRequest> requests = requestCaptor.getAllValues();
+            Assert.assertEquals(2, requests.size());
+            Assert.assertNull(requests.get(0).getFirstHeader("label"));
+            Assert.assertNull(requests.get(1).getFirstHeader("label"));
+            Assert.assertNotNull(requests.get(0).getFirstHeader(LoadConstants.GROUP_COMMIT));
+            Assert.assertNotNull(requests.get(1).getFirstHeader(LoadConstants.GROUP_COMMIT));
+            Assert.assertEquals(
+                    "sync_mode",
+                    requests.get(0).getFirstHeader(LoadConstants.GROUP_COMMIT).getValue());
+            Assert.assertEquals(
+                    "sync_mode",
+                    requests.get(1).getFirstHeader(LoadConstants.GROUP_COMMIT).getValue());
+        } finally {
+            loader.close();
+        }
     }
 
     @After
