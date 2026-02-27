@@ -60,7 +60,7 @@ public class MockSource extends RichParallelSourceFunction<String>
     @Override
     public void run(SourceContext<String> ctx) throws Exception {
 
-        int taskId = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
+        int taskId = getRuntimeContext().getIndexOfThisSubtask();
         while (this.running && id < this.numEventsTotal) {
             String record = ++id + "," + taskId;
             ctx.collect(record);

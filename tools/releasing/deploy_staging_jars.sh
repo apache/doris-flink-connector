@@ -44,25 +44,31 @@ cd ${PROJECT_ROOT}/flink-doris-connector
 echo "Deploying to repository.apache.org"
 
 echo "Deploying Flink 1.15..."
-${MVN} clean deploy -Papache-release -DretryFailedDeploymentCount=10 -pl flink-doris-connector-1.20 -am -Dflink.version=1.15.0 -Dflink.major.version=1.15 -Dflink.python.id=flink-python_2.12 -DskipTests=true
+${MVN} clean deploy -Papache-release -DretryFailedDeploymentCount=10 -pl flink-doris-connector-flink1 -am -Pflink1 -Dflink.version=1.15.0 -Dflink.major.version=1.15 -Dflink.python.id=flink-python_2.12 -DskipTests=true
 
 echo "Deploying Flink 1.16..."
-${MVN} clean deploy -Papache-release -DretryFailedDeploymentCount=10 -pl flink-doris-connector-1.20 -am -Dflink.version=1.16.0 -Dflink.major.version=1.16 -DskipTests=true
+${MVN} clean deploy -Papache-release -DretryFailedDeploymentCount=10 -pl flink-doris-connector-flink1 -am -Pflink1 -Dflink.version=1.16.0 -Dflink.major.version=1.16 -DskipTests=true
 
 echo "Deploying Flink 1.17..."
-${MVN} clean deploy -Papache-release -DretryFailedDeploymentCount=10 -pl flink-doris-connector-1.20 -am -Dflink.version=1.17.0 -Dflink.major.version=1.17 -DskipTests=true
+${MVN} clean deploy -Papache-release -DretryFailedDeploymentCount=10 -pl flink-doris-connector-flink1 -am -Pflink1 -Dflink.version=1.17.0 -Dflink.major.version=1.17 -DskipTests=true
 
 echo "Deploying Flink 1.18..."
-${MVN} clean deploy -Papache-release -DretryFailedDeploymentCount=10 -pl flink-doris-connector-1.20 -am -Dflink.version=1.18.0 -Dflink.major.version=1.18 -DskipTests=true
+${MVN} clean deploy -Papache-release -DretryFailedDeploymentCount=10 -pl flink-doris-connector-flink1 -am -Pflink1 -Dflink.version=1.18.0 -Dflink.major.version=1.18 -DskipTests=true
 
 echo "Deploying Flink 1.19..."
-${MVN} clean deploy -Papache-release -DretryFailedDeploymentCount=10 -pl flink-doris-connector-1.20 -am -Dflink.version=1.19.0 -Dflink.major.version=1.19 -DskipTests=true
+${MVN} clean deploy -Papache-release -DretryFailedDeploymentCount=10 -pl flink-doris-connector-flink1 -am -Pflink1 -Dflink.version=1.19.0 -Dflink.major.version=1.19 -DskipTests=true
 
 echo "Deploying Flink 1.20..."
-${MVN} clean deploy -Papache-release -DretryFailedDeploymentCount=10 -pl flink-doris-connector-1.20 -am -Dflink.version=1.20.0 -Dflink.major.version=1.20 -DskipTests=true
+${MVN} clean deploy -Papache-release -DretryFailedDeploymentCount=10 -pl flink-doris-connector-flink1 -am -Pflink1 -Dflink.version=1.20.0 -Dflink.major.version=1.20 -DskipTests=true
+
+echo "Deploying Flink 2.0..."
+${MVN} clean deploy -Papache-release -DretryFailedDeploymentCount=10 -pl flink-doris-connector-flink2 -am -Pflink2 -Dflink.version=2.0.0 -Dflink.major.version=2.0 -DskipTests=true
+
+echo "Deploying Flink 2.1..."
+${MVN} clean deploy -Papache-release -DretryFailedDeploymentCount=10 -pl flink-doris-connector-flink2 -am -Pflink2 -Dflink.version=2.1.0 -Dflink.major.version=2.1 -DskipTests=true
 
 echo "Deploying Flink 2.2..."
-${MVN} clean deploy -Papache-release -DretryFailedDeploymentCount=10 -pl flink-doris-connector-2.2 -am -DskipTests=true
+${MVN} clean deploy -Papache-release -DretryFailedDeploymentCount=10 -pl flink-doris-connector-flink2 -am -Pflink2 -Dflink.version=2.2.0 -Dflink.major.version=2.2 -DskipTests=true
 
 echo "Deploy jar finished."
 cd ${CURR_DIR}
