@@ -23,7 +23,7 @@ on:
 
 jobs:
   build-extension:
-    name: "Run ITCases Flink1.x"
+    name: "Run ITCases"
     runs-on: ubuntu-latest
     defaults:
       run:

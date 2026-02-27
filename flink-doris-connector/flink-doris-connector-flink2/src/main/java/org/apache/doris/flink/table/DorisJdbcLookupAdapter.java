@@ -32,7 +32,7 @@ import java.util.Collection;
 import java.util.List;
 
 /**
- * Adapter that bridges Flink 2.2 {@link LookupFunction} to the existing {@link
+ * Adapter that bridges Flink 2.x {@link LookupFunction} to the existing {@link
  * DorisRowDataJdbcLookupFunction} which is implemented against the older {@link
  * org.apache.flink.table.functions.TableFunction} API and shared with Flink 1.15–1.20.
  */

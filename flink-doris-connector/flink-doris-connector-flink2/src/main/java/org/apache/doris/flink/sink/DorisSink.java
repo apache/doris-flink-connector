@@ -116,7 +116,7 @@ public class DorisSink<IN>
     public DorisAbstractWriter getDorisAbstractWriter(
             WriterInitContext initContext, Collection<DorisWriterState> states) {
         if (WriteMode.STREAM_LOAD.equals(dorisExecutionOptions.getWriteMode())) {
-            return new DorisWriterAdapter(
+            return new DorisWriterAdapter<>(
                     initContext,
                     states,
                     serializer,
@@ -124,10 +124,10 @@ public class DorisSink<IN>
                     dorisReadOptions,
                     dorisExecutionOptions);
         } else if (WriteMode.STREAM_LOAD_BATCH.equals(dorisExecutionOptions.getWriteMode())) {
-            return new DorisBatchWriterAdapter(
+            return new DorisBatchWriterAdapter<>(
                     initContext, serializer, dorisOptions, dorisReadOptions, dorisExecutionOptions);
         } else if (WriteMode.COPY.equals(dorisExecutionOptions.getWriteMode())) {
-            return new DorisCopyWriterAdapter(
+            return new DorisCopyWriterAdapter<>(
                     initContext, serializer, dorisOptions, dorisReadOptions, dorisExecutionOptions);
         }
         throw new IllegalArgumentException(

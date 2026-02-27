@@ -30,7 +30,7 @@ import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Adapter that bridges Flink 2.2 {@link AsyncLookupFunction} to the existing {@link
+ * Adapter that bridges Flink 2.x {@link AsyncLookupFunction} to the existing {@link
  * DorisRowDataAsyncLookupFunction} which is implemented against the older {@link
  * org.apache.flink.table.functions.AsyncTableFunction} API and shared with Flink 1.15–1.20.
  */

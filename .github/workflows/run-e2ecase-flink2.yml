@@ -23,7 +23,7 @@ on:
 
 jobs:
   build-extension:
-    name: "Run E2ECases Flink2.x"
+    name: "Run E2ECases"
     runs-on: ubuntu-latest
     defaults:
       run:

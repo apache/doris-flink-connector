@@ -32,7 +32,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 
-/** Flink 2.2 specific wrapper for the shared core {@link DorisBatchWriter} implementation. */
+/** Flink 2.x specific wrapper for the shared core {@link DorisBatchWriter} implementation. */
 public class DorisBatchWriterAdapter<IN>
         implements DorisAbstractWriter<IN, DorisWriterState, DorisCommittable> {
 

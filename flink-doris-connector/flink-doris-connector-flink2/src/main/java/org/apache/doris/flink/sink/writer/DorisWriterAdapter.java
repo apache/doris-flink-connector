@@ -32,10 +32,10 @@ import java.util.Collection;
 import java.util.List;
 
 /**
- * Flink 2.2 specific wrapper for the shared core {@link DorisWriter} implementation.
+ * Flink 2.x specific wrapper for the shared core {@link DorisWriter} implementation.
  *
- * <p>This class adapts Flink 2.2's {@link WriterInitContext} to the version-neutral core writer in
- * the base module while implementing {@link DorisAbstractWriter} for use by the 2.2 connector
+ * <p>This class adapts Flink 2.x's {@link WriterInitContext} to the version-neutral core writer in
+ * the base module while implementing {@link DorisAbstractWriter} for use by the 2.x connector
  * module.
  */
 public class DorisWriterAdapter<IN>

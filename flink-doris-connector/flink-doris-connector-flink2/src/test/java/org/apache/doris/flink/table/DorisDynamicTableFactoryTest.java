@@ -241,7 +241,7 @@ public class DorisDynamicTableFactoryTest {
 
         // DynamicTableSink actual2 = FactoryMocks.createTableSink(SCHEMA, new HashMap<>());
         // assertNotEquals(actual2, expected);
-        // In Flink 2.2, calling createTableSink with no options throws ValidationException
+        // In Flink 2.x, calling createTableSink with no options throws ValidationException
         assertThrows(
                 ValidationException.class,
                 () -> FactoryMocks.createTableSink(SCHEMA, new HashMap<>()));

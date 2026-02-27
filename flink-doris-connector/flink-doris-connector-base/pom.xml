@@ -29,10 +29,9 @@ under the License.
 
     <artifactId>flink-doris-connector-base</artifactId>
     <name>Flink Doris Connector Base</name>
-    <description>Shared code for Flink Doris Connector; built per Flink version via profile (flink-1.20 / flink-2.2)</description>
+    <description>Shared code for Flink Doris Connector; built per Flink version via profile (flink1 / flink2)</description>
     <packaging>jar</packaging>
 
-    <!-- flink.version, maven.compiler.source/target, come from parent profile (-Pflink-1.20 or -Pflink-2.2) -->
     <dependencies>
         <dependency>
             <groupId>org.apache.doris</groupId>

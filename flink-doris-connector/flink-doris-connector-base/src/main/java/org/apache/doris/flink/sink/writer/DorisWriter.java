@@ -52,7 +52,7 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
  *
  * <p>This is the core implementation that is shared across different Flink versions.
  * Version-specific modules should wrap this class and implement the appropriate Flink sink
- * interfaces there (for example via DorisWriterV1 / DorisWriterV2).
+ * interfaces there (for example via DorisWriterAdapter).
  *
  * @param <IN> record type
  */
