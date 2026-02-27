@@ -494,6 +494,8 @@ under the License.
             <properties>
                 <flink.version>1.20.0</flink.version>
                 <flink.major.version>1.20</flink.major.version>
+                <maven.compiler.source>8</maven.compiler.source>
+                <maven.compiler.target>8</maven.compiler.target>
             </properties>
             <modules>
                 <module>flink-doris-connector-flink1</module>
@@ -504,6 +506,8 @@ under the License.
             <properties>
                 <flink.version>2.2.0</flink.version>
                 <flink.major.version>2.2</flink.major.version>
+                <maven.compiler.source>17</maven.compiler.source>
+                <maven.compiler.target>17</maven.compiler.target>
             </properties>
             <modules>
                 <module>flink-doris-connector-flink2</module>
