@@ -32,7 +32,7 @@ jobs:
           persist-credentials: false
           submodules: recursive
 
-      - name: Setup java
+      - name: Setup java 8
         uses: actions/setup-java@v2
         with:
           distribution: adopt
@@ -40,4 +40,14 @@ jobs:
 
       - name: Run java checkstyle
         run:
-          cd flink-doris-connector && mvn clean compile checkstyle:checkstyle
+          cd flink-doris-connector && mvn clean checkstyle:check -Pflink1 -pl flink-doris-connector-flink1 -am
+
+      - name: Setup java 17
+        uses: actions/setup-java@v2
+        with:
+          distribution: adopt
+          java-version: '17'
+
+      - name: Run java checkstyle
+        run:
+          cd flink-doris-connector && mvn clean checkstyle:check -Pflink2 -pl flink-doris-connector-flink2 -am

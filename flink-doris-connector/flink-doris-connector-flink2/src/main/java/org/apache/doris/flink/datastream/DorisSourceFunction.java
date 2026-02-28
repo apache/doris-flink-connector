@@ -1,0 +1,118 @@
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
+
+package org.apache.doris.flink.datastream;
+
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.functions.OpenContext;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
+import org.apache.flink.streaming.api.functions.source.legacy.RichParallelSourceFunction;
+
+import org.apache.doris.flink.cfg.DorisOptions;
+import org.apache.doris.flink.cfg.DorisReadOptions;
+import org.apache.doris.flink.cfg.DorisStreamOptions;
+import org.apache.doris.flink.deserialization.DorisDeserializationSchema;
+import org.apache.doris.flink.exception.DorisException;
+import org.apache.doris.flink.rest.PartitionDefinition;
+import org.apache.doris.flink.rest.RestService;
+import org.apache.doris.flink.source.reader.DorisValueReader;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/** DorisSource. */
+@Deprecated
+@PublicEvolving
+public class DorisSourceFunction extends RichParallelSourceFunction<List<?>>
+        implements ResultTypeQueryable<List<?>> {
+
+    private static final Logger logger = LoggerFactory.getLogger(DorisSourceFunction.class);
+
+    private final DorisDeserializationSchema<List<?>> deserializer;
+    private final DorisOptions options;
+    private final DorisReadOptions readOptions;
+    private transient volatile boolean isRunning;
+    private List<PartitionDefinition> dorisPartitions;
+    private List<PartitionDefinition> taskDorisPartitions = new ArrayList<>();
+
+    public DorisSourceFunction(
+            DorisStreamOptions streamOptions, DorisDeserializationSchema<List<?>> deserializer) {
+        this.deserializer = deserializer;
+        this.options = streamOptions.getOptions();
+        this.readOptions = streamOptions.getReadOptions();
+        try {
+            this.dorisPartitions = RestService.findPartitions(options, readOptions, logger);
+            logger.info("Doris partitions size {}", dorisPartitions.size());
+        } catch (DorisException e) {
+            throw new RuntimeException("Failed fetch doris partitions");
+        }
+    }
+
+    @Override
+    public void open(OpenContext parameters) throws Exception {
+        super.open(parameters);
+        this.isRunning = true;
+        assignTaskPartitions();
+    }
+
+    /** Assign partitions to each task. */
+    private void assignTaskPartitions() {
+        int taskIndex = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
+        int totalTasks = getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks();
+
+        for (int i = 0; i < dorisPartitions.size(); i++) {
+            if (i % totalTasks == taskIndex) {
+                taskDorisPartitions.add(dorisPartitions.get(i));
+            }
+        }
+        logger.info("subtask {} process {} partitions ", taskIndex, taskDorisPartitions.size());
+    }
+
+    @Override
+    public void run(SourceContext<List<?>> sourceContext) {
+        for (PartitionDefinition partitions : taskDorisPartitions) {
+            try (DorisValueReader valueReader =
+                    new DorisValueReader(partitions, options, readOptions)) {
+                while (isRunning && valueReader.hasNext()) {
+                    List<?> next = valueReader.next();
+                    sourceContext.collect(next);
+                }
+            } catch (Exception e) {
+                logger.error("close reader resource failed,", e);
+            }
+        }
+    }
+
+    @Override
+    public void cancel() {
+        isRunning = false;
+    }
+
+    @Override
+    public void close() throws Exception {
+        super.close();
+        isRunning = false;
+    }
+
+    @Override
+    public TypeInformation<List<?>> getProducedType() {
+        return this.deserializer.getProducedType();
+    }
+}
