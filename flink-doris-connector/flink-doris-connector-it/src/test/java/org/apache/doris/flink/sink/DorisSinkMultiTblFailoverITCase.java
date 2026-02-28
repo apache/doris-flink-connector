@@ -167,6 +167,9 @@ public class DorisSinkMultiTblFailoverITCase extends AbstractITCaseService {
                         "select id,task_id from %s.%s ", DATABASE, TABLE_MULTI_CSV_NO_EXIST_TBL);
         List<String> expected = Arrays.asList("1,3");
 
+        // wait data VISIBLE
+        Thread.sleep(5000);
+
         if (!batchMode) {
             ContainerUtils.checkResult(
                     getDorisQueryConnection(), LOG, expected, queryRes, 2, false);
