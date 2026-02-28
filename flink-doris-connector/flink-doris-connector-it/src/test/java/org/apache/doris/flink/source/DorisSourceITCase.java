@@ -64,7 +64,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
     private static final Logger LOG = LoggerFactory.getLogger(DorisSourceITCase.class);
     private static final String DATABASE = "test_source";
     private static final String TABLE_READ = "tbl_read";
-    public static final String TABLE_READ_OLD_API = "tbl_read_old_api";
+    private static final String TABLE_READ_OLD_API = "tbl_read_old_api";
     private static final String TABLE_READ_TBL = "tbl_read_tbl";
     private static final String TABLE_READ_TBL_OLD_API = "tbl_read_tbl_old_api";
     private static final String TABLE_READ_TBL_ALL_OPTIONS = "tbl_read_tbl_all_options";
@@ -222,7 +222,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
             }
         }
         String[] expectedFilter = new String[] {"+I[doris, 18]"};
-        checkResultInAnyOrder("testTableSource", expectedFilter, actualFilter.toArray());
+        checkResultInAnyOrder("testTableSourceTest", expectedFilter, actualFilter.toArray());
     }
 
     @Test
@@ -824,7 +824,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
         Assert.assertArrayEquals(expected, actual);
     }
 
-    public static void checkResultInAnyOrder(String testName, Object[] expected, Object[] actual) {
+    private void checkResultInAnyOrder(String testName, Object[] expected, Object[] actual) {
         LOG.info(
                 "Checking DorisSourceITCase result. testName={}, actual={}, expected={}",
                 testName,
@@ -833,7 +833,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
         assertEqualsInAnyOrder(Arrays.asList(expected), Arrays.asList(actual));
     }
 
-    public static void initializeTable(String table, DataModel dataModel) {
+    private void initializeTable(String table, DataModel dataModel) {
         String morProps =
                 !DataModel.UNIQUE_MOR.equals(dataModel)
                         ? ""
