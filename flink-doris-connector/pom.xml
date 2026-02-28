@@ -27,7 +27,7 @@ under the License.
     </parent>
     <groupId>org.apache.doris</groupId>
     <artifactId>flink-doris-connector-parent</artifactId>
-    <version>${revision}</version>
+    <version>26.0.0</version>
     <packaging>pom</packaging>
     <name>Flink Doris Connector Parent</name>
     <url>https://doris.apache.org/</url>
@@ -68,7 +68,7 @@ under the License.
     </mailingLists>
 
     <properties>
-        <revision>26.0.0-SNAPSHOT</revision>
+        <revision>26.0.0</revision>
         <flink.sql.cdc.version>3.5.0</flink.sql.cdc.version>
         <flink.python.id>flink-python</flink.python.id>
         <libthrift.version>0.16.0</libthrift.version>
@@ -149,7 +149,7 @@ under the License.
             <dependency>
                 <groupId>org.apache.doris</groupId>
                 <artifactId>flink-doris-connector-base</artifactId>
-                <version>${revision}</version>
+                <version>26.0.0</version>
             </dependency>
 
             <dependency>
