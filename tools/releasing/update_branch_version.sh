@@ -42,8 +42,15 @@ if [ ! -f ${PROJECT_ROOT}/LICENSE.txt ]; then
 fi
 
 cd ${PROJECT_ROOT}/flink-doris-connector
-mvn versions:set -DgenerateBackupPoms=false -DnewVersion=${RELEASE_VERSION}
-mvn versions:set-property -DgenerateBackupPoms=false -Dproperty=revision -DnewVersion=${RELEASE_VERSION}
+
+# update version
+mvn versions:set -DgenerateBackupPoms=false -DnewVersion=${RELEASE_VERSION} -Pflink1,flink2
+
+# versions:set because of artifactId duplicate problem cannot identify flink1, manually update
+sed -i '' "s/\${revision}/${RELEASE_VERSION}/g" flink-doris-connector-flink1/pom.xml
+
+# update revision property in parent pom
+mvn versions:set-property -DgenerateBackupPoms=false -Dproperty=revision -DnewVersion=${RELEASE_VERSION} -Pflink1
 
 git commit -am "[release] Update version to ${RELEASE_VERSION}"
 
