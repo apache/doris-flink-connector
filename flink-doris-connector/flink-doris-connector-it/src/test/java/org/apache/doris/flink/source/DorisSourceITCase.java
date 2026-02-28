@@ -109,32 +109,6 @@ public class DorisSourceITCase extends AbstractITCaseService {
                             .build());
 
     @Test
-    public void testOldSourceApi() throws Exception {
-        initializeTable(TABLE_READ_OLD_API, DataModel.UNIQUE);
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setParallelism(DEFAULT_PARALLELISM);
-        Properties properties = new Properties();
-        properties.put("fenodes", getFenodes());
-        properties.put("username", getDorisUsername());
-        properties.put("password", getDorisPassword());
-        properties.put("table.identifier", DATABASE + "." + TABLE_READ_OLD_API);
-        DorisStreamOptions options = new DorisStreamOptions(properties);
-
-        List<String> actual = new ArrayList<>();
-        try (CloseableIterator<List<?>> iterator =
-                env.addSource(
-                                new DorisSourceFunction(
-                                        options, new SimpleListDeserializationSchema()))
-                        .executeAndCollect()) {
-            while (iterator.hasNext()) {
-                actual.add(iterator.next().toString());
-            }
-        }
-        List<String> expected = Arrays.asList("[doris, 18]", "[flink, 10]", "[apache, 12]");
-        checkResultInAnyOrder("testOldSourceApi", expected.toArray(), actual.toArray());
-    }
-
-    @Test
     public void testSource() throws Exception {
         initializeTable(TABLE_READ, DataModel.AGGREGATE);
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -168,6 +142,32 @@ public class DorisSourceITCase extends AbstractITCaseService {
         }
         List<String> expected = Arrays.asList("[doris, 18]", "[flink, 10]", "[apache, 12]");
         checkResultInAnyOrder("testSource", expected.toArray(), actual.toArray());
+    }
+
+    @Test
+    public void testOldSourceApi() throws Exception {
+        initializeTable(TABLE_READ_OLD_API, DataModel.UNIQUE);
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(DEFAULT_PARALLELISM);
+        Properties properties = new Properties();
+        properties.put("fenodes", getFenodes());
+        properties.put("username", getDorisUsername());
+        properties.put("password", getDorisPassword());
+        properties.put("table.identifier", DATABASE + "." + TABLE_READ_OLD_API);
+        DorisStreamOptions options = new DorisStreamOptions(properties);
+
+        List<String> actual = new ArrayList<>();
+        try (CloseableIterator<List<?>> iterator =
+                env.addSource(
+                                new DorisSourceFunction(
+                                        options, new SimpleListDeserializationSchema()))
+                        .executeAndCollect()) {
+            while (iterator.hasNext()) {
+                actual.add(iterator.next().toString());
+            }
+        }
+        List<String> expected = Arrays.asList("[doris, 18]", "[flink, 10]", "[apache, 12]");
+        checkResultInAnyOrder("testOldSourceApi", expected.toArray(), actual.toArray());
     }
 
     @Test

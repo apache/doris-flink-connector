@@ -29,7 +29,7 @@ under the License.
 
     <artifactId>flink-doris-connector-base</artifactId>
     <name>Flink Doris Connector Base</name>
-    <description>Shared code for Flink Doris Connector; built per Flink version via profile (flink1 / flink2)</description>
+    <description>Base code for Flink Doris Connector; built per Flink version via profile (flink1 / flink2)</description>
     <packaging>jar</packaging>
 
     <dependencies>
@@ -38,7 +38,6 @@ under the License.
             <artifactId>thrift-service</artifactId>
         </dependency>
 
-        <!-- Flink APIs needed by source/sink/catalog; version driven by profile -->
         <dependency>
             <groupId>org.apache.flink</groupId>
             <artifactId>flink-table-planner-loader</artifactId>

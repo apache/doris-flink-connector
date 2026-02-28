@@ -47,8 +47,8 @@ import java.util.concurrent.TimeUnit;
  *
  * <p>Core batch stream load writer shared across Flink versions.
  *
- * <p>Version-specific modules should wrap this class (for example via DorisBatchWriterV1 /
- * DorisBatchWriterV2) and implement the appropriate Flink sink interfaces there.
+ * <p>Version-specific modules should wrap this class (for example via DorisBatchWriterAdapter and
+ * implement the appropriate Flink sink interfaces there.
  */
 public class DorisBatchWriter<IN> {
     private static final Logger LOG = LoggerFactory.getLogger(DorisBatchWriter.class);

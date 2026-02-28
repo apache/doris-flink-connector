@@ -31,7 +31,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 
-/** Flink 1.20 specific wrapper for the shared core {@link DorisCopyWriter} implementation. */
+/** Flink 1.x specific wrapper for the shared core {@link DorisCopyWriter} implementation. */
 public class DorisCopyWriterAdapter<IN>
         implements DorisAbstractWriter<IN, DorisWriterState, DorisCopyCommittable> {
 

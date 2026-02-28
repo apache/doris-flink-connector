@@ -60,7 +60,7 @@ under the License.
             <artifactId>flink-connector-base</artifactId>
         </dependency>
 
-        <!-- Flink CDC (only in 1.20 module) -->
+        <!-- Flink CDC (only in flink1 module) -->
         <dependency>
             <groupId>org.apache.flink</groupId>
             <artifactId>flink-sql-connector-mysql-cdc</artifactId>

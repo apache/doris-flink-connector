@@ -39,7 +39,7 @@ public class DorisSourceExample {
                         + "    ) "
                         + "    WITH ("
                         + "      'connector' = 'doris',"
-                        + "      'fenodes' = '10.16.10.6:28737',"
+                        + "      'fenodes' = '127.0.0.1:8030',"
                         + "      'table.identifier' = 'test.student',"
                         + "      'username' = 'root',"
                         + "      'password' = '',"
