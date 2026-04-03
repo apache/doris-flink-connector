@@ -77,6 +77,8 @@ public class DorisSinkITCase extends AbstractITCaseService {
     static final String TABLE_GROUP_COMMIT = "tbl_group_commit";
     static final String TABLE_OVERWRITE = "tbl_overwrite";
     static final String TABLE_GZ_FORMAT = "tbl_gz_format";
+    static final String TABLE_GZ_FORMAT_DEFAULT = "tbl_gz_format_default";
+    static final String TABLE_NO_COMPRESS = "tbl_no_compress";
     static final String TABLE_CSV_JM = "tbl_csv_jm";
     static final String TABLE_CSV_TM = "tbl_csv_tm";
     static final String TABLE_UNICODE_COLUMN = "tbl_unicode_column";
@@ -478,6 +480,100 @@ public class DorisSinkITCase extends AbstractITCaseService {
         List<String> expected = Arrays.asList("doris,1", "flink,2");
         String query =
                 String.format("select name,age from %s.%s order by 1", DATABASE, TABLE_GZ_FORMAT);
+        ContainerUtils.checkResult(getDorisQueryConnection(), LOG, expected, query, 2);
+    }
+
+    @Test
+    public void testTableDefaultGzFormat() throws Exception {
+        initializeTable(TABLE_GZ_FORMAT_DEFAULT, DataModel.UNIQUE);
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(DEFAULT_PARALLELISM);
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+        final StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
+
+        String sinkDDL =
+                String.format(
+                        "CREATE TABLE doris_gz_default_sink ("
+                                + " name STRING,"
+                                + " age INT"
+                                + ") WITH ("
+                                + " 'connector' = '"
+                                + DorisConfigOptions.IDENTIFIER
+                                + "',"
+                                + " 'fenodes' = '%s',"
+                                + " 'table.identifier' = '%s',"
+                                + " 'username' = '%s',"
+                                + " 'password' = '%s',"
+                                + " 'sink.enable.batch-mode' = '%s',"
+                                + " 'sink.enable-delete' = 'false',"
+                                + " 'sink.label-prefix' = '"
+                                + UUID.randomUUID()
+                                + "',"
+                                + " 'sink.properties.column_separator' = '\\x01',"
+                                + " 'sink.properties.line_delimiter' = '\\x02'"
+                                + ")",
+                        getFenodes(),
+                        DATABASE + "." + TABLE_GZ_FORMAT_DEFAULT,
+                        getDorisUsername(),
+                        getDorisPassword(),
+                        batchMode);
+        tEnv.executeSql(sinkDDL);
+        tEnv.executeSql(
+                "INSERT INTO doris_gz_default_sink SELECT 'doris',1 union all  SELECT 'flink',2");
+
+        Thread.sleep(25000);
+        List<String> expected = Arrays.asList("doris,1", "flink,2");
+        String query =
+                String.format(
+                        "select name,age from %s.%s order by 1",
+                        DATABASE, TABLE_GZ_FORMAT_DEFAULT);
+        ContainerUtils.checkResult(getDorisQueryConnection(), LOG, expected, query, 2);
+    }
+
+    @Test
+    public void testTableNoCompressFormat() throws Exception {
+        initializeTable(TABLE_NO_COMPRESS, DataModel.UNIQUE);
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(DEFAULT_PARALLELISM);
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+        final StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
+
+        String sinkDDL =
+                String.format(
+                        "CREATE TABLE doris_no_compress_sink ("
+                                + " name STRING,"
+                                + " age INT"
+                                + ") WITH ("
+                                + " 'connector' = '"
+                                + DorisConfigOptions.IDENTIFIER
+                                + "',"
+                                + " 'fenodes' = '%s',"
+                                + " 'table.identifier' = '%s',"
+                                + " 'username' = '%s',"
+                                + " 'password' = '%s',"
+                                + " 'sink.enable.batch-mode' = '%s',"
+                                + " 'sink.enable-delete' = 'false',"
+                                + " 'sink.label-prefix' = '"
+                                + UUID.randomUUID()
+                                + "',"
+                                + " 'sink.properties.column_separator' = '\\x01',"
+                                + " 'sink.properties.line_delimiter' = '\\x02',"
+                                + " 'sink.properties.compress_type' = ''"
+                                + ")",
+                        getFenodes(),
+                        DATABASE + "." + TABLE_NO_COMPRESS,
+                        getDorisUsername(),
+                        getDorisPassword(),
+                        batchMode);
+        tEnv.executeSql(sinkDDL);
+        tEnv.executeSql(
+                "INSERT INTO doris_no_compress_sink SELECT 'doris',1 union all  SELECT 'flink',2");
+
+        Thread.sleep(25000);
+        List<String> expected = Arrays.asList("doris,1", "flink,2");
+        String query =
+                String.format(
+                        "select name,age from %s.%s order by 1", DATABASE, TABLE_NO_COMPRESS);
         ContainerUtils.checkResult(getDorisQueryConnection(), LOG, expected, query, 2);
     }
 
