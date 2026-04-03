@@ -525,8 +525,7 @@ public class DorisSinkITCase extends AbstractITCaseService {
         List<String> expected = Arrays.asList("doris,1", "flink,2");
         String query =
                 String.format(
-                        "select name,age from %s.%s order by 1",
-                        DATABASE, TABLE_GZ_FORMAT_DEFAULT);
+                        "select name,age from %s.%s order by 1", DATABASE, TABLE_GZ_FORMAT_DEFAULT);
         ContainerUtils.checkResult(getDorisQueryConnection(), LOG, expected, query, 2);
     }
 
@@ -572,8 +571,7 @@ public class DorisSinkITCase extends AbstractITCaseService {
         Thread.sleep(25000);
         List<String> expected = Arrays.asList("doris,1", "flink,2");
         String query =
-                String.format(
-                        "select name,age from %s.%s order by 1", DATABASE, TABLE_NO_COMPRESS);
+                String.format("select name,age from %s.%s order by 1", DATABASE, TABLE_NO_COMPRESS);
         ContainerUtils.checkResult(getDorisQueryConnection(), LOG, expected, query, 2);
     }
 
