@@ -41,8 +41,7 @@ public class DorisExecutionOptionsTest {
         Assert.assertTrue(actual.get("format").equals(expected.get("format")));
         Assert.assertTrue(
                 actual.get("read_json_by_line").equals(expected.get("read_json_by_line")));
-        Assert.assertTrue(
-                actual.get("compress_type").equals(expected.get("compress_type")));
+        Assert.assertTrue(actual.get("compress_type").equals(expected.get("compress_type")));
     }
 
     @Test
