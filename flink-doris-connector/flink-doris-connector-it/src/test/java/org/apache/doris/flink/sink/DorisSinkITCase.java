@@ -139,6 +139,7 @@ public class DorisSinkITCase extends AbstractITCaseService {
         Properties properties = new Properties();
         properties.setProperty("read_json_by_line", "true");
         properties.setProperty("format", "json");
+        properties.setProperty("compress_type", "");
 
         // mock data
         Map<String, Object> row1 = new HashMap<>();
@@ -225,6 +226,7 @@ public class DorisSinkITCase extends AbstractITCaseService {
                                 + " 'sink.ignore.update-before' = 'true',"
                                 + " 'sink.properties.format' = 'json',"
                                 + " 'sink.properties.read_json_by_line' = 'true',"
+                                + " 'sink.properties.compress_type' = '',"
                                 + " 'sink.label-prefix' = 'doris_sink"
                                 + UUID.randomUUID()
                                 + "'"
@@ -874,6 +876,7 @@ public class DorisSinkITCase extends AbstractITCaseService {
         Properties properties = new Properties();
         properties.setProperty("read_json_by_line", "true");
         properties.setProperty("format", "json");
+        properties.setProperty("compress_type", "");
 
         // mock data
         Map<String, Object> row1 = new HashMap<>();
