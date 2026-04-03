@@ -19,7 +19,6 @@ package org.apache.doris.flink.rest.models;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-
 import java.util.List;
 
 /**
@@ -39,6 +38,7 @@ public class BackendV2 {
         this.backends = backends;
     }
 
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class BackendRowV2 {
         @JsonProperty("ip")
         public String ip;
