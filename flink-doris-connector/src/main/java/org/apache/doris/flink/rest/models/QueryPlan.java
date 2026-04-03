@@ -17,9 +17,12 @@
 
 package org.apache.doris.flink.rest.models;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 import java.util.Map;
 import java.util.Objects;
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class QueryPlan {
     private int status;
     private String opaqued_query_plan;

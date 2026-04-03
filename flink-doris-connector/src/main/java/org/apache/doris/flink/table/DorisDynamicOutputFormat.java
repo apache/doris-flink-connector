@@ -207,7 +207,8 @@ public class DorisDynamicOutputFormat<T> extends RichOutputFormat<T> {
                 options.getUsername(),
                 options.getPassword(),
                 executionOptions.getStreamLoadProp(),
-                readOptions);
+                readOptions,
+                executionOptions.getLabelPrefix());
 
         if (executionOptions.getBatchIntervalMs() != 0 && executionOptions.getBatchSize() != 1) {
             this.scheduler = Executors.newScheduledThreadPool(1, new ExecutorThreadFactory("doris-streamload-output" +
