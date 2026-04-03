@@ -36,10 +36,13 @@ public class DorisExecutionOptionsTest {
         Properties expected = new Properties();
         expected.put("format", "json");
         expected.put("read_json_by_line", true);
-        Assert.assertTrue(actual.size() == 2);
+        expected.put("compress_type", "gz");
+        Assert.assertTrue(actual.size() == 3);
         Assert.assertTrue(actual.get("format").equals(expected.get("format")));
         Assert.assertTrue(
                 actual.get("read_json_by_line").equals(expected.get("read_json_by_line")));
+        Assert.assertTrue(
+                actual.get("compress_type").equals(expected.get("compress_type")));
     }
 
     @Test
