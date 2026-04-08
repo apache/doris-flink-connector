@@ -70,6 +70,8 @@ import static org.apache.doris.flink.sink.writer.LoadConstants.GROUP_COMMIT;
 import static org.apache.doris.flink.sink.writer.LoadConstants.GROUP_COMMIT_OFF_MODE;
 import static org.apache.doris.flink.sink.writer.LoadConstants.LINE_DELIMITER_DEFAULT;
 import static org.apache.doris.flink.sink.writer.LoadConstants.LINE_DELIMITER_KEY;
+import static org.apache.doris.flink.sink.writer.LoadConstants.UNIQUE_KEY_UPDATE_MODE;
+import static org.apache.doris.flink.sink.writer.LoadConstants.UPDATE_FLEXIBLE_COLUMNS;
 
 /** load data to doris. */
 public class DorisStreamLoad implements Serializable {
@@ -362,7 +364,10 @@ public class DorisStreamLoad implements Serializable {
                     .setUrl(loadUrlStr)
                     .baseAuth(user, passwd)
                     .addCommonHeader()
-                    .addHiddenColumns(enableDelete)
+                    .addHiddenColumns(
+                            enableDelete
+                                    && !UPDATE_FLEXIBLE_COLUMNS.equalsIgnoreCase(
+                                            streamLoadProp.getProperty(UNIQUE_KEY_UPDATE_MODE)))
                     .setLabel(label)
                     .setEntity(entity)
                     .addProperties(streamLoadProp);

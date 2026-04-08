@@ -78,6 +78,8 @@ import static org.apache.doris.flink.sink.writer.LoadConstants.GROUP_COMMIT;
 import static org.apache.doris.flink.sink.writer.LoadConstants.GROUP_COMMIT_OFF_MODE;
 import static org.apache.doris.flink.sink.writer.LoadConstants.LINE_DELIMITER_DEFAULT;
 import static org.apache.doris.flink.sink.writer.LoadConstants.LINE_DELIMITER_KEY;
+import static org.apache.doris.flink.sink.writer.LoadConstants.UNIQUE_KEY_UPDATE_MODE;
+import static org.apache.doris.flink.sink.writer.LoadConstants.UPDATE_FLEXIBLE_COLUMNS;
 
 /** async stream load. */
 public class DorisBatchStreamLoad implements Serializable {
@@ -470,7 +472,12 @@ public class DorisBatchStreamLoad implements Serializable {
                     .setLabel(label)
                     .addCommonHeader()
                     .setEntity(entity)
-                    .addHiddenColumns(executionOptions.getDeletable())
+                    .addHiddenColumns(
+                            executionOptions.getDeletable()
+                                    && !UPDATE_FLEXIBLE_COLUMNS.equalsIgnoreCase(
+                                            executionOptions
+                                                    .getStreamLoadProp()
+                                                    .getProperty(UNIQUE_KEY_UPDATE_MODE)))
                     .addProperties(executionOptions.getStreamLoadProp());
 
             if (enableGzCompress) {
