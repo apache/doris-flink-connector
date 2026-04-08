@@ -49,9 +49,11 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -100,6 +102,8 @@ public class MysqlDatabaseSync extends DatabaseSync {
     @Override
     public List<SourceSchema> getSchemaList() throws Exception {
         String databaseName = config.get(MySqlSourceOptions.DATABASE_NAME);
+        Set<String> chunkKeyTables = getChunkKeyTables();
+        List<String> skippedNoPrimaryKeyTables = new ArrayList<>();
 
         List<SourceSchema> schemaList = new ArrayList<>();
         try (Connection conn = getConnection()) {
@@ -120,6 +124,14 @@ public class MysqlDatabaseSync extends DatabaseSync {
                                 SourceSchema sourceSchema =
                                         new MysqlSchema(
                                                 metaData, tableCatalog, tableName, tableComment);
+                                if (shouldSkipTableWithoutPrimaryKey(
+                                        tableCatalog,
+                                        tableName,
+                                        sourceSchema.primaryKeys.isEmpty(),
+                                        chunkKeyTables)) {
+                                    skippedNoPrimaryKeyTables.add(tableCatalog + "." + tableName);
+                                    continue;
+                                }
                                 sourceSchema.setModel(
                                         !sourceSchema.primaryKeys.isEmpty()
                                                 ? DataModel.UNIQUE
@@ -131,7 +143,52 @@ public class MysqlDatabaseSync extends DatabaseSync {
                 }
             }
         }
+
+        if (!skippedNoPrimaryKeyTables.isEmpty()) {
+            LOG.warn(
+                    "Skipping MySQL tables without primary key in incremental snapshot mode (no chunk key configured): {}. "
+                            + "Configure '{}' for these tables if snapshot sync is required.",
+                    skippedNoPrimaryKeyTables,
+                    MySqlSourceOptions.SCAN_INCREMENTAL_SNAPSHOT_CHUNK_KEY_COLUMN.key());
+        }
+        if (schemaList.isEmpty() && !skippedNoPrimaryKeyTables.isEmpty()) {
+            throw new IllegalStateException(
+                    String.format(
+                            "No MySQL tables left to synchronize: all matched tables are without primary key and no chunk key is configured in initial snapshot mode. "
+                                    + "Skipped tables: %s",
+                            skippedNoPrimaryKeyTables));
+        }
         return schemaList;
+    }
+
+    boolean shouldSkipTableWithoutPrimaryKey(
+            String databaseName,
+            String tableName,
+            boolean hasNoPrimaryKey,
+            Set<String> chunkKeyTables) {
+        if (!hasNoPrimaryKey) {
+            return false;
+        }
+        if (!isInitialSnapshotStartup()) {
+            return false;
+        }
+        return !chunkKeyTables.contains(databaseName + "." + tableName);
+    }
+
+    private boolean isInitialSnapshotStartup() {
+        String startupMode = config.get(MySqlSourceOptions.SCAN_STARTUP_MODE);
+        if (StringUtils.isNullOrWhitespaceOnly(startupMode)) {
+            return true;
+        }
+        return DatabaseSyncConfig.SCAN_STARTUP_MODE_VALUE_INITIAL.equalsIgnoreCase(startupMode);
+    }
+
+    private Set<String> getChunkKeyTables() {
+        Set<String> tables = new HashSet<>();
+        for (ObjectPath objectPath : getChunkColumnMap().keySet()) {
+            tables.add(objectPath.getDatabaseName() + "." + objectPath.getObjectName());
+        }
+        return tables;
     }
 
     @Override
