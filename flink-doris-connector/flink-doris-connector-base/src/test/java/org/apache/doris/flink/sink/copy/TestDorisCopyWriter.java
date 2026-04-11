@@ -17,6 +17,7 @@
 
 package org.apache.doris.flink.sink.copy;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Deadline;
 
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
@@ -70,6 +71,7 @@ public class TestDorisCopyWriter {
         DorisCopyWriter<String> copyWriter =
                 new DorisCopyWriter<String>(
                         0,
+                        JobID.generate(),
                         0,
                         new SimpleStringSerializer(),
                         dorisOptions,
@@ -110,6 +112,7 @@ public class TestDorisCopyWriter {
         DorisCopyWriter<String> copyWriter =
                 new DorisCopyWriter<String>(
                         1,
+                        JobID.generate(),
                         1,
                         new SimpleStringSerializer(),
                         dorisOptions,

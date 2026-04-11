@@ -17,6 +17,7 @@
 
 package org.apache.doris.flink.sink.copy;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.connector.sink2.WriterInitContext;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 
@@ -49,10 +50,11 @@ public class DorisCopyWriterAdapter<IN>
                         .getRestoredCheckpointId()
                         .orElse(CheckpointIDCounter.INITIAL_CHECKPOINT_ID - 1);
         int subtaskId = initContext.getTaskInfo().getIndexOfThisSubtask();
-
+        JobID jobId = initContext.getJobInfo().getJobId();
         this.delegate =
                 new DorisCopyWriter<>(
                         restoreCheckpointId,
+                        jobId,
                         subtaskId,
                         serializer,
                         dorisOptions,
