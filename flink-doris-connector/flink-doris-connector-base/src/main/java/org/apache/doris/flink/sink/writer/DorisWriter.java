@@ -118,7 +118,8 @@ public class DorisWriter<IN> {
     }
 
     public void initializeLoad(Collection<DorisWriterState> state) {
-        this.backendUtil = BackendUtil.getInstance(dorisOptions, dorisReadOptions, LOG);
+        this.backendUtil =
+                BackendUtil.getInstance(dorisOptions, dorisReadOptions, executionOptions, LOG);
         try {
             if (executionOptions.enabled2PC()) {
                 abortLingeringTransactions(state);
