@@ -20,6 +20,7 @@ package org.apache.doris.flink.sink;
 import org.apache.flink.annotation.VisibleForTesting;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.exception.DorisRuntimeException;
@@ -34,9 +35,12 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Properties;
 
 public class BackendUtil {
     private static final Logger LOG = LoggerFactory.getLogger(BackendUtil.class);
+    private static final String CLOUD_CLUSTER = "cloud_cluster";
+    private static final String COMPUTE_GROUP = "compute_group";
     private final List<BackendV2.BackendRowV2> backends;
     private long pos;
 
@@ -71,11 +75,38 @@ public class BackendUtil {
 
     public static BackendUtil getInstance(
             DorisOptions dorisOptions, DorisReadOptions readOptions, Logger logger) {
+        return getInstance(dorisOptions, readOptions, null, logger);
+    }
+
+    public static BackendUtil getInstance(
+            DorisOptions dorisOptions,
+            DorisReadOptions readOptions,
+            DorisExecutionOptions executionOptions,
+            Logger logger) {
         if (StringUtils.isNotEmpty(dorisOptions.getBenodes())) {
             return new BackendUtil(dorisOptions.getBenodes());
         } else {
-            return new BackendUtil(RestService.getBackendsV2(dorisOptions, readOptions, logger));
+            Properties loadProps =
+                    executionOptions == null ? null : executionOptions.getStreamLoadProp();
+            return new BackendUtil(
+                    RestService.getBackendsV2(
+                            dorisOptions,
+                            readOptions,
+                            getLoadTargetComputeGroup(loadProps),
+                            logger));
         }
+    }
+
+    @VisibleForTesting
+    static String getLoadTargetComputeGroup(Properties loadProps) {
+        if (loadProps == null) {
+            return null;
+        }
+        String computeGroup = loadProps.getProperty(COMPUTE_GROUP);
+        if (StringUtils.isNotBlank(computeGroup)) {
+            return computeGroup;
+        }
+        return loadProps.getProperty(CLOUD_CLUSTER);
     }
 
     public String getAvailableBackend() {

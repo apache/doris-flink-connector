@@ -411,6 +411,79 @@ public class TestRestService {
     }
 
     @Test
+    public void testParseManagerBackendsFilterComputeGroup() {
+        String response =
+                "{\"columnNames\":[\"BackendId\",\"Host\",\"HttpPort\",\"Alive\",\"Tag\"],"
+                        + "\"rows\":["
+                        + "[\"1\",\"192.168.1.1\",\"8042\",\"true\",\"{\\\"compute_group_name\\\":\\\"cluster_a\\\"}\"],"
+                        + "[\"2\",\"192.168.1.2\",\"8042\",\"true\",\"{\\\"compute_group_name\\\":\\\"cluster_b\\\"}\"],"
+                        + "[\"3\",\"192.168.1.3\",\"8042\",\"false\",\"{\\\"compute_group_name\\\":\\\"cluster_a\\\"}\"]"
+                        + "]}";
+
+        List<BackendV2.BackendRowV2> backendRows =
+                RestService.parseManagerBackends(response, logger, "cluster_a");
+
+        Assert.assertEquals(1, backendRows.size());
+        Assert.assertEquals("192.168.1.1:8042", backendRows.get(0).toBackendString());
+    }
+
+    @Test
+    public void testParseManagerBackendsColumnNamesAndCloudCluster() {
+        String response =
+                "{\"code\":0,\"msg\":\"success\",\"data\":{"
+                        + "\"column_names\":[\"BackendId\",\"Host\",\"HttpPort\",\"Alive\",\"Tag\"],"
+                        + "\"rows\":["
+                        + "[\"1\",\"192.168.1.1\",\"8042\",\"true\",\"{\\\"cloud_cluster_name\\\":\\\"cluster_a\\\"}\"]"
+                        + "]}}";
+
+        List<BackendV2.BackendRowV2> backendRows =
+                RestService.parseManagerBackends(response, logger, "cluster_a");
+
+        Assert.assertEquals(1, backendRows.size());
+        Assert.assertEquals("192.168.1.1:8042", backendRows.get(0).toBackendString());
+    }
+
+    @Test
+    public void testParseManagerBackendsPrintableTag() {
+        String tag = "{compute_group_name:cluster_a, location:default}";
+        Assert.assertEquals("cluster_a", RestService.getComputeGroupNameFromTag(tag));
+    }
+
+    @Test
+    public void testParseManagerBackendsNoTargetBackend() {
+        String response =
+                "{\"columnNames\":[\"BackendId\",\"Host\",\"HttpPort\",\"Alive\",\"Tag\"],"
+                        + "\"rows\":["
+                        + "[\"1\",\"192.168.1.1\",\"8042\",\"true\",\"{\\\"compute_group_name\\\":\\\"cluster_a\\\"}\"],"
+                        + "[\"2\",\"192.168.1.2\",\"8042\",\"false\",\"{\\\"compute_group_name\\\":\\\"cluster_b\\\"}\"]"
+                        + "]}";
+
+        thrown.expect(DorisRuntimeException.class);
+        thrown.expectMessage("no alive backend found");
+        RestService.parseManagerBackends(response, logger, "cluster_b");
+    }
+
+    @Test
+    public void testParseManagerBackendsMissingColumn() {
+        String response =
+                "{\"columnNames\":[\"BackendId\",\"Host\",\"HttpPort\",\"Alive\"],"
+                        + "\"rows\":[[\"1\",\"192.168.1.1\",\"8042\",\"true\"]]}";
+
+        thrown.expect(DorisRuntimeException.class);
+        thrown.expectMessage("missing required column Tag");
+        RestService.parseManagerBackends(response, logger, "cluster_a");
+    }
+
+    @Test
+    public void testParseManagerBackendsErrorResponse() {
+        String response = "{\"code\":1,\"msg\":\"Error\",\"data\":\"Access denied\"}";
+
+        thrown.expect(DorisRuntimeException.class);
+        thrown.expectMessage("Error: Access denied");
+        RestService.parseManagerBackends(response, logger, "cluster_a");
+    }
+
+    @Test
     public void testParseBackendV2Error() {
         String response =
                 "{\"backends\":[{\"ip_error_key\":\"192.168.1.1\",\"http_port\":8042,\"is_alive\":true}, {\"ip\":\"192.168.1.2\",\"http_port\":8042,\"is_alive\":true}]}";
