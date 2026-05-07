@@ -18,7 +18,9 @@
 package org.apache.doris.flink.sink.copy;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.connector.sink2.SinkWriter.Context;
+import org.apache.flink.util.MdcUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
@@ -60,9 +62,11 @@ public class DorisCopyWriter<IN> {
     private transient volatile Exception flushException = null;
     private String database;
     private String table;
+    private final JobID jobId;
 
     public DorisCopyWriter(
             long lastCheckpointId,
+            JobID jobId,
             int subtaskId,
             DorisRecordSerializer<IN> serializer,
             DorisOptions dorisOptions,
@@ -77,6 +81,7 @@ public class DorisCopyWriter<IN> {
             this.table = tableInfo[1];
         }
         this.lastCheckpointId = lastCheckpointId;
+        this.jobId = jobId;
         LOG.info("restore checkpointId {}", lastCheckpointId);
         LOG.info("labelPrefix {}", executionOptions.getLabelPrefix());
         this.labelPrefix =
@@ -103,8 +108,12 @@ public class DorisCopyWriter<IN> {
         this.batchStageLoad.setCurrentCheckpointID(lastCheckpointId + 1);
         // when uploading data in streaming mode, we need to regularly detect whether there are
         // exceptions.
-        scheduledExecutorService.scheduleWithFixedDelay(
-                this::intervalFlush, flushIntervalMs, flushIntervalMs, TimeUnit.MILLISECONDS);
+        MdcUtils.scopeToJob(jobId, scheduledExecutorService)
+                .scheduleWithFixedDelay(
+                        this::intervalFlush,
+                        flushIntervalMs,
+                        flushIntervalMs,
+                        TimeUnit.MILLISECONDS);
     }
 
     private void intervalFlush() {

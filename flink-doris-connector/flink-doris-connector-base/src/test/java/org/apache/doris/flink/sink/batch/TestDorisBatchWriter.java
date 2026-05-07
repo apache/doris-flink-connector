@@ -17,6 +17,8 @@
 
 package org.apache.doris.flink.sink.batch;
 
+import org.apache.flink.api.common.JobID;
+
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
@@ -54,7 +56,8 @@ public class TestDorisBatchWriter {
                         .build();
         thrown.expect(IllegalStateException.class);
         thrown.expectMessage("tableIdentifier input error");
-        DorisBatchWriter batchWriter = new DorisBatchWriter(1, 1, null, options, null, null);
+        DorisBatchWriter batchWriter =
+                new DorisBatchWriter(1, JobID.generate(), 1, null, options, null, null);
     }
 
     @Test
@@ -69,7 +72,13 @@ public class TestDorisBatchWriter {
         SimpleStringSerializer simpleStringSerializer = new SimpleStringSerializer();
         DorisBatchWriter batchWriter =
                 new DorisBatchWriter(
-                        1, 1, simpleStringSerializer, options, readOptions, executionOptions);
+                        1,
+                        JobID.generate(),
+                        1,
+                        simpleStringSerializer,
+                        options,
+                        readOptions,
+                        executionOptions);
         batchWriter.writeOneDorisRecord(null);
         batchWriter.writeOneDorisRecord(DorisRecord.of(null));
         batchWriter.writeOneDorisRecord(DorisRecord.of("db", "tbl", "zhangsan,1".getBytes()));
