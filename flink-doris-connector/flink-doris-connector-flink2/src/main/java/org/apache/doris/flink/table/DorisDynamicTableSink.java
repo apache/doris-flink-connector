@@ -49,6 +49,8 @@ import static org.apache.doris.flink.sink.writer.LoadConstants.DORIS_DELETE_SIGN
 import static org.apache.doris.flink.sink.writer.LoadConstants.FIELD_DELIMITER_DEFAULT;
 import static org.apache.doris.flink.sink.writer.LoadConstants.FIELD_DELIMITER_KEY;
 import static org.apache.doris.flink.sink.writer.LoadConstants.FORMAT_KEY;
+import static org.apache.doris.flink.sink.writer.LoadConstants.UNIQUE_KEY_UPDATE_MODE;
+import static org.apache.doris.flink.sink.writer.LoadConstants.UPDATE_FLEXIBLE_COLUMNS;
 
 /** DorisDynamicTableSink. */
 public class DorisDynamicTableSink implements DynamicTableSink, SupportsOverwrite {
@@ -85,10 +87,14 @@ public class DorisDynamicTableSink implements DynamicTableSink, SupportsOverwrit
     @Override
     public SinkRuntimeProvider getSinkRuntimeProvider(Context context) {
         Properties loadProperties = executionOptions.getStreamLoadProp();
+        // Flexible column update mode is incompatible with both 'columns' and 'hidden_columns'
+        boolean isFlexibleColumn =
+                UPDATE_FLEXIBLE_COLUMNS.equalsIgnoreCase(
+                        loadProperties.getProperty(UNIQUE_KEY_UPDATE_MODE));
         boolean deletable =
                 executionOptions.getDeletable()
                         && RestService.isUniqueKeyType(options, readOptions, LOG);
-        if (!loadProperties.containsKey(COLUMNS_KEY)) {
+        if (!loadProperties.containsKey(COLUMNS_KEY) && !isFlexibleColumn) {
             String[] fieldNames = tableSchema.getFieldNames();
             Preconditions.checkState(fieldNames != null && fieldNames.length > 0);
             String columns =
