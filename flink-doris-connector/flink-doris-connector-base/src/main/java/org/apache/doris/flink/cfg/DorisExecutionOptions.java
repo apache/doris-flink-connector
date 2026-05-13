@@ -25,6 +25,8 @@ import java.io.Serializable;
 import java.util.Objects;
 import java.util.Properties;
 
+import static org.apache.doris.flink.sink.writer.LoadConstants.COMPRESS_TYPE;
+import static org.apache.doris.flink.sink.writer.LoadConstants.COMPRESS_TYPE_GZ;
 import static org.apache.doris.flink.sink.writer.LoadConstants.FORMAT_KEY;
 import static org.apache.doris.flink.sink.writer.LoadConstants.JSON;
 import static org.apache.doris.flink.sink.writer.LoadConstants.READ_JSON_BY_LINE;
@@ -529,6 +531,11 @@ public class DorisExecutionOptions implements Serializable {
                     && streamLoadProp.containsKey(FORMAT_KEY)
                     && JSON.equals(streamLoadProp.getProperty(FORMAT_KEY))) {
                 streamLoadProp.put(READ_JSON_BY_LINE, true);
+            }
+
+            // Enable gz compression by default
+            if (streamLoadProp != null && !streamLoadProp.containsKey(COMPRESS_TYPE)) {
+                streamLoadProp.put(COMPRESS_TYPE, COMPRESS_TYPE_GZ);
             }
 
             Preconditions.checkArgument(

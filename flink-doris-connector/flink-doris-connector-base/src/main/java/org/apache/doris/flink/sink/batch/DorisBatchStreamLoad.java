@@ -202,6 +202,18 @@ public class DorisBatchStreamLoad implements Serializable {
         currentCacheBytes.addAndGet(bytes);
         getLock(bufferKey).readLock().unlock();
 
+        if (flushQueue.size() < executionOptions.getFlushQueueSize()
+                && (buffer.getBufferSizeBytes() >= executionOptions.getBufferFlushMaxBytes()
+                        || buffer.getNumOfRecords() >= executionOptions.getBufferFlushMaxRows())) {
+            boolean flush = bufferFullFlush(bufferKey);
+            LOG.info("trigger flush by buffer full, flush: {}", flush);
+        } else if (buffer.getBufferSizeBytes() >= STREAM_LOAD_MAX_BYTES
+                || buffer.getNumOfRecords() >= STREAM_LOAD_MAX_ROWS) {
+            // The buffer capacity exceeds the stream load limit, flush
+            boolean flush = bufferFullFlush(bufferKey);
+            LOG.info("trigger flush by buffer exceeding the limit, flush: {}", flush);
+        }
+
         if (currentCacheBytes.get() > maxBlockedBytes) {
             lock.lock();
             try {
@@ -219,20 +231,6 @@ public class DorisBatchStreamLoad implements Serializable {
             } finally {
                 lock.unlock();
             }
-        }
-
-        // queue has space, flush according to the bufferMaxRows/bufferMaxBytes
-        if (flushQueue.size() < executionOptions.getFlushQueueSize()
-                && (buffer.getBufferSizeBytes() >= executionOptions.getBufferFlushMaxBytes()
-                        || buffer.getNumOfRecords() >= executionOptions.getBufferFlushMaxRows())) {
-            boolean flush = bufferFullFlush(bufferKey);
-            LOG.info("trigger flush by buffer full, flush: {}", flush);
-
-        } else if (buffer.getBufferSizeBytes() >= STREAM_LOAD_MAX_BYTES
-                || buffer.getNumOfRecords() >= STREAM_LOAD_MAX_ROWS) {
-            // The buffer capacity exceeds the stream load limit, flush
-            boolean flush = bufferFullFlush(bufferKey);
-            LOG.info("trigger flush by buffer exceeding the limit, flush: {}", flush);
         }
     }
 
@@ -499,7 +497,7 @@ public class DorisBatchStreamLoad implements Serializable {
                                     OBJECT_MAPPER.readValue(loadResult, RespContent.class);
                             if (DORIS_SUCCESS_STATUS.contains(respContent.getStatus())) {
                                 long cacheByteBeforeFlush =
-                                        currentCacheBytes.getAndAdd(-respContent.getLoadBytes());
+                                        currentCacheBytes.getAndAdd(-buffer.getBufferSizeBytes());
                                 LOG.info(
                                         "load success, cacheBeforeFlushBytes: {}, currentCacheBytes : {}",
                                         cacheByteBeforeFlush,

@@ -142,6 +142,9 @@ public abstract class AbstractE2EService extends AbstractContainerTestBase {
         argList.add(JDBC_URL + "=" + getDorisQueryUrl());
         argList.add(SINK_CONF);
         argList.add(SINK_LABEL_PREFIX + "=" + "label");
+        // disable gz compression for json format, doris 2.1 does not support json compression
+        argList.add(SINK_CONF);
+        argList.add("sink.properties.compress_type=");
     }
 
     public static void closeE2EContainers() {
