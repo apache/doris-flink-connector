@@ -35,6 +35,7 @@ import org.apache.doris.flink.sink.EscapeHandler;
 import org.apache.doris.flink.sink.HttpPutBuilder;
 import org.apache.doris.flink.sink.LoadStatus;
 import org.apache.doris.flink.sink.ResponseUtil;
+import org.apache.doris.flink.util.DorisUrlUtils;
 import org.apache.http.client.entity.GzipCompressingEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.entity.InputStreamEntity;
@@ -77,8 +78,6 @@ public class DorisStreamLoad implements Serializable {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private final LabelGenerator labelGenerator;
     private final byte[] lineDelimiter;
-    private static final String LOAD_URL_PATTERN = "http://%s/api/%s/%s/_stream_load";
-    private static final String ABORT_URL_PATTERN = "http://%s/api/%s/_stream_load_2pc";
     public static final String JOB_EXIST_FINISHED = "FINISHED";
 
     private String loadUrlStr;
@@ -114,8 +113,8 @@ public class DorisStreamLoad implements Serializable {
         this.user = dorisOptions.getUsername();
         this.passwd = dorisOptions.getPassword();
         this.labelGenerator = labelGenerator;
-        this.loadUrlStr = String.format(LOAD_URL_PATTERN, hostPort, db, table);
-        this.abortUrlStr = String.format(ABORT_URL_PATTERN, hostPort, db);
+        this.loadUrlStr = buildLoadUrl(hostPort);
+        this.abortUrlStr = buildAbortUrl(hostPort);
         this.enable2PC = executionOptions.enabled2PC();
         this.streamLoadProp = executionOptions.getStreamLoadProp();
         this.enableDelete = executionOptions.getDeletable();
@@ -175,8 +174,16 @@ public class DorisStreamLoad implements Serializable {
 
     public void setHostPort(String hostPort) {
         this.hostPort = hostPort;
-        this.loadUrlStr = String.format(LOAD_URL_PATTERN, hostPort, this.db, this.table);
-        this.abortUrlStr = String.format(ABORT_URL_PATTERN, hostPort, db);
+        this.loadUrlStr = buildLoadUrl(hostPort);
+        this.abortUrlStr = buildAbortUrl(hostPort);
+    }
+
+    private String buildLoadUrl(String hostPort) {
+        return DorisUrlUtils.buildHttpUrl(hostPort, "api", db, table, "_stream_load");
+    }
+
+    private String buildAbortUrl(String hostPort) {
+        return DorisUrlUtils.buildHttpUrl(hostPort, "api", db, "_stream_load_2pc");
     }
 
     public Future<RespContent> getPendingLoadFuture() {

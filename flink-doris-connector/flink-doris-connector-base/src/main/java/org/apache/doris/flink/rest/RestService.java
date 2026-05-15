@@ -43,6 +43,7 @@ import org.apache.doris.flink.rest.models.Schema;
 import org.apache.doris.flink.rest.models.Tablet;
 import org.apache.doris.flink.sink.BackendUtil;
 import org.apache.doris.flink.sink.HttpGetWithEntity;
+import org.apache.doris.flink.util.DorisUrlUtils;
 import org.apache.http.HttpHeaders;
 import org.apache.http.HttpStatus;
 import org.apache.http.client.config.RequestConfig;
@@ -93,11 +94,6 @@ public class RestService implements Serializable {
     private static final String BACKENDS_V2 = "/api/backends?is_alive=true";
     private static final String FE_LOGIN = "/rest/v1/login";
     private static final ObjectMapper objectMapper = new ObjectMapper();
-    private static final String TABLE_SCHEMA_API = "http://%s/api/%s/%s/_schema";
-    private static final String CATALOG_TABLE_SCHEMA_API = "http://%s/api/%s/%s/%s/_schema";
-    private static final String QUERY_PLAN_API = "http://%s/api/%s/%s/_query_plan";
-    private static final String STATEMENT_EXEC_API =
-            "http://%s/api/query/default_cluster/information_schema";
 
     /**
      * send request to Doris FE and get response json string.
@@ -402,30 +398,32 @@ public class RestService implements Serializable {
             throws DorisException {
         logger.trace("Finding schema.");
         String[] tableIdentifier = parseIdentifier(options.getTableIdentifier(), logger);
-        String tableSchemaUri;
-        if (tableIdentifier.length == 2) {
-            tableSchemaUri =
-                    String.format(
-                            TABLE_SCHEMA_API,
-                            randomEndpoint(options.getFenodes(), logger),
-                            tableIdentifier[0],
-                            tableIdentifier[1]);
-        } else if (tableIdentifier.length == 3) {
-            tableSchemaUri =
-                    String.format(
-                            CATALOG_TABLE_SCHEMA_API,
-                            randomEndpoint(options.getFenodes(), logger),
-                            tableIdentifier[0],
-                            tableIdentifier[1],
-                            tableIdentifier[2]);
-        } else {
-            throw new IllegalArgumentException(
-                    "table identifier is illegal, should be db.table or catalog.db.table");
-        }
+        String tableSchemaUri =
+                buildTableSchemaUri(randomEndpoint(options.getFenodes(), logger), tableIdentifier);
         HttpGet httpGet = new HttpGet(tableSchemaUri);
         String response = send(options, readOptions, httpGet, logger);
         logger.debug("Find schema response is '{}'.", response);
         return parseSchema(response, logger);
+    }
+
+    @VisibleForTesting
+    static String buildTableSchemaUri(String feNode, String... tableIdentifier)
+            throws IllegalArgumentException {
+        if (tableIdentifier.length == 2) {
+            return DorisUrlUtils.buildHttpUrl(
+                    feNode, "api", tableIdentifier[0], tableIdentifier[1], "_schema");
+        } else if (tableIdentifier.length == 3) {
+            return DorisUrlUtils.buildHttpUrl(
+                    feNode,
+                    "api",
+                    tableIdentifier[0],
+                    tableIdentifier[1],
+                    tableIdentifier[2],
+                    "_schema");
+        } else {
+            throw new IllegalArgumentException(
+                    "table identifier is illegal, should be db.table or catalog.db.table");
+        }
     }
 
     @VisibleForTesting
@@ -435,11 +433,12 @@ public class RestService implements Serializable {
         Object responseData = null;
         try {
             String tableSchemaUri =
-                    String.format(
-                            TABLE_SCHEMA_API,
+                    DorisUrlUtils.buildHttpUrl(
                             randomEndpoint(dorisOptions.getFenodes(), logger),
+                            "api",
                             db,
-                            table);
+                            table,
+                            "_schema");
             HttpGetWithEntity httpGet = new HttpGetWithEntity(tableSchemaUri);
             httpGet.setHeader(HttpHeaders.AUTHORIZATION, authHeader(dorisOptions));
             JsonNode response = handleResponse(httpGet, logger);
@@ -484,7 +483,12 @@ public class RestService implements Serializable {
             Map<String, String> param = new HashMap<>();
             param.put("stmt", "show frontends");
             String requestUrl =
-                    String.format(STATEMENT_EXEC_API, randomEndpoint(options.getFenodes(), logger));
+                    DorisUrlUtils.buildHttpUrl(
+                            randomEndpoint(options.getFenodes(), logger),
+                            "api",
+                            "query",
+                            "default_cluster",
+                            "information_schema");
             HttpPost httpPost = new HttpPost(requestUrl);
             httpPost.setHeader(HttpHeaders.AUTHORIZATION, authHeader(options));
             httpPost.setHeader(
@@ -621,8 +625,7 @@ public class RestService implements Serializable {
         String[] tableIdentifier = parseIdentifier(options.getTableIdentifier(), logger);
 
         String queryPlanUri =
-                String.format(
-                        QUERY_PLAN_API,
+                buildQueryPlanUri(
                         randomEndpoint(options.getFenodes(), logger),
                         tableIdentifier[0],
                         tableIdentifier[1]);
@@ -646,6 +649,11 @@ public class RestService implements Serializable {
                 tableIdentifiers[0],
                 tableIdentifiers[1],
                 logger);
+    }
+
+    @VisibleForTesting
+    static String buildQueryPlanUri(String feNode, String database, String table) {
+        return DorisUrlUtils.buildHttpUrl(feNode, "api", database, table, "_query_plan");
     }
 
     /**

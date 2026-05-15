@@ -33,6 +33,7 @@ import org.apache.doris.flink.sink.DorisCommittable;
 import org.apache.doris.flink.sink.HttpPutBuilder;
 import org.apache.doris.flink.sink.HttpUtil;
 import org.apache.doris.flink.sink.ResponseUtil;
+import org.apache.doris.flink.util.DorisUrlUtils;
 import org.apache.http.StatusLine;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPut;
@@ -52,7 +53,6 @@ import static org.apache.doris.flink.sink.LoadStatus.SUCCESS;
 /** The committer to commit transaction. */
 public class DorisCommitter implements Committer<DorisCommittable>, Closeable {
     private static final Logger LOG = LoggerFactory.getLogger(DorisCommitter.class);
-    private static final String commitPattern = "http://%s/api/%s/_stream_load_2pc";
     private final CloseableHttpClient httpClient;
     private final DorisOptions dorisOptions;
     private final DorisReadOptions dorisReadOptions;
@@ -116,7 +116,9 @@ public class DorisCommitter implements Committer<DorisCommittable>, Closeable {
         int retry = 0;
         while (retry <= maxRetry) {
             // get latest-url
-            String url = String.format(commitPattern, hostPort, committable.getDb());
+            String url =
+                    DorisUrlUtils.buildHttpUrl(
+                            hostPort, "api", committable.getDb(), "_stream_load_2pc");
             HttpPut httpPut = builder.setUrl(url).setEmptyEntity().build();
 
             // http execute...

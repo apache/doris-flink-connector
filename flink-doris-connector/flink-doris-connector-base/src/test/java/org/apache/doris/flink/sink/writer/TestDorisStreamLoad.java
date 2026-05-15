@@ -25,12 +25,14 @@ import org.apache.doris.flink.rest.models.RespContent;
 import org.apache.doris.flink.sink.HttpTestUtil;
 import org.apache.doris.flink.sink.OptionUtils;
 import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.mockito.ArgumentCaptor;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -42,6 +44,8 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /** test for DorisStreamLoad. */
@@ -80,6 +84,42 @@ public class TestDorisStreamLoad {
 
         doNothing().when(dorisStreamLoad).abortTransaction(anyLong());
         dorisStreamLoad.abortPreCommit("test001", 1);
+    }
+
+    @Test
+    public void testBuildEncodedLoadAndAbortUrl() throws Exception {
+        DorisOptions unicodeOptions =
+                DorisOptions.builder()
+                        .setFenodes("127.0.0.1:8030")
+                        .setTableIdentifier("ods.ods_新券表_copy1")
+                        .setUsername("root")
+                        .setPassword("")
+                        .build();
+        CloseableHttpClient httpClient = mock(CloseableHttpClient.class);
+        CloseableHttpResponse preCommitResponse =
+                HttpTestUtil.getResponse(HttpTestUtil.PRE_COMMIT_TABLE_RESPONSE, true);
+        CloseableHttpResponse abortSuccessResponse =
+                HttpTestUtil.getResponse(HttpTestUtil.ABORT_SUCCESS_RESPONSE, true);
+        when(httpClient.execute(any())).thenReturn(preCommitResponse, abortSuccessResponse);
+
+        DorisStreamLoad dorisStreamLoad =
+                new DorisStreamLoad(
+                        "127.0.0.1:8040",
+                        unicodeOptions,
+                        executionOptions,
+                        new LabelGenerator("test001", true, "ods.ods_新券表_copy1", 0),
+                        httpClient);
+        dorisStreamLoad.abortPreCommit("test001", 1);
+
+        ArgumentCaptor<HttpUriRequest> requestCaptor =
+                ArgumentCaptor.forClass(HttpUriRequest.class);
+        verify(httpClient, times(2)).execute(requestCaptor.capture());
+        Assert.assertEquals(
+                "http://127.0.0.1:8040/api/ods/ods_%E6%96%B0%E5%88%B8%E8%A1%A8_copy1/_stream_load",
+                requestCaptor.getAllValues().get(0).getURI().toASCIIString());
+        Assert.assertEquals(
+                "http://127.0.0.1:8040/api/ods/_stream_load_2pc",
+                requestCaptor.getAllValues().get(1).getURI().toASCIIString());
     }
 
     @Test
