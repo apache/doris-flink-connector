@@ -55,6 +55,7 @@ public class PostgresType {
     private static final String VARBIT = "varbit";
     private static final String UUID = "uuid";
     private static final String BYTEA = "bytea";
+    private static final String REGCLASS = "regclass";
     private static final String JSON = "json";
     private static final String JSONB = "jsonb";
     private static final String _INT2 = "_int2";
@@ -127,6 +128,7 @@ public class PostgresType {
             case VARBIT:
             case UUID:
             case BYTEA:
+            case REGCLASS:
                 return DorisType.STRING;
             case JSON:
             case JSONB:
