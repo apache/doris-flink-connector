@@ -28,16 +28,16 @@ import org.apache.flink.util.Preconditions;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
-import org.apache.doris.flink.connection.SimpleJdbcConnectionProvider;
-import org.apache.doris.flink.exception.DorisSystemException;
 import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.sink.DorisSink;
+import org.apache.doris.flink.sink.overwrite.DorisOverwriteManager;
+import org.apache.doris.flink.sink.overwrite.DorisOverwriteOptions;
+import org.apache.doris.flink.sink.overwrite.DorisPreparedOverwrite;
+import org.apache.doris.flink.sink.writer.WriteMode;
 import org.apache.doris.flink.sink.writer.serializer.RowDataSerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.sql.Connection;
-import java.sql.Statement;
 import java.util.Arrays;
 import java.util.Objects;
 import java.util.Properties;
@@ -84,10 +84,35 @@ public class DorisDynamicTableSink implements DynamicTableSink, SupportsOverwrit
 
     @Override
     public SinkRuntimeProvider getSinkRuntimeProvider(Context context) {
+        DorisOptions sinkOptions = options;
+        DorisOverwriteOptions overwriteOptions = null;
+        Boolean targetUniqueKeyType = null;
+        if (overwrite) {
+            if (!context.isBounded()) {
+                throw new IllegalStateException("Streaming mode not support overwrite.");
+            }
+            Preconditions.checkArgument(
+                    WriteMode.STREAM_LOAD.equals(executionOptions.getWriteMode()),
+                    "INSERT OVERWRITE only supports STREAM_LOAD write mode.");
+            Preconditions.checkArgument(
+                    executionOptions.enabled2PC(),
+                    "INSERT OVERWRITE requires sink.enable-2pc=true.");
+            targetUniqueKeyType = RestService.isUniqueKeyType(options, readOptions, LOG);
+            Preconditions.checkArgument(
+                    !targetUniqueKeyType || executionOptions.force2PC(),
+                    "INSERT OVERWRITE on unique key table requires explicitly setting sink.enable-2pc=true.");
+            DorisPreparedOverwrite preparedOverwrite =
+                    DorisOverwriteManager.prepareOverwrite(options, executionOptions);
+            sinkOptions = preparedOverwrite.getSinkOptions();
+            overwriteOptions = preparedOverwrite.getOverwriteOptions();
+        }
+
         Properties loadProperties = executionOptions.getStreamLoadProp();
         boolean deletable =
                 executionOptions.getDeletable()
-                        && RestService.isUniqueKeyType(options, readOptions, LOG);
+                        && (targetUniqueKeyType == null
+                                ? RestService.isUniqueKeyType(sinkOptions, readOptions, LOG)
+                                : targetUniqueKeyType);
         if (!loadProperties.containsKey(COLUMNS_KEY)) {
             String[] fieldNames = tableSchema.getFieldNames();
             Preconditions.checkState(fieldNames != null && fieldNames.length > 0);
@@ -117,41 +142,13 @@ public class DorisDynamicTableSink implements DynamicTableSink, SupportsOverwrit
 
         DorisSink.Builder<RowData> dorisSinkBuilder = DorisSink.builder();
         dorisSinkBuilder
-                .setDorisOptions(options)
+                .setDorisOptions(sinkOptions)
                 .setDorisReadOptions(readOptions)
                 .setDorisExecutionOptions(executionOptions)
+                .setOverwriteOptions(overwriteOptions)
                 .setSerializer(serializerBuilder.build());
         DorisSink<RowData> dorisSink = dorisSinkBuilder.build();
-
-        // for insert overwrite
-        if (overwrite) {
-            if (context.isBounded()) {
-                // execute jdbc query to truncate table
-                Preconditions.checkArgument(
-                        options.getJdbcUrl() != null, "jdbc-url is required for Overwrite mode.");
-                // todo: should be written to a temporary table first,
-                // and then use GlobalCommitter to perform the rename.
-                truncateTable();
-            } else {
-                throw new IllegalStateException("Streaming mode not support overwrite.");
-            }
-        }
         return SinkV2Provider.of(dorisSink, sinkParallelism);
-    }
-
-    private void truncateTable() {
-        String truncateQuery = "TRUNCATE TABLE " + options.getTableIdentifier();
-        SimpleJdbcConnectionProvider jdbcConnectionProvider =
-                new SimpleJdbcConnectionProvider(options);
-        try (Connection connection = jdbcConnectionProvider.getOrEstablishConnection();
-                Statement statement = connection.createStatement()) {
-            LOG.info("Executing truncate query: {}", truncateQuery);
-            statement.execute(truncateQuery);
-        } catch (Exception e) {
-            LOG.error("Failed to execute truncate query: {}", truncateQuery, e);
-            throw new DorisSystemException(
-                    String.format("Failed to execute truncate query: %s", truncateQuery), e);
-        }
     }
 
     @Override
