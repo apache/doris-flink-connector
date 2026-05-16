@@ -36,6 +36,7 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
 
 import java.io.IOException;
@@ -49,6 +50,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /** test for DorisWriter. */
@@ -225,6 +227,76 @@ public class TestDorisWriter {
 
         Assert.assertEquals(1, writerStates.size());
         Assert.assertEquals("doris", writerStates.get(0).getLabelPrefix());
+    }
+
+    @Test
+    public void testAbortLingeringTransactionsUsesRecoveredWriterIdentity() throws Exception {
+        SinkWriterMetricGroup sinkWriterMetricGroup = mock(SinkWriterMetricGroup.class);
+        dorisOptions.setTableIdentifier("");
+        DorisWriter<String> dorisWriter =
+                new DorisWriter<String>(
+                        1,
+                        3,
+                        sinkWriterMetricGroup,
+                        Collections.emptyList(),
+                        new SimpleStringSerializer(),
+                        dorisOptions,
+                        readOptions,
+                        executionOptions);
+        Map<String, DorisStreamLoad> dorisStreamLoadMap = new ConcurrentHashMap<>();
+        DorisStreamLoad streamLoad = mock(DorisStreamLoad.class);
+        dorisStreamLoadMap.put("db.table", streamLoad);
+        dorisWriter.setDorisStreamLoadMap(dorisStreamLoadMap);
+
+        DorisWriterState recoveredState = new DorisWriterState("old_prefix", "db", "table", 7);
+        dorisWriter.abortLingeringTransactions(Collections.singletonList(recoveredState));
+
+        ArgumentCaptor<LabelGenerator> labelGeneratorCaptor =
+                ArgumentCaptor.forClass(LabelGenerator.class);
+        verify(streamLoad)
+                .abortPreCommit(
+                        org.mockito.ArgumentMatchers.eq("old_prefix"),
+                        org.mockito.ArgumentMatchers.eq(2L),
+                        labelGeneratorCaptor.capture());
+        Assert.assertEquals(
+                "old_prefix_db_table_7_2", labelGeneratorCaptor.getValue().generateTableLabel(2));
+    }
+
+    @Test
+    public void testAbortLingeringTransactionsUsesRecoveredIdentityForFallbackLabel()
+            throws Exception {
+        SinkWriterMetricGroup sinkWriterMetricGroup = mock(SinkWriterMetricGroup.class);
+        dorisOptions.setTableIdentifier("");
+        DorisWriter<String> dorisWriter =
+                new DorisWriter<String>(
+                        1,
+                        3,
+                        sinkWriterMetricGroup,
+                        Collections.emptyList(),
+                        new SimpleStringSerializer(),
+                        dorisOptions,
+                        readOptions,
+                        executionOptions);
+        Map<String, DorisStreamLoad> dorisStreamLoadMap = new ConcurrentHashMap<>();
+        DorisStreamLoad streamLoad = mock(DorisStreamLoad.class);
+        String table =
+                "数据表tabletabletabletabletabletabletabletabletabletabletabletabletabletabletable";
+        dorisStreamLoadMap.put("数据库." + table, streamLoad);
+        dorisWriter.setDorisStreamLoadMap(dorisStreamLoadMap);
+
+        DorisWriterState recoveredState = new DorisWriterState("old_prefix", "数据库", table, 7);
+        dorisWriter.abortLingeringTransactions(Collections.singletonList(recoveredState));
+
+        ArgumentCaptor<LabelGenerator> labelGeneratorCaptor =
+                ArgumentCaptor.forClass(LabelGenerator.class);
+        verify(streamLoad)
+                .abortPreCommit(
+                        org.mockito.ArgumentMatchers.eq("old_prefix"),
+                        org.mockito.ArgumentMatchers.eq(2L),
+                        labelGeneratorCaptor.capture());
+        String label = labelGeneratorCaptor.getValue().generateTableLabel(2);
+        Assert.assertTrue(label.matches("old_prefix_[0-9a-f]{32}_7_2"));
+        Assert.assertEquals(label, labelGeneratorCaptor.getValue().generateTableLabel(2));
     }
 
     public DorisWriteMetrics getMockWriteMetrics(SinkWriterMetricGroup sinkWriterMetricGroup) {

@@ -24,6 +24,7 @@ public class TestLabelGenerator {
 
     private static String UUID_REGEX_WITHOUT_LINE =
             "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
+    private static final String LABEL_REGEX = "[-_A-Za-z0-9:]{1,128}";
 
     @Test
     public void generateTableLabelTest() {
@@ -49,7 +50,21 @@ public class TestLabelGenerator {
         // mock table name chinese and 2pc
         labelGenerator = new LabelGenerator("test001", true, "数据库.数据表", 0);
         label = labelGenerator.generateTableLabel(1);
-        Assert.assertTrue(label.matches("test001_" + UUID_REGEX_WITHOUT_LINE + "_0_1"));
+        Assert.assertTrue(label.matches("test001_[0-9a-f]{32}_0_1"));
+        Assert.assertEquals(label, labelGenerator.generateTableLabel(1));
+        Assert.assertTrue(label.matches(LABEL_REGEX));
+
+        // mock label length more than 128 and 2pc
+        labelGenerator =
+                new LabelGenerator(
+                        "test001",
+                        true,
+                        "db.tabletabletabletabletabletabletabletabletabletabletabletabletabletabletabletabletabletabletabletabletabletabletabletabletabletable",
+                        0);
+        label = labelGenerator.generateTableLabel(1);
+        Assert.assertTrue(label.matches("test001_[0-9a-f]{32}_0_1"));
+        Assert.assertEquals(label, labelGenerator.generateTableLabel(1));
+        Assert.assertTrue(label.matches(LABEL_REGEX));
     }
 
     @Test

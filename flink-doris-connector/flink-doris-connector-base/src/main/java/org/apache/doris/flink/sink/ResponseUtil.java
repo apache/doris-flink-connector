@@ -25,11 +25,14 @@ public class ResponseUtil {
             Pattern.compile("Label \\[(.*)\\] has already been used, relate to txn \\[(\\d+)\\]");
     public static final Pattern COMMITTED_PATTERN =
             Pattern.compile(
-                    "transaction \\[(\\d+)\\] is already \\b(COMMITTED|committed|VISIBLE|visible)\\b, not pre-committed.");
+                    "transaction \\[(\\d+)\\] is already \\b(COMMITTED|committed|VISIBLE|visible)\\b, (not pre-committed|could not abort).");
 
     public static final Pattern ABORTTED_PATTERN =
             Pattern.compile(
                     "transaction \\[(\\d+)\\] is already|transaction \\[(\\d+)\\] not found");
+
+    public static final Pattern ALREADY_ABORTED_PATTERN =
+            Pattern.compile("transaction \\[(\\d+)\\] is already \\b(ABORTED|aborted)\\b");
 
     public static boolean isCommitted(String msg) {
         return COMMITTED_PATTERN.matcher(msg).find();
@@ -37,6 +40,10 @@ public class ResponseUtil {
 
     public static boolean isAborted(String msg) {
         return ABORTTED_PATTERN.matcher(msg).find();
+    }
+
+    public static boolean isAlreadyAborted(String msg) {
+        return ALREADY_ABORTED_PATTERN.matcher(msg).find();
     }
 
     static final Pattern COPY_COMMITTED_PATTERN =
