@@ -45,8 +45,9 @@ public class DorisExecutionOptions implements Serializable {
 
     private final Boolean enableDelete;
 
+    private final String labelPrefix;
 
-    public DorisExecutionOptions(Integer batchSize, Integer maxRetries, Long batchIntervalMs, Properties streamLoadProp, Boolean enableDelete, Long maxBatchBytes) {
+    public DorisExecutionOptions(Integer batchSize, Integer maxRetries, Long batchIntervalMs, Properties streamLoadProp, Boolean enableDelete, Long maxBatchBytes, String labelPrefix) {
         Preconditions.checkArgument(maxRetries >= 0);
         Preconditions.checkArgument(maxBatchBytes >= 0);
         this.batchSize = batchSize;
@@ -55,6 +56,7 @@ public class DorisExecutionOptions implements Serializable {
         this.streamLoadProp = streamLoadProp;
         this.enableDelete = enableDelete;
         this.maxBatchBytes = maxBatchBytes;
+        this.labelPrefix = labelPrefix;
     }
 
     public static Builder builder() {
@@ -92,6 +94,10 @@ public class DorisExecutionOptions implements Serializable {
         return maxBatchBytes;
     }
 
+    public String getLabelPrefix() {
+        return labelPrefix;
+    }
+
     /**
      * Builder of {@link DorisExecutionOptions}.
      */
@@ -102,6 +108,7 @@ public class DorisExecutionOptions implements Serializable {
         private Properties streamLoadProp = new Properties();
         private Boolean enableDelete = false;
         private Long maxBatchBytes = DEFAULT_MAX_BATCH_BYTES;
+        private String labelPrefix;
 
         public Builder setBatchSize(Integer batchSize) {
             this.batchSize = batchSize;
@@ -133,8 +140,13 @@ public class DorisExecutionOptions implements Serializable {
             return this;
         }
 
+        public Builder setLabelPrefix(String labelPrefix) {
+            this.labelPrefix = labelPrefix;
+            return this;
+        }
+
         public DorisExecutionOptions build() {
-            return new DorisExecutionOptions(batchSize, maxRetries, batchIntervalMs, streamLoadProp, enableDelete, maxBatchBytes);
+            return new DorisExecutionOptions(batchSize, maxRetries, batchIntervalMs, streamLoadProp, enableDelete, maxBatchBytes, labelPrefix);
         }
     }
 

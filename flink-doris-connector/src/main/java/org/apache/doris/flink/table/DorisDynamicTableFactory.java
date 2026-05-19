@@ -147,6 +147,11 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
             .defaultValue(DorisExecutionOptions.DEFAULT_MAX_BATCH_BYTES)
             .withDescription("the flush max bytes (includes all append, upsert and delete records), over this number" +
                     " in batch, will flush data. The default value is 10MB.");
+    private static final ConfigOption<String> SINK_LABEL_PREFIX = ConfigOptions
+            .key("sink.label-prefix")
+            .stringType()
+            .noDefaultValue()
+            .withDescription("the label prefix for stream load, the default value is flink_connector");
 
     @Override
     public String factoryIdentifier() {
@@ -186,6 +191,7 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
         options.add(SINK_BUFFER_FLUSH_INTERVAL);
         options.add(SINK_ENABLE_DELETE);
         options.add(SINK_BUFFER_FLUSH_MAX_BYTES);
+        options.add(SINK_LABEL_PREFIX);
         return options;
     }
 
@@ -243,6 +249,7 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
         builder.setStreamLoadProp(streamLoadProp);
         builder.setEnableDelete(readableConfig.get(SINK_ENABLE_DELETE));
         builder.setMaxBatchBytes(readableConfig.get(SINK_BUFFER_FLUSH_MAX_BYTES));
+        readableConfig.getOptional(SINK_LABEL_PREFIX).ifPresent(builder::setLabelPrefix);
         return builder.build();
     }
 

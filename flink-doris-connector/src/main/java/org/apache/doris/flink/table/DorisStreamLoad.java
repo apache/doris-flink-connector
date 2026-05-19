@@ -40,10 +40,8 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -68,9 +66,11 @@ public class DorisStreamLoad implements Serializable {
     private String tbl;
     private String authEncoding;
     private Properties streamLoadProp;
+    private static final String LABEL_PREFIX_DEFAULT = "flink_connector";
+    private String labelPrefix;
     private final HttpClientBuilder httpClientBuilder;
 
-    public DorisStreamLoad(String hostPort, String db, String tbl, String user, String passwd, Properties streamLoadProp, DorisReadOptions readOptions) {
+    public DorisStreamLoad(String hostPort, String db, String tbl, String user, String passwd, Properties streamLoadProp, DorisReadOptions readOptions, String labelPrefix) {
         this.hostPort = hostPort;
         this.db = db;
         this.tbl = tbl;
@@ -79,6 +79,7 @@ public class DorisStreamLoad implements Serializable {
         this.loadUrlStr = String.format(loadUrlPattern, hostPort, db, tbl);
         this.authEncoding = basicAuthHeader(user, passwd);
         this.streamLoadProp = streamLoadProp;
+        this.labelPrefix = StringUtils.isBlank(labelPrefix) ? LABEL_PREFIX_DEFAULT : labelPrefix;
         int connectTimeout = readOptions.getRequestConnectTimeoutMs() == null ? ConfigurationOptions.DORIS_REQUEST_CONNECT_TIMEOUT_MS_DEFAULT : readOptions.getRequestConnectTimeoutMs();
         int socketTimeout = readOptions.getRequestReadTimeoutMs() == null ? ConfigurationOptions.DORIS_REQUEST_READ_TIMEOUT_MS_DEFAULT : readOptions.getRequestReadTimeoutMs();
         this.httpClientBuilder = HttpClients
@@ -127,9 +128,7 @@ public class DorisStreamLoad implements Serializable {
     private LoadResponse loadBatch(String value) {
         String label = streamLoadProp.getProperty("label");
         if (StringUtils.isBlank(label)) {
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd_HHmmss");
-            String formatDate = sdf.format(new Date());
-            label = String.format("flink_connector_%s_%s", formatDate,
+            label = String.format("%s_%s", labelPrefix,
                     UUID.randomUUID().toString().replaceAll("-", ""));
         }
 
