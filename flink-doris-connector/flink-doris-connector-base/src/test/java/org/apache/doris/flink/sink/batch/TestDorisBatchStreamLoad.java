@@ -91,6 +91,13 @@ public class TestDorisBatchStreamLoad {
     }
 
     @Test
+    public void testBuildEncodedLoadUrl() {
+        Assert.assertEquals(
+                "http://127.0.0.1:8040/api/ods/ods_%E6%96%B0%E5%88%B8%E8%A1%A8_copy1/_stream_load",
+                DorisBatchStreamLoad.buildLoadUrl("127.0.0.1:8040", "ods", "ods_新券表_copy1"));
+    }
+
+    @Test
     public void testLoadFail() throws Exception {
         LOG.info("testLoadFail start");
         DorisReadOptions readOptions = DorisReadOptions.builder().build();

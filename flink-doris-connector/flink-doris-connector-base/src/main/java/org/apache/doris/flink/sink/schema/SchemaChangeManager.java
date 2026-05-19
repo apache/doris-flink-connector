@@ -17,6 +17,7 @@
 
 package org.apache.doris.flink.sink.schema;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.StringUtils;
 
@@ -35,6 +36,7 @@ import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.rest.models.Field;
 import org.apache.doris.flink.rest.models.Schema;
 import org.apache.doris.flink.sink.HttpGetWithEntity;
+import org.apache.doris.flink.util.DorisUrlUtils;
 import org.apache.http.HttpHeaders;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPost;
@@ -56,9 +58,6 @@ import java.util.Optional;
 public class SchemaChangeManager implements Serializable {
     private static final long serialVersionUID = 1L;
     private static final Logger LOG = LoggerFactory.getLogger(SchemaChangeManager.class);
-    private static final String CHECK_SCHEMA_CHANGE_API =
-            "http://%s/api/enable_light_schema_change/%s/%s";
-    private static final String SCHEMA_CHANGE_API = "http://%s/api/query/default_cluster/%s";
     private ObjectMapper objectMapper = new ObjectMapper();
     private DorisOptions dorisOptions;
     private String charsetEncoding = "UTF-8";
@@ -209,12 +208,7 @@ public class SchemaChangeManager implements Serializable {
         if (CollectionUtil.isNullOrEmpty(params)) {
             return false;
         }
-        String requestUrl =
-                String.format(
-                        CHECK_SCHEMA_CHANGE_API,
-                        RestService.randomEndpoint(dorisOptions.getFenodes(), LOG),
-                        database,
-                        table);
+        String requestUrl = buildCheckSchemaChangeUrl(database, table);
         HttpGetWithEntity httpGet = new HttpGetWithEntity(requestUrl);
         httpGet.setHeader(HttpHeaders.AUTHORIZATION, authHeader());
         httpGet.setEntity(
@@ -277,11 +271,7 @@ public class SchemaChangeManager implements Serializable {
             throws IllegalArgumentException, IOException {
         Map<String, String> param = new HashMap<>();
         param.put("stmt", ddl);
-        String requestUrl =
-                String.format(
-                        SCHEMA_CHANGE_API,
-                        RestService.randomEndpoint(dorisOptions.getFenodes(), LOG),
-                        database);
+        String requestUrl = buildSchemaChangeUrl(database);
         HttpPost httpPost = new HttpPost(requestUrl);
         httpPost.setHeader(HttpHeaders.AUTHORIZATION, authHeader());
         httpPost.setHeader(
@@ -290,6 +280,27 @@ public class SchemaChangeManager implements Serializable {
         httpPost.setEntity(
                 new StringEntity(objectMapper.writeValueAsString(param), charsetEncoding));
         return httpPost;
+    }
+
+    @VisibleForTesting
+    String buildCheckSchemaChangeUrl(String database, String table)
+            throws IllegalArgumentException {
+        return DorisUrlUtils.buildHttpUrl(
+                RestService.randomEndpoint(dorisOptions.getFenodes(), LOG),
+                "api",
+                "enable_light_schema_change",
+                database,
+                table);
+    }
+
+    @VisibleForTesting
+    String buildSchemaChangeUrl(String database) throws IllegalArgumentException {
+        return DorisUrlUtils.buildHttpUrl(
+                RestService.randomEndpoint(dorisOptions.getFenodes(), LOG),
+                "api",
+                "query",
+                "default_cluster",
+                database);
     }
 
     private String handleResponse(HttpUriRequest request) {
