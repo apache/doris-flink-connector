@@ -64,6 +64,7 @@ public class MongoDBJsonDebeziumSchemaSerializer implements DorisRecordSerialize
     private String targetTablePrefix;
     private String targetTableSuffix;
     private TableNameConverter tableNameConverter;
+    private String timeZone;
 
     public MongoDBJsonDebeziumSchemaSerializer(
             DorisOptions dorisOptions,
@@ -75,7 +76,8 @@ public class MongoDBJsonDebeziumSchemaSerializer implements DorisRecordSerialize
             String targetDatabase,
             String targetTablePrefix,
             String targetTableSuffix,
-            TableNameConverter tableNameConverter) {
+            TableNameConverter tableNameConverter,
+            String timeZone) {
         this.dorisOptions = dorisOptions;
         this.pattern = pattern;
         this.sourceTableName = sourceTableName;
@@ -89,6 +91,7 @@ public class MongoDBJsonDebeziumSchemaSerializer implements DorisRecordSerialize
         this.targetTablePrefix = targetTablePrefix;
         this.targetTableSuffix = targetTableSuffix;
         this.tableNameConverter = tableNameConverter;
+        this.timeZone = timeZone;
         if (executionOptions != null) {
             this.lineDelimiter =
                     executionOptions
@@ -114,8 +117,9 @@ public class MongoDBJsonDebeziumSchemaSerializer implements DorisRecordSerialize
                         ignoreUpdateBefore,
                         targetTablePrefix,
                         targetTableSuffix,
-                        enableDelete);
-        changeContext.setTableNameConverter(tableNameConverter);
+                        enableDelete,
+                        tableNameConverter,
+                        timeZone);
         this.dataChange = new MongoJsonDebeziumDataChange(changeContext);
         this.schemaChange = new MongoJsonDebeziumSchemaChange(changeContext);
     }
@@ -149,6 +153,7 @@ public class MongoDBJsonDebeziumSchemaSerializer implements DorisRecordSerialize
         private String targetTablePrefix = "";
         private String targetTableSuffix = "";
         private TableNameConverter tableNameConverter;
+        private String timeZone;
 
         public MongoDBJsonDebeziumSchemaSerializer.Builder setDorisOptions(
                 DorisOptions dorisOptions) {
@@ -216,6 +221,11 @@ public class MongoDBJsonDebeziumSchemaSerializer implements DorisRecordSerialize
             return this;
         }
 
+        public MongoDBJsonDebeziumSchemaSerializer.Builder setTimeZone(String timeZone) {
+            this.timeZone = timeZone;
+            return this;
+        }
+
         public MongoDBJsonDebeziumSchemaSerializer build() {
             return new MongoDBJsonDebeziumSchemaSerializer(
                     dorisOptions,
@@ -227,7 +237,8 @@ public class MongoDBJsonDebeziumSchemaSerializer implements DorisRecordSerialize
                     targetDatabase,
                     targetTablePrefix,
                     targetTableSuffix,
-                    tableNameConverter);
+                    tableNameConverter,
+                    timeZone);
         }
     }
 }
