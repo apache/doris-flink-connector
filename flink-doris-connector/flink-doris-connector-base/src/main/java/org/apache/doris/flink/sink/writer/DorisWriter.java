@@ -153,7 +153,14 @@ public class DorisWriter<IN> {
             }
             String key = state.getDatabase() + "." + state.getTable();
             DorisStreamLoad streamLoader = getStreamLoader(key);
-            streamLoader.abortPreCommit(state.getLabelPrefix(), curCheckpointId);
+            LabelGenerator recoveredLabelGenerator =
+                    new LabelGenerator(
+                            state.getLabelPrefix(),
+                            executionOptions.enabled2PC(),
+                            key,
+                            state.getSubtaskId());
+            streamLoader.abortPreCommit(
+                    state.getLabelPrefix(), curCheckpointId, recoveredLabelGenerator);
             alreadyAborts.add(state.getLabelPrefix());
         }
 
@@ -305,6 +312,7 @@ public class DorisWriter<IN> {
                         new DorisStreamLoad(
                                 backendUtil.getAvailableBackend(subtaskId),
                                 dorisOptions,
+                                dorisReadOptions,
                                 executionOptions,
                                 labelGenerator,
                                 new HttpUtil(dorisReadOptions, executionOptions.isHttpUtf8Charset())

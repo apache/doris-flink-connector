@@ -129,6 +129,21 @@ public class TestRestService {
     }
 
     @Test
+    public void testParseLoadState() throws Exception {
+        Assert.assertEquals(
+                LoadState.PRECOMMITTED, RestService.parseLoadState("PRECOMMITTED", logger));
+        Assert.assertEquals(LoadState.ABORTED, RestService.parseLoadState("\"ABORTED\"", logger));
+        Assert.assertEquals(
+                LoadState.VISIBLE,
+                RestService.parseLoadState(
+                        "{\"code\":0,\"msg\":\"OK\",\"data\":\"VISIBLE\"}", logger));
+
+        thrown.expect(DorisException.class);
+        thrown.expectMessage(startsWith("Unknown stream load transaction state"));
+        RestService.parseLoadState("NOT_A_STATE", logger);
+    }
+
+    @Test
     public void testChoiceFe() throws Exception {
         String validFes = "1,2,3";
         String fe = RestService.randomEndpoint(validFes, logger);
