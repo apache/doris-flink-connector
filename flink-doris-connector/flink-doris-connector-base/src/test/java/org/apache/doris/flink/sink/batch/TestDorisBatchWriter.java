@@ -20,6 +20,7 @@ package org.apache.doris.flink.sink.batch;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
+import org.apache.doris.flink.rest.models.BackendV2;
 import org.apache.doris.flink.sink.BackendUtil;
 import org.apache.doris.flink.sink.writer.serializer.DorisRecord;
 import org.apache.doris.flink.sink.writer.serializer.SimpleStringSerializer;
@@ -29,6 +30,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.mockito.MockedStatic;
+
+import java.util.Collections;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mockStatic;
@@ -42,6 +45,12 @@ public class TestDorisBatchWriter {
     @Before
     public void setUp() throws Exception {
         backendUtilMockedStatic = mockStatic(BackendUtil.class);
+        backendUtilMockedStatic
+                .when(() -> BackendUtil.getInstance(any(), any(), any(), any()))
+                .thenReturn(
+                        new BackendUtil(
+                                Collections.singletonList(
+                                        BackendV2.BackendRowV2.of("127.0.0.1", 8040, true))));
         backendUtilMockedStatic.when(() -> BackendUtil.tryHttpConnection(any())).thenReturn(true);
     }
 

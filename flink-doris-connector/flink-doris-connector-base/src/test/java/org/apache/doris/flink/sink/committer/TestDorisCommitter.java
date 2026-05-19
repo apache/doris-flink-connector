@@ -80,6 +80,12 @@ public class TestDorisCommitter {
                 .thenReturn(
                         Collections.singletonList(
                                 BackendV2.BackendRowV2.of("127.0.0.1", 8040, true)));
+        backendUtilMockedStatic
+                .when(() -> BackendUtil.getInstance(any(), any(), any(), any()))
+                .thenReturn(
+                        new BackendUtil(
+                                Collections.singletonList(
+                                        BackendV2.BackendRowV2.of("127.0.0.1", 8040, true))));
         backendUtilMockedStatic.when(() -> BackendUtil.tryHttpConnection(any())).thenReturn(true);
 
         dorisCommitter =

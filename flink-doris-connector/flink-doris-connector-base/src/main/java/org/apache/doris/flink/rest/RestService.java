@@ -91,8 +91,11 @@ public class RestService implements Serializable {
     private static final String UNIQUE_KEYS_TYPE = "UNIQUE_KEYS";
     @Deprecated private static final String BACKENDS = "/rest/v1/system?path=//backends";
     private static final String BACKENDS_V2 = "/api/backends?is_alive=true";
+    private static final String MANAGER_BACKENDS = "/rest/v2/manager/node/backends";
     private static final String FE_LOGIN = "/rest/v1/login";
     private static final ObjectMapper objectMapper = new ObjectMapper();
+    private static final String COMPUTE_GROUP_NAME = "compute_group_name";
+    private static final String CLOUD_CLUSTER_NAME = "cloud_cluster_name";
     private static final String TABLE_SCHEMA_API = "http://%s/api/%s/%s/_schema";
     private static final String CATALOG_TABLE_SCHEMA_API = "http://%s/api/%s/%s/%s/_schema";
     private static final String QUERY_PLAN_API = "http://%s/api/%s/%s/_query_plan";
@@ -113,6 +116,16 @@ public class RestService implements Serializable {
             DorisReadOptions readOptions,
             HttpRequestBase request,
             Logger logger)
+            throws ConnectedFailedException {
+        return send(options, readOptions, request, logger, true);
+    }
+
+    private static String send(
+            DorisOptions options,
+            DorisReadOptions readOptions,
+            HttpRequestBase request,
+            Logger logger,
+            boolean unwrapData)
             throws ConnectedFailedException {
         int connectTimeout =
                 readOptions.getRequestConnectTimeoutMs() == null
@@ -169,7 +182,7 @@ public class RestService implements Serializable {
                 // Handle the problem of inconsistent data format returned by http v1 and v2
                 ObjectMapper mapper = new ObjectMapper();
                 Map map = mapper.readValue(response, Map.class);
-                if (map.containsKey("code") && map.containsKey("msg")) {
+                if (unwrapData && map.containsKey("code") && map.containsKey("msg")) {
                     Object data = map.get("data");
                     return mapper.writeValueAsString(data);
                 } else {
@@ -324,11 +337,25 @@ public class RestService implements Serializable {
     @VisibleForTesting
     public static List<BackendRowV2> getBackendsV2(
             DorisOptions options, DorisReadOptions readOptions, Logger logger) {
+        return getBackendsV2(options, readOptions, null, logger);
+    }
+
+    @VisibleForTesting
+    public static List<BackendRowV2> getBackendsV2(
+            DorisOptions options,
+            DorisReadOptions readOptions,
+            String computeGroupName,
+            Logger logger) {
         String feNodes = options.getFenodes();
         List<String> feNodeList = allEndpoints(feNodes, logger);
 
         if (options.isAutoRedirect() && !feNodeList.isEmpty()) {
             return convert(feNodeList);
+        }
+
+        if (StringUtils.isNotBlank(computeGroupName)) {
+            return getManagerBackendsByComputeGroup(
+                    options, readOptions, feNodeList, computeGroupName, logger);
         }
 
         for (String feNode : feNodeList) {
@@ -347,6 +374,34 @@ public class RestService implements Serializable {
             }
         }
         String errMsg = "No Doris FE is available, please check configuration";
+        logger.error(errMsg);
+        throw new DorisRuntimeException(errMsg);
+    }
+
+    private static List<BackendRowV2> getManagerBackendsByComputeGroup(
+            DorisOptions options,
+            DorisReadOptions readOptions,
+            List<String> feNodeList,
+            String computeGroupName,
+            Logger logger) {
+        for (String feNode : feNodeList) {
+            try {
+                String beUrl = "http://" + feNode + MANAGER_BACKENDS;
+                HttpGet httpGet = new HttpGet(beUrl);
+                String response = send(options, readOptions, httpGet, logger, false);
+                logger.info("Manager backend info:{}", response);
+                return parseManagerBackends(response, logger, computeGroupName);
+            } catch (ConnectedFailedException e) {
+                logger.info(
+                        "Doris FE node {} is unavailable: {}, Request the next Doris FE node",
+                        feNode,
+                        e.getMessage());
+            }
+        }
+        String errMsg =
+                String.format(
+                        "No Doris FE is available to request %s for compute group '%s'.",
+                        MANAGER_BACKENDS, computeGroupName);
         logger.error(errMsg);
         throw new DorisRuntimeException(errMsg);
     }
@@ -387,6 +442,184 @@ public class RestService implements Serializable {
         List<BackendRowV2> backendRows = backend.getBackends();
         logger.debug("Parsing schema result is '{}'.", backendRows);
         return backendRows;
+    }
+
+    @VisibleForTesting
+    static List<BackendRowV2> parseManagerBackends(
+            String response, Logger logger, String computeGroupName) {
+        if (StringUtils.isBlank(computeGroupName)) {
+            throw managerBackendsException(computeGroupName, "compute group is empty");
+        }
+
+        JsonNode rootNode = parseJsonResponse(response, computeGroupName, logger);
+        JsonNode dataNode = unwrapManagerBackendData(rootNode, computeGroupName);
+        JsonNode columnNode = dataNode.path("columnNames");
+        if (!columnNode.isArray()) {
+            columnNode = dataNode.path("column_names");
+        }
+        JsonNode rowNode = dataNode.path("rows");
+        if (!columnNode.isArray() || !rowNode.isArray()) {
+            throw managerBackendsException(
+                    computeGroupName,
+                    "response does not contain columnNames/column_names and rows");
+        }
+
+        Map<String, Integer> columnIndexes = getColumnIndexes(columnNode, computeGroupName);
+        int hostIndex = requireColumn(columnIndexes, "Host", computeGroupName);
+        int httpPortIndex = requireColumn(columnIndexes, "HttpPort", computeGroupName);
+        int aliveIndex = requireColumn(columnIndexes, "Alive", computeGroupName);
+        int tagIndex = requireColumn(columnIndexes, "Tag", computeGroupName);
+
+        List<BackendRowV2> backends = new ArrayList<>();
+        for (JsonNode row : rowNode) {
+            if (!row.isArray()) {
+                throw managerBackendsException(computeGroupName, "backend row is not an array");
+            }
+            if (!Boolean.parseBoolean(getManagerBackendCell(row, aliveIndex))) {
+                continue;
+            }
+            String tag = getManagerBackendCell(row, tagIndex);
+            String rowComputeGroupName = getComputeGroupNameFromTag(tag);
+            if (!computeGroupName.equals(rowComputeGroupName)) {
+                continue;
+            }
+
+            String host = getManagerBackendCell(row, hostIndex);
+            String httpPort = getManagerBackendCell(row, httpPortIndex);
+            try {
+                BackendRowV2 backend = BackendRowV2.of(host, Integer.parseInt(httpPort), true);
+                backends.add(backend);
+            } catch (NumberFormatException e) {
+                throw managerBackendsException(
+                        computeGroupName, "backend HttpPort is invalid: " + httpPort);
+            }
+        }
+
+        if (backends.isEmpty()) {
+            throw managerBackendsException(
+                    computeGroupName,
+                    "no alive backend found. If the target is a virtual compute group, configure its physical active compute group");
+        }
+        logger.debug("Parsing manager backend result is '{}'.", backends);
+        return backends;
+    }
+
+    private static JsonNode parseJsonResponse(
+            String response, String computeGroupName, Logger logger) {
+        try {
+            return objectMapper.readTree(response);
+        } catch (IOException e) {
+            String errMsg = "Parse Doris manager backend response to json failed. res: " + response;
+            logger.error(errMsg, e);
+            throw managerBackendsException(computeGroupName, errMsg);
+        }
+    }
+
+    private static JsonNode unwrapManagerBackendData(JsonNode rootNode, String computeGroupName) {
+        if (rootNode.has("code") && rootNode.has("msg")) {
+            if (rootNode.path("code").asInt() != REST_RESPONSE_CODE_OK) {
+                throw managerBackendsException(
+                        computeGroupName,
+                        rootNode.path("msg").asText() + ": " + rootNode.path("data").asText());
+            }
+            return rootNode.path("data");
+        }
+        return rootNode;
+    }
+
+    private static Map<String, Integer> getColumnIndexes(
+            JsonNode columnNode, String computeGroupName) {
+        Map<String, Integer> columnIndexes = new HashMap<>();
+        for (int i = 0; i < columnNode.size(); i++) {
+            String columnName = columnNode.get(i).asText();
+            if (StringUtils.isNotBlank(columnName)) {
+                columnIndexes.put(columnName.toLowerCase(), i);
+            }
+        }
+        if (columnIndexes.isEmpty()) {
+            throw managerBackendsException(computeGroupName, "backend columns are empty");
+        }
+        return columnIndexes;
+    }
+
+    private static int requireColumn(
+            Map<String, Integer> columnIndexes, String columnName, String computeGroupName) {
+        Integer index = columnIndexes.get(columnName.toLowerCase());
+        if (index == null) {
+            throw managerBackendsException(
+                    computeGroupName, "backend response missing required column " + columnName);
+        }
+        return index;
+    }
+
+    private static String getManagerBackendCell(JsonNode row, int index) {
+        JsonNode cell = row.get(index);
+        if (cell == null || cell.isNull()) {
+            return "";
+        }
+        return cell.asText();
+    }
+
+    @VisibleForTesting
+    static String getComputeGroupNameFromTag(String tag) {
+        Map<String, String> tagMap = parseBackendTag(tag);
+        String computeGroupName = tagMap.get(COMPUTE_GROUP_NAME);
+        if (StringUtils.isNotBlank(computeGroupName)) {
+            return computeGroupName;
+        }
+        return tagMap.get(CLOUD_CLUSTER_NAME);
+    }
+
+    private static Map<String, String> parseBackendTag(String tag) {
+        Map<String, String> tagMap = new HashMap<>();
+        if (StringUtils.isBlank(tag)) {
+            return tagMap;
+        }
+
+        try {
+            JsonNode tagNode = objectMapper.readTree(tag);
+            if (tagNode.isObject()) {
+                tagNode.fields()
+                        .forEachRemaining(
+                                entry -> tagMap.put(entry.getKey(), entry.getValue().asText()));
+                return tagMap;
+            }
+        } catch (IOException e) {
+            // Fall through to parse Doris PrintableMap style tag strings.
+        }
+
+        String tagContent = tag.trim();
+        if (tagContent.startsWith("{") && tagContent.endsWith("}")) {
+            tagContent = tagContent.substring(1, tagContent.length() - 1);
+        }
+        for (String entry : tagContent.split(",")) {
+            String[] keyValue = entry.split(":", 2);
+            if (keyValue.length != 2) {
+                continue;
+            }
+            tagMap.put(stripQuote(keyValue[0]), stripQuote(keyValue[1]));
+        }
+        return tagMap;
+    }
+
+    private static String stripQuote(String value) {
+        String result = value.trim();
+        if (result.length() >= 2) {
+            char first = result.charAt(0);
+            char last = result.charAt(result.length() - 1);
+            if ((first == '"' && last == '"') || (first == '\'' && last == '\'')) {
+                return result.substring(1, result.length() - 1);
+            }
+        }
+        return result;
+    }
+
+    private static DorisRuntimeException managerBackendsException(
+            String computeGroupName, String reason) {
+        return new DorisRuntimeException(
+                String.format(
+                        "Failed to get backends for compute group '%s' from %s: %s. Required privileges: information_schema SELECT on Doris 3.x/4.x, or ADMIN on Doris 2.1.",
+                        computeGroupName, MANAGER_BACKENDS, reason));
     }
 
     /**

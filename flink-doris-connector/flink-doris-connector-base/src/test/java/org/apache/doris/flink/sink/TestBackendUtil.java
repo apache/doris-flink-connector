@@ -17,7 +17,11 @@
 
 package org.apache.doris.flink.sink;
 
+import org.apache.doris.flink.cfg.DorisExecutionOptions;
+import org.apache.doris.flink.cfg.DorisOptions;
+import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.exception.DorisRuntimeException;
+import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.rest.models.BackendV2;
 import org.junit.After;
 import org.junit.Assert;
@@ -27,8 +31,10 @@ import org.mockito.MockedStatic;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Properties;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mockStatic;
 
 public class TestBackendUtil {
@@ -38,6 +44,9 @@ public class TestBackendUtil {
     @Before
     public void setUp() throws Exception {
         backendUtilMockedStatic = mockStatic(BackendUtil.class);
+        backendUtilMockedStatic
+                .when(() -> BackendUtil.getLoadTargetComputeGroup(any()))
+                .thenCallRealMethod();
     }
 
     @Test
@@ -84,6 +93,44 @@ public class TestBackendUtil {
     public void testInitBackends() {
         BackendUtil backendUtil = new BackendUtil("127.0.0.1:1");
         Assert.assertTrue(backendUtil.getBackends().isEmpty());
+    }
+
+    @Test
+    public void testGetLoadTargetComputeGroup() {
+        Properties loadProps = new Properties();
+        loadProps.setProperty("cloud_cluster", "cluster_a");
+        Assert.assertEquals("cluster_a", BackendUtil.getLoadTargetComputeGroup(loadProps));
+
+        loadProps.setProperty("compute_group", "cluster_b");
+        Assert.assertEquals("cluster_b", BackendUtil.getLoadTargetComputeGroup(loadProps));
+    }
+
+    @Test
+    public void testGetInstanceUsesLoadTargetComputeGroup() {
+        backendUtilMockedStatic
+                .when(() -> BackendUtil.getInstance(any(), any(), any(), any()))
+                .thenCallRealMethod();
+
+        DorisOptions dorisOptions = DorisOptions.builder().setFenodes("127.0.0.1:8030").build();
+        DorisReadOptions readOptions = DorisReadOptions.defaults();
+        Properties loadProps = new Properties();
+        loadProps.setProperty("cloud_cluster", "cluster_a");
+        loadProps.setProperty("compute_group", "cluster_b");
+        DorisExecutionOptions executionOptions =
+                DorisExecutionOptions.builder().setStreamLoadProp(loadProps).build();
+
+        try (MockedStatic<RestService> restServiceMockedStatic = mockStatic(RestService.class)) {
+            restServiceMockedStatic
+                    .when(() -> RestService.getBackendsV2(any(), any(), any(), any()))
+                    .thenReturn(Arrays.asList(newBackend("127.0.0.1", 8040)));
+
+            BackendUtil backendUtil =
+                    BackendUtil.getInstance(dorisOptions, readOptions, executionOptions, null);
+
+            Assert.assertEquals(1, backendUtil.getBackends().size());
+            restServiceMockedStatic.verify(
+                    () -> RestService.getBackendsV2(any(), any(), eq("cluster_b"), any()));
+        }
     }
 
     private BackendV2.BackendRowV2 newBackend(String host, int port) {
