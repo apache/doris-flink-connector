@@ -82,6 +82,27 @@ public class DorisConfigOptions {
                     .defaultValue(true)
                     .withDescription(
                             "Use automatic redirection of fe without explicitly obtaining the be list");
+    public static final ConfigOption<Boolean> DORIS_ENABLE_HTTPS =
+            ConfigOptions.key("doris.enable.https")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription("Whether to enable HTTPS for Doris HTTP REST requests.");
+    public static final ConfigOption<String> DORIS_HTTPS_KEY_STORE_PATH =
+            ConfigOptions.key("doris.https.key-store-path")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Key store path used as trust material for Doris HTTPS requests.");
+    public static final ConfigOption<String> DORIS_HTTPS_KEY_STORE_TYPE =
+            ConfigOptions.key("doris.https.key-store-type")
+                    .stringType()
+                    .defaultValue("JKS")
+                    .withDescription("Key store type used for Doris HTTPS requests.");
+    public static final ConfigOption<String> DORIS_HTTPS_KEY_STORE_PASSWORD =
+            ConfigOptions.key("doris.https.key-store-password")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("Key store password used for Doris HTTPS requests.");
 
     // source config options
     // This is compatible with the previous writing method.

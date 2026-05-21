@@ -32,6 +32,7 @@ import org.apache.doris.flink.catalog.doris.DorisSystem;
 import org.apache.doris.flink.catalog.doris.TableSchema;
 import org.apache.doris.flink.cfg.DorisConnectionOptions;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
+import org.apache.doris.flink.cfg.DorisHttpOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.sink.DorisSink;
@@ -224,7 +225,8 @@ public abstract class DatabaseSync {
                         .withBenodes(benodes)
                         .withUsername(user)
                         .withPassword(passwd)
-                        .withJdbcUrl(jdbcUrl);
+                        .withJdbcUrl(jdbcUrl)
+                        .withHttpOptions(getDorisHttpOptions());
         return builder.build();
     }
 
@@ -251,6 +253,7 @@ public abstract class DatabaseSync {
                 .setJdbcUrl(jdbcUrl)
                 .setFenodes(fenodes)
                 .setBenodes(benodes)
+                .setHttpOptions(getDorisHttpOptions())
                 .setUsername(user)
                 .setPassword(passwd);
         sinkConfig
@@ -336,6 +339,14 @@ public abstract class DatabaseSync {
                 .setSerializer(buildSchemaSerializer(dorisBuilder, executionOptions))
                 .setDorisOptions(dorisBuilder.build());
         return builder.build();
+    }
+
+    private DorisHttpOptions getDorisHttpOptions() {
+        return new DorisHttpOptions(
+                sinkConfig.getBoolean(DorisConfigOptions.DORIS_ENABLE_HTTPS),
+                sinkConfig.getString(DorisConfigOptions.DORIS_HTTPS_KEY_STORE_PATH),
+                sinkConfig.getString(DorisConfigOptions.DORIS_HTTPS_KEY_STORE_TYPE),
+                sinkConfig.getString(DorisConfigOptions.DORIS_HTTPS_KEY_STORE_PASSWORD));
     }
 
     public DorisRecordSerializer<String> buildSchemaSerializer(

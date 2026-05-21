@@ -20,6 +20,7 @@ package org.apache.doris.flink.sink;
 import org.apache.flink.annotation.VisibleForTesting;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.doris.flink.cfg.DorisHttpOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.exception.DorisRuntimeException;
@@ -29,8 +30,6 @@ import org.apache.doris.flink.rest.models.BackendV2.BackendRowV2;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -38,14 +37,33 @@ import java.util.List;
 public class BackendUtil {
     private static final Logger LOG = LoggerFactory.getLogger(BackendUtil.class);
     private final List<BackendV2.BackendRowV2> backends;
+    private final DorisHttpOptions httpOptions;
     private long pos;
 
     public BackendUtil(List<BackendV2.BackendRowV2> backends) {
+        this(backends, DorisHttpOptions.defaults());
+    }
+
+    public BackendUtil(List<BackendV2.BackendRowV2> backends, boolean enableHttps) {
+        this(backends, DorisHttpOptions.of(enableHttps));
+    }
+
+    public BackendUtil(List<BackendV2.BackendRowV2> backends, DorisHttpOptions httpOptions) {
         this.backends = backends;
+        this.httpOptions = httpOptions == null ? DorisHttpOptions.defaults() : httpOptions;
         this.pos = 0;
     }
 
     public BackendUtil(String beNodes) {
+        this(beNodes, DorisHttpOptions.defaults());
+    }
+
+    public BackendUtil(String beNodes, boolean enableHttps) {
+        this(beNodes, DorisHttpOptions.of(enableHttps));
+    }
+
+    public BackendUtil(String beNodes, DorisHttpOptions httpOptions) {
+        this.httpOptions = httpOptions == null ? DorisHttpOptions.defaults() : httpOptions;
         this.backends = initBackends(beNodes);
         this.pos = 0;
     }
@@ -55,7 +73,7 @@ public class BackendUtil {
         List<String> nodes = Arrays.asList(beNodes.split(","));
         nodes.forEach(
                 node -> {
-                    if (tryHttpConnection(node)) {
+                    if (tryHttpConnection(node, httpOptions)) {
                         LOG.info("{} backend http connection success.", node);
                         node = node.trim();
                         String[] ipAndPort = node.split(":");
@@ -72,9 +90,11 @@ public class BackendUtil {
     public static BackendUtil getInstance(
             DorisOptions dorisOptions, DorisReadOptions readOptions, Logger logger) {
         if (StringUtils.isNotEmpty(dorisOptions.getBenodes())) {
-            return new BackendUtil(dorisOptions.getBenodes());
+            return new BackendUtil(dorisOptions.getBenodes(), dorisOptions.getHttpOptions());
         } else {
-            return new BackendUtil(RestService.getBackendsV2(dorisOptions, readOptions, logger));
+            return new BackendUtil(
+                    RestService.getBackendsV2(dorisOptions, readOptions, logger),
+                    dorisOptions.getHttpOptions());
         }
     }
 
@@ -89,7 +109,7 @@ public class BackendUtil {
                     backends.get((int) ((pos + subtaskId) % backends.size()));
             pos++;
             String res = backend.toBackendString();
-            if (tryHttpConnection(res)) {
+            if (tryHttpConnection(res, httpOptions)) {
                 return res;
             }
         }
@@ -97,31 +117,15 @@ public class BackendUtil {
     }
 
     public static boolean tryHttpConnection(String host) {
-        try {
-            LOG.debug("try to connect host {}", host);
-            host = "http://" + host;
-            URL url = new URL(host);
-            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-            connection.setRequestMethod("GET");
-            connection.setConnectTimeout(60000);
-            connection.setReadTimeout(60000);
-            int responseCode = connection.getResponseCode();
-            String responseMessage = connection.getResponseMessage();
-            connection.disconnect();
-            if (responseCode < 500) {
-                // code greater than 500 means a server-side exception.
-                return true;
-            }
-            LOG.warn(
-                    "Failed to connect host {}, responseCode={}, msg={}",
-                    host,
-                    responseCode,
-                    responseMessage);
-            return false;
-        } catch (Exception ex) {
-            LOG.warn("Failed to connect to host:{}", host, ex);
-            return false;
-        }
+        return tryHttpConnection(host, false);
+    }
+
+    public static boolean tryHttpConnection(String host, boolean enableHttps) {
+        return tryHttpConnection(host, DorisHttpOptions.of(enableHttps));
+    }
+
+    public static boolean tryHttpConnection(String host, DorisHttpOptions httpOptions) {
+        return HttpUtil.tryHttpConnection(host, httpOptions);
     }
 
     @VisibleForTesting

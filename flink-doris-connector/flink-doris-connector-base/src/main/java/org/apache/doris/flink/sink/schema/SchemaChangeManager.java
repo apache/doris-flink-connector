@@ -17,6 +17,7 @@
 
 package org.apache.doris.flink.sink.schema;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.StringUtils;
 
@@ -31,17 +32,19 @@ import org.apache.doris.flink.catalog.doris.TableSchema;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.exception.DorisSchemaChangeException;
 import org.apache.doris.flink.exception.IllegalArgumentException;
+import org.apache.doris.flink.rest.DorisUrlBuilder;
 import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.rest.models.Field;
 import org.apache.doris.flink.rest.models.Schema;
 import org.apache.doris.flink.sink.HttpGetWithEntity;
+import org.apache.doris.flink.sink.HttpUtil;
 import org.apache.http.HttpHeaders;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
+import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,20 +59,26 @@ import java.util.Optional;
 public class SchemaChangeManager implements Serializable {
     private static final long serialVersionUID = 1L;
     private static final Logger LOG = LoggerFactory.getLogger(SchemaChangeManager.class);
-    private static final String CHECK_SCHEMA_CHANGE_API =
-            "http://%s/api/enable_light_schema_change/%s/%s";
-    private static final String SCHEMA_CHANGE_API = "http://%s/api/query/default_cluster/%s";
+    private final DorisUrlBuilder urlBuilder;
     private ObjectMapper objectMapper = new ObjectMapper();
     private DorisOptions dorisOptions;
     private String charsetEncoding = "UTF-8";
+    private transient HttpClientBuilder httpClientBuilder;
 
     public SchemaChangeManager(DorisOptions dorisOptions) {
-        this.dorisOptions = dorisOptions;
+        this(dorisOptions, "UTF-8");
     }
 
     public SchemaChangeManager(DorisOptions dorisOptions, String charsetEncoding) {
         this.dorisOptions = dorisOptions;
+        this.urlBuilder = new DorisUrlBuilder(dorisOptions.isEnableHttps());
         this.charsetEncoding = charsetEncoding;
+        this.httpClientBuilder = HttpUtil.buildHttpClientBuilder(dorisOptions.getHttpOptions());
+    }
+
+    @VisibleForTesting
+    public void setHttpClientBuilder(HttpClientBuilder httpClientBuilder) {
+        this.httpClientBuilder = httpClientBuilder;
     }
 
     public boolean createTable(TableSchema table) throws IOException, IllegalArgumentException {
@@ -210,11 +219,8 @@ public class SchemaChangeManager implements Serializable {
             return false;
         }
         String requestUrl =
-                String.format(
-                        CHECK_SCHEMA_CHANGE_API,
-                        RestService.randomEndpoint(dorisOptions.getFenodes(), LOG),
-                        database,
-                        table);
+                urlBuilder.lightSchemaChange(
+                        RestService.randomEndpoint(dorisOptions, LOG), database, table);
         HttpGetWithEntity httpGet = new HttpGetWithEntity(requestUrl);
         httpGet.setHeader(HttpHeaders.AUTHORIZATION, authHeader());
         httpGet.setEntity(
@@ -278,10 +284,7 @@ public class SchemaChangeManager implements Serializable {
         Map<String, String> param = new HashMap<>();
         param.put("stmt", ddl);
         String requestUrl =
-                String.format(
-                        SCHEMA_CHANGE_API,
-                        RestService.randomEndpoint(dorisOptions.getFenodes(), LOG),
-                        database);
+                urlBuilder.schemaChange(RestService.randomEndpoint(dorisOptions, LOG), database);
         HttpPost httpPost = new HttpPost(requestUrl);
         httpPost.setHeader(HttpHeaders.AUTHORIZATION, authHeader());
         httpPost.setHeader(
@@ -293,7 +296,7 @@ public class SchemaChangeManager implements Serializable {
     }
 
     private String handleResponse(HttpUriRequest request) {
-        try (CloseableHttpClient httpclient = HttpClients.createDefault()) {
+        try (CloseableHttpClient httpclient = httpClientBuilder.build()) {
             CloseableHttpResponse response = httpclient.execute(request);
             final int statusCode = response.getStatusLine().getStatusCode();
             final String reasonPhrase = response.getStatusLine().getReasonPhrase();
@@ -329,7 +332,7 @@ public class SchemaChangeManager implements Serializable {
     private boolean sendHttpPostRequest(String sql, String database)
             throws IOException, IllegalArgumentException {
         HttpPost httpPost = buildHttpPost(sql, database);
-        try (CloseableHttpClient httpclient = HttpClients.createDefault()) {
+        try (CloseableHttpClient httpclient = httpClientBuilder.build()) {
             CloseableHttpResponse response = httpclient.execute(httpPost);
             final int statusCode = response.getStatusLine().getStatusCode();
             if (statusCode == 200 && response.getEntity() != null) {

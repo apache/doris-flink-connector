@@ -73,5 +73,26 @@ public class DorisOptionsTest {
         options1.setAutoRedirect(true);
         options1.setJdbcUrl("xxx1");
         Assert.assertNotEquals(exceptedOption, options1.build());
+
+        options1.setJdbcUrl("xxx");
+        options1.setHttpOptions(new DorisHttpOptions(true, "/tmp/ks.jks", "JKS", "secret"));
+        Assert.assertNotEquals(exceptedOption, options1.build());
+    }
+
+    @Test
+    public void testHttpOptions() {
+        DorisHttpOptions httpOptions =
+                new DorisHttpOptions(true, "/tmp/ks.p12", "PKCS12", "secret");
+        DorisOptions options =
+                DorisOptions.builder().setFenodes("fenodes").setHttpOptions(httpOptions).build();
+        Assert.assertTrue(options.isEnableHttps());
+        Assert.assertEquals(httpOptions, options.getHttpOptions());
+    }
+
+    @Test
+    public void testHttpOptionsDefaults() {
+        DorisHttpOptions options = new DorisHttpOptions(true, null, null, null);
+        Assert.assertTrue(options.isEnableHttps());
+        Assert.assertEquals("JKS", options.getHttpsKeyStoreType());
     }
 }

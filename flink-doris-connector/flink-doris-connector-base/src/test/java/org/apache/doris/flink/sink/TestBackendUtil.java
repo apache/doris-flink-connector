@@ -17,6 +17,7 @@
 
 package org.apache.doris.flink.sink;
 
+import org.apache.doris.flink.cfg.DorisHttpOptions;
 import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.apache.doris.flink.rest.models.BackendV2;
 import org.junit.After;
@@ -29,6 +30,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.mockStatic;
 
 public class TestBackendUtil {
@@ -43,6 +45,12 @@ public class TestBackendUtil {
     @Test
     public void testGetAvailableBackend() throws Exception {
         backendUtilMockedStatic.when(() -> BackendUtil.tryHttpConnection(any())).thenReturn(true);
+        backendUtilMockedStatic
+                .when(() -> BackendUtil.tryHttpConnection(any(), anyBoolean()))
+                .thenReturn(true);
+        backendUtilMockedStatic
+                .when(() -> BackendUtil.tryHttpConnection(any(), any(DorisHttpOptions.class)))
+                .thenReturn(true);
         List<BackendV2.BackendRowV2> backends =
                 Arrays.asList(
                         newBackend("127.0.0.2", 8040),
@@ -58,6 +66,12 @@ public class TestBackendUtil {
     @Test(expected = DorisRuntimeException.class)
     public void testNoAvailableBackend() throws Exception {
         backendUtilMockedStatic.when(() -> BackendUtil.tryHttpConnection(any())).thenReturn(false);
+        backendUtilMockedStatic
+                .when(() -> BackendUtil.tryHttpConnection(any(), anyBoolean()))
+                .thenReturn(false);
+        backendUtilMockedStatic
+                .when(() -> BackendUtil.tryHttpConnection(any(), any(DorisHttpOptions.class)))
+                .thenReturn(false);
         List<BackendV2.BackendRowV2> backends =
                 Arrays.asList(
                         newBackend("127.0.0.1", 12345),

@@ -27,6 +27,7 @@ import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.exception.DorisRuntimeException;
+import org.apache.doris.flink.rest.DorisUrlBuilder;
 import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.sink.BackendUtil;
 import org.apache.doris.flink.sink.DorisCommittable;
@@ -52,10 +53,10 @@ import static org.apache.doris.flink.sink.LoadStatus.SUCCESS;
 /** The committer to commit transaction. */
 public class DorisCommitter implements Committer<DorisCommittable>, Closeable {
     private static final Logger LOG = LoggerFactory.getLogger(DorisCommitter.class);
-    private static final String commitPattern = "http://%s/api/%s/_stream_load_2pc";
     private final CloseableHttpClient httpClient;
     private final DorisOptions dorisOptions;
     private final DorisReadOptions dorisReadOptions;
+    private final DorisUrlBuilder urlBuilder;
     private final ObjectMapper jsonMapper = new ObjectMapper();
     private final BackendUtil backendUtil;
 
@@ -70,7 +71,10 @@ public class DorisCommitter implements Committer<DorisCommittable>, Closeable {
                 dorisOptions,
                 dorisReadOptions,
                 executionOptions,
-                new HttpUtil(dorisReadOptions, executionOptions.isHttpUtf8Charset())
+                new HttpUtil(
+                                dorisReadOptions,
+                                executionOptions.isHttpUtf8Charset(),
+                                dorisOptions.getHttpOptions())
                         .getHttpClient());
     }
 
@@ -81,15 +85,17 @@ public class DorisCommitter implements Committer<DorisCommittable>, Closeable {
             CloseableHttpClient client) {
         this.dorisOptions = dorisOptions;
         this.dorisReadOptions = dorisReadOptions;
+        this.urlBuilder = new DorisUrlBuilder(dorisOptions.isEnableHttps());
         Preconditions.checkArgument(maxRetry >= 0);
         this.maxRetry = executionOptions.getMaxRetries();
         this.ignoreCommitError = executionOptions.ignoreCommitError();
         this.httpClient = client;
         this.backendUtil =
                 StringUtils.isNotEmpty(dorisOptions.getBenodes())
-                        ? new BackendUtil(dorisOptions.getBenodes())
+                        ? new BackendUtil(dorisOptions.getBenodes(), dorisOptions.getHttpOptions())
                         : new BackendUtil(
-                                RestService.getBackendsV2(dorisOptions, dorisReadOptions, LOG));
+                                RestService.getBackendsV2(dorisOptions, dorisReadOptions, LOG),
+                                dorisOptions.getHttpOptions());
     }
 
     @Override
@@ -116,7 +122,7 @@ public class DorisCommitter implements Committer<DorisCommittable>, Closeable {
         int retry = 0;
         while (retry <= maxRetry) {
             // get latest-url
-            String url = String.format(commitPattern, hostPort, committable.getDb());
+            String url = urlBuilder.streamLoad2pc(hostPort, committable.getDb());
             HttpPut httpPut = builder.setUrl(url).setEmptyEntity().build();
 
             // http execute...

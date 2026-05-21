@@ -20,6 +20,7 @@ package org.apache.doris.flink.sink.batch;
 import org.apache.flink.api.common.time.Deadline;
 
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
+import org.apache.doris.flink.cfg.DorisHttpOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.sink.BackendUtil;
@@ -52,6 +53,7 @@ import java.util.Properties;
 
 import static org.apache.doris.flink.sink.batch.TestBatchBufferStream.mergeByteArrays;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
@@ -70,6 +72,12 @@ public class TestDorisBatchStreamLoad {
     public void setUp() throws Exception {
         backendUtilMockedStatic = mockStatic(BackendUtil.class);
         backendUtilMockedStatic.when(() -> BackendUtil.tryHttpConnection(any())).thenReturn(true);
+        backendUtilMockedStatic
+                .when(() -> BackendUtil.tryHttpConnection(any(), anyBoolean()))
+                .thenReturn(true);
+        backendUtilMockedStatic
+                .when(() -> BackendUtil.tryHttpConnection(any(), any(DorisHttpOptions.class)))
+                .thenReturn(true);
     }
 
     @Test

@@ -29,6 +29,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.utils.TableSchemaUtils;
 
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
+import org.apache.doris.flink.cfg.DorisHttpOptions;
 import org.apache.doris.flink.cfg.DorisLookupOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
@@ -43,8 +44,12 @@ import static org.apache.doris.flink.table.DorisConfigOptions.BENODES;
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_BATCH_SIZE;
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_DESERIALIZE_ARROW_ASYNC;
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_DESERIALIZE_QUEUE_SIZE;
+import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_ENABLE_HTTPS;
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_EXEC_MEM_LIMIT;
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_FILTER_QUERY;
+import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_HTTPS_KEY_STORE_PASSWORD;
+import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_HTTPS_KEY_STORE_PATH;
+import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_HTTPS_KEY_STORE_TYPE;
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_READ_FIELD;
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_REQUEST_CONNECT_TIMEOUT_MS;
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_REQUEST_QUERY_TIMEOUT_S;
@@ -120,6 +125,10 @@ public final class DorisDynamicTableFactory
         options.add(PASSWORD);
         options.add(JDBC_URL);
         options.add(AUTO_REDIRECT);
+        options.add(DORIS_ENABLE_HTTPS);
+        options.add(DORIS_HTTPS_KEY_STORE_PATH);
+        options.add(DORIS_HTTPS_KEY_STORE_TYPE);
+        options.add(DORIS_HTTPS_KEY_STORE_PASSWORD);
 
         options.add(DORIS_READ_FIELD);
         options.add(DORIS_FILTER_QUERY);
@@ -202,12 +211,21 @@ public final class DorisDynamicTableFactory
                         .setFenodes(fenodes)
                         .setBenodes(benodes)
                         .setAutoRedirect(readableConfig.get(AUTO_REDIRECT))
+                        .setHttpOptions(getDorisHttpOptions(readableConfig))
                         .setJdbcUrl(readableConfig.get(JDBC_URL))
                         .setTableIdentifier(readableConfig.get(TABLE_IDENTIFIER));
 
         readableConfig.getOptional(USERNAME).ifPresent(builder::setUsername);
         readableConfig.getOptional(PASSWORD).ifPresent(builder::setPassword);
         return builder.build();
+    }
+
+    private DorisHttpOptions getDorisHttpOptions(ReadableConfig readableConfig) {
+        return new DorisHttpOptions(
+                readableConfig.get(DORIS_ENABLE_HTTPS),
+                readableConfig.getOptional(DORIS_HTTPS_KEY_STORE_PATH).orElse(null),
+                readableConfig.get(DORIS_HTTPS_KEY_STORE_TYPE),
+                readableConfig.getOptional(DORIS_HTTPS_KEY_STORE_PASSWORD).orElse(null));
     }
 
     private DorisReadOptions getDorisReadOptions(ReadableConfig readableConfig) {

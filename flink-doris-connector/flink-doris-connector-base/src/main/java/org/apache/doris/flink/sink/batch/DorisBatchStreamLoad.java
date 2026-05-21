@@ -27,6 +27,7 @@ import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.exception.DorisBatchLoadException;
 import org.apache.doris.flink.exception.DorisRuntimeException;
+import org.apache.doris.flink.rest.DorisUrlBuilder;
 import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.rest.models.RespContent;
 import org.apache.doris.flink.sink.BackendUtil;
@@ -90,7 +91,7 @@ public class DorisBatchStreamLoad implements Serializable {
     private static final long STREAM_LOAD_MAX_ROWS = Integer.MAX_VALUE;
     private final LabelGenerator labelGenerator;
     private final byte[] lineDelimiter;
-    private static final String LOAD_URL_PATTERN = "http://%s/api/%s/%s/_stream_load";
+    private final DorisUrlBuilder urlBuilder;
     private String loadUrl;
     private String hostPort;
     private final String username;
@@ -123,10 +124,12 @@ public class DorisBatchStreamLoad implements Serializable {
             int subTaskId) {
         this.backendUtil =
                 StringUtils.isNotEmpty(dorisOptions.getBenodes())
-                        ? new BackendUtil(dorisOptions.getBenodes())
+                        ? new BackendUtil(dorisOptions.getBenodes(), dorisOptions.getHttpOptions())
                         : new BackendUtil(
-                                RestService.getBackendsV2(dorisOptions, dorisReadOptions, LOG));
+                                RestService.getBackendsV2(dorisOptions, dorisReadOptions, LOG),
+                                dorisOptions.getHttpOptions());
         this.hostPort = backendUtil.getAvailableBackend();
+        this.urlBuilder = new DorisUrlBuilder(dorisOptions.isEnableHttps());
         this.username = dorisOptions.getUsername();
         this.password = dorisOptions.getPassword();
         this.loadProps = executionOptions.getStreamLoadProp();
@@ -157,7 +160,7 @@ public class DorisBatchStreamLoad implements Serializable {
             Preconditions.checkState(
                     tableInfo.length == 2,
                     "tableIdentifier input error, the format is database.table");
-            this.loadUrl = String.format(LOAD_URL_PATTERN, hostPort, tableInfo[0], tableInfo[1]);
+            this.loadUrl = urlBuilder.streamLoad(hostPort, tableInfo[0], tableInfo[1]);
         }
         this.loadAsyncExecutor = new LoadAsyncExecutor(executionOptions.getFlushQueueSize());
         this.loadExecutorService =
@@ -173,7 +176,10 @@ public class DorisBatchStreamLoad implements Serializable {
         this.loadExecutorService.execute(loadAsyncExecutor);
         this.subTaskId = subTaskId;
         this.httpClientBuilder =
-                new HttpUtil(dorisReadOptions, executionOptions.isHttpUtf8Charset())
+                new HttpUtil(
+                                dorisReadOptions,
+                                executionOptions.isHttpUtf8Charset(),
+                                dorisOptions.getHttpOptions())
                         .getHttpClientBuilderForBatch();
     }
 
@@ -567,7 +573,7 @@ public class DorisBatchStreamLoad implements Serializable {
 
         private void refreshLoadUrl(String database, String table) {
             hostPort = backendUtil.getAvailableBackend(subTaskId);
-            loadUrl = String.format(LOAD_URL_PATTERN, hostPort, database, table);
+            loadUrl = urlBuilder.streamLoad(hostPort, database, table);
         }
     }
 

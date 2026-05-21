@@ -22,6 +22,7 @@ import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
 
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
+import org.apache.doris.flink.cfg.DorisHttpOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.sink.BackendUtil;
@@ -46,6 +47,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
@@ -65,6 +67,12 @@ public class TestDorisWriter {
         executionOptions = OptionUtils.buildExecutionOptional();
         backendUtilMockedStatic = mockStatic(BackendUtil.class);
         backendUtilMockedStatic.when(() -> BackendUtil.tryHttpConnection(any())).thenReturn(true);
+        backendUtilMockedStatic
+                .when(() -> BackendUtil.tryHttpConnection(any(), anyBoolean()))
+                .thenReturn(true);
+        backendUtilMockedStatic
+                .when(() -> BackendUtil.tryHttpConnection(any(), any(DorisHttpOptions.class)))
+                .thenReturn(true);
         // clear thread interrupted status before each test
         Thread.interrupted();
     }

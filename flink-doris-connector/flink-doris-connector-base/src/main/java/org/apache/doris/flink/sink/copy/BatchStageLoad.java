@@ -25,6 +25,7 @@ import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.exception.CopyLoadException;
 import org.apache.doris.flink.exception.DorisBatchLoadException;
+import org.apache.doris.flink.rest.DorisUrlBuilder;
 import org.apache.doris.flink.sink.EscapeHandler;
 import org.apache.doris.flink.sink.HttpPutBuilder;
 import org.apache.doris.flink.sink.HttpUtil;
@@ -67,7 +68,6 @@ public class BatchStageLoad implements Serializable {
     private static final Logger LOG = LoggerFactory.getLogger(BatchStageLoad.class);
     private final LabelGenerator labelGenerator;
     private final byte[] lineDelimiter;
-    private static final String UPLOAD_URL_PATTERN = "http://%s/copy/upload";
     private static final String LINE_DELIMITER_KEY_WITH_PRETIX = "file.line_delimiter";
     private String uploadUrl;
     private String hostPort;
@@ -85,7 +85,7 @@ public class BatchStageLoad implements Serializable {
     private final AtomicBoolean started;
     private volatile boolean loadThreadAlive = false;
     private AtomicReference<Throwable> exception = new AtomicReference<>(null);
-    private HttpClientBuilder httpClientBuilder = new HttpUtil().getHttpClientBuilderForCopyBatch();
+    private HttpClientBuilder httpClientBuilder;
 
     public BatchStageLoad(
             DorisOptions dorisOptions,
@@ -97,7 +97,9 @@ public class BatchStageLoad implements Serializable {
         this.loadProps = executionOptions.getStreamLoadProp();
         this.labelGenerator = labelGenerator;
         this.hostPort = dorisOptions.getFenodes();
-        this.uploadUrl = String.format(UPLOAD_URL_PATTERN, hostPort);
+        this.uploadUrl = new DorisUrlBuilder(dorisOptions.isEnableHttps()).copyUpload(hostPort);
+        this.httpClientBuilder =
+                new HttpUtil(dorisOptions.getHttpOptions()).getHttpClientBuilderForCopyBatch();
         this.fileNum = new AtomicInteger();
         this.lineDelimiter =
                 EscapeHandler.escapeString(

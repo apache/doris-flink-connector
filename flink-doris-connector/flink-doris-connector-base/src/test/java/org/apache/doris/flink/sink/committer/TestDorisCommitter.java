@@ -18,6 +18,7 @@
 package org.apache.doris.flink.sink.committer;
 
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
+import org.apache.doris.flink.cfg.DorisHttpOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.exception.DorisRuntimeException;
@@ -42,6 +43,7 @@ import org.mockito.MockedStatic;
 import java.util.Collections;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
@@ -81,6 +83,12 @@ public class TestDorisCommitter {
                         Collections.singletonList(
                                 BackendV2.BackendRowV2.of("127.0.0.1", 8040, true)));
         backendUtilMockedStatic.when(() -> BackendUtil.tryHttpConnection(any())).thenReturn(true);
+        backendUtilMockedStatic
+                .when(() -> BackendUtil.tryHttpConnection(any(), anyBoolean()))
+                .thenReturn(true);
+        backendUtilMockedStatic
+                .when(() -> BackendUtil.tryHttpConnection(any(), any(DorisHttpOptions.class)))
+                .thenReturn(true);
 
         dorisCommitter =
                 new DorisCommitter(dorisOptions, readOptions, executionOptions, httpClient);

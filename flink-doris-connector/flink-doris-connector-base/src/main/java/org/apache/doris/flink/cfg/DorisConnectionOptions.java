@@ -31,6 +31,7 @@ public class DorisConnectionOptions implements Serializable {
     protected final String password;
     protected String jdbcUrl;
     protected String benodes;
+    protected DorisHttpOptions httpOptions = DorisHttpOptions.defaults();
 
     /**
      * Used to enable automatic redirection of fe, When it is not enabled, it will actively request
@@ -57,10 +58,29 @@ public class DorisConnectionOptions implements Serializable {
             String password,
             String jdbcUrl,
             boolean autoRedirect) {
+        this(
+                fenodes,
+                benodes,
+                username,
+                password,
+                jdbcUrl,
+                autoRedirect,
+                DorisHttpOptions.defaults());
+    }
+
+    public DorisConnectionOptions(
+            String fenodes,
+            String benodes,
+            String username,
+            String password,
+            String jdbcUrl,
+            boolean autoRedirect,
+            DorisHttpOptions httpOptions) {
         this(fenodes, username, password);
         this.benodes = benodes;
         this.jdbcUrl = jdbcUrl;
         this.autoRedirect = autoRedirect;
+        this.httpOptions = httpOptions == null ? DorisHttpOptions.defaults() : httpOptions;
     }
 
     public String getFenodes() {
@@ -87,6 +107,14 @@ public class DorisConnectionOptions implements Serializable {
         return autoRedirect;
     }
 
+    public DorisHttpOptions getHttpOptions() {
+        return httpOptions;
+    }
+
+    public boolean isEnableHttps() {
+        return httpOptions.isEnableHttps();
+    }
+
     /** Builder for {@link DorisConnectionOptions}. */
     public static class DorisConnectionOptionsBuilder {
         private String fenodes;
@@ -95,6 +123,7 @@ public class DorisConnectionOptions implements Serializable {
         private String password;
         private String jdbcUrl;
         private boolean autoRedirect;
+        private DorisHttpOptions httpOptions = DorisHttpOptions.defaults();
 
         public DorisConnectionOptionsBuilder withFenodes(String fenodes) {
             this.fenodes = fenodes;
@@ -126,9 +155,14 @@ public class DorisConnectionOptions implements Serializable {
             return this;
         }
 
+        public DorisConnectionOptionsBuilder withHttpOptions(DorisHttpOptions httpOptions) {
+            this.httpOptions = httpOptions;
+            return this;
+        }
+
         public DorisConnectionOptions build() {
             return new DorisConnectionOptions(
-                    fenodes, benodes, username, password, jdbcUrl, autoRedirect);
+                    fenodes, benodes, username, password, jdbcUrl, autoRedirect, httpOptions);
         }
     }
 }

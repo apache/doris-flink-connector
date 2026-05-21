@@ -20,6 +20,7 @@ package org.apache.doris.flink.rest;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.doris.flink.cfg.DorisHttpOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.exception.DorisException;
@@ -59,6 +60,7 @@ import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_TABLET_SIZE_
 import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_TABLET_SIZE_MIN;
 import static org.hamcrest.core.StringStartsWith.startsWith;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
@@ -74,6 +76,12 @@ public class TestRestService {
     public void setUp() throws Exception {
         backendUtilMockedStatic = mockStatic(BackendUtil.class);
         backendUtilMockedStatic.when(() -> BackendUtil.tryHttpConnection(any())).thenReturn(true);
+        backendUtilMockedStatic
+                .when(() -> BackendUtil.tryHttpConnection(any(), anyBoolean()))
+                .thenReturn(true);
+        backendUtilMockedStatic
+                .when(() -> BackendUtil.tryHttpConnection(any(), any(DorisHttpOptions.class)))
+                .thenReturn(true);
     }
 
     @After
@@ -183,6 +191,12 @@ public class TestRestService {
         String failFenodes = "127.0.0.1:1";
         BackendUtil.tryHttpConnection(any());
         backendUtilMockedStatic.when(() -> BackendUtil.tryHttpConnection(any())).thenReturn(false);
+        backendUtilMockedStatic
+                .when(() -> BackendUtil.tryHttpConnection(any(), anyBoolean()))
+                .thenReturn(false);
+        backendUtilMockedStatic
+                .when(() -> BackendUtil.tryHttpConnection(any(), any(DorisHttpOptions.class)))
+                .thenReturn(false);
         thrown.expect(DorisRuntimeException.class);
         thrown.expectMessage("No Doris FE is available");
         RestService.randomEndpoint(failFenodes, logger);
@@ -478,7 +492,7 @@ public class TestRestService {
                     "{\"msg\":\"success\",\"code\":0,\"data\":{\"keysType\":\"UNIQUE_KEYS\",\"properties\":[{\"name\":\"name\",\"aggregation_type\":\"\",\"comment\":\"\",\"type\":\"VARCHAR\"},{\"name\":\"age\",\"aggregation_type\":\"REPLACE\",\"comment\":\"\",\"type\":\"INT\"}],\"status\":200},\"count\":0}";
             JsonNode jsonNode = new ObjectMapper().readTree(res);
             restServiceMockedStatic
-                    .when(() -> RestService.handleResponse(any(), any()))
+                    .when(() -> RestService.handleResponse(any(), any(DorisOptions.class), any()))
                     .thenReturn(jsonNode);
             restServiceMockedStatic
                     .when(() -> RestService.getSchema(any(), any(), any(), any()))
@@ -499,7 +513,7 @@ public class TestRestService {
 
         try (MockedStatic<RestService> restServiceMockedStatic = mockStatic(RestService.class)) {
             restServiceMockedStatic
-                    .when(() -> RestService.handleResponse(any(), any()))
+                    .when(() -> RestService.handleResponse(any(), any(DorisOptions.class), any()))
                     .thenReturn(jsonNode);
             restServiceMockedStatic
                     .when(() -> RestService.getArrowFlightSqlPort(any()))

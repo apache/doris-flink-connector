@@ -18,6 +18,7 @@
 package org.apache.doris.flink.sink.writer;
 
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
+import org.apache.doris.flink.cfg.DorisHttpOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.exception.DorisException;
@@ -300,6 +301,45 @@ public class TestDorisStreamLoad {
                         new LabelGenerator("test001", true),
                         httpClient);
         Assert.assertNull(dorisStreamLoad.getLineDelimiter());
+    }
+
+    @Test
+    public void testStreamLoadUrlUsesConfiguredScheme() {
+        CloseableHttpClient httpClient = mock(CloseableHttpClient.class);
+        DorisStreamLoad httpStreamLoad =
+                new DorisStreamLoad(
+                        "127.0.0.1:8040",
+                        dorisOptions,
+                        executionOptions,
+                        new LabelGenerator("test001", true),
+                        httpClient);
+        Assert.assertEquals(
+                "http://127.0.0.1:8040/api/db/table/_stream_load", httpStreamLoad.getLoadUrl());
+        Assert.assertEquals(
+                "http://127.0.0.1:8040/api/db/_stream_load_2pc", httpStreamLoad.getAbortUrl());
+
+        DorisOptions httpsOptions =
+                DorisOptions.builder()
+                        .setFenodes("127.0.0.1:8030")
+                        .setTableIdentifier("db.table")
+                        .setUsername("root")
+                        .setPassword("")
+                        .setHttpOptions(DorisHttpOptions.of(true))
+                        .build();
+        DorisStreamLoad httpsStreamLoad =
+                new DorisStreamLoad(
+                        "127.0.0.1:8040",
+                        httpsOptions,
+                        executionOptions,
+                        new LabelGenerator("test001", true),
+                        httpClient);
+        Assert.assertEquals(
+                "https://127.0.0.1:8040/api/db/table/_stream_load", httpsStreamLoad.getLoadUrl());
+        Assert.assertEquals(
+                "https://127.0.0.1:8040/api/db/_stream_load_2pc", httpsStreamLoad.getAbortUrl());
+        httpsStreamLoad.setHostPort("127.0.0.2:8040");
+        Assert.assertEquals(
+                "https://127.0.0.2:8040/api/db/table/_stream_load", httpsStreamLoad.getLoadUrl());
     }
 
     @Test

@@ -30,6 +30,7 @@ import org.apache.doris.flink.exception.DorisException;
 import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.apache.doris.flink.exception.LabelAlreadyExistsException;
 import org.apache.doris.flink.exception.StreamLoadException;
+import org.apache.doris.flink.rest.DorisUrlBuilder;
 import org.apache.doris.flink.rest.models.RespContent;
 import org.apache.doris.flink.sink.EscapeHandler;
 import org.apache.doris.flink.sink.HttpPutBuilder;
@@ -77,13 +78,12 @@ public class DorisStreamLoad implements Serializable {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private final LabelGenerator labelGenerator;
     private final byte[] lineDelimiter;
-    private static final String LOAD_URL_PATTERN = "http://%s/api/%s/%s/_stream_load";
-    private static final String ABORT_URL_PATTERN = "http://%s/api/%s/_stream_load_2pc";
     public static final String JOB_EXIST_FINISHED = "FINISHED";
 
     private String loadUrlStr;
     private String hostPort;
     private String abortUrlStr;
+    private final DorisUrlBuilder urlBuilder;
     private final String user;
     private final String passwd;
     private final String db;
@@ -114,8 +114,9 @@ public class DorisStreamLoad implements Serializable {
         this.user = dorisOptions.getUsername();
         this.passwd = dorisOptions.getPassword();
         this.labelGenerator = labelGenerator;
-        this.loadUrlStr = String.format(LOAD_URL_PATTERN, hostPort, db, table);
-        this.abortUrlStr = String.format(ABORT_URL_PATTERN, hostPort, db);
+        this.urlBuilder = new DorisUrlBuilder(dorisOptions.isEnableHttps());
+        this.loadUrlStr = urlBuilder.streamLoad(hostPort, db, table);
+        this.abortUrlStr = urlBuilder.streamLoad2pc(hostPort, db);
         this.enable2PC = executionOptions.enabled2PC();
         this.streamLoadProp = executionOptions.getStreamLoadProp();
         this.enableDelete = executionOptions.getDeletable();
@@ -169,14 +170,24 @@ public class DorisStreamLoad implements Serializable {
     }
 
     @VisibleForTesting
+    public String getLoadUrl() {
+        return loadUrlStr;
+    }
+
+    @VisibleForTesting
+    public String getAbortUrl() {
+        return abortUrlStr;
+    }
+
+    @VisibleForTesting
     public byte[] getLineDelimiter() {
         return lineDelimiter;
     }
 
     public void setHostPort(String hostPort) {
         this.hostPort = hostPort;
-        this.loadUrlStr = String.format(LOAD_URL_PATTERN, hostPort, this.db, this.table);
-        this.abortUrlStr = String.format(ABORT_URL_PATTERN, hostPort, db);
+        this.loadUrlStr = urlBuilder.streamLoad(hostPort, this.db, this.table);
+        this.abortUrlStr = urlBuilder.streamLoad2pc(hostPort, db);
     }
 
     public Future<RespContent> getPendingLoadFuture() {
