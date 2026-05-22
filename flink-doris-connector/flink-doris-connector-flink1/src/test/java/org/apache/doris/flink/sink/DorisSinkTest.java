@@ -36,6 +36,9 @@ import org.junit.Test;
 import org.mockito.MockedStatic;
 
 import java.util.Collections;
+import java.util.OptionalLong;
+
+import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -57,6 +60,9 @@ public class DorisSinkTest {
         DorisReadOptions dorisReadOptions = OptionUtils.buildDorisReadOptions();
         DorisRecordSerializer<String> serializer = new SimpleStringSerializer();
         Sink.InitContext initContext = mock(Sink.InitContext.class);
+        when(initContext.metricGroup()).thenReturn(mock(SinkWriterMetricGroup.class));
+        when(initContext.getRestoredCheckpointId()).thenReturn(OptionalLong.empty());
+        when(initContext.getSubtaskId()).thenReturn(0);
 
         DorisExecutionOptions dorisExecutionOptions =
                 DorisExecutionOptions.builder().disable2PC().build();
