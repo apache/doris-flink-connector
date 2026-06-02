@@ -39,6 +39,7 @@ import org.mockito.MockedStatic;
 import java.util.Collections;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
@@ -49,8 +50,15 @@ public class DorisSinkTest {
 
     @Before
     public void setUp() throws Exception {
+        BackendUtil mockBackendUtil = mock(BackendUtil.class);
+        when(mockBackendUtil.getAvailableBackend()).thenReturn("127.0.0.1:8040");
+        when(mockBackendUtil.getAvailableBackend(anyInt())).thenReturn("127.0.0.1:8040");
+
         backendUtilMockedStatic = mockStatic(BackendUtil.class);
         backendUtilMockedStatic.when(() -> BackendUtil.tryHttpConnection(any())).thenReturn(true);
+        backendUtilMockedStatic
+                .when(() -> BackendUtil.getInstance(any(), any(), any(), any()))
+                .thenReturn(mockBackendUtil);
     }
 
     @Test
