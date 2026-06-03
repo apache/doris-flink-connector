@@ -354,8 +354,18 @@ public class RestService implements Serializable {
         }
 
         if (StringUtils.isNotBlank(computeGroupName)) {
-            return getManagerBackendsByComputeGroup(
-                    options, readOptions, feNodeList, computeGroupName, logger);
+            try {
+                return getManagerBackendsByComputeGroup(
+                        options, readOptions, feNodeList, computeGroupName, logger);
+            } catch (Exception e) {
+                logger.warn(
+                        "Failed to get backends via manager API for compute group '{}', "
+                                + "the endpoint {} may not be supported on older Doris versions. "
+                                + "Falling back to regular backend discovery: {}",
+                        computeGroupName,
+                        MANAGER_BACKENDS,
+                        e.getMessage());
+            }
         }
 
         for (String feNode : feNodeList) {
@@ -391,8 +401,8 @@ public class RestService implements Serializable {
                 String response = send(options, readOptions, httpGet, logger, false);
                 logger.info("Manager backend info:{}", response);
                 return parseManagerBackends(response, logger, computeGroupName);
-            } catch (ConnectedFailedException e) {
-                logger.info(
+            } catch (Exception e) {
+                logger.warn(
                         "Doris FE node {} is unavailable: {}, Request the next Doris FE node",
                         feNode,
                         e.getMessage());
