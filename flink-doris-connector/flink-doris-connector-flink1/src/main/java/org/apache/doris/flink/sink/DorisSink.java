@@ -19,10 +19,14 @@ package org.apache.doris.flink.sink;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.connector.sink2.Committer;
 import org.apache.flink.api.connector.sink2.StatefulSink;
 import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
+import org.apache.flink.streaming.api.connector.sink2.CommittableMessage;
+import org.apache.flink.streaming.api.connector.sink2.SupportsPostCommitTopology;
+import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
@@ -34,6 +38,8 @@ import org.apache.doris.flink.sink.committer.DorisCommitter;
 import org.apache.doris.flink.sink.copy.CopyCommittableSerializer;
 import org.apache.doris.flink.sink.copy.DorisCopyCommitter;
 import org.apache.doris.flink.sink.copy.DorisCopyWriterAdapter;
+import org.apache.doris.flink.sink.overwrite.DorisOverwriteFinalizerOperator;
+import org.apache.doris.flink.sink.overwrite.DorisOverwriteOptions;
 import org.apache.doris.flink.sink.writer.DorisAbstractWriter;
 import org.apache.doris.flink.sink.writer.DorisWriter;
 import org.apache.doris.flink.sink.writer.DorisWriterAdapter;
@@ -56,22 +62,34 @@ import java.util.Collections;
 @PublicEvolving
 public class DorisSink<IN>
         implements StatefulSink<IN, DorisWriterState>,
-                TwoPhaseCommittingSink<IN, DorisAbstractCommittable> {
+                TwoPhaseCommittingSink<IN, DorisAbstractCommittable>,
+                SupportsPostCommitTopology<DorisAbstractCommittable> {
     private static final Logger LOG = LoggerFactory.getLogger(DorisSink.class);
     private final DorisOptions dorisOptions;
     private final DorisReadOptions dorisReadOptions;
     private final DorisExecutionOptions dorisExecutionOptions;
     private final DorisRecordSerializer<IN> serializer;
+    private final DorisOverwriteOptions overwriteOptions;
 
     public DorisSink(
             DorisOptions dorisOptions,
             DorisReadOptions dorisReadOptions,
             DorisExecutionOptions dorisExecutionOptions,
             DorisRecordSerializer<IN> serializer) {
+        this(dorisOptions, dorisReadOptions, dorisExecutionOptions, serializer, null);
+    }
+
+    public DorisSink(
+            DorisOptions dorisOptions,
+            DorisReadOptions dorisReadOptions,
+            DorisExecutionOptions dorisExecutionOptions,
+            DorisRecordSerializer<IN> serializer,
+            DorisOverwriteOptions overwriteOptions) {
         this.dorisOptions = dorisOptions;
         this.dorisReadOptions = dorisReadOptions;
         this.dorisExecutionOptions = dorisExecutionOptions;
         this.serializer = serializer;
+        this.overwriteOptions = overwriteOptions;
         checkKeyType();
     }
 
@@ -99,6 +117,21 @@ public class DorisSink<IN>
         }
         throw new IllegalArgumentException(
                 "Unsupported write mode " + dorisExecutionOptions.getWriteMode());
+    }
+
+    @Override
+    public void addPostCommitTopology(
+            DataStream<CommittableMessage<DorisAbstractCommittable>> committables) {
+        if (overwriteOptions == null) {
+            return;
+        }
+        committables
+                .global()
+                .transform(
+                        "Doris INSERT OVERWRITE finalizer",
+                        Types.VOID,
+                        new DorisOverwriteFinalizerOperator(overwriteOptions))
+                .setParallelism(1);
     }
 
     @Override
@@ -161,6 +194,7 @@ public class DorisSink<IN>
         private DorisReadOptions dorisReadOptions;
         private DorisExecutionOptions dorisExecutionOptions;
         private DorisRecordSerializer<IN> serializer;
+        private DorisOverwriteOptions overwriteOptions;
 
         /**
          * Sets the DorisOptions for the DorisSink.
@@ -207,6 +241,11 @@ public class DorisSink<IN>
             return this;
         }
 
+        public Builder<IN> setOverwriteOptions(DorisOverwriteOptions overwriteOptions) {
+            this.overwriteOptions = overwriteOptions;
+            return this;
+        }
+
         /**
          * Build the {@link DorisSink}.
          *
@@ -220,7 +259,11 @@ public class DorisSink<IN>
                 dorisReadOptions = DorisReadOptions.builder().build();
             }
             return new DorisSink<>(
-                    dorisOptions, dorisReadOptions, dorisExecutionOptions, serializer);
+                    dorisOptions,
+                    dorisReadOptions,
+                    dorisExecutionOptions,
+                    serializer,
+                    overwriteOptions);
         }
     }
 }
