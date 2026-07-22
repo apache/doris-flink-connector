@@ -34,6 +34,7 @@ import org.apache.doris.flink.sink.EscapeHandler;
 import org.apache.doris.flink.sink.HttpPutBuilder;
 import org.apache.doris.flink.sink.HttpUtil;
 import org.apache.doris.flink.sink.writer.LabelGenerator;
+import org.apache.doris.flink.util.DorisUrlUtils;
 import org.apache.http.client.entity.GzipCompressingEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -90,7 +91,6 @@ public class DorisBatchStreamLoad implements Serializable {
     private static final long STREAM_LOAD_MAX_ROWS = Integer.MAX_VALUE;
     private final LabelGenerator labelGenerator;
     private final byte[] lineDelimiter;
-    private static final String LOAD_URL_PATTERN = "http://%s/api/%s/%s/_stream_load";
     private String loadUrl;
     private String hostPort;
     private final String username;
@@ -157,7 +157,7 @@ public class DorisBatchStreamLoad implements Serializable {
             Preconditions.checkState(
                     tableInfo.length == 2,
                     "tableIdentifier input error, the format is database.table");
-            this.loadUrl = String.format(LOAD_URL_PATTERN, hostPort, tableInfo[0], tableInfo[1]);
+            this.loadUrl = buildLoadUrl(hostPort, tableInfo[0], tableInfo[1]);
         }
         this.loadAsyncExecutor = new LoadAsyncExecutor(executionOptions.getFlushQueueSize());
         this.loadExecutorService =
@@ -567,8 +567,13 @@ public class DorisBatchStreamLoad implements Serializable {
 
         private void refreshLoadUrl(String database, String table) {
             hostPort = backendUtil.getAvailableBackend(subTaskId);
-            loadUrl = String.format(LOAD_URL_PATTERN, hostPort, database, table);
+            loadUrl = buildLoadUrl(hostPort, database, table);
         }
+    }
+
+    @VisibleForTesting
+    static String buildLoadUrl(String hostPort, String database, String table) {
+        return DorisUrlUtils.buildHttpUrl(hostPort, "api", database, table, "_stream_load");
     }
 
     static class DefaultThreadFactory implements ThreadFactory {

@@ -129,6 +129,20 @@ public class TestRestService {
     }
 
     @Test
+    public void testBuildIdentifierPathUrls() throws Exception {
+        Assert.assertEquals(
+                "http://127.0.0.1:8030/api/ods/ods_%E6%96%B0%E5%88%B8%E8%A1%A8_copy1/_schema",
+                RestService.buildTableSchemaUri("127.0.0.1:8030", "ods", "ods_新券表_copy1"));
+        Assert.assertEquals(
+                "http://127.0.0.1:8030/api/internal/ods/ods_%E6%96%B0%E5%88%B8%E8%A1%A8_copy1/_schema",
+                RestService.buildTableSchemaUri(
+                        "127.0.0.1:8030", "internal", "ods", "ods_新券表_copy1"));
+        Assert.assertEquals(
+                "http://127.0.0.1:8030/api/ods/ods_%E6%96%B0%E5%88%B8%E8%A1%A8_copy1/_query_plan",
+                RestService.buildQueryPlanUri("127.0.0.1:8030", "ods", "ods_新券表_copy1"));
+    }
+
+    @Test
     public void testChoiceFe() throws Exception {
         String validFes = "1,2,3";
         String fe = RestService.randomEndpoint(validFes, logger);

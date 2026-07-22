@@ -30,13 +30,16 @@ import org.apache.doris.flink.sink.OptionUtils;
 import org.apache.http.ProtocolVersion;
 import org.apache.http.StatusLine;
 import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpPut;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.message.BasicStatusLine;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
 
 import java.util.Collections;
@@ -44,6 +47,7 @@ import java.util.Collections;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /** Test for Doris Committer. */
@@ -99,6 +103,31 @@ public class TestDorisCommitter {
         final MockCommitRequest<DorisCommittable> request =
                 new MockCommitRequest<>(dorisCommittable);
         dorisCommitter.commit(Collections.singletonList(request));
+    }
+
+    @Test
+    public void testBuildEncodedCommitUrl() throws Exception {
+        DorisOptions dorisOptions = OptionUtils.buildDorisOptions();
+        DorisReadOptions readOptions = OptionUtils.buildDorisReadOptions();
+        DorisExecutionOptions executionOptions = OptionUtils.buildExecutionOptional();
+        CloseableHttpClient httpClient = mock(CloseableHttpClient.class);
+        CloseableHttpResponse response = mock(CloseableHttpResponse.class);
+        HttpEntityMock successEntity = new HttpEntityMock();
+        successEntity.setValue("{\"status\":\"Success\",\"msg\":\"ok\"}");
+        when(response.getStatusLine()).thenReturn(normalLine);
+        when(response.getEntity()).thenReturn(successEntity);
+        when(httpClient.execute(any())).thenReturn(response);
+
+        DorisCommitter committer =
+                new DorisCommitter(dorisOptions, readOptions, executionOptions, httpClient);
+        DorisCommittable unicodeCommittable = new DorisCommittable("127.0.0.1:8040", "数仓", 1);
+        committer.commit(Collections.singletonList(new MockCommitRequest<>(unicodeCommittable)));
+
+        ArgumentCaptor<HttpPut> requestCaptor = ArgumentCaptor.forClass(HttpPut.class);
+        verify(httpClient).execute(requestCaptor.capture());
+        Assert.assertEquals(
+                "http://127.0.0.1:8040/api/%E6%95%B0%E4%BB%93/_stream_load_2pc",
+                requestCaptor.getValue().getURI().toASCIIString());
     }
 
     @Test
