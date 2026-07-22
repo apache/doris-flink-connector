@@ -443,7 +443,8 @@ public class RowBatch {
                     addValueToRow(rowIndex, dateTime);
                 } else {
                     logger.error(
-                            "Unsupported type for DATETIMEV2, minorType {}, class is {}",
+                            "Unsupported type for {}, minorType {}, class is {}",
+                            currentType,
                             minorType.name(),
                             fieldVector == null ? null : fieldVector.getClass());
                     return false;
@@ -597,7 +598,7 @@ public class RowBatch {
         ArrowType.Timestamp timestampType = (ArrowType.Timestamp) vector.getField().getType();
         String timezone = timestampType.getTimezone();
         if (timezone == null) {
-            // convert no TZ timestamp to naive datetime
+            // datetime type does not carry timezone, it represents UTC time.
             return (LocalDateTime) vector.getObject(rowIndex);
         }
         return longToLocalDateTime(vector.get(rowIndex), timestampType.getUnit(), DEFAULT_ZONE_ID);
