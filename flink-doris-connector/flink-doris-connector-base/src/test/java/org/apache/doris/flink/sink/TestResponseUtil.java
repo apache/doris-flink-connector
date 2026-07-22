@@ -33,6 +33,8 @@ public class TestResponseUtil {
                 "errCode = 2, detailMessage = transaction [2] is already VISIBLE, not pre-committed.";
         String visibleMsgWhenAbort =
                 "errCode = 2, detailMessage = transaction [2] is already COMMITTED, not pre-committed.";
+        String visibleCouldNotAbort =
+                "errCode = 2, detailMessage = transaction [2] is already VISIBLE, could not abort.";
         String commitMsg =
                 "errCode = 2, detailMessage = transaction [2] is already COMMIT, not pre-committed.";
         String abortedMsg =
@@ -41,6 +43,7 @@ public class TestResponseUtil {
         Assert.assertTrue(ResponseUtil.isCommitted(visibleMsg));
         Assert.assertTrue(ResponseUtil.isCommitted(committedMsgWhenAbort));
         Assert.assertTrue(ResponseUtil.isCommitted(visibleMsgWhenAbort));
+        Assert.assertTrue(ResponseUtil.isCommitted(visibleCouldNotAbort));
         Assert.assertFalse(ResponseUtil.isCommitted(commitMsg));
         Assert.assertFalse(ResponseUtil.isCommitted(abortedMsg));
     }
@@ -64,5 +67,8 @@ public class TestResponseUtil {
         Assert.assertTrue(ResponseUtil.isAborted(alreadCommit));
         Assert.assertTrue(ResponseUtil.isAborted(alreadVISIBLE));
         Assert.assertFalse(ResponseUtil.isAborted(errormsg));
+        Assert.assertTrue(ResponseUtil.isAlreadyAborted(alreadyAbort));
+        Assert.assertFalse(ResponseUtil.isAlreadyAborted(alreadCommit));
+        Assert.assertFalse(ResponseUtil.isAlreadyAborted(alreadVISIBLE));
     }
 }

@@ -61,8 +61,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
 import java.io.Serializable;
+import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -96,6 +98,7 @@ public class RestService implements Serializable {
     private static final String TABLE_SCHEMA_API = "http://%s/api/%s/%s/_schema";
     private static final String CATALOG_TABLE_SCHEMA_API = "http://%s/api/%s/%s/%s/_schema";
     private static final String QUERY_PLAN_API = "http://%s/api/%s/%s/_query_plan";
+    private static final String LOAD_STATE_API = "http://%s/api/%s/get_load_state?label=%s";
     private static final String STATEMENT_EXEC_API =
             "http://%s/api/query/default_cluster/information_schema";
 
@@ -426,6 +429,51 @@ public class RestService implements Serializable {
         String response = send(options, readOptions, httpGet, logger);
         logger.debug("Find schema response is '{}'.", response);
         return parseSchema(response, logger);
+    }
+
+    public static LoadState getLoadState(
+            DorisOptions options,
+            DorisReadOptions readOptions,
+            String db,
+            String label,
+            Logger logger)
+            throws DorisException {
+        try {
+            String loadStateUri =
+                    String.format(
+                            LOAD_STATE_API,
+                            randomEndpoint(options.getFenodes(), logger),
+                            db,
+                            URLEncoder.encode(label, StandardCharsets.UTF_8.name()));
+            HttpGet httpGet = new HttpGet(loadStateUri);
+            String response = send(options, readOptions, httpGet, logger);
+            logger.debug("Get stream load state response is '{}'.", response);
+            return parseLoadState(response, logger);
+        } catch (UnsupportedEncodingException e) {
+            throw new DorisException("Encode stream load label failed, label: " + label, e);
+        }
+    }
+
+    @VisibleForTesting
+    static LoadState parseLoadState(String response, Logger logger) throws DorisException {
+        if (StringUtils.isBlank(response)) {
+            throw new DorisException("Doris FE's load state response is empty.");
+        }
+        String state = response.trim();
+        try {
+            JsonNode node = objectMapper.readTree(state);
+            if (node.isTextual()) {
+                state = node.asText();
+            } else if (node.has("data") && node.path("data").isTextual()) {
+                state = node.path("data").asText();
+            } else {
+                throw new DorisException(
+                        "Cannot parse Doris FE's load state response: " + response);
+            }
+        } catch (JsonProcessingException e) {
+            logger.trace("Parse load state response as raw state: {}", response);
+        }
+        return LoadState.fromString(state);
     }
 
     @VisibleForTesting

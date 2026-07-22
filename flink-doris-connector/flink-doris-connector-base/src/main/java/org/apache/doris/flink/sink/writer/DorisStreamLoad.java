@@ -26,10 +26,13 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
+import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.exception.DorisException;
 import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.apache.doris.flink.exception.LabelAlreadyExistsException;
 import org.apache.doris.flink.exception.StreamLoadException;
+import org.apache.doris.flink.rest.LoadState;
+import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.rest.models.RespContent;
 import org.apache.doris.flink.sink.EscapeHandler;
 import org.apache.doris.flink.sink.HttpPutBuilder;
@@ -57,7 +60,6 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 
-import static org.apache.doris.flink.sink.LoadStatus.LABEL_ALREADY_EXIST;
 import static org.apache.doris.flink.sink.LoadStatus.SUCCESS;
 import static org.apache.doris.flink.sink.ResponseUtil.LABEL_EXIST_PATTERN;
 import static org.apache.doris.flink.sink.writer.LoadConstants.ARROW;
@@ -77,6 +79,8 @@ public class DorisStreamLoad implements Serializable {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private final LabelGenerator labelGenerator;
     private final byte[] lineDelimiter;
+    private final DorisOptions dorisOptions;
+    private final DorisReadOptions dorisReadOptions;
     private static final String LOAD_URL_PATTERN = "http://%s/api/%s/%s/_stream_load";
     private static final String ABORT_URL_PATTERN = "http://%s/api/%s/_stream_load_2pc";
     public static final String JOB_EXIST_FINISHED = "FINISHED";
@@ -100,10 +104,27 @@ public class DorisStreamLoad implements Serializable {
     private volatile String currentLabel;
     private boolean enableGroupCommit;
     private boolean enableGzCompress;
+    private transient LoadStateProvider loadStateProvider;
 
     public DorisStreamLoad(
             String hostPort,
             DorisOptions dorisOptions,
+            DorisExecutionOptions executionOptions,
+            LabelGenerator labelGenerator,
+            CloseableHttpClient httpClient) {
+        this(
+                hostPort,
+                dorisOptions,
+                DorisReadOptions.defaults(),
+                executionOptions,
+                labelGenerator,
+                httpClient);
+    }
+
+    public DorisStreamLoad(
+            String hostPort,
+            DorisOptions dorisOptions,
+            DorisReadOptions dorisReadOptions,
             DorisExecutionOptions executionOptions,
             LabelGenerator labelGenerator,
             CloseableHttpClient httpClient) {
@@ -113,6 +134,8 @@ public class DorisStreamLoad implements Serializable {
         this.table = tableInfo[1];
         this.user = dorisOptions.getUsername();
         this.passwd = dorisOptions.getPassword();
+        this.dorisOptions = dorisOptions;
+        this.dorisReadOptions = dorisReadOptions;
         this.labelGenerator = labelGenerator;
         this.loadUrlStr = String.format(LOAD_URL_PATTERN, hostPort, db, table);
         this.abortUrlStr = String.format(ABORT_URL_PATTERN, hostPort, db);
@@ -191,58 +214,42 @@ public class DorisStreamLoad implements Serializable {
      * @throws Exception
      */
     public void abortPreCommit(String labelPrefix, long chkID) throws Exception {
+        abortPreCommit(labelPrefix, chkID, labelGenerator);
+    }
+
+    public void abortPreCommit(String labelPrefix, long chkID, LabelGenerator abortLabelGenerator)
+            throws Exception {
         long startChkID = chkID;
         LOG.info(
                 "abort for labelPrefix {}, concat labelPrefix {},  start chkId {}.",
                 labelPrefix,
-                labelGenerator.getConcatLabelPrefix(),
+                abortLabelGenerator.getConcatLabelPrefix(),
                 chkID);
         while (true) {
             try {
-                // TODO: According to label abort txn.
-                //  Currently, it can only be aborted based on txnid, so we must
-                //  first request a streamload based on the label to get the txnid.
-                String label = labelGenerator.generateTableLabel(startChkID);
-                LOG.info("start a check label {} to load.", label);
-                HttpPutBuilder builder = new HttpPutBuilder();
-                builder.setUrl(loadUrlStr)
-                        .baseAuth(user, passwd)
-                        .addCommonHeader()
-                        .enable2PC()
-                        .setLabel(label)
-                        .setEmptyEntity()
-                        .addProperties(streamLoadProp);
-                RespContent respContent =
-                        handlePreCommitResponse(httpClient.execute(builder.build()));
-                Preconditions.checkState("true".equals(respContent.getTwoPhaseCommit()));
-                if (LABEL_ALREADY_EXIST.equals(respContent.getStatus())) {
-                    // label already exist and job finished
-                    if (JOB_EXIST_FINISHED.equals(respContent.getExistingJobStatus())) {
-                        throw new DorisException(
-                                "Load status is "
-                                        + LABEL_ALREADY_EXIST
-                                        + " and load job finished, "
-                                        + "change you label prefix or restore from latest savepoint!");
-                    }
-                    // job not finished, abort.
-                    Matcher matcher = LABEL_EXIST_PATTERN.matcher(respContent.getMessage());
-                    if (matcher.find()) {
-                        Preconditions.checkState(label.equals(matcher.group(1)));
-                        long txnId = Long.parseLong(matcher.group(2));
-                        LOG.info("abort {} for exist label {}", txnId, label);
-                        abortTransaction(txnId);
-                    } else {
-                        LOG.error("response: {}", respContent.toString());
-                        throw new DorisException(
-                                "Load Status is "
-                                        + LABEL_ALREADY_EXIST
-                                        + ", but no txnID associated with it!");
-                    }
-                } else {
-                    LOG.info("abort {} for check label {}.", respContent.getTxnId(), label);
-                    abortTransaction(respContent.getTxnId());
+                String label = abortLabelGenerator.generateTableLabel(startChkID);
+                LoadState loadState = getLoadState(label);
+                LOG.info("load state for label {} is {}.", label, loadState);
+                if (LoadState.UNKNOWN.equals(loadState)) {
                     break;
                 }
+                if (LoadState.ABORTED.equals(loadState)) {
+                    startChkID++;
+                    continue;
+                }
+                if (loadState.isCommitted()) {
+                    throw new DorisException(
+                            "Load label "
+                                    + label
+                                    + " is already "
+                                    + loadState
+                                    + ", change your label prefix or restore from latest savepoint!");
+                }
+                if (!loadState.isPending()) {
+                    throw new DorisException(
+                            "Unsupported load state " + loadState + " for label " + label);
+                }
+                abortPendingTransactionByLabel(label);
                 startChkID++;
             } catch (Exception e) {
                 LOG.warn("failed to abort labelPrefix {}", labelPrefix, e);
@@ -250,6 +257,43 @@ public class DorisStreamLoad implements Serializable {
             }
         }
         LOG.info("abort for labelPrefix {} finished", labelPrefix);
+    }
+
+    private void abortPendingTransactionByLabel(String label) throws Exception {
+        try {
+            LOG.info("abort precommitted transaction by label {}.", label);
+            abortTransactionByLabel(label);
+        } catch (Exception e) {
+            LoadState loadState = getLoadState(label);
+            if (LoadState.ABORTED.equals(loadState)) {
+                LOG.info(
+                        "transaction for label {} has been aborted after abort failure: {}",
+                        label,
+                        e.getMessage());
+                return;
+            }
+            if (loadState.isCommitted()) {
+                throw new DorisException(
+                        "Failed to abort transaction by label "
+                                + label
+                                + " because it is already "
+                                + loadState,
+                        e);
+            }
+            throw new DorisException(
+                    "Failed to prove transaction abort success by label "
+                            + label
+                            + ", current load state is "
+                            + loadState,
+                    e);
+        }
+    }
+
+    private LoadState getLoadState(String label) throws Exception {
+        if (loadStateProvider != null) {
+            return loadStateProvider.getLoadState(db, label);
+        }
+        return RestService.getLoadState(dorisOptions, dorisReadOptions, db, label, LOG);
     }
 
     /**
@@ -517,6 +561,13 @@ public class DorisStreamLoad implements Serializable {
                         "try abort committed transaction by label, "
                                 + "do you recover from old savepoint?");
             }
+            if (msg != null && ResponseUtil.isAlreadyAborted(msg)) {
+                LOG.info(
+                        "transaction with label {} may have already been successfully aborted, skipping, abort response is {}",
+                        label,
+                        msg);
+                return;
+            }
 
             LOG.error("Fail to abort transaction by label. label: {}, error: {}", label, msg);
             throw new DorisException("Fail to abort transaction by label, " + loadResult);
@@ -547,6 +598,11 @@ public class DorisStreamLoad implements Serializable {
         return currentLabel;
     }
 
+    @VisibleForTesting
+    void setLoadStateProvider(LoadStateProvider loadStateProvider) {
+        this.loadStateProvider = loadStateProvider;
+    }
+
     public void close() throws IOException {
         if (null != httpClient) {
             try {
@@ -558,5 +614,10 @@ public class DorisStreamLoad implements Serializable {
         if (null != executorService) {
             executorService.shutdownNow();
         }
+    }
+
+    @VisibleForTesting
+    interface LoadStateProvider {
+        LoadState getLoadState(String db, String label) throws Exception;
     }
 }

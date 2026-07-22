@@ -21,27 +21,33 @@ import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.exception.DorisException;
+import org.apache.doris.flink.rest.LoadState;
 import org.apache.doris.flink.rest.models.RespContent;
 import org.apache.doris.flink.sink.HttpTestUtil;
 import org.apache.doris.flink.sink.OptionUtils;
 import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.mockito.ArgumentCaptor;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.hamcrest.core.StringStartsWith.startsWith;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /** test for DorisStreamLoad. */
@@ -64,22 +70,31 @@ public class TestDorisStreamLoad {
     @Test
     public void testAbortPreCommit() throws Exception {
         CloseableHttpClient httpClient = mock(CloseableHttpClient.class);
-        CloseableHttpResponse existLabelResponse =
-                HttpTestUtil.getResponse(HttpTestUtil.LABEL_EXIST_PRE_COMMIT_TABLE_RESPONSE, true);
-        CloseableHttpResponse preCommitResponse =
-                HttpTestUtil.getResponse(HttpTestUtil.PRE_COMMIT_TABLE_RESPONSE, true);
-        when(httpClient.execute(any())).thenReturn(existLabelResponse, preCommitResponse);
+        CloseableHttpResponse abortSuccessResponse =
+                HttpTestUtil.getResponse(HttpTestUtil.ABORT_SUCCESS_RESPONSE_BY_LABEL, true);
+        when(httpClient.execute(any(HttpUriRequest.class))).thenReturn(abortSuccessResponse);
         DorisStreamLoad dorisStreamLoad =
-                spy(
-                        new DorisStreamLoad(
-                                "",
-                                dorisOptions,
-                                executionOptions,
-                                new LabelGenerator("test001", true, "db.table", 0),
-                                httpClient));
-
-        doNothing().when(dorisStreamLoad).abortTransaction(anyLong());
+                new DorisStreamLoad(
+                        "",
+                        dorisOptions,
+                        executionOptions,
+                        new LabelGenerator("test001", true, "db.table", 0),
+                        httpClient);
+        Map<String, LoadState> states = new HashMap<>();
+        states.put("test001_db_table_0_1", LoadState.PRECOMMITTED);
+        states.put("test001_db_table_0_2", LoadState.UNKNOWN);
+        dorisStreamLoad.setLoadStateProvider(
+                (db, label) -> states.getOrDefault(label, LoadState.UNKNOWN));
         dorisStreamLoad.abortPreCommit("test001", 1);
+
+        ArgumentCaptor<HttpUriRequest> requestCaptor =
+                ArgumentCaptor.forClass(HttpUriRequest.class);
+        verify(httpClient).execute(requestCaptor.capture());
+        HttpUriRequest abortRequest = requestCaptor.getValue();
+        Assert.assertTrue(abortRequest.getURI().toString().endsWith("/api/db/_stream_load_2pc"));
+        Assert.assertEquals(
+                "test001_db_table_0_1", abortRequest.getFirstHeader("label").getValue());
+        Assert.assertEquals("abort", abortRequest.getFirstHeader("txn_operation").getValue());
     }
 
     @Test
@@ -118,13 +133,9 @@ public class TestDorisStreamLoad {
         dorisStreamLoad.abortTransaction(anyLong());
     }
 
-    @Test(expected = DorisException.class)
-    public void testAbortTransactionLabelExistNoTxn() throws Exception {
+    @Test
+    public void testAbortPreCommitStopOnUnknown() throws Exception {
         CloseableHttpClient httpClient = mock(CloseableHttpClient.class);
-        CloseableHttpResponse abortFailedResponse =
-                HttpTestUtil.getResponse(
-                        HttpTestUtil.LABEL_EXIST_PRECOMMITTED_NO_TXN_TABLE_RESPONSE, true);
-        when(httpClient.execute(any())).thenReturn(abortFailedResponse);
         DorisStreamLoad dorisStreamLoad =
                 new DorisStreamLoad(
                         "",
@@ -132,7 +143,9 @@ public class TestDorisStreamLoad {
                         executionOptions,
                         new LabelGenerator("test001", true, "db.tbl", 1),
                         httpClient);
-        dorisStreamLoad.abortPreCommit("123", anyLong());
+        dorisStreamLoad.setLoadStateProvider((db, label) -> LoadState.UNKNOWN);
+        dorisStreamLoad.abortPreCommit("test001", 1);
+        verify(httpClient, never()).execute(any(HttpUriRequest.class));
     }
 
     @Test
@@ -169,11 +182,8 @@ public class TestDorisStreamLoad {
     }
 
     @Test(expected = DorisException.class)
-    public void testAbortTransactionFailedCauseFinished() throws Exception {
+    public void testAbortPreCommitFailedCauseVisible() throws Exception {
         CloseableHttpClient httpClient = mock(CloseableHttpClient.class);
-        CloseableHttpResponse abortFailedResponse =
-                HttpTestUtil.getResponse(HttpTestUtil.LABEL_EXIST_FINISHED_TABLE_RESPONSE, true);
-        when(httpClient.execute(any())).thenReturn(abortFailedResponse);
         DorisStreamLoad dorisStreamLoad =
                 new DorisStreamLoad(
                         "",
@@ -181,7 +191,35 @@ public class TestDorisStreamLoad {
                         executionOptions,
                         new LabelGenerator("test001", true, "db.tbl", 1),
                         httpClient);
-        dorisStreamLoad.abortPreCommit("123", anyLong());
+        dorisStreamLoad.setLoadStateProvider((db, label) -> LoadState.VISIBLE);
+        dorisStreamLoad.abortPreCommit("test001", 1);
+    }
+
+    @Test
+    public void testAbortPreCommitSuccessWhenFollowUpStateAborted() throws Exception {
+        CloseableHttpClient httpClient = mock(CloseableHttpClient.class);
+        CloseableHttpResponse abortFailedResponse =
+                HttpTestUtil.getResponse(HttpTestUtil.ABORT_FAILED_RESPONSE_BY_LABEL, true);
+        when(httpClient.execute(any(HttpUriRequest.class))).thenReturn(abortFailedResponse);
+        DorisStreamLoad dorisStreamLoad =
+                new DorisStreamLoad(
+                        "",
+                        dorisOptions,
+                        executionOptions,
+                        new LabelGenerator("test001", true, "db.table", 0),
+                        httpClient);
+        AtomicInteger labelOneQueryCount = new AtomicInteger();
+        dorisStreamLoad.setLoadStateProvider(
+                (db, label) -> {
+                    if ("test001_db_table_0_1".equals(label)) {
+                        return labelOneQueryCount.getAndIncrement() == 0
+                                ? LoadState.PRECOMMITTED
+                                : LoadState.ABORTED;
+                    }
+                    return LoadState.UNKNOWN;
+                });
+        dorisStreamLoad.abortPreCommit("test001", 1);
+        verify(httpClient).execute(any(HttpUriRequest.class));
     }
 
     @Test(expected = Exception.class)
