@@ -22,6 +22,7 @@ import org.apache.flink.api.common.time.Deadline;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
+import org.apache.doris.flink.rest.models.BackendV2;
 import org.apache.doris.flink.sink.BackendUtil;
 import org.apache.doris.flink.sink.HttpTestUtil;
 import org.apache.doris.flink.sink.TestUtil;
@@ -47,6 +48,7 @@ import org.slf4j.LoggerFactory;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 
@@ -69,6 +71,12 @@ public class TestDorisBatchStreamLoad {
     @Before
     public void setUp() throws Exception {
         backendUtilMockedStatic = mockStatic(BackendUtil.class);
+        backendUtilMockedStatic
+                .when(() -> BackendUtil.getInstance(any(), any(), any(), any()))
+                .thenReturn(
+                        new BackendUtil(
+                                Collections.singletonList(
+                                        BackendV2.BackendRowV2.of("127.0.0.1", 8040, true))));
         backendUtilMockedStatic.when(() -> BackendUtil.tryHttpConnection(any())).thenReturn(true);
     }
 

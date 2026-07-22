@@ -27,7 +27,6 @@ import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.exception.DorisBatchLoadException;
 import org.apache.doris.flink.exception.DorisRuntimeException;
-import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.rest.models.RespContent;
 import org.apache.doris.flink.sink.BackendUtil;
 import org.apache.doris.flink.sink.EscapeHandler;
@@ -122,10 +121,7 @@ public class DorisBatchStreamLoad implements Serializable {
             LabelGenerator labelGenerator,
             int subTaskId) {
         this.backendUtil =
-                StringUtils.isNotEmpty(dorisOptions.getBenodes())
-                        ? new BackendUtil(dorisOptions.getBenodes())
-                        : new BackendUtil(
-                                RestService.getBackendsV2(dorisOptions, dorisReadOptions, LOG));
+                BackendUtil.getInstance(dorisOptions, dorisReadOptions, executionOptions, LOG);
         this.hostPort = backendUtil.getAvailableBackend();
         this.username = dorisOptions.getUsername();
         this.password = dorisOptions.getPassword();
