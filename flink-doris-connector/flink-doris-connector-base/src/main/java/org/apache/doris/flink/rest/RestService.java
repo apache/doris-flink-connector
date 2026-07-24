@@ -43,6 +43,7 @@ import org.apache.doris.flink.rest.models.Schema;
 import org.apache.doris.flink.rest.models.Tablet;
 import org.apache.doris.flink.sink.BackendUtil;
 import org.apache.doris.flink.sink.HttpGetWithEntity;
+import org.apache.doris.flink.source.split.DorisStreamSplit;
 import org.apache.http.HttpHeaders;
 import org.apache.http.HttpStatus;
 import org.apache.http.client.config.RequestConfig;
@@ -98,6 +99,182 @@ public class RestService implements Serializable {
     private static final String QUERY_PLAN_API = "http://%s/api/%s/%s/_query_plan";
     private static final String STATEMENT_EXEC_API =
             "http://%s/api/query/default_cluster/information_schema";
+    private static final String CURRENT_TSO_API = "http://%s/api/tso";
+
+    /**
+     * Returns the physical millisecond component of the current TSO.
+     *
+     * <p>1. Query all Frontends with {@code SHOW FRONTENDS}. 2. Find the Master FE from the
+     * statement result. 3. Request the current TSO from the Master FE. 4. Restart from step 1 if
+     * any step fails.
+     */
+    public static long getCurrentTsoPhysicalTime(
+            DorisOptions options, DorisReadOptions readOptions, Logger logger) {
+        return executeTsoOperationWithRetries(
+                options,
+                readOptions,
+                logger,
+                "get current Doris TSO",
+                discoveryEndpoint -> {
+                    String masterEndpoint =
+                            discoverMasterFrontend(options, readOptions, discoveryEndpoint, logger);
+                    return requestCurrentTsoPhysicalTime(
+                            options, readOptions, masterEndpoint, logger);
+                });
+    }
+
+    /** Resolves the current Doris TSO to the timestamp format accepted by row-binlog queries. */
+    public static String resolveCurrentTimestamp(
+            DorisOptions options, DorisReadOptions readOptions, Logger logger) {
+        return executeTsoOperationWithRetries(
+                options,
+                readOptions,
+                logger,
+                "resolve current Doris timestamp",
+                discoveryEndpoint -> {
+                    String masterEndpoint =
+                            discoverMasterFrontend(options, readOptions, discoveryEndpoint, logger);
+                    long physicalTime =
+                            requestCurrentTsoPhysicalTime(
+                                    options, readOptions, masterEndpoint, logger);
+                    String timestamp =
+                            parseScalarStatementResult(
+                                    executeStatementAtEndpoint(
+                                            options,
+                                            readOptions,
+                                            masterEndpoint,
+                                            buildCurrentTimestampSql(physicalTime),
+                                            logger));
+                    return validateCurrentTimestamp(timestamp);
+                });
+    }
+
+    private static String discoverMasterFrontend(
+            DorisOptions options,
+            DorisReadOptions readOptions,
+            String discoveryEndpoint,
+            Logger logger) {
+        String masterEndpoint =
+                getMasterFrontendEndpoint(
+                        getFrontends(options, readOptions, discoveryEndpoint, logger));
+        logger.debug(
+                "Discovered Doris master FE {} through FE {}", masterEndpoint, discoveryEndpoint);
+        return masterEndpoint;
+    }
+
+    private static long requestCurrentTsoPhysicalTime(
+            DorisOptions options,
+            DorisReadOptions readOptions,
+            String masterEndpoint,
+            Logger logger) {
+        HttpGet request = new HttpGet(String.format(CURRENT_TSO_API, masterEndpoint));
+        request.setHeader(HttpHeaders.AUTHORIZATION, authHeader(options));
+        request.setConfig(createRequestConfig(readOptions));
+        try {
+            return parseCurrentTsoPhysicalTime(handleResponse(request, logger).toString());
+        } catch (RuntimeException e) {
+            throw new DorisRuntimeException(
+                    "Failed to get current TSO from Doris master FE "
+                            + masterEndpoint
+                            + ": "
+                            + e.getMessage(),
+                    e);
+        }
+    }
+
+    private static <T> T executeTsoOperationWithRetries(
+            DorisOptions options,
+            DorisReadOptions readOptions,
+            Logger logger,
+            String operationName,
+            TsoOperation<T> operation) {
+        List<String> discoveryEndpoints = allEndpoints(options.getFenodes(), logger);
+        int configuredRetries =
+                readOptions.getRequestRetries() == null
+                        ? ConfigurationOptions.DORIS_REQUEST_RETRIES_DEFAULT
+                        : readOptions.getRequestRetries();
+        int maxAttempts = Math.max(1, configuredRetries);
+        RuntimeException lastFailure = null;
+
+        for (int attempt = 0; attempt < maxAttempts; attempt++) {
+            String discoveryEndpoint = discoveryEndpoints.get(attempt % discoveryEndpoints.size());
+            try {
+                return operation.execute(discoveryEndpoint);
+            } catch (RuntimeException e) {
+                lastFailure = e;
+                logger.warn(
+                        "Failed to {} through FE {} on attempt {}/{}: {}",
+                        operationName,
+                        discoveryEndpoint,
+                        attempt + 1,
+                        maxAttempts,
+                        e.getMessage());
+            }
+        }
+        throw new DorisRuntimeException(
+                "Failed to " + operationName + " after " + maxAttempts + " attempts", lastFailure);
+    }
+
+    private static RequestConfig createRequestConfig(DorisReadOptions readOptions) {
+        int connectTimeout =
+                readOptions.getRequestConnectTimeoutMs() == null
+                        ? ConfigurationOptions.DORIS_REQUEST_CONNECT_TIMEOUT_MS_DEFAULT
+                        : readOptions.getRequestConnectTimeoutMs();
+        int socketTimeout =
+                readOptions.getRequestReadTimeoutMs() == null
+                        ? ConfigurationOptions.DORIS_REQUEST_READ_TIMEOUT_MS_DEFAULT
+                        : readOptions.getRequestReadTimeoutMs();
+        return RequestConfig.custom()
+                .setConnectTimeout(connectTimeout)
+                .setConnectionRequestTimeout(connectTimeout)
+                .setSocketTimeout(socketTimeout)
+                .build();
+    }
+
+    @FunctionalInterface
+    private interface TsoOperation<T> {
+        T execute(String discoveryEndpoint);
+    }
+
+    @VisibleForTesting
+    static String buildCurrentTimestampSql(long physicalTime) {
+        return String.format(
+                "SELECT FROM_UNIXTIME(%d / 1000, '%%Y-%%m-%%d %%H:%%i:%%s')", physicalTime);
+    }
+
+    @VisibleForTesting
+    static String validateCurrentTimestamp(String timestamp) {
+        if (!DorisStreamSplit.isValidTimestamp(timestamp)) {
+            throw new DorisRuntimeException(
+                    "Doris timestamp must strictly match yyyy-MM-dd HH:mm:ss: " + timestamp);
+        }
+        return timestamp;
+    }
+
+    @VisibleForTesting
+    public static long parseCurrentTsoPhysicalTime(String response) {
+        try {
+            JsonNode root = objectMapper.readTree(response);
+            int code = root.path("code").asInt(Integer.MIN_VALUE);
+            if (code != REST_RESPONSE_CODE_OK) {
+                throw new DorisRuntimeException(
+                        "Failed to get current Doris TSO: " + root.path("msg").asText());
+            }
+            JsonNode physicalTimeNode = root.path("data").path("current_tso_physical_time");
+            if (physicalTimeNode.isMissingNode() || physicalTimeNode.isNull()) {
+                throw new DorisRuntimeException(
+                        "Missing current_tso_physical_time in TSO response");
+            }
+            long physicalTime = physicalTimeNode.asLong(-1L);
+            if (physicalTime <= 0) {
+                throw new DorisRuntimeException(
+                        "Invalid current_tso_physical_time: " + physicalTimeNode.asText());
+            }
+            return physicalTime;
+        } catch (JsonProcessingException e) {
+            throw new DorisRuntimeException("Invalid Doris TSO response", e);
+        }
+    }
 
     /**
      * send request to Doris FE and get response json string.
@@ -455,23 +632,113 @@ public class RestService implements Serializable {
     @VisibleForTesting
     public static JsonNode handleResponse(HttpUriRequest request, Logger logger) {
         try (CloseableHttpClient httpclient = HttpClients.createDefault()) {
-            CloseableHttpResponse response = httpclient.execute(request);
-            final int statusCode = response.getStatusLine().getStatusCode();
-            final String reasonPhrase = response.getStatusLine().getReasonPhrase();
-            if (statusCode == 200 && response.getEntity() != null) {
-                String responseEntity = EntityUtils.toString(response.getEntity());
-                return objectMapper.readTree(responseEntity);
-            } else {
-                throw new DorisRuntimeException(
-                        "Failed to parse response, status: "
-                                + statusCode
-                                + ", reason: "
-                                + reasonPhrase);
+            try (CloseableHttpResponse response = httpclient.execute(request)) {
+                final int statusCode = response.getStatusLine().getStatusCode();
+                final String reasonPhrase = response.getStatusLine().getReasonPhrase();
+                if (statusCode == 200 && response.getEntity() != null) {
+                    String responseEntity = EntityUtils.toString(response.getEntity());
+                    return objectMapper.readTree(responseEntity);
+                } else {
+                    throw new DorisRuntimeException(
+                            "Failed to parse response, status: "
+                                    + statusCode
+                                    + ", reason: "
+                                    + reasonPhrase);
+                }
             }
         } catch (Exception e) {
             logger.trace("request error,", e);
-            throw new DorisRuntimeException("request error with " + e.getMessage());
+            throw new DorisRuntimeException(
+                    "request error for " + request.getURI() + ": " + e.getMessage(), e);
         }
+    }
+
+    /** Executes a SQL statement through the Doris FE HTTP statement endpoint. */
+    public static JsonNode executeStatement(DorisOptions options, String statement, Logger logger) {
+        try {
+            return executeStatementAtEndpoint(
+                    options,
+                    DorisReadOptions.defaults(),
+                    randomEndpoint(options.getFenodes(), logger),
+                    statement,
+                    logger);
+        } catch (IllegalArgumentException e) {
+            throw new DorisRuntimeException("Failed to select a Doris FE endpoint", e);
+        }
+    }
+
+    private static JsonNode executeStatementAtEndpoint(
+            DorisOptions options,
+            DorisReadOptions readOptions,
+            String endpoint,
+            String statement,
+            Logger logger) {
+        try {
+            Map<String, String> param = new HashMap<>();
+            param.put("stmt", statement);
+            String requestUrl = String.format(STATEMENT_EXEC_API, endpoint);
+            HttpPost httpPost = new HttpPost(requestUrl);
+            httpPost.setHeader(HttpHeaders.AUTHORIZATION, authHeader(options));
+            httpPost.setHeader(
+                    HttpHeaders.CONTENT_TYPE,
+                    String.format("application/json;charset=%s", "UTF-8"));
+            httpPost.setEntity(new StringEntity(objectMapper.writeValueAsString(param), "UTF-8"));
+            httpPost.setConfig(createRequestConfig(readOptions));
+
+            JsonNode response = handleResponse(httpPost, logger);
+            if (response.has("code") && response.path("code").asInt() != REST_RESPONSE_CODE_OK) {
+                throw new DorisRuntimeException(
+                        "Failed to execute Doris statement: " + response.path("msg").asText());
+            }
+            return response;
+        } catch (DorisRuntimeException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new DorisRuntimeException("Failed to execute Doris statement", e);
+        }
+    }
+
+    @VisibleForTesting
+    static String parseScalarStatementResult(JsonNode rootNode) {
+        JsonNode dataNode = rootNode.path("data").path("data");
+        if (dataNode.size() != 1
+                || !dataNode.get(0).isArray()
+                || dataNode.get(0).size() != 1
+                || dataNode.get(0).get(0).isNull()) {
+            throw new DorisRuntimeException(
+                    "Doris scalar statement must return exactly one row and one column");
+        }
+        return dataNode.get(0).get(0).asText();
+    }
+
+    private static JsonNode getFrontends(
+            DorisOptions options, DorisReadOptions readOptions, String endpoint, Logger logger) {
+        return executeStatementAtEndpoint(options, readOptions, endpoint, "show frontends", logger);
+    }
+
+    @VisibleForTesting
+    static String getMasterFrontendEndpoint(JsonNode rootNode) {
+        JsonNode metaNode = rootNode.path("data").path("meta");
+        JsonNode dataNode = rootNode.path("data").path("data");
+        int hostIndex = findStatementColumnIndex(metaNode, "Host");
+        int httpPortIndex = findStatementColumnIndex(metaNode, "HttpPort");
+        int isMasterIndex = findStatementColumnIndex(metaNode, "IsMaster");
+
+        for (JsonNode row : dataNode) {
+            if (!row.isArray()
+                    || row.size() <= Math.max(isMasterIndex, Math.max(hostIndex, httpPortIndex))
+                    || !Boolean.parseBoolean(row.get(isMasterIndex).asText())) {
+                continue;
+            }
+            String host = row.get(hostIndex).asText();
+            int httpPort = row.get(httpPortIndex).asInt(-1);
+            if (StringUtils.isBlank(host) || httpPort <= 0 || httpPort > 65535) {
+                throw new DorisRuntimeException(
+                        "Doris master FE has invalid Host or HttpPort in SHOW FRONTENDS result");
+            }
+            return host + ":" + httpPort;
+        }
+        throw new DorisRuntimeException("No master FE found in SHOW FRONTENDS result");
     }
 
     /** Try to get the ArrowFlightSqlPort port */
@@ -481,18 +748,7 @@ public class RestService implements Serializable {
             return readOptions.getFlightSqlPort();
         }
         try {
-            Map<String, String> param = new HashMap<>();
-            param.put("stmt", "show frontends");
-            String requestUrl =
-                    String.format(STATEMENT_EXEC_API, randomEndpoint(options.getFenodes(), logger));
-            HttpPost httpPost = new HttpPost(requestUrl);
-            httpPost.setHeader(HttpHeaders.AUTHORIZATION, authHeader(options));
-            httpPost.setHeader(
-                    HttpHeaders.CONTENT_TYPE,
-                    String.format("application/json;charset=%s", "UTF-8"));
-            httpPost.setEntity(new StringEntity(objectMapper.writeValueAsString(param), "UTF-8"));
-
-            JsonNode response = handleResponse(httpPost, logger);
+            JsonNode response = executeStatement(options, "show frontends", logger);
             logger.info("Get ArrowFlightSqlPort response is '{}'.", response);
             return getArrowFlightSqlPort(response);
         } catch (Exception ex) {
@@ -506,15 +762,9 @@ public class RestService implements Serializable {
         JsonNode metaNode = rootNode.path("data").path("meta");
         JsonNode dataNode = rootNode.path("data").path("data");
 
-        int columnIndex = -1;
-        for (int i = 0; i < metaNode.size(); i++) {
-            if ("ArrowFlightSqlPort".equals(metaNode.get(i).path("name").asText())) {
-                columnIndex = i;
-                break;
-            }
-        }
+        int columnIndex = findStatementColumnIndex(metaNode, "ArrowFlightSqlPort");
 
-        if (columnIndex != -1 && dataNode.size() > 0) {
+        if (dataNode.size() > 0) {
             int arrowFlightSqlPort = dataNode.get(0).get(columnIndex).asInt();
             return arrowFlightSqlPort;
         } else {
@@ -543,6 +793,15 @@ public class RestService implements Serializable {
         } catch (Exception e) {
             throw new DorisRuntimeException(e);
         }
+    }
+
+    private static int findStatementColumnIndex(JsonNode metaNode, String columnName) {
+        for (int index = 0; index < metaNode.size(); index++) {
+            if (columnName.equalsIgnoreCase(metaNode.get(index).path("name").asText())) {
+                return index;
+            }
+        }
+        throw new DorisRuntimeException("Doris statement result is missing " + columnName);
     }
 
     /**

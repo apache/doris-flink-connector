@@ -19,6 +19,7 @@ package org.apache.doris.flink.source.reader;
 
 import org.apache.doris.flink.deserialization.SimpleListDeserializationSchema;
 import org.apache.doris.flink.sink.OptionUtils;
+import org.apache.doris.flink.source.split.DorisSnapshotSplit;
 import org.apache.doris.flink.source.split.DorisSourceSplit;
 import org.junit.Test;
 
@@ -40,7 +41,7 @@ public class DorisSourceReaderTest {
     }
 
     private static DorisSourceSplit createTestDorisSplit() throws IOException {
-        return new DorisSourceSplit("splitId", OptionUtils.buildPartitionDef());
+        return new DorisSnapshotSplit("splitId", OptionUtils.buildPartitionDef());
     }
 
     @Test

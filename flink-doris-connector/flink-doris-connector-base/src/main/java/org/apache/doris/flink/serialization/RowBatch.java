@@ -52,6 +52,7 @@ import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.doris.flink.exception.DorisException;
 import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.apache.doris.flink.rest.models.Schema;
+import org.apache.doris.flink.source.reader.DorisSourceRecord;
 import org.apache.doris.flink.util.FastDateUtil;
 import org.apache.doris.flink.util.IPUtils;
 import org.apache.doris.sdk.thrift.TScanBatchResult;
@@ -82,6 +83,9 @@ public class RowBatch {
 
     public static class Row {
         private final List<Object> cols;
+        private Long binlogTso;
+        private Long binlogLsn;
+        private Long binlogOp;
 
         Row(int colCount) {
             this.cols = new ArrayList<>(colCount);
@@ -94,6 +98,12 @@ public class RowBatch {
         public void put(Object o) {
             cols.add(o);
         }
+
+        private DorisSourceRecord toSourceRecord(boolean incremental) {
+            return incremental
+                    ? DorisSourceRecord.incremental(cols, binlogTso, binlogLsn, binlogOp)
+                    : DorisSourceRecord.snapshot(cols);
+        }
     }
 
     // offset for iterate the rowBatch
@@ -102,10 +112,15 @@ public class RowBatch {
     private int readRowCount = 0;
     private final List<Row> rowBatch = new ArrayList<>();
     private final ArrowReader arrowStreamReader;
+    private final boolean ownsArrowReader;
     private VectorSchemaRoot root;
     private List<FieldVector> fieldVectors;
     private RootAllocator rootAllocator;
     private final Schema schema;
+    private final boolean incremental;
+    private static final String BINLOG_TSO = "__DORIS_BINLOG_TSO__";
+    private static final String BINLOG_LSN = "__DORIS_BINLOG_LSN__";
+    private static final String BINLOG_OP = "__DORIS_BINLOG_OP__";
     private static final String DATETIME_PATTERN = "yyyy-MM-dd HH:mm:ss";
     private static final String DATETIMEV2_PATTERN = "yyyy-MM-dd HH:mm:ss.SSSSSS";
     private static final String DATE_PATTERN = "yyyy-MM-dd";
@@ -121,17 +136,29 @@ public class RowBatch {
     }
 
     public RowBatch(TScanBatchResult nextResult, Schema schema) {
+        this(nextResult, schema, false);
+    }
+
+    private RowBatch(TScanBatchResult nextResult, Schema schema, boolean incremental) {
         this.schema = schema;
+        this.incremental = incremental;
         this.rootAllocator = new RootAllocator(Integer.MAX_VALUE);
         this.arrowStreamReader =
                 new ArrowStreamReader(
                         new ByteArrayInputStream(nextResult.getRows()), rootAllocator);
+        this.ownsArrowReader = true;
         this.offsetInRowBatch = 0;
     }
 
     public RowBatch(ArrowReader nextResult, Schema schema) {
+        this(nextResult, schema, false);
+    }
+
+    public RowBatch(ArrowReader nextResult, Schema schema, boolean incremental) {
         this.schema = schema;
+        this.incremental = incremental;
         this.arrowStreamReader = nextResult;
+        this.ownsArrowReader = false;
         this.offsetInRowBatch = 0;
     }
 
@@ -139,13 +166,17 @@ public class RowBatch {
         try {
             this.root = arrowStreamReader.getVectorSchemaRoot();
             fieldVectors = root.getFieldVectors();
-            if (fieldVectors.size() > schema.size()) {
+            if ((!incremental && fieldVectors.size() > schema.size())
+                    || (incremental && fieldVectors.size() != schema.size() + 3)) {
                 logger.error(
                         "Schema size '{}' is not equal to arrow field size '{}'.",
                         fieldVectors.size(),
                         schema.size());
                 throw new DorisException(
                         "Load Doris data failed, schema size of fetch data is wrong.");
+            }
+            if (incremental) {
+                validateIncrementalFields();
             }
             if (fieldVectors.isEmpty() || root.getRowCount() == 0) {
                 logger.debug("One batch in arrow has no data.");
@@ -160,9 +191,9 @@ public class RowBatch {
             return this;
         } catch (DorisException e) {
             logger.error("Read Doris Data failed because: ", e);
-            throw new DorisRuntimeException(e.getMessage());
+            throw new DorisRuntimeException(e.getMessage(), e);
         } catch (IOException e) {
-            return this;
+            throw new DorisRuntimeException("Failed to read Doris Flight Arrow batch", e);
         }
     }
 
@@ -217,13 +248,23 @@ public class RowBatch {
 
     public void convertArrowToRowBatch() throws DorisException {
         try {
+            int businessColumn = 0;
             for (int col = 0; col < fieldVectors.size(); col++) {
                 FieldVector fieldVector = fieldVectors.get(col);
+                String vectorName = fieldVector.getName();
+                if (incremental && isBinlogField(vectorName)) {
+                    for (int rowIndex = 0; rowIndex < rowCountInOneBatch; rowIndex++) {
+                        setBinlogValue(rowIndex, vectorName, fieldVector.getObject(rowIndex));
+                    }
+                    continue;
+                }
                 MinorType minorType = fieldVector.getMinorType();
-                final String currentType = schema.get(col).getType();
-                final String colName = schema.get(col).getName();
+                final String currentType = schema.get(businessColumn).getType();
+                final String colName = schema.get(businessColumn).getName();
                 for (int rowIndex = 0; rowIndex < rowCountInOneBatch; rowIndex++) {
-                    boolean passed = doConvert(col, rowIndex, minorType, currentType, fieldVector);
+                    boolean passed =
+                            doConvert(
+                                    businessColumn, rowIndex, minorType, currentType, fieldVector);
                     if (!passed) {
                         throw new IllegalArgumentException(
                                 "FLINK type is "
@@ -234,10 +275,60 @@ public class RowBatch {
                                         + colName);
                     }
                 }
+                businessColumn++;
+            }
+            if (businessColumn != schema.size()) {
+                throw new DorisRuntimeException("Doris Arrow result is missing business fields");
             }
         } catch (Exception e) {
             close();
             throw e;
+        }
+    }
+
+    private static boolean isBinlogField(String name) {
+        return BINLOG_TSO.equalsIgnoreCase(name)
+                || BINLOG_LSN.equalsIgnoreCase(name)
+                || BINLOG_OP.equalsIgnoreCase(name);
+    }
+
+    private void validateIncrementalFields() throws DorisException {
+        int tsoFields = 0;
+        int lsnFields = 0;
+        int opFields = 0;
+        for (FieldVector fieldVector : fieldVectors) {
+            String name = fieldVector.getName();
+            tsoFields += BINLOG_TSO.equalsIgnoreCase(name) ? 1 : 0;
+            lsnFields += BINLOG_LSN.equalsIgnoreCase(name) ? 1 : 0;
+            opFields += BINLOG_OP.equalsIgnoreCase(name) ? 1 : 0;
+        }
+        if (tsoFields != 1 || lsnFields != 1 || opFields != 1) {
+            throw new DorisException(
+                    "Doris incremental result must contain exactly one TSO, LSN, and OP field");
+        }
+    }
+
+    private void setBinlogValue(int rowIndex, String name, Object value) {
+        if (value == null) {
+            throw new DorisRuntimeException("Doris row-binlog field " + name + " cannot be null");
+        }
+        final long parsed;
+        try {
+            parsed =
+                    value instanceof Number
+                            ? ((Number) value).longValue()
+                            : Long.parseLong(value.toString());
+        } catch (NumberFormatException e) {
+            throw new DorisRuntimeException(
+                    "Invalid Doris row-binlog field " + name + ": " + value, e);
+        }
+        Row row = rowBatch.get(readRowCount + rowIndex);
+        if (BINLOG_TSO.equalsIgnoreCase(name)) {
+            row.binlogTso = parsed;
+        } else if (BINLOG_LSN.equalsIgnoreCase(name)) {
+            row.binlogLsn = parsed;
+        } else if (BINLOG_OP.equalsIgnoreCase(name)) {
+            row.binlogOp = parsed;
         }
     }
 
@@ -682,6 +773,13 @@ public class RowBatch {
         return rowBatch.get(offsetInRowBatch++).getCols();
     }
 
+    public DorisSourceRecord nextSourceRecord() {
+        if (!hasNext()) {
+            throw new NoSuchElementException("No row remains in Doris Arrow batch");
+        }
+        return rowBatch.get(offsetInRowBatch++).toSourceRecord(incremental);
+    }
+
     private String typeMismatchMessage(final String flinkType, final MinorType arrowType) {
         final String messageTemplate = "FLINK type is %1$s, but arrow type is %2$s.";
         return String.format(messageTemplate, flinkType, arrowType.name());
@@ -693,7 +791,7 @@ public class RowBatch {
 
     public void close() {
         try {
-            if (arrowStreamReader != null) {
+            if (ownsArrowReader && arrowStreamReader != null) {
                 arrowStreamReader.close();
             }
             if (rootAllocator != null) {

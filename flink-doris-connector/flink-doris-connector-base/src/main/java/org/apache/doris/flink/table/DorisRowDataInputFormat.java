@@ -137,7 +137,7 @@ public class DorisRowDataInputFormat extends RichInputFormat<RowData, DorisTable
         if (!hasNext) {
             return null;
         }
-        List next = valueReader.next();
+        List<?> next = valueReader.next().getFieldValues();
         RowData genericRowData = rowConverter.convertInternal(next);
         // update hasNext after we've read the record
         hasNext = valueReader.hasNext();

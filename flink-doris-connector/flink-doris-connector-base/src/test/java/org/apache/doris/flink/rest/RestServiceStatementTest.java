@@ -15,9 +15,25 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.flink.source.split;
+package org.apache.doris.flink.rest;
 
-import org.apache.flink.api.connector.source.SourceSplit;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.Test;
 
-/** Marker interface for bounded snapshot and fixed-range stream splits. */
-public interface DorisSourceSplit extends SourceSplit {}
+import static org.assertj.core.api.Assertions.assertThat;
+
+class RestServiceStatementTest {
+
+    @Test
+    void parsesScalarStatementResult() throws Exception {
+        JsonNode response =
+                new ObjectMapper()
+                        .readTree(
+                                "{\"data\":{\"meta\":[{\"name\":\"result\"}],"
+                                        + "\"data\":[[\"2026-07-20 10:00:00\"]]}}");
+
+        assertThat(RestService.parseScalarStatementResult(response))
+                .isEqualTo("2026-07-20 10:00:00");
+    }
+}

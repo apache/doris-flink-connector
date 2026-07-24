@@ -30,20 +30,19 @@ import org.apache.doris.flink.source.split.DorisSourceSplitState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
 import java.util.Map;
 
 /** A {@link SourceReader} that read records from {@link DorisSourceSplit}. */
 public class DorisSourceReader<T>
         extends SingleThreadMultiplexSourceReaderBase<
-                List, T, DorisSourceSplit, DorisSourceSplitState> {
+                DorisSourceRecord, T, DorisSourceSplit, DorisSourceSplitState> {
 
     private static final Logger LOG = LoggerFactory.getLogger(DorisSourceReader.class);
 
     public DorisSourceReader(
             DorisOptions options,
             DorisReadOptions readOptions,
-            RecordEmitter<List, T, DorisSourceSplitState> recordEmitter,
+            RecordEmitter<DorisSourceRecord, T, DorisSourceSplitState> recordEmitter,
             SourceReaderContext context,
             Configuration config) {
         super(
@@ -63,7 +62,9 @@ public class DorisSourceReader<T>
 
     @Override
     protected void onSplitFinished(Map<String, DorisSourceSplitState> finishedSplitIds) {
-        context.sendSplitRequest();
+        if (getNumberOfCurrentlyAssignedSplits() == 0) {
+            context.sendSplitRequest();
+        }
     }
 
     @Override

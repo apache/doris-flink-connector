@@ -23,7 +23,6 @@ import org.apache.flink.connector.base.source.reader.splitreader.SplitsChange;
 
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
-import org.apache.doris.flink.exception.DorisException;
 import org.apache.doris.flink.source.split.DorisSourceSplit;
 import org.apache.doris.flink.source.split.DorisSplitRecords;
 import org.slf4j.Logger;
@@ -31,11 +30,10 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
-import java.util.List;
 import java.util.Queue;
 
 /** The {@link SplitReader} implementation for the doris source. */
-public class DorisSourceSplitReader implements SplitReader<List, DorisSourceSplit> {
+public class DorisSourceSplitReader implements SplitReader<DorisSourceRecord, DorisSourceSplit> {
 
     private static final Logger LOG = LoggerFactory.getLogger(DorisSourceSplitReader.class);
 
@@ -52,12 +50,8 @@ public class DorisSourceSplitReader implements SplitReader<List, DorisSourceSpli
     }
 
     @Override
-    public RecordsWithSplitIds<List> fetch() throws IOException {
-        try {
-            checkSplitOrStartNext();
-        } catch (DorisException e) {
-            throw new RuntimeException(e);
-        }
+    public RecordsWithSplitIds<DorisSourceRecord> fetch() throws IOException {
+        checkSplitOrStartNext();
 
         if (!valueReader.hasNext()) {
             return finishSplit();
@@ -65,7 +59,7 @@ public class DorisSourceSplitReader implements SplitReader<List, DorisSourceSpli
         return DorisSplitRecords.forRecords(currentSplitId, valueReader);
     }
 
-    private void checkSplitOrStartNext() throws IOException, DorisException {
+    private void checkSplitOrStartNext() throws IOException {
         if (valueReader != null) {
             return;
         }
@@ -75,9 +69,7 @@ public class DorisSourceSplitReader implements SplitReader<List, DorisSourceSpli
         }
         currentSplitId = nextSplit.splitId();
         LOG.info("Fetch a new split {}", nextSplit);
-        valueReader =
-                ValueReader.createReader(
-                        nextSplit.getPartitionDefinition(), options, readOptions, LOG);
+        valueReader = ValueReader.createReader(nextSplit, options, readOptions, LOG);
     }
 
     private DorisSplitRecords finishSplit() {

@@ -32,13 +32,10 @@ import org.apache.flink.util.Preconditions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.deserialization.DorisDeserializationSchema;
-import org.apache.doris.flink.rest.PartitionDefinition;
-import org.apache.doris.flink.rest.RestService;
-import org.apache.doris.flink.source.assigners.DorisSplitAssigner;
-import org.apache.doris.flink.source.assigners.SimpleSplitAssigner;
+import org.apache.doris.flink.source.assigners.DorisSourceSplitAssigner;
+import org.apache.doris.flink.source.enumerator.DorisSourceCheckpoint;
+import org.apache.doris.flink.source.enumerator.DorisSourceCheckpointSerializer;
 import org.apache.doris.flink.source.enumerator.DorisSourceEnumerator;
-import org.apache.doris.flink.source.enumerator.PendingSplitsCheckpoint;
-import org.apache.doris.flink.source.enumerator.PendingSplitsCheckpointSerializer;
 import org.apache.doris.flink.source.reader.DorisRecordEmitter;
 import org.apache.doris.flink.source.reader.DorisSourceReader;
 import org.apache.doris.flink.source.split.DorisSourceSplit;
@@ -46,18 +43,13 @@ import org.apache.doris.flink.source.split.DorisSourceSplitSerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-
-/** DorisSource based on FLIP-27 which is a BOUNDED stream. */
+/** FLIP-27 source for bounded snapshots and continuous Doris row-binlog increments. */
 @PublicEvolving
 public class DorisSource<OUT>
-        implements Source<OUT, DorisSourceSplit, PendingSplitsCheckpoint>,
-                ResultTypeQueryable<OUT> {
+        implements Source<OUT, DorisSourceSplit, DorisSourceCheckpoint>, ResultTypeQueryable<OUT> {
 
     private static final Logger LOG = LoggerFactory.getLogger(DorisSource.class);
-    private static final String SINGLE_SPLIT = "SingleSplit";
+    private static final long MIN_BINLOG_POLL_INTERVAL_MS = 1_000L;
 
     private final DorisOptions options;
     private final DorisReadOptions readOptions;
@@ -79,7 +71,9 @@ public class DorisSource<OUT>
 
     @Override
     public Boundedness getBoundedness() {
-        return this.boundedness;
+        return readOptions.getScanMode().hasIncrementalPhase()
+                ? Boundedness.CONTINUOUS_UNBOUNDED
+                : this.boundedness;
     }
 
     @Override
@@ -94,42 +88,24 @@ public class DorisSource<OUT>
     }
 
     @Override
-    public SplitEnumerator<DorisSourceSplit, PendingSplitsCheckpoint> createEnumerator(
+    public SplitEnumerator<DorisSourceSplit, DorisSourceCheckpoint> createEnumerator(
             SplitEnumeratorContext<DorisSourceSplit> context) throws Exception {
-        List<DorisSourceSplit> dorisSourceSplits = new ArrayList<>();
-        String[] tableIdentifiers = RestService.parseIdentifier(options.getTableIdentifier(), LOG);
-
-        if (tableIdentifiers.length == 2) {
-            List<PartitionDefinition> partitions =
-                    RestService.findPartitions(options, readOptions, LOG);
-            for (int index = 0; index < partitions.size(); index++) {
-                PartitionDefinition partitionDef = partitions.get(index);
-                String splitId = partitionDef.getBeAddress() + "_" + index;
-                dorisSourceSplits.add(new DorisSourceSplit(splitId, partitionDef));
-            }
-        } else {
-            Preconditions.checkArgument(
-                    readOptions.getUseFlightSql(),
-                    "UseFlightSql must be true when table.identifier is catalog.db.table");
-            // catalog query or customer query
-            dorisSourceSplits.add(
-                    new DorisSourceSplit(
-                            SINGLE_SPLIT,
-                            PartitionDefinition.emptyPartition(options.getTableIdentifier())));
-        }
-
-        DorisSplitAssigner splitAssigner = new SimpleSplitAssigner(dorisSourceSplits);
-        return new DorisSourceEnumerator(context, splitAssigner);
+        return new DorisSourceEnumerator(
+                context,
+                new DorisSourceSplitAssigner(options, readOptions, context.currentParallelism()),
+                readOptions.getBinlogPollIntervalMs());
     }
 
     @Override
-    public SplitEnumerator<DorisSourceSplit, PendingSplitsCheckpoint> restoreEnumerator(
-            SplitEnumeratorContext<DorisSourceSplit> context, PendingSplitsCheckpoint checkpoint)
+    public SplitEnumerator<DorisSourceSplit, DorisSourceCheckpoint> restoreEnumerator(
+            SplitEnumeratorContext<DorisSourceSplit> context, DorisSourceCheckpoint checkpoint)
             throws Exception {
-        Collection<DorisSourceSplit> splits = checkpoint.getSplits();
-        LOG.info("Restore splits from checkpoint, size {}, splits {}", splits.size(), splits);
-        DorisSplitAssigner splitAssigner = new SimpleSplitAssigner(splits);
-        return new DorisSourceEnumerator(context, splitAssigner);
+        LOG.info("Restore Doris source checkpoint in phase {}", checkpoint.getPhase());
+        return new DorisSourceEnumerator(
+                context,
+                new DorisSourceSplitAssigner(
+                        options, readOptions, checkpoint, context.currentParallelism()),
+                readOptions.getBinlogPollIntervalMs());
     }
 
     @Override
@@ -138,8 +114,8 @@ public class DorisSource<OUT>
     }
 
     @Override
-    public SimpleVersionedSerializer<PendingSplitsCheckpoint> getEnumeratorCheckpointSerializer() {
-        return new PendingSplitsCheckpointSerializer(getSplitSerializer());
+    public SimpleVersionedSerializer<DorisSourceCheckpoint> getEnumeratorCheckpointSerializer() {
+        return new DorisSourceCheckpointSerializer(getSplitSerializer());
     }
 
     @Override
@@ -191,7 +167,7 @@ public class DorisSource<OUT>
             return this;
         }
 
-        /** Sets the Boundedness for the DorisSource, Currently only BOUNDED is supported. */
+        /** Sets the boundedness for snapshot mode. Incremental modes are always unbounded. */
         public DorisSourceBuilder<OUT> setBoundedness(Boundedness boundedness) {
             this.boundedness = boundedness;
             return this;
@@ -218,6 +194,37 @@ public class DorisSource<OUT>
             if (readOptions == null) {
                 readOptions = DorisReadOptions.builder().build();
             }
+            Preconditions.checkNotNull(options, "Doris options must be configured");
+            Preconditions.checkNotNull(deserializer, "Doris deserializer must be configured");
+            Preconditions.checkArgument(
+                    !readOptions.getUseOldApi()
+                            || readOptions.getScanMode() == DorisSourceScanMode.SNAPSHOT,
+                    "source.use-old-api=true only supports source.scan.mode=snapshot");
+            if (readOptions.getScanMode() == DorisSourceScanMode.FROM_TIMESTAMP) {
+                Preconditions.checkArgument(
+                        org.apache.doris.flink.source.split.DorisStreamSplit.isValidTimestamp(
+                                readOptions.getScanTimestamp()),
+                        "source.scan.timestamp must match yyyy-MM-dd HH:mm:ss");
+            } else {
+                Preconditions.checkArgument(
+                        readOptions.getScanTimestamp() == null,
+                        "source.scan.timestamp is only valid in from-timestamp mode");
+            }
+            if (readOptions.getScanMode().hasIncrementalPhase()) {
+                String tableIdentifier = options.getTableIdentifier();
+                Preconditions.checkArgument(
+                        tableIdentifier != null && tableIdentifier.split("\\.", -1).length == 2,
+                        "incremental source modes only support table.identifier=db.table");
+                Preconditions.checkArgument(
+                        readOptions.getFilterQuery() == null && readOptions.getRowLimit() == null,
+                        "incremental source modes do not support filter or limit pushdown");
+                Preconditions.checkArgument(
+                        readOptions.getUseFlightSql(),
+                        "incremental source modes require source.use-flight-sql=true");
+            }
+            Preconditions.checkArgument(
+                    readOptions.getBinlogPollIntervalMs() >= MIN_BINLOG_POLL_INTERVAL_MS,
+                    "source.binlog.poll-interval must be at least 1 second");
             return new DorisSource<>(options, readOptions, boundedness, deserializer);
         }
     }

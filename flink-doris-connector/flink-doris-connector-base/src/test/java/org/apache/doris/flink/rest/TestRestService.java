@@ -59,6 +59,7 @@ import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_TABLET_SIZE_
 import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_TABLET_SIZE_MIN;
 import static org.hamcrest.core.StringStartsWith.startsWith;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
@@ -473,7 +474,8 @@ public class TestRestService {
                         .setPassword("")
                         .build();
 
-        try (MockedStatic<RestService> restServiceMockedStatic = mockStatic(RestService.class)) {
+        try (MockedStatic<RestService> restServiceMockedStatic =
+                mockStatic(RestService.class, CALLS_REAL_METHODS)) {
             String res =
                     "{\"msg\":\"success\",\"code\":0,\"data\":{\"keysType\":\"UNIQUE_KEYS\",\"properties\":[{\"name\":\"name\",\"aggregation_type\":\"\",\"comment\":\"\",\"type\":\"VARCHAR\"},{\"name\":\"age\",\"aggregation_type\":\"REPLACE\",\"comment\":\"\",\"type\":\"INT\"}],\"status\":200},\"count\":0}";
             JsonNode jsonNode = new ObjectMapper().readTree(res);
@@ -492,29 +494,15 @@ public class TestRestService {
 
     @Test
     public void tryGetArrowFlightSqlPort() throws Exception {
-        DorisReadOptions readOptions = DorisReadOptions.builder().build();
         String response =
                 "{\"data\":{\"type\":\"result_set\",\"meta\":[{\"name\":\"Name\",\"type\":\"CHAR\"},{\"name\":\"Host\",\"type\":\"CHAR\"},{\"name\":\"EditLogPort\",\"type\":\"CHAR\"},{\"name\":\"HttpPort\",\"type\":\"CHAR\"},{\"name\":\"QueryPort\",\"type\":\"CHAR\"},{\"name\":\"RpcPort\",\"type\":\"CHAR\"},{\"name\":\"ArrowFlightSqlPort\",\"type\":\"CHAR\"},{\"name\":\"Role\",\"type\":\"CHAR\"},{\"name\":\"IsMaster\",\"type\":\"CHAR\"},{\"name\":\"ClusterId\",\"type\":\"CHAR\"},{\"name\":\"Join\",\"type\":\"CHAR\"},{\"name\":\"Alive\",\"type\":\"CHAR\"},{\"name\":\"ReplayedJournalId\",\"type\":\"CHAR\"},{\"name\":\"LastStartTime\",\"type\":\"CHAR\"},{\"name\":\"LastHeartbeat\",\"type\":\"CHAR\"},{\"name\":\"IsHelper\",\"type\":\"CHAR\"},{\"name\":\"ErrMsg\",\"type\":\"CHAR\"},{\"name\":\"Version\",\"type\":\"CHAR\"},{\"name\":\"CurrentConnected\",\"type\":\"CHAR\"}],\"data\":[[\"fe_47fe8191_eecf_4e24_9692_d448a480abe1\",\"127.0.0.1\",\"29717\",\"28737\",\"29737\",\"29727\",\"29747\",\"FOLLOWER\",\"true\",\"1786414395\",\"true\",\"true\",\"8378795\",\"2025-03-11 17:19:02\",\"2025-03-12 17:34:47\",\"true\",\"\",\"doris-2.1.3-rc09-2dc65ce356\",\"Yes\"]],\"time\":14},\"msg\":\"success\",\"code\":0}";
         JsonNode jsonNode = new ObjectMapper().readTree(response);
+        Assert.assertEquals(29747, RestService.getArrowFlightSqlPort(jsonNode));
 
-        try (MockedStatic<RestService> restServiceMockedStatic = mockStatic(RestService.class)) {
-            restServiceMockedStatic
-                    .when(() -> RestService.handleResponse(any(), any()))
-                    .thenReturn(jsonNode);
-            restServiceMockedStatic
-                    .when(() -> RestService.getArrowFlightSqlPort(any()))
-                    .thenCallRealMethod();
-            restServiceMockedStatic
-                    .when(() -> RestService.tryGetArrowFlightSqlPort(any(), any(), any()))
-                    .thenCallRealMethod();
-            DorisOptions options =
-                    DorisOptions.builder()
-                            .setFenodes("127.0.0.1:8030")
-                            .setUsername("root")
-                            .setPassword("")
-                            .build();
-            Integer port = RestService.tryGetArrowFlightSqlPort(options, readOptions, logger);
-            Assert.assertEquals(29747, port.intValue());
-        }
+        DorisReadOptions readOptions = DorisReadOptions.builder().setFlightSqlPort(29747).build();
+        DorisOptions options = DorisOptions.builder().setFenodes("127.0.0.1:8030").build();
+        Assert.assertEquals(
+                29747,
+                RestService.tryGetArrowFlightSqlPort(options, readOptions, logger).intValue());
     }
 }

@@ -15,9 +15,29 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.flink.source.split;
+package org.apache.doris.flink.source;
 
-import org.apache.flink.api.connector.source.SourceSplit;
+import java.util.Locale;
 
-/** Marker interface for bounded snapshot and fixed-range stream splits. */
-public interface DorisSourceSplit extends SourceSplit {}
+/** Increment semantics requested from the Doris row-binlog query. */
+public enum DorisBinlogIncrementType {
+    DETAIL,
+    MIN_DELTA,
+    APPEND_ONLY;
+
+    public static DorisBinlogIncrementType fromOption(String value) {
+        if (value == null) {
+            throw new IllegalArgumentException("source.binlog.increment-type must not be null");
+        }
+        try {
+            return valueOf(value.trim().toUpperCase(Locale.ROOT));
+        } catch (java.lang.IllegalArgumentException e) {
+            throw new IllegalArgumentException(
+                    "Unsupported source.binlog.increment-type: " + value, e);
+        }
+    }
+
+    public String toSqlValue() {
+        return name();
+    }
+}

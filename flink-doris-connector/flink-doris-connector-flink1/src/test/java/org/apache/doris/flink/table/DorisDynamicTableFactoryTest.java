@@ -18,8 +18,12 @@
 package org.apache.doris.flink.table;
 
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
+import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
+import org.apache.flink.table.connector.source.abilities.SupportsLimitPushDown;
+import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
 import org.apache.flink.table.factories.utils.FactoryMocks;
 
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
@@ -47,8 +51,47 @@ import static org.apache.doris.flink.cfg.ConfigurationOptions.USE_FLIGHT_SQL_DEF
 import static org.apache.doris.flink.utils.FactoryMocks.SCHEMA;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertTrue;
 
 public class DorisDynamicTableFactoryTest {
+
+    @Test
+    public void testIncrementalSourceUsesUnifiedTableSource() {
+        Map<String, String> properties = getAllOptions();
+        DynamicTableSource snapshotSource = FactoryMocks.createTableSource(SCHEMA, properties);
+        assertTrue(snapshotSource instanceof SupportsProjectionPushDown);
+        assertTrue(snapshotSource instanceof SupportsFilterPushDown);
+        assertTrue(snapshotSource instanceof SupportsLimitPushDown);
+
+        properties.put("source.scan.mode", "latest");
+
+        DynamicTableSource source = FactoryMocks.createTableSource(SCHEMA, properties);
+
+        assertTrue(source instanceof DorisDynamicTableSource);
+        assertTrue(source instanceof SupportsProjectionPushDown);
+        assertTrue(source instanceof SupportsFilterPushDown);
+        assertTrue(source instanceof SupportsLimitPushDown);
+    }
+
+    @Test
+    public void testIncrementalSourceRejectsOldApi() {
+        Map<String, String> properties = getAllOptions();
+        properties.put("source.scan.mode", "latest");
+        properties.put("source.use-old-api", "true");
+
+        try {
+            FactoryMocks.createTableSource(SCHEMA, properties);
+            org.junit.Assert.fail("Expected incremental mode to reject source.use-old-api=true");
+        } catch (ValidationException e) {
+            Throwable rootCause = e;
+            while (rootCause.getCause() != null) {
+                rootCause = rootCause.getCause();
+            }
+            assertEquals(
+                    "source.use-old-api=true only supports source.scan.mode=snapshot",
+                    rootCause.getMessage());
+        }
+    }
 
     @Test
     public void testDorisSourceProperties() {

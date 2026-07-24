@@ -24,10 +24,9 @@ import org.apache.flink.util.Collector;
 import org.apache.doris.flink.deserialization.DorisDeserializationSchema;
 import org.apache.doris.flink.source.split.DorisSourceSplitState;
 
-import java.util.List;
-
 /** The {@link RecordEmitter} implementation for {@link DorisSourceReader}. */
-public class DorisRecordEmitter<T> implements RecordEmitter<List, T, DorisSourceSplitState> {
+public class DorisRecordEmitter<T>
+        implements RecordEmitter<DorisSourceRecord, T, DorisSourceSplitState> {
 
     private final DorisDeserializationSchema<T> dorisDeserializationSchema;
     private final OutputCollector<T> outputCollector;
@@ -38,7 +37,8 @@ public class DorisRecordEmitter<T> implements RecordEmitter<List, T, DorisSource
     }
 
     @Override
-    public void emitRecord(List value, SourceOutput<T> output, DorisSourceSplitState splitState)
+    public void emitRecord(
+            DorisSourceRecord value, SourceOutput<T> output, DorisSourceSplitState splitState)
             throws Exception {
         outputCollector.output = output;
         dorisDeserializationSchema.deserialize(value, outputCollector);
