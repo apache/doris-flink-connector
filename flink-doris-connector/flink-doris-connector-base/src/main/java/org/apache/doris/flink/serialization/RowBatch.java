@@ -42,12 +42,13 @@ import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.complex.MapVector;
 import org.apache.arrow.vector.complex.StructVector;
 import org.apache.arrow.vector.complex.impl.DateDayReaderImpl;
-import org.apache.arrow.vector.complex.impl.TimeStampMicroReaderImpl;
 import org.apache.arrow.vector.complex.impl.UnionMapReader;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.ipc.ArrowReader;
 import org.apache.arrow.vector.ipc.ArrowStreamReader;
+import org.apache.arrow.vector.types.TimeUnit;
 import org.apache.arrow.vector.types.Types.MinorType;
+import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.doris.flink.exception.DorisException;
 import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.apache.doris.flink.rest.models.Schema;
@@ -424,6 +425,7 @@ public class RowBatch {
                 }
                 break;
             case "DATETIMEV2":
+            case "TIMESTAMPTZ":
                 if (minorType.equals(MinorType.VARCHAR)) {
                     VarCharVector varCharVector = (VarCharVector) fieldVector;
                     if (varCharVector.isNull(rowIndex)) {
@@ -441,7 +443,8 @@ public class RowBatch {
                     addValueToRow(rowIndex, dateTime);
                 } else {
                     logger.error(
-                            "Unsupported type for DATETIMEV2, minorType {}, class is {}",
+                            "Unsupported type for {}, minorType {}, class is {}",
+                            currentType,
                             minorType.name(),
                             fieldVector == null ? null : fieldVector.getClass());
                     return false;
@@ -572,8 +575,13 @@ public class RowBatch {
     }
 
     private Object handleMapFieldReader(FieldReader reader) {
-        if (reader instanceof TimeStampMicroReaderImpl) {
-            return longToLocalDateTime(reader.readLong());
+        ArrowType fieldType = reader.getField().getType();
+        if (fieldType instanceof ArrowType.Timestamp) {
+            ArrowType.Timestamp timestampType = (ArrowType.Timestamp) fieldType;
+            if (timestampType.getTimezone() == null) {
+                return reader.readObject();
+            }
+            return longToLocalDateTime(reader.readLong(), timestampType.getUnit(), DEFAULT_ZONE_ID);
         }
         if (reader instanceof DateDayReaderImpl) {
             return LocalDate.ofEpochDay(((Integer) reader.readObject()).longValue());
@@ -587,24 +595,41 @@ public class RowBatch {
         if (vector.isNull(rowIndex)) {
             return null;
         }
-        // todo: Currently, the scale of doris's arrow datetimev2 is hardcoded to 6,
-        // and there is also a time zone problem in arrow, so use timestamp to convert first
-        long time = vector.get(rowIndex);
-        return longToLocalDateTime(time);
+        ArrowType.Timestamp timestampType = (ArrowType.Timestamp) vector.getField().getType();
+        String timezone = timestampType.getTimezone();
+        if (timezone == null) {
+            // datetime type does not carry timezone, it represents UTC time.
+            return (LocalDateTime) vector.getObject(rowIndex);
+        }
+        return longToLocalDateTime(vector.get(rowIndex), timestampType.getUnit(), DEFAULT_ZONE_ID);
     }
 
     @VisibleForTesting
-    public static LocalDateTime longToLocalDateTime(long time) {
+    public static LocalDateTime longToLocalDateTime(long time, TimeUnit timeUnit, ZoneId zoneId) {
         Instant instant;
-        // Determine the timestamp accuracy and process it
-        if (time < 10_000_000_000L) { // Second timestamp
-            instant = Instant.ofEpochSecond(time);
-        } else if (time < 10_000_000_000_000L) { // milli second
-            instant = Instant.ofEpochMilli(time);
-        } else { // micro second
-            instant = Instant.ofEpochSecond(time / 1_000_000, (time % 1_000_000) * 1_000);
+        switch (timeUnit) {
+            case SECOND:
+                instant = Instant.ofEpochSecond(time);
+                break;
+            case MILLISECOND:
+                instant = Instant.ofEpochMilli(time);
+                break;
+            case MICROSECOND:
+                instant =
+                        Instant.ofEpochSecond(
+                                Math.floorDiv(time, 1_000_000L),
+                                Math.floorMod(time, 1_000_000L) * 1_000L);
+                break;
+            case NANOSECOND:
+                instant =
+                        Instant.ofEpochSecond(
+                                Math.floorDiv(time, 1_000_000_000L),
+                                Math.floorMod(time, 1_000_000_000L));
+                break;
+            default:
+                throw new IllegalArgumentException("Unsupported timestamp unit: " + timeUnit);
         }
-        return LocalDateTime.ofInstant(instant, DEFAULT_ZONE_ID);
+        return LocalDateTime.ofInstant(instant, zoneId);
     }
 
     /**

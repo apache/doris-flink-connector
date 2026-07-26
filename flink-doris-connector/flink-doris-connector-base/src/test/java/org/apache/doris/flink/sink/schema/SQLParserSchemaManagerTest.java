@@ -81,6 +81,17 @@ public class SQLParserSchemaManagerTest {
     }
 
     @Test
+    public void testParserPostgresAlterDDLsAddRegclass() {
+        String ddl = "ALTER TABLE access_control_device ADD COLUMN relation_id regclass";
+        List<String> actualDDLs =
+                schemaManager.parseAlterDDLs(SourceConnector.POSTGRES, ddl, dorisTable);
+
+        Assert.assertEquals(1, actualDDLs.size());
+        Assert.assertEquals(
+                "ALTER TABLE `doris`.`tab` ADD COLUMN `relation_id` STRING", actualDDLs.get(0));
+    }
+
+    @Test
     public void testParserAlterDDLsChange() {
         List<String> expectDDLs = new ArrayList<>();
         expectDDLs.add(

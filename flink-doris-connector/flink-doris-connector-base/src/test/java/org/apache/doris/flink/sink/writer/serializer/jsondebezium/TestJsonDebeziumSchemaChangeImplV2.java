@@ -386,6 +386,12 @@ public class TestJsonDebeziumSchemaChangeImplV2 extends TestJsonDebeziumChangeBa
         JsonNode columns = objectMapper.readTree(columnInfo);
         String dorisTypeName = schemaChange.buildDorisTypeName(columns);
         Assert.assertEquals(dorisTypeName, "VARCHAR(384)");
+
+        columnInfo =
+                "{\"name\":\"RELATION_ID\",\"jdbcType\":1111,\"nativeType\":null,\"typeName\":\"regclass\",\"typeExpression\":\"regclass\",\"charsetName\":null,\"position\":3,\"optional\":true,\"autoIncremented\":false,\"generated\":false,\"comment\":null}";
+        columns = objectMapper.readTree(columnInfo);
+        dorisTypeName = schemaChange.buildDorisTypeName(columns);
+        Assert.assertEquals(dorisTypeName, "STRING");
     }
 
     @Test

@@ -34,8 +34,11 @@ import org.apache.arrow.vector.Float4Vector;
 import org.apache.arrow.vector.Float8Vector;
 import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.SmallIntVector;
+import org.apache.arrow.vector.TimeStampMicroTZVector;
 import org.apache.arrow.vector.TimeStampMicroVector;
+import org.apache.arrow.vector.TimeStampMilliTZVector;
 import org.apache.arrow.vector.TimeStampMilliVector;
+import org.apache.arrow.vector.TimeStampSecTZVector;
 import org.apache.arrow.vector.TimeStampSecVector;
 import org.apache.arrow.vector.TinyIntVector;
 import org.apache.arrow.vector.UInt4Vector;
@@ -80,6 +83,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -841,7 +845,7 @@ public class TestRowBatch {
         vector.setValueCount(3);
 
         LocalDateTime localDateTime = LocalDateTime.of(2024, 3, 20, 0, 0, 0, 123456000);
-        long second = localDateTime.atZone(ZoneId.systemDefault()).toEpochSecond();
+        long second = localDateTime.toEpochSecond(ZoneOffset.UTC);
         int nano = localDateTime.getNano();
 
         vector = root.getVector("k2");
@@ -849,11 +853,11 @@ public class TestRowBatch {
         datetimeV2Vector.setInitialCapacity(3);
         datetimeV2Vector.allocateNew();
         datetimeV2Vector.setIndexDefined(0);
-        datetimeV2Vector.setSafe(0, second);
+        datetimeV2Vector.setSafe(0, second * 1_000_000L);
         datetimeV2Vector.setIndexDefined(1);
-        datetimeV2Vector.setSafe(1, second * 1000 + nano / 1000000);
+        datetimeV2Vector.setSafe(1, second * 1_000_000L + nano / 1_000_000 * 1_000L);
         datetimeV2Vector.setIndexDefined(2);
-        datetimeV2Vector.setSafe(2, second * 1000000 + nano / 1000);
+        datetimeV2Vector.setSafe(2, second * 1_000_000L + nano / 1_000L);
         vector.setValueCount(3);
 
         arrowStreamWriter.writeBatch();
@@ -1721,9 +1725,12 @@ public class TestRowBatch {
                 now.toInstant(defaultZoneId.getRules().getOffset(now)).getEpochSecond() * 1_000_000
                         + now.getNano() / 1_000;
 
-        LocalDateTime dateTime1 = RowBatch.longToLocalDateTime(secondTimestamp);
-        LocalDateTime dateTime2 = RowBatch.longToLocalDateTime(milliTimestamp);
-        LocalDateTime dateTime3 = RowBatch.longToLocalDateTime(microTimestamp);
+        LocalDateTime dateTime1 =
+                RowBatch.longToLocalDateTime(secondTimestamp, TimeUnit.SECOND, defaultZoneId);
+        LocalDateTime dateTime2 =
+                RowBatch.longToLocalDateTime(milliTimestamp, TimeUnit.MILLISECOND, defaultZoneId);
+        LocalDateTime dateTime3 =
+                RowBatch.longToLocalDateTime(microTimestamp, TimeUnit.MICROSECOND, defaultZoneId);
 
         long result1 = dateTime1.atZone(defaultZoneId).toInstant().getEpochSecond();
         long result2 = dateTime2.atZone(defaultZoneId).toInstant().toEpochMilli();
@@ -1769,6 +1776,7 @@ public class TestRowBatch {
         arrowStreamWriter.start();
         root.setRowCount(1);
 
+        // no tz vector is utc timestamp
         FieldVector vector = root.getVector("k0");
         TimeStampMicroVector mircoVec = (TimeStampMicroVector) vector;
         mircoVec.allocateNew(1);
@@ -1811,23 +1819,100 @@ public class TestRowBatch {
         RowBatch rowBatch = new RowBatch(scanBatchResult, schema).readArrow();
         List<Object> next = rowBatch.next();
         Assert.assertEquals(next.size(), 3);
+        Assert.assertEquals(LocalDateTime.of(2024, 7, 25, 7, 22, 23, 586123000), next.get(0));
+        Assert.assertEquals(LocalDateTime.of(2024, 7, 25, 7, 22, 23, 586000000), next.get(1));
+        Assert.assertEquals(LocalDateTime.of(2024, 7, 25, 7, 22, 23, 0), next.get(2));
+    }
+
+    @Test
+    public void timestampTZVector() throws IOException, DorisException {
+        List<Field> childrenBuilder = new ArrayList<>();
+        childrenBuilder.add(
+                new Field(
+                        "k0",
+                        FieldType.nullable(new ArrowType.Timestamp(TimeUnit.MICROSECOND, "UTC+8")),
+                        null));
+        childrenBuilder.add(
+                new Field(
+                        "k1",
+                        FieldType.nullable(new ArrowType.Timestamp(TimeUnit.MILLISECOND, "UTC+8")),
+                        null));
+        childrenBuilder.add(
+                new Field(
+                        "k2",
+                        FieldType.nullable(new ArrowType.Timestamp(TimeUnit.SECOND, "UTC+8")),
+                        null));
+
+        VectorSchemaRoot root =
+                VectorSchemaRoot.create(
+                        new org.apache.arrow.vector.types.pojo.Schema(childrenBuilder, null),
+                        new RootAllocator(Integer.MAX_VALUE));
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        ArrowStreamWriter arrowStreamWriter =
+                new ArrowStreamWriter(
+                        root, new DictionaryProvider.MapDictionaryProvider(), outputStream);
+
+        arrowStreamWriter.start();
+        root.setRowCount(1);
+
+        FieldVector vector = root.getVector("k0");
+        TimeStampMicroTZVector microVector = (TimeStampMicroTZVector) vector;
+        microVector.allocateNew(1);
+        microVector.setIndexDefined(0);
+        microVector.setSafe(0, 1721892143586123L);
+        vector.setValueCount(1);
+
+        vector = root.getVector("k1");
+        TimeStampMilliTZVector milliVector = (TimeStampMilliTZVector) vector;
+        milliVector.allocateNew(1);
+        milliVector.setIndexDefined(0);
+        milliVector.setSafe(0, 1721892143586L);
+        vector.setValueCount(1);
+
+        vector = root.getVector("k2");
+        TimeStampSecTZVector secVector = (TimeStampSecTZVector) vector;
+        secVector.allocateNew(1);
+        secVector.setIndexDefined(0);
+        secVector.setSafe(0, 1721892143L);
+        vector.setValueCount(1);
+
+        arrowStreamWriter.writeBatch();
+        arrowStreamWriter.end();
+        arrowStreamWriter.close();
+
+        TStatus status = new TStatus();
+        status.setStatusCode(TStatusCode.OK);
+        TScanBatchResult scanBatchResult = new TScanBatchResult();
+        scanBatchResult.setStatus(status);
+        scanBatchResult.setEos(false);
+        scanBatchResult.setRows(outputStream.toByteArray());
+
+        String schemaStr =
+                "{\"properties\":[{\"type\":\"TIMESTAMPTZ\",\"name\":\"k0\",\"comment\":\"\"}, {\"type\":\"TIMESTAMPTZ\",\"name\":\"k1\",\"comment\":\"\"}, {\"type\":\"TIMESTAMPTZ\",\"name\":\"k2\",\"comment\":\"\"}],"
+                        + "\"status\":200}";
+
+        Schema schema = RestService.parseSchema(schemaStr, logger);
+
+        RowBatch rowBatch = new RowBatch(scanBatchResult, schema).readArrow();
+        List<Object> next = rowBatch.next();
+        Assert.assertEquals(3, next.size());
         Assert.assertEquals(
-                next.get(0),
                 LocalDateTime.of(2024, 7, 25, 15, 22, 23, 586123000)
                         .atZone(ZoneId.of("UTC+8"))
                         .withZoneSameInstant(ZoneId.systemDefault())
-                        .toLocalDateTime());
+                        .toLocalDateTime(),
+                next.get(0));
         Assert.assertEquals(
-                next.get(1),
                 LocalDateTime.of(2024, 7, 25, 15, 22, 23, 586000000)
                         .atZone(ZoneId.of("UTC+8"))
                         .withZoneSameInstant(ZoneId.systemDefault())
-                        .toLocalDateTime());
+                        .toLocalDateTime(),
+                next.get(1));
         Assert.assertEquals(
-                next.get(2),
                 LocalDateTime.of(2024, 7, 25, 15, 22, 23, 0)
                         .atZone(ZoneId.of("UTC+8"))
                         .withZoneSameInstant(ZoneId.systemDefault())
-                        .toLocalDateTime());
+                        .toLocalDateTime(),
+                next.get(2));
     }
 }
