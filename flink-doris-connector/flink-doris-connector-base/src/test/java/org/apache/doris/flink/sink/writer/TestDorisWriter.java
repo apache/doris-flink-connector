@@ -235,6 +235,8 @@ public class TestDorisWriter {
         when(mockCounter.getCount()).thenReturn(0L);
         when(mockHistogram.getCount()).thenReturn(0L);
         dorisWriteMetrics.setTotalFlushLoadBytes(mockCounter);
+        dorisWriteMetrics.setNumRecordsSend(mockCounter);
+        dorisWriteMetrics.setNumBytesSend(mockCounter);
         dorisWriteMetrics.setTotalFlushNumberTotalRows(mockCounter);
         dorisWriteMetrics.setTotalFlushFilteredRows(mockCounter);
         dorisWriteMetrics.setTotalFlushLoadedRows(mockCounter);
