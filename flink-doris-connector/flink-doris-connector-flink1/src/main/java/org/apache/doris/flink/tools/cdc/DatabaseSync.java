@@ -89,6 +89,7 @@ public abstract class DatabaseSync {
     protected String tablePrefix;
     protected String tableSuffix;
     protected boolean singleSink;
+    protected boolean skipNoPkTables;
     protected final Map<String, String> tableMapping = new HashMap<>();
 
     public abstract void registerDriver() throws SQLException;
@@ -575,6 +576,11 @@ public abstract class DatabaseSync {
 
     public DatabaseSync setSingleSink(boolean singleSink) {
         this.singleSink = singleSink;
+        return this;
+    }
+
+    public DatabaseSync setSkipNoPkTables(boolean skipNoPkTables) {
+        this.skipNoPkTables = skipNoPkTables;
         return this;
     }
 

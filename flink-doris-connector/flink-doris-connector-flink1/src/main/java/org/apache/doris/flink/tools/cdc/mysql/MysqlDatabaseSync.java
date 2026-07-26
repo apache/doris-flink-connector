@@ -146,17 +146,18 @@ public class MysqlDatabaseSync extends DatabaseSync {
 
         if (!skippedNoPrimaryKeyTables.isEmpty()) {
             LOG.warn(
-                    "Skipping MySQL tables without primary key in incremental snapshot mode (no chunk key configured): {}. "
+                    "Skipping MySQL tables without primary key in incremental snapshot mode because '--{}' is enabled (no chunk key configured): {}. "
                             + "Configure '{}' for these tables if snapshot sync is required.",
+                    DatabaseSyncConfig.SKIP_NO_PK_TABLES,
                     skippedNoPrimaryKeyTables,
                     MySqlSourceOptions.SCAN_INCREMENTAL_SNAPSHOT_CHUNK_KEY_COLUMN.key());
         }
         if (schemaList.isEmpty() && !skippedNoPrimaryKeyTables.isEmpty()) {
             throw new IllegalStateException(
                     String.format(
-                            "No MySQL tables left to synchronize: all matched tables are without primary key and no chunk key is configured in initial snapshot mode. "
+                            "No MySQL tables left to synchronize: all matched tables are without primary key and no chunk key is configured in initial snapshot mode, and '--%s' is enabled. "
                                     + "Skipped tables: %s",
-                            skippedNoPrimaryKeyTables));
+                            DatabaseSyncConfig.SKIP_NO_PK_TABLES, skippedNoPrimaryKeyTables));
         }
         return schemaList;
     }
@@ -166,6 +167,9 @@ public class MysqlDatabaseSync extends DatabaseSync {
             String tableName,
             boolean hasNoPrimaryKey,
             Set<String> chunkKeyTables) {
+        if (!skipNoPkTables) {
+            return false;
+        }
         if (!hasNoPrimaryKey) {
             return false;
         }

@@ -30,11 +30,26 @@ import java.util.Set;
 public class MysqlDatabaseSyncTest {
 
     @Test
+    public void testDoNotSkipTableWithoutPrimaryKeyByDefault() throws Exception {
+        MysqlDatabaseSync sync = new MysqlDatabaseSync();
+        Configuration config = new Configuration();
+        config.setString(MySqlSourceOptions.SCAN_STARTUP_MODE.key(), "initial");
+        sync.setConfig(config);
+
+        boolean shouldSkip =
+                sync.shouldSkipTableWithoutPrimaryKey(
+                        "test_db", "no_pk_table", true, Collections.emptySet());
+
+        Assert.assertFalse(shouldSkip);
+    }
+
+    @Test
     public void testSkipTableWithoutPrimaryKeyInInitialSnapshot() throws Exception {
         MysqlDatabaseSync sync = new MysqlDatabaseSync();
         Configuration config = new Configuration();
         config.setString(MySqlSourceOptions.SCAN_STARTUP_MODE.key(), "initial");
         sync.setConfig(config);
+        sync.setSkipNoPkTables(true);
 
         boolean shouldSkip =
                 sync.shouldSkipTableWithoutPrimaryKey(
@@ -49,6 +64,7 @@ public class MysqlDatabaseSyncTest {
         Configuration config = new Configuration();
         config.setString(MySqlSourceOptions.SCAN_STARTUP_MODE.key(), "initial");
         sync.setConfig(config);
+        sync.setSkipNoPkTables(true);
 
         Set<String> chunkKeyTables = new HashSet<>();
         chunkKeyTables.add("test_db.no_pk_table");
@@ -66,6 +82,7 @@ public class MysqlDatabaseSyncTest {
         Configuration config = new Configuration();
         config.setString(MySqlSourceOptions.SCAN_STARTUP_MODE.key(), "latest-offset");
         sync.setConfig(config);
+        sync.setSkipNoPkTables(true);
 
         boolean shouldSkip =
                 sync.shouldSkipTableWithoutPrimaryKey(
