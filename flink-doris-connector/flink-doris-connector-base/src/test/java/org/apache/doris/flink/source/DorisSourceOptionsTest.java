@@ -78,6 +78,25 @@ class DorisSourceOptionsTest {
     }
 
     @Test
+    void copyPreservesIncrementalOptions() {
+        DorisReadOptions options =
+                DorisReadOptions.builder()
+                        .setScanMode(DorisSourceScanMode.FROM_TIMESTAMP)
+                        .setScanTimestamp("2026-07-20 10:00:00")
+                        .setBinlogIncrementType(DorisBinlogIncrementType.MIN_DELTA)
+                        .setBinlogPollIntervalMs(3_000L)
+                        .build();
+
+        DorisReadOptions copy = options.copy();
+
+        assertThat(copy).isEqualTo(options).isNotSameAs(options);
+        assertThat(copy.getScanMode()).isEqualTo(DorisSourceScanMode.FROM_TIMESTAMP);
+        assertThat(copy.getScanTimestamp()).isEqualTo("2026-07-20 10:00:00");
+        assertThat(copy.getBinlogIncrementType()).isEqualTo(DorisBinlogIncrementType.MIN_DELTA);
+        assertThat(copy.getBinlogPollIntervalMs()).isEqualTo(3_000L);
+    }
+
+    @Test
     void validatesIncrementalSourceRequirements() {
         assertThatThrownBy(
                         () ->

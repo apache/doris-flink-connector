@@ -231,6 +231,58 @@ public class DorisDynamicTableSourceTest {
         assertNull(readOptions.getRowLimit());
     }
 
+    @Test
+    public void testIncrementalSourceCopyPreservesSemantics() {
+        int[][] projectedFields = {{0}, {2}};
+        DataType projectedDataType =
+                ResolvedSchema.of(
+                                Column.physical("a", DataTypes.STRING()),
+                                Column.physical("c", DataTypes.BOOLEAN()))
+                        .toPhysicalRowDataType();
+        DorisReadOptions readOptions =
+                OptionUtils.dorisReadOptionsBuilder()
+                        .setScanMode(DorisSourceScanMode.FROM_TIMESTAMP)
+                        .setScanTimestamp("2026-07-20 10:00:00")
+                        .setBinlogIncrementType(DorisBinlogIncrementType.MIN_DELTA)
+                        .setBinlogPollIntervalMs(3_000L)
+                        .build();
+        DorisDynamicTableSource tableSource =
+                new DorisDynamicTableSource(
+                        OptionUtils.buildDorisOptions(),
+                        readOptions,
+                        DorisLookupOptions.builder().build(),
+                        TableSchema.fromResolvedSchema(SCHEMA),
+                        FactoryMocks.PHYSICAL_DATA_TYPE);
+        tableSource.applyProjection(projectedFields, projectedDataType);
+
+        DorisDynamicTableSource copy = (DorisDynamicTableSource) tableSource.copy();
+
+        Assert.assertNotSame(tableSource, copy);
+        assertEquals(tableSource, copy);
+        assertEquals(tableSource.getChangelogMode(), copy.getChangelogMode());
+
+        DorisReadOptions expectedReadOptions =
+                OptionUtils.dorisReadOptionsBuilder()
+                        .setReadFields("`a`, `c`")
+                        .setScanMode(DorisSourceScanMode.FROM_TIMESTAMP)
+                        .setScanTimestamp("2026-07-20 10:00:00")
+                        .setBinlogIncrementType(DorisBinlogIncrementType.MIN_DELTA)
+                        .setBinlogPollIntervalMs(3_000L)
+                        .build();
+        DorisDynamicTableSource expected =
+                new DorisDynamicTableSource(
+                        OptionUtils.buildDorisOptions(),
+                        expectedReadOptions,
+                        DorisLookupOptions.builder().build(),
+                        TableSchema.fromResolvedSchema(SCHEMA),
+                        projectedDataType);
+        assertEquals(expected, copy);
+
+        readOptions.setReadFields("`b`");
+        Assert.assertNotEquals(tableSource, copy);
+        assertEquals(expected, copy);
+    }
+
     private void assertDorisInputFormat(ScanTableSource.ScanRuntimeProvider provider) {
         assertThat(provider, instanceOf(InputFormatProvider.class));
         final InputFormatProvider inputFormatProvider = (InputFormatProvider) provider;

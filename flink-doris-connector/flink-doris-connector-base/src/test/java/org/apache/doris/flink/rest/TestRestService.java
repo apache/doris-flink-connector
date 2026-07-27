@@ -32,6 +32,7 @@ import org.apache.doris.flink.rest.models.QueryPlan;
 import org.apache.doris.flink.rest.models.Schema;
 import org.apache.doris.flink.rest.models.Tablet;
 import org.apache.doris.flink.sink.BackendUtil;
+import org.apache.http.client.methods.HttpRequestBase;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -53,6 +54,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_TABLET_SIZE_DEFAULT;
@@ -504,5 +506,43 @@ public class TestRestService {
         Assert.assertEquals(
                 29747,
                 RestService.tryGetArrowFlightSqlPort(options, readOptions, logger).intValue());
+    }
+
+    @Test
+    public void tryGetArrowFlightSqlPortUsesReadOptions() throws Exception {
+        String response =
+                "{\"data\":{\"meta\":[{\"name\":\"ArrowFlightSqlPort\"}],"
+                        + "\"data\":[[\"29747\"]]},\"msg\":\"success\",\"code\":0}";
+        DorisOptions options =
+                DorisOptions.builder()
+                        .setFenodes("frontend:8030")
+                        .setUsername("root")
+                        .setPassword("")
+                        .build();
+        DorisReadOptions readOptions =
+                DorisReadOptions.builder()
+                        .setRequestConnectTimeoutMs(1234)
+                        .setRequestReadTimeoutMs(2345)
+                        .build();
+        AtomicInteger requests = new AtomicInteger();
+        ObjectMapper mapper = new ObjectMapper();
+
+        try (MockedStatic<RestService> mocked = mockStatic(RestService.class, CALLS_REAL_METHODS)) {
+            mocked.when(() -> RestService.handleResponse(any(), any()))
+                    .thenAnswer(
+                            invocation -> {
+                                HttpRequestBase request = invocation.getArgument(0);
+                                Assert.assertEquals(1234, request.getConfig().getConnectTimeout());
+                                Assert.assertEquals(2345, request.getConfig().getSocketTimeout());
+                                requests.incrementAndGet();
+                                return mapper.readTree(response);
+                            });
+
+            Assert.assertEquals(
+                    29747,
+                    RestService.tryGetArrowFlightSqlPort(options, readOptions, logger).intValue());
+        }
+
+        Assert.assertEquals(1, requests.get());
     }
 }

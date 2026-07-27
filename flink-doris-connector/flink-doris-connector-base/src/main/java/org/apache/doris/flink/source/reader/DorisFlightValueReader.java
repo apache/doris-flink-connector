@@ -79,8 +79,17 @@ public class DorisFlightValueReader extends ValueReader implements AutoCloseable
         this.split = split;
         this.options = options;
         this.readOptions = readOptions;
-        initSchema();
-        init();
+        try {
+            initSchema();
+            init();
+        } catch (RuntimeException | Error failure) {
+            try {
+                closeFlightResources();
+            } catch (Exception closeFailure) {
+                failure.addSuppressed(closeFailure);
+            }
+            throw failure;
+        }
     }
 
     private void init() {
@@ -303,25 +312,31 @@ public class DorisFlightValueReader extends ValueReader implements AutoCloseable
                 rowBatch = null;
             }
             try {
-                closeAll(arrowReader, statement, client, database, allocator);
+                closeFlightResources();
             } catch (Exception resourceFailure) {
                 if (failure == null) {
                     failure = resourceFailure;
                 } else {
                     failure.addSuppressed(resourceFailure);
                 }
-            } finally {
-                arrowReader = null;
-                statement = null;
-                client = null;
-                database = null;
-                allocator = null;
             }
             if (failure != null) {
                 throw failure;
             }
         } finally {
             clientLock.unlock();
+        }
+    }
+
+    private void closeFlightResources() throws Exception {
+        try {
+            closeAll(arrowReader, statement, client, database, allocator);
+        } finally {
+            arrowReader = null;
+            statement = null;
+            client = null;
+            database = null;
+            allocator = null;
         }
     }
 

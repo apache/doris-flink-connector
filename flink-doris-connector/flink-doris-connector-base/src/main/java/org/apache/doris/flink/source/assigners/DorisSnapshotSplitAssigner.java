@@ -39,6 +39,7 @@ import java.util.Optional;
 /** Plans and assigns bounded Doris Snapshot splits. */
 final class DorisSnapshotSplitAssigner implements DorisSplitAssigner<DorisSnapshotSplit> {
     private static final Logger LOG = LoggerFactory.getLogger(DorisSnapshotSplitAssigner.class);
+    // Examples: snapshot-127.0.0.1:9060-0 or snapshot-catalog.database.table.
     private static final String SNAPSHOT_SPLIT_PREFIX = "snapshot-";
 
     private final Deque<DorisSnapshotSplit> pendingSplits;

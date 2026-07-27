@@ -62,13 +62,10 @@ public class DorisSourceSplitSerializer implements SimpleVersionedSerializer<Dor
 
     @Override
     public DorisSourceSplit deserialize(int version, byte[] serialized) throws IOException {
+        if (version != VERSION) {
+            throw new IOException("Unknown version: " + version);
+        }
         try (DataInputStream in = new DataInputStream(new ByteArrayInputStream(serialized))) {
-            if (version == 1 || version == 2) {
-                return readLegacySnapshot(version, in);
-            }
-            if (version != VERSION) {
-                throw new IOException("Unknown version: " + version);
-            }
             byte kind = in.readByte();
             if (kind == SNAPSHOT_KIND) {
                 return readSnapshot(in);
@@ -78,25 +75,6 @@ public class DorisSourceSplitSerializer implements SimpleVersionedSerializer<Dor
             }
             throw new IOException("Unknown Doris source split kind: " + kind);
         }
-    }
-
-    private static DorisSnapshotSplit readLegacySnapshot(int version, DataInputStream in)
-            throws IOException {
-        String database = in.readUTF();
-        String table = in.readUTF();
-        String beAddress = in.readUTF();
-        int tabletCount = in.readInt();
-        if (tabletCount < 0) {
-            throw new IOException("Negative tablet count: " + tabletCount);
-        }
-        Set<Long> tabletIds = new LinkedHashSet<>(tabletCount);
-        for (int index = 0; index < tabletCount; index++) {
-            tabletIds.add(in.readLong());
-        }
-        String queryPlan = readQueryPlan(in);
-        String splitId = version >= 2 ? in.readUTF() : "splitId";
-        return new DorisSnapshotSplit(
-                splitId, new PartitionDefinition(database, table, beAddress, tabletIds, queryPlan));
     }
 
     private static void writeSnapshot(DataOutputStream out, DorisSnapshotSplit split)

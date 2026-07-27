@@ -23,7 +23,6 @@ import org.apache.flink.types.RowKind;
 import org.apache.doris.flink.exception.DorisRuntimeException;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -38,7 +37,7 @@ public final class DorisSourceRecord {
 
     public DorisSourceRecord(
             List<?> fieldValues, RowKind rowKind, Long binlogTso, Long binlogLsn, Long binlogOp) {
-        this.fieldValues = Collections.unmodifiableList(new ArrayList<Object>(fieldValues));
+        this.fieldValues = new ArrayList<>(fieldValues);
         this.rowKind = Objects.requireNonNull(rowKind, "rowKind");
         this.binlogTso = binlogTso;
         this.binlogLsn = binlogLsn;

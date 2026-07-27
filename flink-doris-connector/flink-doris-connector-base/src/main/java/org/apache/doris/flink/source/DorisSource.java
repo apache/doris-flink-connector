@@ -92,7 +92,7 @@ public class DorisSource<OUT>
             SplitEnumeratorContext<DorisSourceSplit> context) throws Exception {
         return new DorisSourceEnumerator(
                 context,
-                new DorisSourceSplitAssigner(options, readOptions, context.currentParallelism()),
+                DorisSourceSplitAssigner.create(options, readOptions, context.currentParallelism()),
                 readOptions.getBinlogPollIntervalMs());
     }
 
@@ -103,7 +103,7 @@ public class DorisSource<OUT>
         LOG.info("Restore Doris source checkpoint in phase {}", checkpoint.getPhase());
         return new DorisSourceEnumerator(
                 context,
-                new DorisSourceSplitAssigner(
+                DorisSourceSplitAssigner.restore(
                         options, readOptions, checkpoint, context.currentParallelism()),
                 readOptions.getBinlogPollIntervalMs());
     }

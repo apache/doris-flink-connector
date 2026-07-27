@@ -49,8 +49,8 @@ public class DorisSourceEnumerator
     // Transfers Stream discovery demand from the coordinator thread to the async worker.
     private final AtomicBoolean streamDiscoveryRequired = new AtomicBoolean();
 
-    // The first checkpoint that records the completed Snapshot phase as a Stream state.
-    @Nullable private Long snapshotTransitionCheckpointId;
+    // The first checkpoint that records Snapshot completion and awaits completion notification.
+    @Nullable private Long snapshotCompletionCheckpointId;
     private boolean streamDiscoveryStarted;
 
     public DorisSourceEnumerator(
@@ -176,8 +176,8 @@ public class DorisSourceEnumerator
         if (!allSnapshotReadersIdle()) {
             return checkpoint;
         }
-        if (snapshotTransitionCheckpointId == null) {
-            snapshotTransitionCheckpointId = checkpointId;
+        if (snapshotCompletionCheckpointId == null) {
+            snapshotCompletionCheckpointId = checkpointId;
             LOG.info(
                     "All Doris snapshot readers are idle; waiting for checkpoint {} to complete before entering stream phase.",
                     checkpointId);
@@ -187,13 +187,11 @@ public class DorisSourceEnumerator
 
     @Override
     public void notifyCheckpointComplete(long checkpointId) {
-        if (snapshotTransitionCheckpointId == null
-                || checkpointId < snapshotTransitionCheckpointId
-                || !allSnapshotReadersIdle()) {
+        if (!shouldEnterStreamPhase(checkpointId)) {
             return;
         }
         splitAssigner.enterStreamPhase();
-        snapshotTransitionCheckpointId = null;
+        snapshotCompletionCheckpointId = null;
         LOG.info(
                 "Doris snapshot completion checkpoint {} succeeded; entering stream phase.",
                 checkpointId);
@@ -209,7 +207,7 @@ public class DorisSourceEnumerator
         }
         LOG.info("Adding splits {} back from subtask {}", splitIds, subtaskId);
         if (splitAssigner.getPhase() == DorisSourceCheckpoint.Phase.SNAPSHOT) {
-            snapshotTransitionCheckpointId = null;
+            snapshotCompletionCheckpointId = null;
         }
         splitAssigner.addSplits(splits);
         assignRequestedSplits();
@@ -217,6 +215,13 @@ public class DorisSourceEnumerator
 
     @Override
     public void addReader(int subtaskId) {}
+
+    /** Returns whether the completed checkpoint can commit the transition to the Stream phase. */
+    private boolean shouldEnterStreamPhase(long completedCheckpointId) {
+        return snapshotCompletionCheckpointId != null
+                && completedCheckpointId >= snapshotCompletionCheckpointId
+                && allSnapshotReadersIdle();
+    }
 
     /**
      * Returns whether no Snapshot work remains pending or in flight.

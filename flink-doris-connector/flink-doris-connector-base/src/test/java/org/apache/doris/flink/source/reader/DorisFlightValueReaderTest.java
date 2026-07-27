@@ -17,23 +17,77 @@
 
 package org.apache.doris.flink.source.reader;
 
+import org.apache.arrow.adbc.core.AdbcConnection;
+import org.apache.arrow.adbc.core.AdbcDatabase;
+import org.apache.arrow.adbc.driver.flightsql.FlightSqlDriver;
+import org.apache.arrow.memory.RootAllocator;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.rest.PartitionDefinition;
+import org.apache.doris.flink.rest.RestService;
+import org.apache.doris.flink.rest.models.Schema;
 import org.apache.doris.flink.source.DorisBinlogIncrementType;
+import org.apache.doris.flink.source.split.DorisSnapshotSplit;
 import org.apache.doris.flink.source.split.DorisStreamSplit;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedConstruction;
+import org.mockito.MockedStatic;
 
 import java.util.Arrays;
 import java.util.LinkedHashSet;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockConstruction;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 class DorisFlightValueReaderTest {
+
+    @Test
+    void closesAcquiredResourcesWhenInitializationFails() throws Exception {
+        DorisSnapshotSplit split = mock(DorisSnapshotSplit.class);
+        DorisOptions options =
+                DorisOptions.builder()
+                        .setFenodes("127.0.0.1:8030")
+                        .setTableIdentifier("sales.orders")
+                        .build();
+        DorisReadOptions readOptions = DorisReadOptions.builder().setFlightSqlPort(8815).build();
+        AdbcDatabase database = mock(AdbcDatabase.class);
+        AdbcConnection connection = mock(AdbcConnection.class);
+        when(database.connect()).thenReturn(connection);
+        when(connection.createStatement()).thenThrow(new RuntimeException("create failed"));
+
+        try (MockedStatic<RestService> restService = mockStatic(RestService.class);
+                MockedConstruction<RootAllocator> allocators =
+                        mockConstruction(RootAllocator.class);
+                MockedConstruction<FlightSqlDriver> drivers =
+                        mockConstruction(
+                                FlightSqlDriver.class,
+                                (driver, context) ->
+                                        when(driver.open(anyMap())).thenReturn(database))) {
+            restService
+                    .when(() -> RestService.getSchema(eq(options), eq(readOptions), any()))
+                    .thenReturn(new Schema());
+            restService
+                    .when(() -> RestService.randomEndpoint(eq(options.getFenodes()), any()))
+                    .thenReturn("127.0.0.1:8030");
+
+            assertThatThrownBy(() -> new DorisFlightValueReader(split, options, readOptions))
+                    .isInstanceOf(RuntimeException.class)
+                    .hasMessage("create failed");
+
+            verify(connection).close();
+            verify(database).close();
+            verify(allocators.constructed().get(0)).close();
+        }
+    }
 
     @Test
     void closesRemainingResourcesAfterOneCloseFails() throws Exception {

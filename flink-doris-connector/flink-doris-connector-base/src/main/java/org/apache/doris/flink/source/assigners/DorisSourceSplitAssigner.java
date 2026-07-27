@@ -17,6 +17,8 @@
 
 package org.apache.doris.flink.source.assigners;
 
+import org.apache.flink.annotation.VisibleForTesting;
+
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.exception.DorisRuntimeException;
@@ -49,39 +51,59 @@ public class DorisSourceSplitAssigner {
 
     private DorisSourceCheckpoint.Phase phase;
 
-    public DorisSourceSplitAssigner(
+    public static DorisSourceSplitAssigner create(
             DorisOptions options, DorisReadOptions readOptions, int sourceParallelism) {
-        this(
-                options,
-                readOptions,
-                sourceParallelism,
-                () -> RestService.resolveCurrentTimestamp(options, readOptions, LOG),
-                null);
+        Supplier<String> currentTimestampSupplier =
+                () -> RestService.resolveCurrentTimestamp(options, readOptions, LOG);
+        DorisSnapshotSplitAssigner snapshotSplitAssigner =
+                readOptions.getScanMode().isSnapshotPhaseRequired()
+                        ? new DorisSnapshotSplitAssigner(options, readOptions)
+                        : new DorisSnapshotSplitAssigner(Collections.emptyList());
+        return create(
+                readOptions, sourceParallelism, currentTimestampSupplier, snapshotSplitAssigner);
     }
 
-    public DorisSourceSplitAssigner(
+    public static DorisSourceSplitAssigner restore(
             DorisOptions options,
             DorisReadOptions readOptions,
             DorisSourceCheckpoint checkpoint,
             int sourceParallelism) {
-        this(
-                options,
+        return restore(
                 readOptions,
                 checkpoint,
                 sourceParallelism,
                 () -> RestService.resolveCurrentTimestamp(options, readOptions, LOG));
     }
 
-    protected DorisSourceSplitAssigner(
-            DorisOptions options,
+    @VisibleForTesting
+    public static DorisSourceSplitAssigner createForTesting(
             DorisReadOptions readOptions,
             int sourceParallelism,
             Supplier<String> currentTimestampSupplier,
-            @Nullable Collection<DorisSnapshotSplit> snapshotSplits) {
-        validateSourceParallelism(sourceParallelism);
-        this.scanMode = readOptions.getScanMode();
-        this.sourceParallelism = sourceParallelism;
+            Collection<DorisSnapshotSplit> snapshotSplits) {
+        DorisSnapshotSplitAssigner snapshotSplitAssigner =
+                readOptions.getScanMode().isSnapshotPhaseRequired()
+                        ? new DorisSnapshotSplitAssigner(snapshotSplits)
+                        : new DorisSnapshotSplitAssigner(Collections.emptyList());
+        return create(
+                readOptions, sourceParallelism, currentTimestampSupplier, snapshotSplitAssigner);
+    }
 
+    @VisibleForTesting
+    public static DorisSourceSplitAssigner restoreForTesting(
+            DorisReadOptions readOptions,
+            DorisSourceCheckpoint checkpoint,
+            int sourceParallelism,
+            Supplier<String> currentTimestampSupplier) {
+        return restore(readOptions, checkpoint, sourceParallelism, currentTimestampSupplier);
+    }
+
+    private static DorisSourceSplitAssigner create(
+            DorisReadOptions readOptions,
+            int sourceParallelism,
+            Supplier<String> currentTimestampSupplier,
+            DorisSnapshotSplitAssigner snapshotSplitAssigner) {
+        DorisSourceScanMode scanMode = readOptions.getScanMode();
         DorisStreamSplitAssigner streamAssigner = null;
         if (scanMode.hasIncrementalPhase()) {
             String startTimestamp =
@@ -92,38 +114,28 @@ public class DorisSourceSplitAssigner {
                     new DorisStreamSplitAssigner(
                             startTimestamp, Collections.emptyList(), currentTimestampSupplier);
         }
-        this.streamSplitAssigner = streamAssigner;
-
-        if (!scanMode.isSnapshotPhaseRequired()) {
-            this.snapshotSplitAssigner = new DorisSnapshotSplitAssigner(Collections.emptyList());
-        } else if (snapshotSplits == null) {
-            this.snapshotSplitAssigner = new DorisSnapshotSplitAssigner(options, readOptions);
-        } else {
-            // for test
-            this.snapshotSplitAssigner = new DorisSnapshotSplitAssigner(snapshotSplits);
-        }
-        this.phase =
+        DorisSourceCheckpoint.Phase phase =
                 scanMode.isSnapshotPhaseRequired()
                         ? DorisSourceCheckpoint.Phase.SNAPSHOT
                         : DorisSourceCheckpoint.Phase.STREAM;
+        DorisSourceSplitAssigner assigner =
+                new DorisSourceSplitAssigner(
+                        scanMode, sourceParallelism, phase, snapshotSplitAssigner, streamAssigner);
         LOG.info(
                 "Initialized Doris source assigner in {} mode at phase {} with {} pending snapshot splits.",
                 scanMode,
                 phase,
                 snapshotSplitAssigner.remainingSplits().size());
+        return assigner;
     }
 
-    // restore from checkpoint
-    protected DorisSourceSplitAssigner(
-            DorisOptions options,
+    private static DorisSourceSplitAssigner restore(
             DorisReadOptions readOptions,
             DorisSourceCheckpoint checkpoint,
             int sourceParallelism,
             Supplier<String> currentTimestampSupplier) {
-        validateSourceParallelism(sourceParallelism);
-        this.scanMode = readOptions.getScanMode();
-        this.sourceParallelism = sourceParallelism;
-        this.phase = checkpoint.getPhase();
+        DorisSourceScanMode scanMode = readOptions.getScanMode();
+        DorisSourceCheckpoint.Phase phase = checkpoint.getPhase();
         if (phase == DorisSourceCheckpoint.Phase.STREAM
                 && checkpoint.getSourceParallelism() != sourceParallelism) {
             throw new DorisRuntimeException(
@@ -146,7 +158,8 @@ public class DorisSourceSplitAssigner {
             }
         }
 
-        this.snapshotSplitAssigner = new DorisSnapshotSplitAssigner(snapshotSplits);
+        DorisSnapshotSplitAssigner snapshotSplitAssigner =
+                new DorisSnapshotSplitAssigner(snapshotSplits);
         DorisStreamSplitAssigner streamAssigner = null;
         if (scanMode.hasIncrementalPhase()) {
             streamAssigner =
@@ -155,12 +168,28 @@ public class DorisSourceSplitAssigner {
                             streamSplits,
                             currentTimestampSupplier);
         }
-        this.streamSplitAssigner = streamAssigner;
+        DorisSourceSplitAssigner assigner =
+                new DorisSourceSplitAssigner(
+                        scanMode, sourceParallelism, phase, snapshotSplitAssigner, streamAssigner);
         LOG.info(
                 "Restored Doris source assigner in phase {} with {} pending splits and next stream start timestamp {}.",
                 phase,
                 checkpoint.getPendingSplits().size(),
                 checkpoint.getNextStreamStartTimestamp());
+        return assigner;
+    }
+
+    private DorisSourceSplitAssigner(
+            DorisSourceScanMode scanMode,
+            int sourceParallelism,
+            DorisSourceCheckpoint.Phase phase,
+            DorisSnapshotSplitAssigner snapshotSplitAssigner,
+            @Nullable DorisStreamSplitAssigner streamSplitAssigner) {
+        this.scanMode = scanMode;
+        this.sourceParallelism = sourceParallelism;
+        this.phase = phase;
+        this.snapshotSplitAssigner = snapshotSplitAssigner;
+        this.streamSplitAssigner = streamSplitAssigner;
     }
 
     public Optional<DorisSourceSplit> getNext() {
@@ -249,11 +278,5 @@ public class DorisSourceSplitAssigner {
             throw new DorisRuntimeException("Doris source has no Stream phase");
         }
         return streamSplitAssigner;
-    }
-
-    private static void validateSourceParallelism(int sourceParallelism) {
-        if (sourceParallelism <= 0) {
-            throw new IllegalArgumentException("Source parallelism must be greater than zero");
-        }
     }
 }

@@ -60,11 +60,12 @@ public final class DorisStreamSplit implements DorisSourceSplit {
     private static String createSplitId(String startTimestamp, String endTimestamp) {
         validateTimestamp(startTimestamp);
         validateTimestamp(endTimestamp);
+        // Example: stream-20260720100000-20260720100010.
         return "stream-" + compact(startTimestamp) + "-" + compact(endTimestamp);
     }
 
     private static String compact(String timestamp) {
-        return timestamp.replace("-", "").replace(" ", "T").replace(":", "");
+        return timestamp.replace("-", "").replace(" ", "").replace(":", "");
     }
 
     @Override

@@ -99,6 +99,44 @@ public class TestRowBatch {
     @Rule public ExpectedException thrown = ExpectedException.none();
 
     @Test
+    public void testSnapshotSchemaFollowsArrowProjection() throws Exception {
+        try (RootAllocator allocator = new RootAllocator(Integer.MAX_VALUE);
+                IntVector age = new IntVector("age", allocator);
+                VarCharVector name = new VarCharVector("name", allocator);
+                VectorSchemaRoot root = VectorSchemaRoot.of(age, name);
+                ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+                ArrowStreamWriter arrowStreamWriter =
+                        new ArrowStreamWriter(
+                                root,
+                                new DictionaryProvider.MapDictionaryProvider(),
+                                outputStream)) {
+            age.allocateNew(1);
+            age.setSafe(0, 18);
+            age.setValueCount(1);
+            name.allocateNew();
+            name.setSafe(0, "doris".getBytes(StandardCharsets.UTF_8));
+            name.setValueCount(1);
+            root.setRowCount(1);
+
+            arrowStreamWriter.start();
+            arrowStreamWriter.writeBatch();
+            arrowStreamWriter.end();
+
+            TScanBatchResult scanBatchResult = new TScanBatchResult();
+            scanBatchResult.setRows(outputStream.toByteArray());
+
+            Schema schema = new Schema();
+            schema.put("name", "VARCHAR", "", 0, 0, "");
+            schema.put("age", "INT", "", 0, 0, "");
+            schema.put("score", "DOUBLE", "", 0, 0, "");
+
+            RowBatch rowBatch = new RowBatch(scanBatchResult, schema).readArrow();
+
+            assertEquals(Arrays.asList(18, "doris"), rowBatch.next());
+        }
+    }
+
+    @Test
     public void testRowBatch() throws Exception {
         // schema
         List<Field> childrenBuilder = new ArrayList<>();

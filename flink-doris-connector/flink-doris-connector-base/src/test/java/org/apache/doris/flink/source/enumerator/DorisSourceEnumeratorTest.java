@@ -52,17 +52,13 @@ public class DorisSourceEnumeratorTest {
     }
 
     @Test
-    void testCheckpointNoSplitRequested() throws Exception {
+    void testCheckpointAndRestoreWithoutSplitRequest() throws Exception {
         DorisSourceCheckpoint state = enumerator.snapshotState(1L);
-        assertThat(state.getPendingSplits()).contains(split);
-    }
+        assertThat(state.getPendingSplits()).containsExactly(split);
 
-    @Test
-    void testRestoreEnumerator() throws Exception {
-        DorisSourceCheckpoint state = enumerator.snapshotState(1L);
         DorisSourceEnumerator restored = createEnumerator(context, state);
         restored.start();
-        assertThat(restored.snapshotState(2L).getPendingSplits()).contains(split);
+        assertThat(restored.snapshotState(2L).getPendingSplits()).containsExactly(split);
     }
 
     @Test
@@ -123,7 +119,7 @@ public class DorisSourceEnumeratorTest {
             final SplitEnumeratorContext<DorisSourceSplit> context,
             DorisSourceCheckpoint checkpoint) {
         DorisSourceSplitAssigner splitAssigner =
-                new DorisSourceSplitAssigner(
+                DorisSourceSplitAssigner.restore(
                         DorisOptions.builder()
                                 .setFenodes("127.0.0.1:8030")
                                 .setTableIdentifier("db.tbl")

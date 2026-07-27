@@ -17,7 +17,6 @@
 
 package org.apache.doris.flink.rest;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
@@ -34,7 +33,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.mockStatic;
 
@@ -58,44 +56,13 @@ class DorisTsoResponseTest {
         assertThatThrownBy(
                         () ->
                                 RestService.parseCurrentTsoPhysicalTime(
-                                        "{\"code\":1,\"msg\":\"Current FE is not master\"}"))
-                .hasMessageContaining("not master");
+                                        "{\"code\":1,\"msg\":\"Temporary failure\"}"))
+                .hasMessageContaining("Temporary failure");
         assertThatThrownBy(
                         () ->
                                 RestService.parseCurrentTsoPhysicalTime(
                                         "{\"code\":0,\"msg\":\"success\",\"data\":{}}"))
                 .hasMessageContaining("current_tso_physical_time");
-    }
-
-    @Test
-    void extractsMasterFrontendEndpointFromShowFrontends() throws Exception {
-        JsonNode response =
-                new ObjectMapper()
-                        .readTree(
-                                "{\"data\":{\"meta\":["
-                                        + "{\"name\":\"HttpPort\"},"
-                                        + "{\"name\":\"IsMaster\"},"
-                                        + "{\"name\":\"Host\"}],"
-                                        + "\"data\":["
-                                        + "[\"8031\",\"false\",\"fe-follower\"],"
-                                        + "[\"8030\",\"true\",\"fe-master\"]]}}");
-
-        assertThat(RestService.getMasterFrontendEndpoint(response)).isEqualTo("fe-master:8030");
-    }
-
-    @Test
-    void rejectsShowFrontendsWithoutMaster() throws Exception {
-        JsonNode response =
-                new ObjectMapper()
-                        .readTree(
-                                "{\"data\":{\"meta\":["
-                                        + "{\"name\":\"Host\"},"
-                                        + "{\"name\":\"HttpPort\"},"
-                                        + "{\"name\":\"IsMaster\"}],"
-                                        + "\"data\":[[\"fe-follower\",\"8030\",\"false\"]]}}");
-
-        assertThatThrownBy(() -> RestService.getMasterFrontendEndpoint(response))
-                .hasMessageContaining("master FE");
     }
 
     @Test
@@ -113,10 +80,10 @@ class DorisTsoResponseTest {
     }
 
     @Test
-    void rediscoversMasterAndAppliesTimeoutsAfterTsoFailure() throws Exception {
+    void retriesConfiguredFrontendAndAppliesTimeoutsAfterTsoFailure() throws Exception {
         DorisOptions options =
                 DorisOptions.builder()
-                        .setFenodes("discovery-fe:8030")
+                        .setFenodes("frontend:8030")
                         .setUsername("root")
                         .setPassword("")
                         .build();
@@ -126,15 +93,11 @@ class DorisTsoResponseTest {
                         .setRequestReadTimeoutMs(2345)
                         .setRequestRetries(2)
                         .build();
-        AtomicInteger showFrontendsCalls = new AtomicInteger();
-        AtomicInteger oldMasterTsoCalls = new AtomicInteger();
-        AtomicInteger newMasterTsoCalls = new AtomicInteger();
+        AtomicInteger tsoCalls = new AtomicInteger();
         AtomicInteger formatTimestampCalls = new AtomicInteger();
         ObjectMapper mapper = new ObjectMapper();
 
         try (MockedStatic<RestService> mocked = mockStatic(RestService.class, CALLS_REAL_METHODS)) {
-            mocked.when(() -> RestService.randomEndpoint(anyString(), any()))
-                    .thenReturn("discovery-fe:8030");
             mocked.when(() -> RestService.handleResponse(any(), any()))
                     .thenAnswer(
                             invocation -> {
@@ -146,29 +109,20 @@ class DorisTsoResponseTest {
                                 if (request instanceof HttpPost) {
                                     String statement =
                                             EntityUtils.toString(((HttpPost) request).getEntity());
-                                    if (statement.contains("show frontends")) {
-                                        String master =
-                                                showFrontendsCalls.getAndIncrement() == 0
-                                                        ? "old-master"
-                                                        : "new-master";
-                                        return mapper.readTree(frontendsResponse(master));
-                                    }
                                     if (statement.contains("FROM_UNIXTIME")) {
                                         formatTimestampCalls.incrementAndGet();
                                         assertThat(request.getURI().getHost())
-                                                .isEqualTo("new-master");
+                                                .isEqualTo("frontend");
                                         return mapper.readTree(
                                                 "{\"code\":0,\"data\":{\"data\":"
                                                         + "[[\"2026-07-20 10:00:00\"]]}}");
                                     }
                                 } else if ("/api/tso".equals(request.getURI().getPath())) {
-                                    if ("old-master".equals(request.getURI().getHost())) {
-                                        oldMasterTsoCalls.incrementAndGet();
+                                    assertThat(request.getURI().getHost()).isEqualTo("frontend");
+                                    if (tsoCalls.getAndIncrement() == 0) {
                                         return mapper.readTree(
-                                                "{\"code\":1,\"msg\":"
-                                                        + "\"Current FE is not master\"}");
+                                                "{\"code\":1,\"msg\":\"Temporary failure\"}");
                                     }
-                                    newMasterTsoCalls.incrementAndGet();
                                     return mapper.readTree(
                                             "{\"code\":0,\"data\":{"
                                                     + "\"current_tso_physical_time\":"
@@ -181,19 +135,7 @@ class DorisTsoResponseTest {
                     .isEqualTo("2026-07-20 10:00:00");
         }
 
-        assertThat(showFrontendsCalls.get()).isEqualTo(2);
-        assertThat(oldMasterTsoCalls.get()).isEqualTo(1);
-        assertThat(newMasterTsoCalls.get()).isEqualTo(1);
+        assertThat(tsoCalls.get()).isEqualTo(2);
         assertThat(formatTimestampCalls.get()).isEqualTo(1);
-    }
-
-    private static String frontendsResponse(String masterHost) {
-        return "{\"code\":0,\"data\":{\"meta\":["
-                + "{\"name\":\"Host\"},"
-                + "{\"name\":\"HttpPort\"},"
-                + "{\"name\":\"IsMaster\"}],"
-                + "\"data\":[[\""
-                + masterHost
-                + "\",\"8030\",\"true\"]]}}";
     }
 }

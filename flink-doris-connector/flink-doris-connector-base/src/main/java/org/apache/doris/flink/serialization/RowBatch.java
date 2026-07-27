@@ -51,6 +51,7 @@ import org.apache.arrow.vector.types.Types.MinorType;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.doris.flink.exception.DorisException;
 import org.apache.doris.flink.exception.DorisRuntimeException;
+import org.apache.doris.flink.rest.SchemaUtils;
 import org.apache.doris.flink.rest.models.Schema;
 import org.apache.doris.flink.source.reader.DorisSourceRecord;
 import org.apache.doris.flink.util.FastDateUtil;
@@ -116,7 +117,7 @@ public class RowBatch {
     private VectorSchemaRoot root;
     private List<FieldVector> fieldVectors;
     private RootAllocator rootAllocator;
-    private final Schema schema;
+    private Schema schema;
     private final boolean incremental;
     private static final String BINLOG_TSO = "__DORIS_BINLOG_TSO__";
     private static final String BINLOG_LSN = "__DORIS_BINLOG_LSN__";
@@ -166,14 +167,26 @@ public class RowBatch {
         try {
             this.root = arrowStreamReader.getVectorSchemaRoot();
             fieldVectors = root.getFieldVectors();
-            if ((!incremental && fieldVectors.size() > schema.size())
-                    || (incremental && fieldVectors.size() != schema.size() + 3)) {
-                logger.error(
-                        "Schema size '{}' is not equal to arrow field size '{}'.",
-                        fieldVectors.size(),
-                        schema.size());
-                throw new DorisException(
-                        "Load Doris data failed, schema size of fetch data is wrong.");
+            // snapshot phase
+            if (!incremental && fieldVectors.size() > schema.size()) {
+                String errorMessage =
+                        String.format(
+                                "Invalid Arrow schema for snapshot read: Doris schema field count=%d, "
+                                        + "Arrow field count=%d, expected Arrow field count <= Doris schema field count.",
+                                schema.size(), fieldVectors.size());
+                logger.error(errorMessage);
+                throw new DorisException(errorMessage);
+            }
+            // stream phase
+            if (incremental && fieldVectors.size() != schema.size() + 3) {
+                String errorMessage =
+                        String.format(
+                                "Invalid Arrow schema for incremental read: business schema field count=%d, "
+                                        + "Arrow field count=%d, expected Arrow field count=%d "
+                                        + "(business fields + 3 metadata fields).",
+                                schema.size(), fieldVectors.size(), schema.size() + 3);
+                logger.error(errorMessage);
+                throw new DorisException(errorMessage);
             }
             if (incremental) {
                 validateIncrementalFields();
@@ -200,6 +213,11 @@ public class RowBatch {
     public RowBatch readArrow() {
         try {
             this.root = arrowStreamReader.getVectorSchemaRoot();
+            // Align the Thrift schema when all Arrow fields can be resolved by name.
+            Schema projectedSchema = SchemaUtils.convertToSchema(schema, root.getSchema());
+            if (projectedSchema.size() == root.getSchema().getFields().size()) {
+                schema = projectedSchema;
+            }
             while (arrowStreamReader.loadNextBatch()) {
                 fieldVectors = root.getFieldVectors();
                 if (fieldVectors.size() > schema.size()) {
@@ -277,7 +295,7 @@ public class RowBatch {
                 }
                 businessColumn++;
             }
-            if (businessColumn != schema.size()) {
+            if (incremental && businessColumn != schema.size()) {
                 throw new DorisRuntimeException("Doris Arrow result is missing business fields");
             }
         } catch (Exception e) {

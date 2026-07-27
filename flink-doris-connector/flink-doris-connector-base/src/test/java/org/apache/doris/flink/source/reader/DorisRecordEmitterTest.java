@@ -66,6 +66,18 @@ class DorisRecordEmitterTest {
     }
 
     @Test
+    void ownsMutableFieldValues() {
+        List<Integer> fieldValues = new ArrayList<>(Collections.singletonList(7));
+        DorisSourceRecord record = DorisSourceRecord.snapshot(fieldValues);
+
+        fieldValues.set(0, 8);
+        assertThat(record.getFieldValues()).isEqualTo(Collections.singletonList(7));
+
+        record.getFieldValues().clear();
+        assertThat(record.getFieldValues()).isEmpty();
+    }
+
+    @Test
     void mapsAllBinlogOperationsAndRejectsUnknownValues() {
         assertThat(record(0L).getRowKind()).isEqualTo(RowKind.INSERT);
         assertThat(record(1L).getRowKind()).isEqualTo(RowKind.DELETE);
