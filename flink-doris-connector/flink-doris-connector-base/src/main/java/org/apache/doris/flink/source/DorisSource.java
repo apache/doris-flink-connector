@@ -196,10 +196,6 @@ public class DorisSource<OUT>
             }
             Preconditions.checkNotNull(options, "Doris options must be configured");
             Preconditions.checkNotNull(deserializer, "Doris deserializer must be configured");
-            Preconditions.checkArgument(
-                    !readOptions.getUseOldApi()
-                            || readOptions.getScanMode() == DorisSourceScanMode.SNAPSHOT,
-                    "source.use-old-api=true only supports source.scan.mode=snapshot");
             if (readOptions.getScanMode() == DorisSourceScanMode.FROM_TIMESTAMP) {
                 Preconditions.checkArgument(
                         org.apache.doris.flink.source.split.DorisStreamSplit.isValidTimestamp(

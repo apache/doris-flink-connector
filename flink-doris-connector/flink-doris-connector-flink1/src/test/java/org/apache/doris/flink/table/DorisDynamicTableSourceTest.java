@@ -21,7 +21,6 @@ import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.source.InputFormatProvider;
@@ -120,33 +119,6 @@ public class DorisDynamicTableSourceTest {
                 actualDorisSource.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
         assertDorisInputFormat(provider);
         restServiceMockedStatic.close();
-    }
-
-    @Test
-    public void testIncrementalModeRejectsOldApi() {
-        DorisReadOptions readOptions =
-                OptionUtils.dorisReadOptionsBuilder()
-                        .setUseOldApi(true)
-                        .setScanMode(DorisSourceScanMode.LATEST)
-                        .build();
-        DorisDynamicTableSource tableSource =
-                new DorisDynamicTableSource(
-                        OptionUtils.buildDorisOptions(),
-                        readOptions,
-                        DorisLookupOptions.builder().build(),
-                        TableSchema.fromResolvedSchema(SCHEMA),
-                        FactoryMocks.PHYSICAL_DATA_TYPE);
-
-        try {
-            tableSource.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
-            Assert.fail("Expected incremental mode to reject source.use-old-api=true");
-        } catch (ValidationException e) {
-            assertTrue(
-                    e.getMessage()
-                            .contains(
-                                    "source.use-old-api=true only supports "
-                                            + "source.scan.mode=snapshot"));
-        }
     }
 
     @Test

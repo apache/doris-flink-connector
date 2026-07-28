@@ -56,7 +56,7 @@ public class DorisIncrementalSourceFailoverITCase extends AbstractDorisIncrement
         configuration.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ZERO);
 
         try (IncrementalResultCollector collector =
-                startSource(table, "latest", null, configuration)) {
+                startSource(table, "latest", null, configuration, MANUAL_CHECKPOINT_INTERVAL)) {
             completeCheckpoint(collector.getJobClient());
 
             ObservedRow beforeFailover = ObservedRow.of(RowKind.INSERT, 1, "before-failover");
@@ -64,8 +64,7 @@ public class DorisIncrementalSourceFailoverITCase extends AbstractDorisIncrement
                     String.format(
                             "INSERT INTO %s.%s VALUES (1,'before-failover','ignored-before')",
                             DATABASE, table));
-            collector.awaitContains(beforeFailover);
-            completeCheckpoint(collector.getJobClient());
+            checkpointUntilContains(collector, Collections.singletonList(beforeFailover));
 
             triggerFailover(
                     failoverType,
@@ -76,15 +75,17 @@ public class DorisIncrementalSourceFailoverITCase extends AbstractDorisIncrement
                     collector.getJobClient(),
                     Collections.singletonList(JobStatus.RUNNING),
                     Deadline.fromNow(DEFAULT_TIMEOUT));
+            waitForAllTasksRunning(collector.getJobClient());
 
             ObservedRow duringFailover = ObservedRow.of(RowKind.INSERT, 2, "during-failover");
-            collector.awaitContains(duringFailover);
+            checkpointUntilContains(collector, Collections.singletonList(duringFailover));
 
             executeDorisSql(
                     String.format(
                             "INSERT INTO %s.%s VALUES (3,'after-recovery','ignored-after')",
                             DATABASE, table));
-            collector.awaitContainsAll(
+            checkpointUntilContains(
+                    collector,
                     Arrays.asList(
                             beforeFailover,
                             duringFailover,

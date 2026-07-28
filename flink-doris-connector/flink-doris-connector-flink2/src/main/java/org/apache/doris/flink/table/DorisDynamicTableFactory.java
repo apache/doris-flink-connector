@@ -19,7 +19,6 @@ package org.apache.doris.flink.table;
 
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.factories.DynamicTableSinkFactory;
@@ -200,11 +199,6 @@ public final class DorisDynamicTableFactory
         DorisOptions dorisOptions = getDorisOptions(options);
         DorisReadOptions readOptions = getDorisReadOptions(options);
         DorisLookupOptions lookupOptions = getDorisLookupOptions(options);
-        if (readOptions.getUseOldApi()
-                && readOptions.getScanMode() != DorisSourceScanMode.SNAPSHOT) {
-            throw new ValidationException(
-                    "source.use-old-api=true only supports source.scan.mode=snapshot");
-        }
         return new DorisDynamicTableSource(
                 dorisOptions,
                 readOptions,

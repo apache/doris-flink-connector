@@ -80,6 +80,11 @@ public final class DorisDynamicTableSource
             DorisLookupOptions lookupOptions,
             TableSchema physicalSchema,
             DataType physicalRowDataType) {
+        if (readOptions.getUseOldApi()
+                && readOptions.getScanMode() != DorisSourceScanMode.SNAPSHOT) {
+            throw new ValidationException(
+                    "source.use-old-api=true only supports source.scan.mode=snapshot");
+        }
         this.options = options;
         this.lookupOptions = lookupOptions;
         this.readOptions = readOptions;
@@ -104,12 +109,6 @@ public final class DorisDynamicTableSource
 
     @Override
     public ScanRuntimeProvider getScanRuntimeProvider(ScanContext runtimeProviderContext) {
-        if (readOptions.getUseOldApi()
-                && readOptions.getScanMode() != DorisSourceScanMode.SNAPSHOT) {
-            throw new ValidationException(
-                    "source.use-old-api=true only supports source.scan.mode=snapshot");
-        }
-
         if (!resolvedFilterQuery.isEmpty()) {
             String filterQuery = resolvedFilterQuery.stream().collect(Collectors.joining(" AND "));
             if (!StringUtils.isNullOrWhitespaceOnly(readOptions.getFilterQuery())) {

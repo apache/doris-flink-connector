@@ -42,6 +42,7 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.sql.Connection;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
@@ -71,17 +72,17 @@ public class DorisIncrementalSourceE2ECase extends AbstractITCaseService {
 
     private static final List<String> INITIAL_ROWS =
             Arrays.asList(
-                    "1,true,127,32767,2147483647,9223372036854775807,170141183460469231731687303715884105727,3.14,2.71828,12345.6789,2025-03-11,2025-03-11T12:34:56,A,Hello, Doris!,This is a string,[\"Alice\", \"Bob\"],{\"key1\":\"value1\", \"key2\":\"value2\"},{\"name\": \"Tom\", \"age\": 30},{\"key\":\"value\"},{\"data\":123,\"type\":\"variant\"}",
-                    "2,false,-128,-32768,-2147483648,-9223372036854775808,-170141183460469231731687303715884105728,-1.23,1.0E-4,-9999.9999,2024-12-25,2024-12-25T23:59:59,B,Doris Test,Another string!,[\"Charlie\", \"David\"],{\"k1\":\"v1\", \"k2\":\"v2\"},{\"name\": \"Jerry\", \"age\": 25},{\"status\":\"ok\"},{\"data\":[1,2,3]}",
-                    "3,true,0,0,0,0,0,0.0,0.0,0.0000,2023-06-15,2023-06-15T08:00,C,Test Doris,Sample text,[\"Eve\", \"Frank\"],{\"alpha\":\"beta\"},{\"name\": \"Alice\", \"age\": 40},{\"nested\":{\"key\":\"value\"}},{\"variant\":\"test\"}",
+                    "1,true,127,32767,2147483647,9223372036854775807,170141183460469231731687303715884105727,3.14,2.71828,12345.6789,2025-03-11,2025-03-11T12:34:56,A,Hello, Doris!,This is a string,[\"Alice\", \"Bob\"],{\"key1\":\"value1\", \"key2\":\"value2\"},{\"name\":\"Tom\", \"age\":30},{\"key\":\"value\"},{\"data\":123,\"type\":\"variant\"}",
+                    "2,false,-128,-32768,-2147483648,-9223372036854775808,-170141183460469231731687303715884105728,-1.23,1.0E-4,-9999.9999,2024-12-25,2024-12-25T23:59:59,B,Doris Test,Another string!,[\"Charlie\", \"David\"],{\"k1\":\"v1\", \"k2\":\"v2\"},{\"name\":\"Jerry\", \"age\":25},{\"status\":\"ok\"},{\"data\":[1,2,3]}",
+                    "3,true,0,0,0,0,0,0.0,0.0,0.0000,2023-06-15,2023-06-15T08:00,C,Test Doris,Sample text,[\"Eve\", \"Frank\"],{\"alpha\":\"beta\"},{\"name\":\"Alice\", \"age\":40},{\"nested\":{\"key\":\"value\"}},{\"variant\":\"test\"}",
                     "4,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null");
 
     private static final List<String> FINAL_ROWS =
             Arrays.asList(
                     "1,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null",
-                    "3,true,0,0,0,0,0,0.0,0.0,0.0000,2023-06-15,2023-06-15T08:00,C,Test Doris,Sample text,[\"Eve\", \"Frank\"],{\"alpha\":\"beta\"},{\"name\": \"Alice\", \"age\": 40},{\"nested\":{\"key\":\"value\"}},{\"variant\":\"test\"}",
+                    "3,true,0,0,0,0,0,0.0,0.0,0.0000,2023-06-15,2023-06-15T08:00,C,Test Doris,Sample text,[\"Eve\", \"Frank\"],{\"alpha\":\"beta\"},{\"name\":\"Alice\", \"age\":40},{\"nested\":{\"key\":\"value\"}},{\"variant\":\"test\"}",
                     "4,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null",
-                    "5,true,127,32767,2147483647,9223372036854775807,170141183460469231731687303715884105727,3.14,2.71828,12345.6789,2025-03-11,2025-03-11T12:34:56,A,Hello, Doris!,This is a string,[\"Alice\", \"Bob\"],{\"key1\":\"value1\", \"key2\":\"value2\"},{\"name\": \"Tom\", \"age\": 30},{\"key\":\"value\"},{\"data\":123,\"type\":\"variant\"}");
+                    "5,true,127,32767,2147483647,9223372036854775807,170141183460469231731687303715884105727,3.14,2.71828,12345.6789,2025-03-11,2025-03-11T12:34:56,A,Hello, Doris!,This is a string,[\"Alice\", \"Bob\"],{\"key1\":\"value1\", \"key2\":\"value2\"},{\"name\":\"Tom\", \"age\":30},{\"key\":\"value\"},{\"data\":123,\"type\":\"variant\"}");
 
     @Rule
     public final MiniClusterWithClientResource miniClusterResource =
@@ -287,32 +288,34 @@ public class DorisIncrementalSourceE2ECase extends AbstractITCaseService {
 
     private void awaitSinkRows(List<String> expected) throws Exception {
         AtomicReference<List<String>> actual = new AtomicReference<>(Collections.emptyList());
-        try {
-            waitUntilCondition(
-                    () -> {
-                        List<String> rows =
-                                ContainerUtils.executeSQLStatement(
-                                        getDorisQueryConnection(),
-                                        LOG,
-                                        String.format(
-                                                "SELECT * FROM %s.%s ORDER BY id",
-                                                SINK_DATABASE, TABLE),
-                                        COLUMN_COUNT);
-                        actual.set(rows);
-                        return rows.equals(expected);
-                    },
-                    Deadline.fromNow(TIMEOUT),
-                    200L,
-                    "Doris sink rows did not match " + expected);
-        } catch (TimeoutException e) {
-            TimeoutException timeout =
-                    new TimeoutException(
-                            "Doris sink rows did not match "
-                                    + expected
-                                    + "; actual="
-                                    + actual.get());
-            timeout.initCause(e);
-            throw timeout;
+        try (Connection connection = getDorisQueryConnection()) {
+            try {
+                waitUntilCondition(
+                        () -> {
+                            List<String> rows =
+                                    ContainerUtils.executeSQLStatement(
+                                            connection,
+                                            LOG,
+                                            String.format(
+                                                    "SELECT * FROM %s.%s ORDER BY id",
+                                                    SINK_DATABASE, TABLE),
+                                            COLUMN_COUNT);
+                            actual.set(rows);
+                            return rows.equals(expected);
+                        },
+                        Deadline.fromNow(TIMEOUT),
+                        200L,
+                        "Doris sink rows did not match " + expected);
+            } catch (TimeoutException e) {
+                TimeoutException timeout =
+                        new TimeoutException(
+                                "Doris sink rows did not match "
+                                        + expected
+                                        + "; actual="
+                                        + actual.get());
+                timeout.initCause(e);
+                throw timeout;
+            }
         }
     }
 

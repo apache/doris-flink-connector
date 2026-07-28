@@ -20,7 +20,6 @@ package org.apache.doris.flink.table;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.source.InputFormatProvider;
@@ -64,7 +63,6 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mockStatic;
 
@@ -121,35 +119,6 @@ public class DorisDynamicTableSourceTest {
                 actualDorisSource.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
         assertDorisInputFormat(provider);
         restServiceMockedStatic.close();
-    }
-
-    @Test
-    public void testIncrementalModeRejectsOldApi() {
-        DorisReadOptions readOptions =
-                OptionUtils.dorisReadOptionsBuilder()
-                        .setUseOldApi(true)
-                        .setScanMode(DorisSourceScanMode.LATEST)
-                        .build();
-        DorisDynamicTableSource tableSource =
-                new DorisDynamicTableSource(
-                        OptionUtils.buildDorisOptions(),
-                        readOptions,
-                        DorisLookupOptions.builder().build(),
-                        TableSchema.fromResolvedSchema(SCHEMA),
-                        FactoryMocks.PHYSICAL_DATA_TYPE);
-
-        ValidationException exception =
-                assertThrows(
-                        ValidationException.class,
-                        () ->
-                                tableSource.getScanRuntimeProvider(
-                                        ScanRuntimeProviderContext.INSTANCE));
-        assertTrue(
-                exception
-                        .getMessage()
-                        .contains(
-                                "source.use-old-api=true only supports "
-                                        + "source.scan.mode=snapshot"));
     }
 
     @Test

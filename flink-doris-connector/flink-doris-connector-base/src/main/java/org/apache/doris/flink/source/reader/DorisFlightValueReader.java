@@ -173,18 +173,21 @@ public class DorisFlightValueReader extends ValueReader implements AutoCloseable
                 StringUtils.isBlank(readOptions.getReadFields())
                         ? "*"
                         : readOptions.getReadFields();
-        return PREFIX
-                + " SELECT "
-                + readFields
-                + ", __DORIS_BINLOG_TSO__, __DORIS_BINLOG_LSN__, __DORIS_BINLOG_OP__ FROM "
-                + quoteTable(tableIdentifiers)
-                + "@incr('startTimestamp' = "
-                + quoteLiteral(split.getStartTimestamp())
-                + ", 'endTimestamp' = "
-                + quoteLiteral(split.getEndTimestamp())
-                + ", 'incrementType' = "
-                + quoteLiteral(incrementType.toSqlValue())
-                + ") ORDER BY __DORIS_BINLOG_TSO__, __DORIS_BINLOG_LSN__, __DORIS_BINLOG_OP__";
+        String sql =
+                PREFIX
+                        + " SELECT "
+                        + readFields
+                        + ", __DORIS_BINLOG_TSO__, __DORIS_BINLOG_LSN__, __DORIS_BINLOG_OP__ FROM "
+                        + quoteTable(tableIdentifiers)
+                        + "@incr('startTimestamp' = "
+                        + quoteLiteral(split.getStartTimestamp())
+                        + ", 'endTimestamp' = "
+                        + quoteLiteral(split.getEndTimestamp())
+                        + ", 'incrementType' = "
+                        + quoteLiteral(incrementType.toSqlValue())
+                        + ") ORDER BY __DORIS_BINLOG_TSO__, __DORIS_BINLOG_LSN__, __DORIS_BINLOG_OP__";
+        LOG.debug("Query SQL Sending to Doris FE is: '{}'.", sql);
+        return sql;
     }
 
     private static String quoteTable(String[] identifiers) {

@@ -77,11 +77,15 @@ public class DorisSourceSplitReader implements SplitReader<DorisSourceRecord, Do
             try {
                 valueReader.close();
             } catch (Exception e) {
-                LOG.warn("Error while closing value reader: {}", e.getMessage());
+                LOG.warn(
+                        "Failed to close value reader for split {}: {}",
+                        currentSplitId,
+                        e.getMessage());
             }
             valueReader = null;
         }
 
+        LOG.info("Finished reading split {}", currentSplitId);
         final DorisSplitRecords finishRecords = DorisSplitRecords.finishedSplit(currentSplitId);
         currentSplitId = null;
         return finishRecords;

@@ -23,6 +23,7 @@ import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.minicluster.RpcServiceSharing;
+import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.TableResult;
@@ -37,6 +38,7 @@ import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.container.AbstractContainerTestBase;
 import org.apache.doris.flink.container.AbstractITCaseService;
 import org.apache.doris.flink.container.ContainerUtils;
+import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.table.DorisConfigOptions;
 import org.junit.Assert;
@@ -46,6 +48,8 @@ import org.junit.Rule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -64,9 +68,10 @@ import java.util.function.Predicate;
 public abstract class AbstractDorisIncrementalITCase extends AbstractITCaseService {
     protected static final String DATABASE = "test_incremental_source";
     protected static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(60);
+    protected static final Duration CONTINUOUS_CHECKPOINT_INTERVAL = Duration.ofSeconds(1);
+    protected static final Duration MANUAL_CHECKPOINT_INTERVAL = Duration.ofMinutes(10);
 
     private static final Logger LOG = LoggerFactory.getLogger(AbstractDorisIncrementalITCase.class);
-    private static final long MANUAL_CHECKPOINT_INTERVAL_MS = Duration.ofMinutes(10).toMillis();
 
     @Rule
     public final MiniClusterWithClientResource miniClusterResource =
@@ -112,12 +117,19 @@ public abstract class AbstractDorisIncrementalITCase extends AbstractITCaseServi
                             "INSERT INTO %s.%s VALUES %s",
                             DATABASE, table, String.join(",", values)));
         }
-        ContainerUtils.executeSQLStatement(
-                getDorisQueryConnection(), LOG, statements.toArray(new String[0]));
+        try (Connection connection = getDorisQueryConnection()) {
+            ContainerUtils.executeSQLStatement(connection, LOG, statements.toArray(new String[0]));
+        } catch (SQLException e) {
+            throw new DorisRuntimeException("Failed to close Doris query connection", e);
+        }
     }
 
     protected void executeDorisSql(String... statements) {
-        ContainerUtils.executeSQLStatement(getDorisQueryConnection(), LOG, statements);
+        try (Connection connection = getDorisQueryConnection()) {
+            ContainerUtils.executeSQLStatement(connection, LOG, statements);
+        } catch (SQLException e) {
+            throw new DorisRuntimeException("Failed to close Doris query connection", e);
+        }
     }
 
     protected String resolveCurrentDorisTimestamp(String table) {
@@ -141,17 +153,26 @@ public abstract class AbstractDorisIncrementalITCase extends AbstractITCaseServi
 
     protected IncrementalResultCollector startSource(
             String table, String scanMode, String scanTimestamp) throws Exception {
-        return startSource(table, scanMode, scanTimestamp, new Configuration());
+        return startSource(
+                table,
+                scanMode,
+                scanTimestamp,
+                new Configuration(),
+                CONTINUOUS_CHECKPOINT_INTERVAL);
     }
 
     protected IncrementalResultCollector startSource(
-            String table, String scanMode, String scanTimestamp, Configuration configuration)
+            String table,
+            String scanMode,
+            String scanTimestamp,
+            Configuration configuration,
+            Duration checkpointInterval)
             throws Exception {
         StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(configuration);
         env.setParallelism(DEFAULT_PARALLELISM);
         env.setRuntimeMode(RuntimeExecutionMode.STREAMING);
-        env.enableCheckpointing(MANUAL_CHECKPOINT_INTERVAL_MS);
+        env.enableCheckpointing(checkpointInterval.toMillis());
         StreamTableEnvironment tableEnvironment = StreamTableEnvironment.create(env);
         tableEnvironment.executeSql(sourceDdl(table, scanMode, scanTimestamp));
         TableResult result =
@@ -161,14 +182,33 @@ public abstract class AbstractDorisIncrementalITCase extends AbstractITCaseServi
                 collector.getJobClient(),
                 Collections.singletonList(JobStatus.RUNNING),
                 Deadline.fromNow(DEFAULT_TIMEOUT));
+        waitForAllTasksRunning(collector.getJobClient());
         return collector;
     }
 
     protected void completeCheckpoint(JobClient jobClient) throws Exception {
+        waitForAllTasksRunning(jobClient);
         miniClusterResource
                 .getMiniCluster()
                 .triggerCheckpoint(jobClient.getJobID())
                 .get(DEFAULT_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+    }
+
+    protected void waitForAllTasksRunning(JobClient jobClient) throws Exception {
+        CommonTestUtils.waitForAllTaskRunning(
+                miniClusterResource.getMiniCluster(), jobClient.getJobID(), false);
+    }
+
+    protected void checkpointUntilContains(
+            IncrementalResultCollector collector, List<ObservedRow> expected) throws Exception {
+        waitUntilCondition(
+                () -> {
+                    completeCheckpoint(collector.getJobClient());
+                    return collector.containsAll(expected);
+                },
+                Deadline.fromNow(DEFAULT_TIMEOUT),
+                100L,
+                "Missing source rows " + expected + "; observed=" + collector.getRows());
     }
 
     protected DorisOptions dorisOptions(String table) {
@@ -374,6 +414,11 @@ public abstract class AbstractDorisIncrementalITCase extends AbstractITCaseServi
                     values -> values.containsAll(expected),
                     DEFAULT_TIMEOUT,
                     "Missing source rows " + expected);
+        }
+
+        boolean containsAll(List<ObservedRow> expected) throws Exception {
+            checkFailure();
+            return rows.containsAll(expected);
         }
 
         void awaitRows(
