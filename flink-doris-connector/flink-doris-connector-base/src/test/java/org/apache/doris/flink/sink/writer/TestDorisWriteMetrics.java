@@ -56,35 +56,37 @@ public class TestDorisWriteMetrics {
     }
 
     @Test
-    public void testSuccessFlushUpdatesStandardSinkMetrics() throws IOException {
+    public void testRecordSendUpdatesStandardSinkMetrics() {
         DorisWriteMetrics metrics = DorisWriteMetrics.of(metricGroup, "db_table");
-        metrics.flush(buildRespContent("Success", 5, 100));
+        metrics.recordSend(100);
+        metrics.recordSend(50);
 
-        Assert.assertEquals(5, numRecordsSend.getCount());
-        Assert.assertEquals(100, numBytesSend.getCount());
-        Assert.assertEquals(5, metrics.getTotalFlushLoadedRows().getCount());
-        Assert.assertEquals(100, metrics.getTotalFlushLoadBytes().getCount());
-        Assert.assertEquals(1, metrics.getTotalFlushSucceededTimes().getCount());
+        Assert.assertEquals(2, numRecordsSend.getCount());
+        Assert.assertEquals(150, numBytesSend.getCount());
     }
 
     @Test
-    public void testStandardSinkMetricsSharedAcrossTables() throws IOException {
+    public void testStandardSinkMetricsSharedAcrossTables() {
         DorisWriteMetrics tableOneMetrics = DorisWriteMetrics.of(metricGroup, "db_table1");
         DorisWriteMetrics tableTwoMetrics = DorisWriteMetrics.of(metricGroup, "db_table2");
-        tableOneMetrics.flush(buildRespContent("Success", 5, 100));
-        tableTwoMetrics.flush(buildRespContent("Success", 7, 200));
+        tableOneMetrics.recordSend(100);
+        tableTwoMetrics.recordSend(200);
 
-        Assert.assertEquals(12, numRecordsSend.getCount());
+        Assert.assertEquals(2, numRecordsSend.getCount());
         Assert.assertEquals(300, numBytesSend.getCount());
     }
 
     @Test
-    public void testFailedFlushDoesNotUpdateStandardSinkMetrics() throws IOException {
+    public void testFlushDoesNotUpdateStandardSinkMetrics() throws IOException {
         DorisWriteMetrics metrics = DorisWriteMetrics.of(metricGroup, "db_table");
+        metrics.flush(buildRespContent("Success", 5, 100));
         metrics.flush(buildRespContent("Fail", 0, 0));
 
         Assert.assertEquals(0, numRecordsSend.getCount());
         Assert.assertEquals(0, numBytesSend.getCount());
+        Assert.assertEquals(5, metrics.getTotalFlushLoadedRows().getCount());
+        Assert.assertEquals(100, metrics.getTotalFlushLoadBytes().getCount());
+        Assert.assertEquals(1, metrics.getTotalFlushSucceededTimes().getCount());
         Assert.assertEquals(1, metrics.getTotalFlushFailedTimes().getCount());
     }
 

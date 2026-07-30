@@ -108,6 +108,15 @@ public class DorisWriteMetrics implements Serializable {
         }
     }
 
+    /**
+     * Called for every record sent to Doris, regardless of the final load result, to keep the
+     * standard FLIP-33 sink metrics in line with the records the writer has sent.
+     */
+    public void recordSend(long bytes) {
+        numRecordsSend.inc();
+        numBytesSend.inc(bytes);
+    }
+
     @VisibleForTesting
     public void register(SinkWriterMetricGroup sinkMetricGroup) {
         numRecordsSend = sinkMetricGroup.getNumRecordsSendCounter();
@@ -192,10 +201,8 @@ public class DorisWriteMetrics implements Serializable {
 
     private void flushSuccessLoad(RespContent responseContent) {
         Optional.ofNullable(responseContent.getLoadBytes()).ifPresent(totalFlushLoadBytes::inc);
-        Optional.ofNullable(responseContent.getLoadBytes()).ifPresent(numBytesSend::inc);
         Optional.ofNullable(responseContent.getNumberLoadedRows())
                 .ifPresent(totalFlushLoadedRows::inc);
-        Optional.ofNullable(responseContent.getNumberLoadedRows()).ifPresent(numRecordsSend::inc);
         Optional.ofNullable(responseContent.getNumberTotalRows())
                 .ifPresent(totalFlushNumberTotalRows::inc);
         Optional.ofNullable(responseContent.getNumberFilteredRows())
