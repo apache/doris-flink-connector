@@ -75,9 +75,17 @@ public class DorisSourceSplitReader implements SplitReader<List, DorisSourceSpli
         }
         currentSplitId = nextSplit.splitId();
         LOG.info("Fetch a new split {}", nextSplit);
-        valueReader =
-                ValueReader.createReader(
-                        nextSplit.getPartitionDefinition(), options, readOptions, LOG);
+        valueReader = createValueReader(nextSplit);
+    }
+
+    /**
+     * Creates the {@link ValueReader} for a split. Default behavior delegates to {@link
+     * ValueReader#createReader} (thrift or Arrow Flight SQL per read options). Protected to
+     * allow tests to substitute a fake reader without opening a real Doris BE connection.
+     */
+    protected ValueReader createValueReader(DorisSourceSplit split) {
+        return ValueReader.createReader(
+                split.getPartitionDefinition(), options, readOptions, LOG);
     }
 
     private DorisSplitRecords finishSplit() {
