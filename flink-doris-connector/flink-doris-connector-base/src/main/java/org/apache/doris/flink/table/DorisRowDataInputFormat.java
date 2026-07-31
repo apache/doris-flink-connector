@@ -119,7 +119,18 @@ public class DorisRowDataInputFormat extends RichInputFormat<RowData, DorisTable
      * @throws IOException Indicates that a resource could not be closed.
      */
     @Override
-    public void close() throws IOException {}
+    public void close() throws IOException {
+        if (valueReader == null) {
+            return;
+        }
+        try {
+            valueReader.close();
+        } catch (Exception e) {
+            LOG.warn("Failed to close doris value reader.", e);
+        } finally {
+            valueReader = null;
+        }
+    }
 
     @Override
     public TypeInformation<RowData> getProducedType() {
