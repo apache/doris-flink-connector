@@ -115,7 +115,13 @@ public class DorisSourceSplitReader implements SplitReader<List, DorisSourceSpli
     @Override
     public void close() throws Exception {
         if (valueReader != null) {
-            valueReader.close();
+            try {
+                valueReader.close();
+            } catch (Exception e) {
+                LOG.warn("Error while closing value reader: {}", e.getMessage());
+            } finally {
+                valueReader = null;
+            }
         }
     }
 }
