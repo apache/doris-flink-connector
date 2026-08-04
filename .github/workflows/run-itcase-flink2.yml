@@ -69,8 +69,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - flink-version: 2.1.0
-            flink-major: '2.1'
           - flink-version: 2.2.0
             flink-major: '2.2'
     defaults:
