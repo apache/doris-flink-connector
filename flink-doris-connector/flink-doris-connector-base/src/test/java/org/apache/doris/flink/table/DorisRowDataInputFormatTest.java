@@ -133,7 +133,9 @@ public class DorisRowDataInputFormatTest {
                 format.injectedReader.closeCount.get());
     }
 
-    /** A ValueReader whose close() always throws, to verify best-effort swallowing + field nulling. */
+    /**
+     * A ValueReader whose close() always throws, to verify best-effort swallowing + field nulling.
+     */
     private static final class ThrowingValueReader extends ValueReader {
         final AtomicInteger closeCount = new AtomicInteger(0);
 
