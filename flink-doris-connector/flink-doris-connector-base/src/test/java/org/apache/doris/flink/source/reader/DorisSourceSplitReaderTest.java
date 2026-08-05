@@ -17,11 +17,12 @@
 
 package org.apache.doris.flink.source.reader;
 
+import org.apache.flink.connector.base.source.reader.splitreader.SplitsAddition;
+
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.rest.PartitionDefinition;
 import org.apache.doris.flink.source.split.DorisSourceSplit;
-import org.apache.flink.connector.base.source.reader.splitreader.SplitsAddition;
 import org.junit.Test;
 
 import java.util.Collections;
@@ -30,11 +31,15 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.assertEquals;
 
-/** Unit tests for {@link DorisSourceSplitReader}, focusing on reader lifecycle. */
+/**
+ * Unit tests for {@link DorisSourceSplitReader}, focusing on reader lifecycle.
+ */
 public class DorisSourceSplitReaderTest {
 
-    /** A ValueReader that records how many times close() is invoked. hasNext() returns true so
-     * fetch() does not finish the split, leaving the reader open for close() to exercise. */
+    /**
+     * A ValueReader that records how many times close() is invoked. hasNext() returns true so
+     * fetch() does not finish the split, leaving the reader open for close() to exercise.
+     */
     private static final class RecordingValueReader extends ValueReader {
         final AtomicInteger closeCount = new AtomicInteger(0);
 
@@ -54,7 +59,9 @@ public class DorisSourceSplitReaderTest {
         }
     }
 
-    /** A ValueReader whose close() always throws, to verify best-effort swallowing + field nulling. */
+    /**
+     * A ValueReader whose close() always throws, to verify best-effort swallowing + field nulling.
+     */
     private static final class ThrowingValueReader extends ValueReader {
         final AtomicInteger closeCount = new AtomicInteger(0);
 
@@ -75,7 +82,9 @@ public class DorisSourceSplitReaderTest {
         }
     }
 
-    /** A subclass that injects the recording reader instead of opening a real BE connection. */
+    /**
+     * A subclass that injects the recording reader instead of opening a real BE connection.
+     */
     private static final class TestSplitReader extends DorisSourceSplitReader {
         final RecordingValueReader injectedReader = new RecordingValueReader();
 
@@ -100,7 +109,9 @@ public class DorisSourceSplitReaderTest {
         }
     }
 
-    /** A subclass that injects the throwing reader. */
+    /**
+     * A subclass that injects the throwing reader.
+     */
     private static final class ThrowingSplitReader extends DorisSourceSplitReader {
         final ThrowingValueReader injectedReader = new ThrowingValueReader();
 
@@ -132,7 +143,8 @@ public class DorisSourceSplitReaderTest {
         reader.close();
 
         assertEquals(
-                "close() without a reader must not invoke any reader", 0,
+                "close() without a reader must not invoke any reader",
+                0,
                 reader.injectedReader.closeCount.get());
     }
 
