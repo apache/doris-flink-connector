@@ -17,6 +17,7 @@
 
 package org.apache.doris.flink.catalog.doris;
 
+import org.apache.doris.flink.connection.JdbcConnectionProvider;
 import org.apache.doris.flink.exception.CreateTableException;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -26,6 +27,11 @@ import org.junit.rules.ExpectedException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 public class DorisSystemTest {
 
@@ -94,5 +100,19 @@ public class DorisSystemTest {
         Assert.assertEquals("`db`.`tbl`", quoted);
         thrown.expect(IllegalArgumentException.class);
         quoted = DorisSystem.quoteTableIdentifier("db.tbl.sc");
+    }
+
+    @Test
+    public void executeLetsProviderOwnConnectionLifecycle() throws Exception {
+        JdbcConnectionProvider provider = mock(JdbcConnectionProvider.class);
+        java.sql.Connection connection = mock(java.sql.Connection.class);
+        java.sql.Statement statement = mock(java.sql.Statement.class);
+        when(provider.getOrEstablishConnection()).thenReturn(connection);
+        when(connection.createStatement()).thenReturn(statement);
+
+        new DorisSystem(provider).execute("SELECT 1");
+
+        verify(provider).close();
+        verify(connection, never()).close();
     }
 }

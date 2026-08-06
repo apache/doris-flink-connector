@@ -22,11 +22,11 @@ import org.apache.flink.util.Preconditions;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.exception.DorisRuntimeException;
+import org.apache.doris.flink.rest.DorisUrlBuilder;
 import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.sink.BackendUtil;
 import org.apache.doris.flink.sink.DorisCommittable;
@@ -52,7 +52,7 @@ import static org.apache.doris.flink.sink.LoadStatus.SUCCESS;
 /** The committer to commit transaction. */
 public class DorisCommitter implements Committer<DorisCommittable>, Closeable {
     private static final Logger LOG = LoggerFactory.getLogger(DorisCommitter.class);
-    private static final String commitPattern = "http://%s/api/%s/_stream_load_2pc";
+    private static final String COMMIT_PATH_PATTERN = "/api/%s/_stream_load_2pc";
     private final CloseableHttpClient httpClient;
     private final DorisOptions dorisOptions;
     private final DorisReadOptions dorisReadOptions;
@@ -70,7 +70,10 @@ public class DorisCommitter implements Committer<DorisCommittable>, Closeable {
                 dorisOptions,
                 dorisReadOptions,
                 executionOptions,
-                new HttpUtil(dorisReadOptions, executionOptions.isHttpUtf8Charset())
+                new HttpUtil(
+                                dorisReadOptions,
+                                executionOptions.isHttpUtf8Charset(),
+                                dorisOptions.getTlsOptions())
                         .getHttpClient());
     }
 
@@ -86,10 +89,11 @@ public class DorisCommitter implements Committer<DorisCommittable>, Closeable {
         this.ignoreCommitError = executionOptions.ignoreCommitError();
         this.httpClient = client;
         this.backendUtil =
-                StringUtils.isNotEmpty(dorisOptions.getBenodes())
-                        ? new BackendUtil(dorisOptions.getBenodes())
+                org.apache.commons.lang3.StringUtils.isNotEmpty(dorisOptions.getBenodes())
+                        ? new BackendUtil(dorisOptions.getBenodes(), dorisOptions.getTlsOptions())
                         : new BackendUtil(
-                                RestService.getBackendsV2(dorisOptions, dorisReadOptions, LOG));
+                                RestService.getBackendsV2(dorisOptions, dorisReadOptions, LOG),
+                                dorisOptions.getTlsOptions());
     }
 
     @Override
@@ -116,7 +120,11 @@ public class DorisCommitter implements Committer<DorisCommittable>, Closeable {
         int retry = 0;
         while (retry <= maxRetry) {
             // get latest-url
-            String url = String.format(commitPattern, hostPort, committable.getDb());
+            String url =
+                    DorisUrlBuilder.buildHttpUrl(
+                            dorisOptions.getTlsOptions(),
+                            hostPort,
+                            String.format(COMMIT_PATH_PATTERN, committable.getDb()));
             HttpPut httpPut = builder.setUrl(url).setEmptyEntity().build();
 
             // http execute...

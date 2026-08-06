@@ -24,6 +24,7 @@ import org.apache.flink.table.factories.CatalogFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 
 import org.apache.doris.flink.cfg.DorisConnectionOptions;
+import org.apache.doris.flink.table.DorisConfigOptions;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -33,12 +34,16 @@ import static org.apache.doris.flink.catalog.DorisCatalogOptions.TABLE_PROPERTIE
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_BATCH_SIZE;
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_DESERIALIZE_ARROW_ASYNC;
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_DESERIALIZE_QUEUE_SIZE;
+import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_ENABLE_TLS;
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_EXEC_MEM_LIMIT;
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_REQUEST_CONNECT_TIMEOUT_MS;
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_REQUEST_QUERY_TIMEOUT_S;
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_REQUEST_READ_TIMEOUT_MS;
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_REQUEST_RETRIES;
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_TABLET_SIZE;
+import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_TLS_CA_CERTIFICATE_PATH;
+import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_TLS_EXCLUDED_PROTOCOLS;
+import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_TLS_SKIP_HOSTNAME_VERIFICATION;
 import static org.apache.doris.flink.table.DorisConfigOptions.FENODES;
 import static org.apache.doris.flink.table.DorisConfigOptions.IDENTIFIER;
 import static org.apache.doris.flink.table.DorisConfigOptions.JDBC_URL;
@@ -84,6 +89,10 @@ public class DorisCatalogFactory implements CatalogFactory {
         options.add(TABLE_IDENTIFIER);
         options.add(USERNAME);
         options.add(PASSWORD);
+        options.add(DORIS_ENABLE_TLS);
+        options.add(DORIS_TLS_CA_CERTIFICATE_PATH);
+        options.add(DORIS_TLS_SKIP_HOSTNAME_VERIFICATION);
+        options.add(DORIS_TLS_EXCLUDED_PROTOCOLS);
 
         options.add(DORIS_TABLET_SIZE);
         options.add(DORIS_REQUEST_CONNECT_TIMEOUT_MS);
@@ -121,6 +130,7 @@ public class DorisCatalogFactory implements CatalogFactory {
                         .withJdbcUrl(helper.getOptions().get(JDBC_URL))
                         .withUsername(helper.getOptions().get(USERNAME))
                         .withPassword(helper.getOptions().get(PASSWORD))
+                        .withTlsOptions(DorisConfigOptions.getTlsOptions(helper.getOptions()))
                         .build();
         return new DorisCatalog(
                 context.getName(),

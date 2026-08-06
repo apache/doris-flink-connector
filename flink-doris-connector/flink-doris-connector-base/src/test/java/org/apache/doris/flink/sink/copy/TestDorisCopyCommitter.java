@@ -18,6 +18,7 @@
 package org.apache.doris.flink.sink.copy;
 
 import org.apache.doris.flink.cfg.DorisOptions;
+import org.apache.doris.flink.cfg.DorisTlsOptions;
 import org.apache.doris.flink.exception.CopyLoadException;
 import org.apache.doris.flink.sink.HttpEntityMock;
 import org.apache.doris.flink.sink.OptionUtils;
@@ -25,12 +26,14 @@ import org.apache.doris.flink.sink.committer.MockCommitRequest;
 import org.apache.http.ProtocolVersion;
 import org.apache.http.StatusLine;
 import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.message.BasicStatusLine;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 
 import java.util.Collections;
 
@@ -141,5 +144,35 @@ public class TestDorisCopyCommitter {
         loadResult =
                 "{\"msg\":\"success\",\"code\":0,\"data\":{\"result\":{\"msg\":\"errCode = 2, detailMessage = No files can be copied, matched 1 files, filtered 1 files because files may be loading or loaded\",\"loadedRows\":\"\",\"id\":\"b86cb31213014886-91bc97e8df01676f\",\"state\":\"CANCELLED\",\"type\":\"ETL_RUN_FAIL\",\"filterRows\":\"\",\"unselectRows\":\"\",\"url\":null},\"time\":5019,\"type\":\"result_set\"},\"count\":0}";
         Assert.assertTrue(copyCommitter.handleCommitResponse(loadResult));
+    }
+
+    @Test
+    public void testCommitUsesHttps() throws Exception {
+        DorisOptions options =
+                DorisOptions.builder()
+                        .setFenodes("fe.example:8030")
+                        .setTlsOptions(DorisTlsOptions.builder().setEnabled(true).build())
+                        .build();
+        HttpClientBuilder builder = mock(HttpClientBuilder.class);
+        CloseableHttpClient client = mock(CloseableHttpClient.class);
+        CloseableHttpResponse response = mock(CloseableHttpResponse.class);
+        HttpEntityMock responseEntity = new HttpEntityMock();
+        responseEntity.setValue(
+                "{\"msg\":\"success\",\"code\":0,\"data\":{\"result\":{\"msg\":\"\",\"state\":\"FINISHED\"}}}");
+        when(builder.build()).thenReturn(client);
+        when(client.execute(any())).thenReturn(response);
+        when(response.getStatusLine()).thenReturn(normalLine);
+        when(response.getEntity()).thenReturn(responseEntity);
+        DorisCopyCommitter committer = new DorisCopyCommitter(options, 0, builder);
+        ArgumentCaptor<HttpUriRequest> request = ArgumentCaptor.forClass(HttpUriRequest.class);
+
+        committer.commit(
+                Collections.singletonList(
+                        new MockCommitRequest<>(
+                                new DorisCopyCommittable("fe.example:8030", "copy into sql"))));
+
+        org.mockito.Mockito.verify(client).execute(request.capture());
+        Assert.assertEquals(
+                "https://fe.example:8030/copy/query", request.getValue().getURI().toString());
     }
 }

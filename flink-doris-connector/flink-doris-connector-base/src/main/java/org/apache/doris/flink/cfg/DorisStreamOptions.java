@@ -40,8 +40,32 @@ public class DorisStreamOptions implements Serializable {
                         .setFenodes(prop.getProperty(ConfigurationOptions.DORIS_FENODES))
                         .setUsername(prop.getProperty(ConfigurationOptions.DORIS_USER))
                         .setPassword(prop.getProperty(ConfigurationOptions.DORIS_PASSWORD))
-                        .setTableIdentifier(
-                                prop.getProperty(ConfigurationOptions.TABLE_IDENTIFIER));
+                        .setTableIdentifier(prop.getProperty(ConfigurationOptions.TABLE_IDENTIFIER))
+                        .setTlsOptions(
+                                DorisTlsOptions.builder()
+                                        .setEnabled(
+                                                Boolean.parseBoolean(
+                                                        prop.getProperty(
+                                                                ConfigurationOptions
+                                                                        .DORIS_ENABLE_TLS,
+                                                                Boolean.FALSE.toString())))
+                                        .setCaCertificatePath(
+                                                prop.getProperty(
+                                                        ConfigurationOptions
+                                                                .DORIS_TLS_CA_CERTIFICATE_PATH,
+                                                        ""))
+                                        .setSkipHostnameVerification(
+                                                Boolean.parseBoolean(
+                                                        prop.getProperty(
+                                                                ConfigurationOptions
+                                                                        .DORIS_TLS_SKIP_HOSTNAME_VERIFICATION,
+                                                                Boolean.FALSE.toString())))
+                                        .setExcludedProtocols(
+                                                prop.getProperty(
+                                                        ConfigurationOptions
+                                                                .DORIS_TLS_EXCLUDED_PROTOCOLS,
+                                                        ""))
+                                        .build());
 
         DorisReadOptions.Builder readOptionsBuilder =
                 DorisReadOptions.builder()

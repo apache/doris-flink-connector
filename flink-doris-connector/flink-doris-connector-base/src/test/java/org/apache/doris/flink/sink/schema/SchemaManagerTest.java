@@ -19,6 +19,8 @@ package org.apache.doris.flink.sink.schema;
 
 import org.apache.doris.flink.catalog.doris.FieldSchema;
 import org.apache.doris.flink.cfg.DorisOptions;
+import org.apache.doris.flink.cfg.DorisTlsOptions;
+import org.apache.doris.flink.connection.DorisHttpClientFactory;
 import org.apache.doris.flink.exception.IllegalArgumentException;
 import org.apache.doris.flink.sink.BackendUtil;
 import org.apache.doris.flink.sink.HttpEntityMock;
@@ -27,7 +29,6 @@ import org.apache.http.ProtocolVersion;
 import org.apache.http.StatusLine;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
 import org.apache.http.message.BasicStatusLine;
 import org.junit.After;
 import org.junit.Assert;
@@ -72,7 +73,7 @@ public class SchemaManagerTest {
 
     HttpEntityMock entityMock;
     SchemaChangeManager schemaChangeManager;
-    private MockedStatic<HttpClients> httpClientMockedStatic;
+    private MockedStatic<DorisHttpClientFactory> httpClientFactoryMockedStatic;
     private MockedStatic<BackendUtil> backendUtilMockedStatic;
 
     @Before
@@ -92,11 +93,16 @@ public class SchemaManagerTest {
         when(httpResponse.getStatusLine()).thenReturn(normalLine);
         when(httpResponse.getEntity()).thenReturn(entityMock);
 
-        httpClientMockedStatic = mockStatic(HttpClients.class);
-        httpClientMockedStatic.when(() -> HttpClients.createDefault()).thenReturn(httpClient);
+        httpClientFactoryMockedStatic = mockStatic(DorisHttpClientFactory.class);
+        httpClientFactoryMockedStatic
+                .when(() -> DorisHttpClientFactory.create(any()))
+                .thenReturn(httpClient);
 
         backendUtilMockedStatic = mockStatic(BackendUtil.class);
         backendUtilMockedStatic.when(() -> BackendUtil.tryHttpConnection(any())).thenReturn(true);
+        backendUtilMockedStatic
+                .when(() -> BackendUtil.tryHttpConnection(any(), any()))
+                .thenReturn(true);
     }
 
     @Test
@@ -104,6 +110,20 @@ public class SchemaManagerTest {
         entityMock.setValue(queryResponse);
         boolean columnExists = schemaChangeManager.checkColumnExists("test", "test_flink", "age");
         Assert.assertEquals(true, columnExists);
+    }
+
+    @Test
+    public void testBuildHttpPostUsesHttps() throws Exception {
+        SchemaChangeManager tlsManager =
+                new SchemaChangeManager(
+                        DorisOptions.builder()
+                                .setFenodes("fe.example:8030")
+                                .setTlsOptions(DorisTlsOptions.builder().setEnabled(true).build())
+                                .build());
+
+        Assert.assertEquals(
+                "https://fe.example:8030/api/query/default_cluster/db",
+                tlsManager.buildHttpPost("select 1", "db").getURI().toString());
     }
 
     @Test
@@ -156,8 +176,8 @@ public class SchemaManagerTest {
 
     @After
     public void after() {
-        if (httpClientMockedStatic != null) {
-            httpClientMockedStatic.close();
+        if (httpClientFactoryMockedStatic != null) {
+            httpClientFactoryMockedStatic.close();
         }
         if (backendUtilMockedStatic != null) {
             backendUtilMockedStatic.close();

@@ -36,7 +36,6 @@ import org.apache.doris.flink.sink.writer.serializer.RowDataSerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.sql.Connection;
 import java.sql.Statement;
 import java.util.Arrays;
 import java.util.Objects;
@@ -141,10 +140,10 @@ public class DorisDynamicTableSink implements DynamicTableSink, SupportsOverwrit
 
     private void truncateTable() {
         String truncateQuery = "TRUNCATE TABLE " + options.getTableIdentifier();
-        SimpleJdbcConnectionProvider jdbcConnectionProvider =
-                new SimpleJdbcConnectionProvider(options);
-        try (Connection connection = jdbcConnectionProvider.getOrEstablishConnection();
-                Statement statement = connection.createStatement()) {
+        try (SimpleJdbcConnectionProvider jdbcConnectionProvider =
+                        new SimpleJdbcConnectionProvider(options);
+                Statement statement =
+                        jdbcConnectionProvider.getOrEstablishConnection().createStatement()) {
             LOG.info("Executing truncate query: {}", truncateQuery);
             statement.execute(truncateQuery);
         } catch (Exception e) {

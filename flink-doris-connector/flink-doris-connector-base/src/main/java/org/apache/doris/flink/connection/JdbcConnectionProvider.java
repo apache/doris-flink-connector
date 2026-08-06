@@ -19,11 +19,17 @@ package org.apache.doris.flink.connection;
 
 import java.sql.Connection;
 
-public interface JdbcConnectionProvider {
+public interface JdbcConnectionProvider extends AutoCloseable {
 
     /** Get existing connection or establish an new one if there is none. */
     Connection getOrEstablishConnection() throws Exception;
 
     /** Close possible existing connection. */
     void closeConnection();
+
+    /** Close the connection and any resources owned by this provider. */
+    @Override
+    default void close() {
+        closeConnection();
+    }
 }

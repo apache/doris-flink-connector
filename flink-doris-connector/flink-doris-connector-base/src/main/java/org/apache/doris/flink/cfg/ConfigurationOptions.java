@@ -28,6 +28,10 @@ public interface ConfigurationOptions {
     String DORIS_FILTER_QUERY = "doris.filter.query";
     String DORIS_USER = "username";
     String DORIS_PASSWORD = "password";
+    String DORIS_ENABLE_TLS = "doris.enable.tls";
+    String DORIS_TLS_CA_CERTIFICATE_PATH = "doris.tls.ca-certificate-path";
+    String DORIS_TLS_SKIP_HOSTNAME_VERIFICATION = "doris.tls.skip-hostname-verification";
+    String DORIS_TLS_EXCLUDED_PROTOCOLS = "doris.tls.excluded-protocols";
     String DORIS_REQUEST_RETRIES = "doris.request.retries";
     String DORIS_REQUEST_CONNECT_TIMEOUT_MS = "doris.request.connect.timeout";
     String DORIS_REQUEST_READ_TIMEOUT_MS = "doris.request.read.timeout";

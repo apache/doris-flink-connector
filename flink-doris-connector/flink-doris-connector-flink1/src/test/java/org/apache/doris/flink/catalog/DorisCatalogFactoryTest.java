@@ -40,6 +40,10 @@ public class DorisCatalogFactoryTest {
         options.put("default-database", "doris_db");
         options.put("username", "root");
         options.put("password", "");
+        options.put("doris.enable.tls", "true");
+        options.put("doris.tls.ca-certificate-path", "/etc/doris/ca.pem");
+        options.put("doris.tls.skip-hostname-verification", "true");
+        options.put("doris.tls.excluded-protocols", "arrowflight");
         options.put("doris.request.query.timeout", "3600s");
         options.put("sink.enable-2pc", "false");
         options.put("sink.properties.format", "json");
@@ -61,13 +65,19 @@ public class DorisCatalogFactoryTest {
         assertEquals("127.0.0.1:8030", dorisCatalog.getConnectionOptions().getFenodes());
         assertEquals("root", dorisCatalog.getConnectionOptions().getUsername());
         assertEquals("", dorisCatalog.getConnectionOptions().getPassword());
+        assertTrue(dorisCatalog.getConnectionOptions().getTlsOptions().isEnabled());
+        assertEquals(
+                "/etc/doris/ca.pem",
+                dorisCatalog.getConnectionOptions().getTlsOptions().getCaCertificatePath());
 
         Map<String, String> properties = dorisCatalog.getProperties();
-        assertEquals(10, properties.size());
+        assertEquals(14, properties.size());
         assertEquals("3600s", properties.get("doris.request.query.timeout"));
         assertEquals("false", properties.get("sink.enable-2pc"));
         assertEquals("json", properties.get("sink.properties.format"));
         assertEquals("true", properties.get("sink.properties.read_json_by_line"));
         assertEquals("1", properties.get("table.properties.replication_num"));
+        assertEquals("true", properties.get("doris.enable.tls"));
+        assertEquals("arrowflight", properties.get("doris.tls.excluded-protocols"));
     }
 }

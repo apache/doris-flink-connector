@@ -26,6 +26,7 @@ import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisLookupOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
+import org.apache.doris.flink.cfg.DorisTlsOptions;
 import org.junit.Test;
 
 import java.util.HashMap;
@@ -80,6 +81,7 @@ public class DorisDynamicTableFactoryTest {
                         .setUsername("root")
                         .setPassword("")
                         .setJdbcUrl("jdbc:mysql://127.0.0.1:9030")
+                        .setTlsOptions(tlsOptions())
                         .build();
         DorisLookupOptions lookupOptions =
                 DorisLookupOptions.builder()
@@ -156,6 +158,7 @@ public class DorisDynamicTableFactoryTest {
                         .setUsername("root")
                         .setPassword("")
                         .setJdbcUrl("jdbc:mysql://127.0.0.1:9030")
+                        .setTlsOptions(tlsOptions())
                         .build();
 
         Properties prop = new Properties();
@@ -251,9 +254,22 @@ public class DorisDynamicTableFactoryTest {
         options.put("username", "root");
         options.put("password", "");
         options.put("auto-redirect", "true");
+        options.put("doris.enable.tls", "true");
+        options.put("doris.tls.ca-certificate-path", "/etc/doris/ca.pem");
+        options.put("doris.tls.skip-hostname-verification", "true");
+        options.put("doris.tls.excluded-protocols", "arrowflight");
         options.put("doris.request.retries", "3");
         options.put("doris.request.connect.timeout", "60s");
         options.put("doris.request.read.timeout", "60s");
         return options;
+    }
+
+    private DorisTlsOptions tlsOptions() {
+        return DorisTlsOptions.builder()
+                .setEnabled(true)
+                .setCaCertificatePath("/etc/doris/ca.pem")
+                .setSkipHostnameVerification(true)
+                .setExcludedProtocols("arrowflight")
+                .build();
     }
 }
