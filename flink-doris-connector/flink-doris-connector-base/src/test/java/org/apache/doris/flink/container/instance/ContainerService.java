@@ -17,6 +17,7 @@
 
 package org.apache.doris.flink.container.instance;
 
+import org.apache.doris.flink.cfg.DorisTlsOptions;
 import org.apache.doris.flink.exception.DorisRuntimeException;
 
 import java.sql.Connection;
@@ -42,6 +43,10 @@ public interface ContainerService {
     String getUsername();
 
     String getPassword();
+
+    default DorisTlsOptions getTlsOptions() {
+        return DorisTlsOptions.disabled();
+    }
 
     default String getFenodes() {
         throw new DorisRuntimeException("Only doris container can implemented.");
