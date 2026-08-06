@@ -31,9 +31,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Unit tests for {@link DorisSourceSplitReader}, focusing on reader lifecycle.
- */
+/** Unit tests for {@link DorisSourceSplitReader}, focusing on reader lifecycle. */
 public class DorisSourceSplitReaderTest {
 
     /**
@@ -82,9 +80,7 @@ public class DorisSourceSplitReaderTest {
         }
     }
 
-    /**
-     * A subclass that injects the recording reader instead of opening a real BE connection.
-     */
+    /** A subclass that injects the recording reader instead of opening a real BE connection. */
     private static final class TestSplitReader extends DorisSourceSplitReader {
         final RecordingValueReader injectedReader = new RecordingValueReader();
 
@@ -109,9 +105,7 @@ public class DorisSourceSplitReaderTest {
         }
     }
 
-    /**
-     * A subclass that injects the throwing reader.
-     */
+    /** A subclass that injects the throwing reader. */
     private static final class ThrowingSplitReader extends DorisSourceSplitReader {
         final ThrowingValueReader injectedReader = new ThrowingValueReader();
 
@@ -151,13 +145,15 @@ public class DorisSourceSplitReaderTest {
     @Test
     public void closeReleasesValueReader() throws Exception {
         TestSplitReader reader = new TestSplitReader();
-        // fetch() injects the fake reader (hasNext==true so the split is not finished) leaving it open.
+        // fetch() injects the fake reader (hasNext==true so the split is not finished) leaving it
+        // open.
         reader.fetch();
 
         reader.close();
 
         assertEquals(
-                "close() must release the value reader exactly once", 1,
+                "close() must release the value reader exactly once",
+                1,
                 reader.injectedReader.closeCount.get());
     }
 
@@ -169,12 +165,14 @@ public class DorisSourceSplitReaderTest {
         // close() must NOT propagate the reader's exception (best-effort teardown).
         reader.close();
         assertEquals(
-                "close() must invoke the reader's close() once even when it throws", 1,
+                "close() must invoke the reader's close() once even when it throws",
+                1,
                 reader.injectedReader.closeCount.get());
         // Field was nulled in finally: a second close() must be a no-op (no second invocation).
         reader.close();
         assertEquals(
-                "close() must null the reader in finally so a second close() is a no-op", 1,
+                "close() must null the reader in finally so a second close() is a no-op",
+                1,
                 reader.injectedReader.closeCount.get());
     }
 
@@ -188,7 +186,8 @@ public class DorisSourceSplitReaderTest {
         reader.close();
 
         assertEquals(
-                "repeated close() must invoke the reader's close() exactly once", 1,
+                "repeated close() must invoke the reader's close() exactly once",
+                1,
                 reader.injectedReader.closeCount.get());
     }
 }
