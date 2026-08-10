@@ -117,17 +117,12 @@ public final class DorisDynamicTableSource
             } catch (DorisException e) {
                 throw new RuntimeException("Failed fetch doris partitions");
             }
-            DorisRowDataInputFormat.Builder builder =
-                    DorisRowDataInputFormat.builder()
-                            .setFenodes(options.getFenodes())
-                            .setBenodes(options.getBenodes())
-                            .setUsername(options.getUsername())
-                            .setPassword(options.getPassword())
-                            .setTableIdentifier(options.getTableIdentifier())
-                            .setPartitions(dorisPartitions)
-                            .setReadOptions(readOptions)
-                            .setRowType((RowType) physicalRowDataType.getLogicalType());
-            return InputFormatProvider.of(builder.build());
+            return InputFormatProvider.of(
+                    new DorisRowDataInputFormat(
+                            options,
+                            dorisPartitions,
+                            readOptions,
+                            (RowType) physicalRowDataType.getLogicalType()));
         } else {
             // Read data using the interface of the FLIP-27 specification
             DorisSource<RowData> build =

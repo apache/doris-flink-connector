@@ -65,6 +65,9 @@ public class TestDorisWriter {
         executionOptions = OptionUtils.buildExecutionOptional();
         backendUtilMockedStatic = mockStatic(BackendUtil.class);
         backendUtilMockedStatic.when(() -> BackendUtil.tryHttpConnection(any())).thenReturn(true);
+        backendUtilMockedStatic
+                .when(() -> BackendUtil.tryHttpConnection(any(), any()))
+                .thenReturn(true);
         // clear thread interrupted status before each test
         Thread.interrupted();
     }

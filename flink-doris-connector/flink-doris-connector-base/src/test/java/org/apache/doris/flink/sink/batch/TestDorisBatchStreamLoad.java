@@ -22,6 +22,7 @@ import org.apache.flink.api.common.time.Deadline;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
+import org.apache.doris.flink.cfg.DorisTlsOptions;
 import org.apache.doris.flink.sink.BackendUtil;
 import org.apache.doris.flink.sink.HttpTestUtil;
 import org.apache.doris.flink.sink.TestUtil;
@@ -70,6 +71,9 @@ public class TestDorisBatchStreamLoad {
     public void setUp() throws Exception {
         backendUtilMockedStatic = mockStatic(BackendUtil.class);
         backendUtilMockedStatic.when(() -> BackendUtil.tryHttpConnection(any())).thenReturn(true);
+        backendUtilMockedStatic
+                .when(() -> BackendUtil.tryHttpConnection(any(), any()))
+                .thenReturn(true);
     }
 
     @Test
@@ -88,6 +92,30 @@ public class TestDorisBatchStreamLoad {
         DorisBatchStreamLoad loader =
                 new DorisBatchStreamLoad(
                         options, readOptions, executionOptions, new LabelGenerator("xx", false), 0);
+    }
+
+    @Test
+    public void testTlsLoadUrl() {
+        DorisOptions options =
+                DorisOptions.builder()
+                        .setFenodes("fe.example:8030")
+                        .setBenodes("be.example:8040")
+                        .setTableIdentifier("db.tbl")
+                        .setTlsOptions(DorisTlsOptions.builder().setEnabled(true).build())
+                        .build();
+        DorisBatchStreamLoad loader =
+                new DorisBatchStreamLoad(
+                        options,
+                        DorisReadOptions.defaults(),
+                        DorisExecutionOptions.builder().build(),
+                        new LabelGenerator("label", false),
+                        0);
+        try {
+            Assert.assertEquals(
+                    "https://be.example:8040/api/db/tbl/_stream_load", loader.getLoadUrl());
+        } finally {
+            loader.close();
+        }
     }
 
     @Test

@@ -20,6 +20,10 @@ package org.apache.doris.flink.tools.cdc;
 import org.apache.flink.configuration.Configuration;
 
 import org.apache.doris.flink.catalog.doris.TableSchema;
+import org.apache.doris.flink.cfg.DorisConnectionOptions;
+import org.apache.doris.flink.cfg.DorisOptions;
+import org.apache.doris.flink.cfg.DorisTlsOptions;
+import org.apache.doris.flink.table.DorisConfigOptions;
 import org.apache.doris.flink.tools.cdc.db2.Db2DatabaseSync;
 import org.apache.doris.flink.tools.cdc.mysql.MysqlDatabaseSync;
 import org.apache.doris.flink.tools.cdc.postgres.PostgresDatabaseSync;
@@ -44,6 +48,29 @@ import static org.junit.Assert.assertTrue;
 
 /** Unit tests for the {@link DatabaseSync}. */
 public class DatabaseSyncTest {
+    @Test
+    public void tlsOptionsAreSharedByCdcConnectionAndSink() throws Exception {
+        DatabaseSync databaseSync = new MysqlDatabaseSync();
+        Configuration sinkConfig = new Configuration();
+        sinkConfig.set(DorisConfigOptions.FENODES, "fe.example:8030");
+        sinkConfig.set(DorisConfigOptions.JDBC_URL, "jdbc:mysql://fe.example:9030");
+        sinkConfig.set(DorisConfigOptions.USERNAME, "root");
+        sinkConfig.set(DorisConfigOptions.PASSWORD, "");
+        sinkConfig.set(DorisConfigOptions.DORIS_ENABLE_TLS, true);
+        sinkConfig.set(DorisConfigOptions.DORIS_TLS_CA_CERTIFICATE_PATH, "/etc/doris/ca.pem");
+        sinkConfig.set(DorisConfigOptions.DORIS_TLS_EXCLUDED_PROTOCOLS, "arrowflight");
+        databaseSync.setSinkConfig(sinkConfig);
+        databaseSync.setSingleSink(false);
+
+        DorisConnectionOptions connectionOptions = databaseSync.getDorisConnectionOptions();
+        DorisOptions sinkOptions = databaseSync.getDorisOptionsBuilder("db.tbl").build();
+
+        Assert.assertEquals(connectionOptions.getTlsOptions(), sinkOptions.getTlsOptions());
+        Assert.assertTrue(sinkOptions.getTlsOptions().isEnabledFor(DorisTlsOptions.Protocol.HTTP));
+        Assert.assertFalse(
+                sinkOptions.getTlsOptions().isEnabledFor(DorisTlsOptions.Protocol.ARROW_FLIGHT));
+    }
+
     @Test
     public void multiToOneRulesParserTest() throws Exception {
         String[][] testCase = {

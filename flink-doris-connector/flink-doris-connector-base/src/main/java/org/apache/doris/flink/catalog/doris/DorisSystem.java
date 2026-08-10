@@ -18,6 +18,7 @@
 package org.apache.doris.flink.catalog.doris;
 
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.StringUtils;
 
 import org.apache.commons.compress.utils.Lists;
@@ -30,7 +31,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
-import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
@@ -53,7 +53,12 @@ public class DorisSystem implements Serializable {
             Collections.singletonList("information_schema");
 
     public DorisSystem(DorisConnectionOptions options) {
-        this.jdbcConnectionProvider = new SimpleJdbcConnectionProvider(options);
+        this(new SimpleJdbcConnectionProvider(options));
+    }
+
+    @VisibleForTesting
+    DorisSystem(JdbcConnectionProvider jdbcConnectionProvider) {
+        this.jdbcConnectionProvider = jdbcConnectionProvider;
     }
 
     public List<String> listDatabases() {
@@ -104,8 +109,9 @@ public class DorisSystem implements Serializable {
     }
 
     public void execute(String sql) {
-        try (Connection connection = jdbcConnectionProvider.getOrEstablishConnection();
-                Statement statement = connection.createStatement()) {
+        try (JdbcConnectionProvider connectionProvider = jdbcConnectionProvider;
+                Statement statement =
+                        connectionProvider.getOrEstablishConnection().createStatement()) {
             statement.execute(sql);
         } catch (Exception e) {
             LOG.error("SQL query could not be executed: {}", sql, e);
@@ -118,8 +124,9 @@ public class DorisSystem implements Serializable {
             String sql, int columnIndex, Predicate<String> filterFunc, Object... params) {
 
         List<String> columnValues = Lists.newArrayList();
-        try (Connection connection = jdbcConnectionProvider.getOrEstablishConnection();
-                PreparedStatement ps = connection.prepareStatement(sql)) {
+        try (JdbcConnectionProvider connectionProvider = jdbcConnectionProvider;
+                PreparedStatement ps =
+                        connectionProvider.getOrEstablishConnection().prepareStatement(sql)) {
             if (Objects.nonNull(params) && params.length > 0) {
                 for (int i = 0; i < params.length; i++) {
                     ps.setObject(i + 1, params[i]);
@@ -155,8 +162,9 @@ public class DorisSystem implements Serializable {
                         databaseName, tableName);
 
         Map<String, String> columnValues = new HashMap<>();
-        try (Connection connection = jdbcConnectionProvider.getOrEstablishConnection();
-                PreparedStatement ps = connection.prepareStatement(sql);
+        try (JdbcConnectionProvider connectionProvider = jdbcConnectionProvider;
+                PreparedStatement ps =
+                        connectionProvider.getOrEstablishConnection().prepareStatement(sql);
                 ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
                 String fieldName = rs.getString(1);

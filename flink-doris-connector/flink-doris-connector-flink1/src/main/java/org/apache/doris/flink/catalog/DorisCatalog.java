@@ -55,13 +55,12 @@ import org.apache.doris.flink.catalog.doris.DorisSystem;
 import org.apache.doris.flink.catalog.doris.FieldSchema;
 import org.apache.doris.flink.catalog.doris.TableSchema;
 import org.apache.doris.flink.cfg.DorisConnectionOptions;
+import org.apache.doris.flink.connection.SimpleJdbcConnectionProvider;
 import org.apache.doris.flink.table.DorisDynamicTableFactory;
 import org.apache.doris.flink.tools.cdc.DorisTableConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
@@ -233,14 +232,14 @@ public class DorisCatalog extends AbstractCatalog {
 
     @VisibleForTesting
     protected String queryFenodes() {
-        try (Connection conn =
-                DriverManager.getConnection(
-                        connectionOptions.getJdbcUrl(),
-                        connectionOptions.getUsername(),
-                        connectionOptions.getPassword())) {
+        try (SimpleJdbcConnectionProvider connectionProvider =
+                        new SimpleJdbcConnectionProvider(connectionOptions);
+                PreparedStatement ps =
+                        connectionProvider
+                                .getOrEstablishConnection()
+                                .prepareStatement("SHOW FRONTENDS");
+                ResultSet resultSet = ps.executeQuery()) {
             StringJoiner fenodes = new StringJoiner(",");
-            PreparedStatement ps = conn.prepareStatement("SHOW FRONTENDS");
-            ResultSet resultSet = ps.executeQuery();
 
             // find target ip column name, Version 1.2 is IP, version 2.x is Host
             String field = "";
@@ -265,20 +264,19 @@ public class DorisCatalog extends AbstractCatalog {
     }
 
     private Schema createTableSchema(String databaseName, String tableName) {
-        try (Connection conn =
-                DriverManager.getConnection(
-                        connectionOptions.getJdbcUrl(),
-                        connectionOptions.getUsername(),
-                        connectionOptions.getPassword())) {
-            PreparedStatement ps =
-                    conn.prepareStatement(
-                            String.format(
-                                    "SELECT COLUMN_NAME,DATA_TYPE,COLUMN_SIZE,DECIMAL_DIGITS FROM `information_schema`.`COLUMNS` WHERE `TABLE_SCHEMA`= '%s' AND `TABLE_NAME`= '%s'",
-                                    databaseName, tableName));
+        try (SimpleJdbcConnectionProvider connectionProvider =
+                        new SimpleJdbcConnectionProvider(connectionOptions);
+                PreparedStatement ps =
+                        connectionProvider
+                                .getOrEstablishConnection()
+                                .prepareStatement(
+                                        String.format(
+                                                "SELECT COLUMN_NAME,DATA_TYPE,COLUMN_SIZE,DECIMAL_DIGITS FROM `information_schema`.`COLUMNS` WHERE `TABLE_SCHEMA`= '%s' AND `TABLE_NAME`= '%s'",
+                                                databaseName, tableName));
+                ResultSet resultSet = ps.executeQuery()) {
 
             List<String> columnNames = new ArrayList<>();
             List<DataType> columnTypes = new ArrayList<>();
-            ResultSet resultSet = ps.executeQuery();
             while (resultSet.next()) {
                 String columnName = resultSet.getString("COLUMN_NAME");
                 String columnType = resultSet.getString("DATA_TYPE");

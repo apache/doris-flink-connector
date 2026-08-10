@@ -23,8 +23,10 @@ import org.apache.flink.util.Preconditions;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
+import org.apache.doris.flink.cfg.DorisTlsOptions;
 import org.apache.doris.flink.exception.CopyLoadException;
 import org.apache.doris.flink.exception.DorisBatchLoadException;
+import org.apache.doris.flink.rest.DorisUrlBuilder;
 import org.apache.doris.flink.sink.EscapeHandler;
 import org.apache.doris.flink.sink.HttpPutBuilder;
 import org.apache.doris.flink.sink.HttpUtil;
@@ -67,12 +69,14 @@ public class BatchStageLoad implements Serializable {
     private static final Logger LOG = LoggerFactory.getLogger(BatchStageLoad.class);
     private final LabelGenerator labelGenerator;
     private final byte[] lineDelimiter;
-    private static final String UPLOAD_URL_PATTERN = "http://%s/copy/upload";
+    private static final String UPLOAD_PATH = "/copy/upload";
     private static final String LINE_DELIMITER_KEY_WITH_PRETIX = "file.line_delimiter";
     private String uploadUrl;
     private String hostPort;
     private final String username;
     private final String password;
+    private final DorisReadOptions dorisReadOptions;
+    private final DorisTlsOptions tlsOptions;
     private final Properties loadProps;
     private Map<String, BatchRecordBuffer> bufferMap = new ConcurrentHashMap<>();
     private Map<String, List<String>> fileListMap = new ConcurrentHashMap<>();
@@ -85,7 +89,8 @@ public class BatchStageLoad implements Serializable {
     private final AtomicBoolean started;
     private volatile boolean loadThreadAlive = false;
     private AtomicReference<Throwable> exception = new AtomicReference<>(null);
-    private HttpClientBuilder httpClientBuilder = new HttpUtil().getHttpClientBuilderForCopyBatch();
+    private transient HttpClientBuilder dorisHttpClientBuilder;
+    private transient HttpClientBuilder storageHttpClientBuilder;
 
     public BatchStageLoad(
             DorisOptions dorisOptions,
@@ -94,10 +99,12 @@ public class BatchStageLoad implements Serializable {
             LabelGenerator labelGenerator) {
         this.username = dorisOptions.getUsername();
         this.password = dorisOptions.getPassword();
+        this.dorisReadOptions = dorisReadOptions;
+        this.tlsOptions = dorisOptions.getTlsOptions();
         this.loadProps = executionOptions.getStreamLoadProp();
         this.labelGenerator = labelGenerator;
         this.hostPort = dorisOptions.getFenodes();
-        this.uploadUrl = String.format(UPLOAD_URL_PATTERN, hostPort);
+        this.uploadUrl = DorisUrlBuilder.buildHttpUrl(tlsOptions, hostPort, UPLOAD_PATH);
         this.fileNum = new AtomicInteger();
         this.lineDelimiter =
                 EscapeHandler.escapeString(
@@ -117,6 +124,7 @@ public class BatchStageLoad implements Serializable {
                         new DefaultThreadFactory("copy-executor"),
                         new ThreadPoolExecutor.AbortPolicy());
         this.started = new AtomicBoolean(true);
+        initializeHttpClientBuilders();
         this.loadExecutorService.execute(loadAsyncExecutor);
     }
 
@@ -292,7 +300,7 @@ public class BatchStageLoad implements Serializable {
                                 BackoffAndRetryUtils.LoadOperation.UPLOAD_FILE,
                                 () -> {
                                     try (CloseableHttpClient httpClient =
-                                            httpClientBuilder.build()) {
+                                            getStorageHttpClientBuilder().build()) {
                                         try (CloseableHttpResponse response =
                                                 httpClient.execute(httpPut)) {
                                             final int statusCode =
@@ -368,7 +376,7 @@ public class BatchStageLoad implements Serializable {
                                 BackoffAndRetryUtils.LoadOperation.GET_INTERNAL_STAGE_ADDRESS,
                                 () -> {
                                     try (CloseableHttpClient httpClient =
-                                            httpClientBuilder.build()) {
+                                            getDorisHttpClientBuilder().build()) {
                                         try (CloseableHttpResponse execute =
                                                 httpClient.execute(putBuilder.build())) {
                                             int statusCode =
@@ -424,11 +432,49 @@ public class BatchStageLoad implements Serializable {
 
     @VisibleForTesting
     public void setHttpClientBuilder(HttpClientBuilder httpClientBuilder) {
-        this.httpClientBuilder = httpClientBuilder;
+        this.dorisHttpClientBuilder = httpClientBuilder;
+        this.storageHttpClientBuilder = httpClientBuilder;
+    }
+
+    @VisibleForTesting
+    public void setDorisHttpClientBuilder(HttpClientBuilder httpClientBuilder) {
+        this.dorisHttpClientBuilder = httpClientBuilder;
+    }
+
+    @VisibleForTesting
+    public void setStorageHttpClientBuilder(HttpClientBuilder httpClientBuilder) {
+        this.storageHttpClientBuilder = httpClientBuilder;
+    }
+
+    private HttpClientBuilder getDorisHttpClientBuilder() {
+        if (dorisHttpClientBuilder == null) {
+            initializeHttpClientBuilders();
+        }
+        return dorisHttpClientBuilder;
+    }
+
+    private HttpClientBuilder getStorageHttpClientBuilder() {
+        if (storageHttpClientBuilder == null) {
+            initializeHttpClientBuilders();
+        }
+        return storageHttpClientBuilder;
+    }
+
+    private void initializeHttpClientBuilders() {
+        HttpUtil httpUtil =
+                new HttpUtil(dorisReadOptions, executionOptions.isHttpUtf8Charset(), tlsOptions);
+        dorisHttpClientBuilder = httpUtil.getHttpClientBuilderForCopyBatch();
+        // Presigned object storage URLs use the JVM system trust domain, not the Doris CA.
+        storageHttpClientBuilder = httpUtil.getHttpClientBuilderForExternalStorage();
     }
 
     @VisibleForTesting
     public boolean isLoadThreadAlive() {
         return loadThreadAlive;
+    }
+
+    @VisibleForTesting
+    public String getUploadUrl() {
+        return uploadUrl;
     }
 }

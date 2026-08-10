@@ -22,7 +22,10 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
+import org.apache.doris.flink.cfg.DorisTlsOptions;
+import org.apache.doris.flink.connection.DorisHttpClientFactory;
 import org.apache.doris.flink.exception.DorisRuntimeException;
+import org.apache.doris.flink.rest.DorisUrlBuilder;
 import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.rest.models.BackendV2;
 import org.apache.doris.flink.rest.models.BackendV2.BackendRowV2;
@@ -38,14 +41,25 @@ import java.util.List;
 public class BackendUtil {
     private static final Logger LOG = LoggerFactory.getLogger(BackendUtil.class);
     private final List<BackendV2.BackendRowV2> backends;
+    private final DorisTlsOptions tlsOptions;
     private long pos;
 
     public BackendUtil(List<BackendV2.BackendRowV2> backends) {
+        this(backends, DorisTlsOptions.disabled());
+    }
+
+    public BackendUtil(List<BackendV2.BackendRowV2> backends, DorisTlsOptions tlsOptions) {
         this.backends = backends;
+        this.tlsOptions = tlsOptions;
         this.pos = 0;
     }
 
     public BackendUtil(String beNodes) {
+        this(beNodes, DorisTlsOptions.disabled());
+    }
+
+    public BackendUtil(String beNodes, DorisTlsOptions tlsOptions) {
+        this.tlsOptions = tlsOptions;
         this.backends = initBackends(beNodes);
         this.pos = 0;
     }
@@ -55,7 +69,7 @@ public class BackendUtil {
         List<String> nodes = Arrays.asList(beNodes.split(","));
         nodes.forEach(
                 node -> {
-                    if (tryHttpConnection(node)) {
+                    if (tryHttpConnection(node, tlsOptions)) {
                         LOG.info("{} backend http connection success.", node);
                         node = node.trim();
                         String[] ipAndPort = node.split(":");
@@ -72,9 +86,11 @@ public class BackendUtil {
     public static BackendUtil getInstance(
             DorisOptions dorisOptions, DorisReadOptions readOptions, Logger logger) {
         if (StringUtils.isNotEmpty(dorisOptions.getBenodes())) {
-            return new BackendUtil(dorisOptions.getBenodes());
+            return new BackendUtil(dorisOptions.getBenodes(), dorisOptions.getTlsOptions());
         } else {
-            return new BackendUtil(RestService.getBackendsV2(dorisOptions, readOptions, logger));
+            return new BackendUtil(
+                    RestService.getBackendsV2(dorisOptions, readOptions, logger),
+                    dorisOptions.getTlsOptions());
         }
     }
 
@@ -89,7 +105,7 @@ public class BackendUtil {
                     backends.get((int) ((pos + subtaskId) % backends.size()));
             pos++;
             String res = backend.toBackendString();
-            if (tryHttpConnection(res)) {
+            if (tryHttpConnection(res, tlsOptions)) {
                 return res;
             }
         }
@@ -97,30 +113,38 @@ public class BackendUtil {
     }
 
     public static boolean tryHttpConnection(String host) {
+        return tryHttpConnection(host, DorisTlsOptions.disabled());
+    }
+
+    public static boolean tryHttpConnection(String host, DorisTlsOptions tlsOptions) {
+        HttpURLConnection connection = null;
         try {
             LOG.debug("try to connect host {}", host);
-            host = "http://" + host;
-            URL url = new URL(host);
-            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            String requestUrl = DorisUrlBuilder.buildHttpUrl(tlsOptions, host, "/");
+            URL url = new URL(requestUrl);
+            connection = DorisHttpClientFactory.openConnection(url, tlsOptions);
             connection.setRequestMethod("GET");
             connection.setConnectTimeout(60000);
             connection.setReadTimeout(60000);
             int responseCode = connection.getResponseCode();
             String responseMessage = connection.getResponseMessage();
-            connection.disconnect();
             if (responseCode < 500) {
                 // code greater than 500 means a server-side exception.
                 return true;
             }
             LOG.warn(
                     "Failed to connect host {}, responseCode={}, msg={}",
-                    host,
+                    requestUrl,
                     responseCode,
                     responseMessage);
             return false;
         } catch (Exception ex) {
             LOG.warn("Failed to connect to host:{}", host, ex);
             return false;
+        } finally {
+            if (connection != null) {
+                connection.disconnect();
+            }
         }
     }
 

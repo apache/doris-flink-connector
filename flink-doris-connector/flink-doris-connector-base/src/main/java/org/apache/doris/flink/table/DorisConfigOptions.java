@@ -21,8 +21,10 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.factories.FactoryUtil;
 
+import org.apache.doris.flink.cfg.DorisTlsOptions;
 import org.apache.doris.flink.sink.writer.WriteMode;
 
 import java.time.Duration;
@@ -82,6 +84,27 @@ public class DorisConfigOptions {
                     .defaultValue(true)
                     .withDescription(
                             "Use automatic redirection of fe without explicitly obtaining the be list");
+    public static final ConfigOption<Boolean> DORIS_ENABLE_TLS =
+            ConfigOptions.key("doris.enable.tls")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription("Enable TLS for Doris client protocols.");
+    public static final ConfigOption<String> DORIS_TLS_CA_CERTIFICATE_PATH =
+            ConfigOptions.key("doris.tls.ca-certificate-path")
+                    .stringType()
+                    .defaultValue("")
+                    .withDescription("Path to a PEM CA certificate chain used to verify Doris.");
+    public static final ConfigOption<Boolean> DORIS_TLS_SKIP_HOSTNAME_VERIFICATION =
+            ConfigOptions.key("doris.tls.skip-hostname-verification")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Skip TLS hostname verification while preserving CA validation.");
+    public static final ConfigOption<String> DORIS_TLS_EXCLUDED_PROTOCOLS =
+            ConfigOptions.key("doris.tls.excluded-protocols")
+                    .stringType()
+                    .defaultValue("")
+                    .withDescription("Comma-separated Doris protocols excluded from TLS.");
 
     // source config options
     // This is compatible with the previous writing method.
@@ -339,6 +362,16 @@ public class DorisConfigOptions {
             }
         }
         return streamLoadProp;
+    }
+
+    public static DorisTlsOptions getTlsOptions(ReadableConfig readableConfig) {
+        return DorisTlsOptions.builder()
+                .setEnabled(readableConfig.get(DORIS_ENABLE_TLS))
+                .setCaCertificatePath(readableConfig.get(DORIS_TLS_CA_CERTIFICATE_PATH))
+                .setSkipHostnameVerification(
+                        readableConfig.get(DORIS_TLS_SKIP_HOSTNAME_VERIFICATION))
+                .setExcludedProtocols(readableConfig.get(DORIS_TLS_EXCLUDED_PROTOCOLS))
+                .build();
     }
 
     public static final ConfigOption<Boolean> SINK_HTTP_UTF8_CHARSET =

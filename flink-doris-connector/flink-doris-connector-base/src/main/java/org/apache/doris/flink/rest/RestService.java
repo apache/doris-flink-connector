@@ -30,6 +30,8 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.doris.flink.cfg.ConfigurationOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
+import org.apache.doris.flink.cfg.DorisTlsOptions;
+import org.apache.doris.flink.connection.DorisHttpClientFactory;
 import org.apache.doris.flink.exception.ConnectedFailedException;
 import org.apache.doris.flink.exception.DorisException;
 import org.apache.doris.flink.exception.DorisRuntimeException;
@@ -53,7 +55,6 @@ import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 
@@ -93,11 +94,11 @@ public class RestService implements Serializable {
     private static final String BACKENDS_V2 = "/api/backends?is_alive=true";
     private static final String FE_LOGIN = "/rest/v1/login";
     private static final ObjectMapper objectMapper = new ObjectMapper();
-    private static final String TABLE_SCHEMA_API = "http://%s/api/%s/%s/_schema";
-    private static final String CATALOG_TABLE_SCHEMA_API = "http://%s/api/%s/%s/%s/_schema";
-    private static final String QUERY_PLAN_API = "http://%s/api/%s/%s/_query_plan";
+    private static final String TABLE_SCHEMA_API = "/api/%s/%s/_schema";
+    private static final String CATALOG_TABLE_SCHEMA_API = "/api/%s/%s/%s/_schema";
+    private static final String QUERY_PLAN_API = "/api/%s/%s/_query_plan";
     private static final String STATEMENT_EXEC_API =
-            "http://%s/api/query/default_cluster/information_schema";
+            "/api/query/default_cluster/information_schema";
 
     /**
      * send request to Doris FE and get response json string.
@@ -188,7 +189,8 @@ public class RestService implements Serializable {
     private static String getConnectionPost(
             HttpRequestBase request, DorisOptions dorisOptions, Logger logger) throws IOException {
         URL url = new URL(request.getURI().toString());
-        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        HttpURLConnection conn =
+                DorisHttpClientFactory.openConnection(url, dorisOptions.getTlsOptions());
         conn.setInstanceFollowRedirects(false);
         conn.setRequestMethod(request.getMethod());
         conn.setRequestProperty("Authorization", authHeader(dorisOptions));
@@ -211,7 +213,8 @@ public class RestService implements Serializable {
             HttpRequestBase request, DorisOptions dorisOptions, Logger logger) throws IOException {
         URL realUrl = new URL(request.getURI().toString());
         // open connection
-        HttpURLConnection connection = (HttpURLConnection) realUrl.openConnection();
+        HttpURLConnection connection =
+                DorisHttpClientFactory.openConnection(realUrl, dorisOptions.getTlsOptions());
         connection.setRequestProperty("Authorization", authHeader(dorisOptions));
 
         connection.setConnectTimeout(request.getConfig().getConnectTimeout());
@@ -275,6 +278,16 @@ public class RestService implements Serializable {
     @VisibleForTesting
     public static String randomEndpoint(String feNodes, Logger logger)
             throws IllegalArgumentException {
+        return randomEndpoint(feNodes, DorisTlsOptions.disabled(), logger);
+    }
+
+    public static String randomEndpoint(DorisOptions options, Logger logger)
+            throws IllegalArgumentException {
+        return randomEndpoint(options.getFenodes(), options.getTlsOptions(), logger);
+    }
+
+    private static String randomEndpoint(String feNodes, DorisTlsOptions tlsOptions, Logger logger)
+            throws IllegalArgumentException {
         logger.trace("Parse fenodes '{}'.", feNodes);
         if (StringUtils.isEmpty(feNodes)) {
             logger.error(ILLEGAL_ARGUMENT_MESSAGE, "fenodes", feNodes);
@@ -284,7 +297,7 @@ public class RestService implements Serializable {
         Collections.shuffle(nodes);
         for (String feNode : nodes) {
             String host = feNode.trim();
-            if (BackendUtil.tryHttpConnection(host)) {
+            if (BackendUtil.tryHttpConnection(host, tlsOptions)) {
                 return host;
             }
         }
@@ -333,7 +346,8 @@ public class RestService implements Serializable {
 
         for (String feNode : feNodeList) {
             try {
-                String beUrl = "http://" + feNode + BACKENDS_V2;
+                String beUrl =
+                        DorisUrlBuilder.buildHttpUrl(options.getTlsOptions(), feNode, BACKENDS_V2);
                 HttpGet httpGet = new HttpGet(beUrl);
                 String response = send(options, readOptions, httpGet, logger);
                 logger.info("Backend Info:{}", response);
@@ -403,21 +417,24 @@ public class RestService implements Serializable {
         logger.trace("Finding schema.");
         String[] tableIdentifier = parseIdentifier(options.getTableIdentifier(), logger);
         String tableSchemaUri;
+        String endpoint = randomEndpoint(options, logger);
         if (tableIdentifier.length == 2) {
             tableSchemaUri =
-                    String.format(
-                            TABLE_SCHEMA_API,
-                            randomEndpoint(options.getFenodes(), logger),
-                            tableIdentifier[0],
-                            tableIdentifier[1]);
+                    DorisUrlBuilder.buildHttpUrl(
+                            options.getTlsOptions(),
+                            endpoint,
+                            String.format(
+                                    TABLE_SCHEMA_API, tableIdentifier[0], tableIdentifier[1]));
         } else if (tableIdentifier.length == 3) {
             tableSchemaUri =
-                    String.format(
-                            CATALOG_TABLE_SCHEMA_API,
-                            randomEndpoint(options.getFenodes(), logger),
-                            tableIdentifier[0],
-                            tableIdentifier[1],
-                            tableIdentifier[2]);
+                    DorisUrlBuilder.buildHttpUrl(
+                            options.getTlsOptions(),
+                            endpoint,
+                            String.format(
+                                    CATALOG_TABLE_SCHEMA_API,
+                                    tableIdentifier[0],
+                                    tableIdentifier[1],
+                                    tableIdentifier[2]));
         } else {
             throw new IllegalArgumentException(
                     "table identifier is illegal, should be db.table or catalog.db.table");
@@ -435,14 +452,13 @@ public class RestService implements Serializable {
         Object responseData = null;
         try {
             String tableSchemaUri =
-                    String.format(
-                            TABLE_SCHEMA_API,
-                            randomEndpoint(dorisOptions.getFenodes(), logger),
-                            db,
-                            table);
+                    DorisUrlBuilder.buildHttpUrl(
+                            dorisOptions.getTlsOptions(),
+                            randomEndpoint(dorisOptions, logger),
+                            String.format(TABLE_SCHEMA_API, db, table));
             HttpGetWithEntity httpGet = new HttpGetWithEntity(tableSchemaUri);
             httpGet.setHeader(HttpHeaders.AUTHORIZATION, authHeader(dorisOptions));
-            JsonNode response = handleResponse(httpGet, logger);
+            JsonNode response = handleResponse(httpGet, dorisOptions.getTlsOptions(), logger);
             responseData = response.path("data");
             String schemaStr = objectMapper.writeValueAsString(responseData);
             return objectMapper.readValue(schemaStr, Schema.class);
@@ -454,7 +470,13 @@ public class RestService implements Serializable {
 
     @VisibleForTesting
     public static JsonNode handleResponse(HttpUriRequest request, Logger logger) {
-        try (CloseableHttpClient httpclient = HttpClients.createDefault()) {
+        return handleResponse(request, DorisTlsOptions.disabled(), logger);
+    }
+
+    @VisibleForTesting
+    public static JsonNode handleResponse(
+            HttpUriRequest request, DorisTlsOptions tlsOptions, Logger logger) {
+        try (CloseableHttpClient httpclient = DorisHttpClientFactory.create(tlsOptions)) {
             CloseableHttpResponse response = httpclient.execute(request);
             final int statusCode = response.getStatusLine().getStatusCode();
             final String reasonPhrase = response.getStatusLine().getReasonPhrase();
@@ -484,7 +506,10 @@ public class RestService implements Serializable {
             Map<String, String> param = new HashMap<>();
             param.put("stmt", "show frontends");
             String requestUrl =
-                    String.format(STATEMENT_EXEC_API, randomEndpoint(options.getFenodes(), logger));
+                    DorisUrlBuilder.buildHttpUrl(
+                            options.getTlsOptions(),
+                            randomEndpoint(options, logger),
+                            STATEMENT_EXEC_API);
             HttpPost httpPost = new HttpPost(requestUrl);
             httpPost.setHeader(HttpHeaders.AUTHORIZATION, authHeader(options));
             httpPost.setHeader(
@@ -492,7 +517,7 @@ public class RestService implements Serializable {
                     String.format("application/json;charset=%s", "UTF-8"));
             httpPost.setEntity(new StringEntity(objectMapper.writeValueAsString(param), "UTF-8"));
 
-            JsonNode response = handleResponse(httpPost, logger);
+            JsonNode response = handleResponse(httpPost, options.getTlsOptions(), logger);
             logger.info("Get ArrowFlightSqlPort response is '{}'.", response);
             return getArrowFlightSqlPort(response);
         } catch (Exception ex) {
@@ -621,11 +646,10 @@ public class RestService implements Serializable {
         String[] tableIdentifier = parseIdentifier(options.getTableIdentifier(), logger);
 
         String queryPlanUri =
-                String.format(
-                        QUERY_PLAN_API,
-                        randomEndpoint(options.getFenodes(), logger),
-                        tableIdentifier[0],
-                        tableIdentifier[1]);
+                DorisUrlBuilder.buildHttpUrl(
+                        options.getTlsOptions(),
+                        randomEndpoint(options, logger),
+                        String.format(QUERY_PLAN_API, tableIdentifier[0], tableIdentifier[1]));
         HttpPost httpPost = new HttpPost(queryPlanUri);
         String entity = "{\"sql\": \"" + sql + "\"}";
         logger.debug("Post body Sending to Doris FE is: '{}'.", entity);

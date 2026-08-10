@@ -22,6 +22,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
+import org.apache.doris.flink.cfg.DorisTlsOptions;
 import org.apache.doris.flink.exception.DorisException;
 import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.apache.doris.flink.exception.IllegalArgumentException;
@@ -32,6 +33,7 @@ import org.apache.doris.flink.rest.models.QueryPlan;
 import org.apache.doris.flink.rest.models.Schema;
 import org.apache.doris.flink.rest.models.Tablet;
 import org.apache.doris.flink.sink.BackendUtil;
+import org.apache.doris.flink.testutil.HttpsTestServer;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -59,6 +61,7 @@ import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_TABLET_SIZE_
 import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_TABLET_SIZE_MIN;
 import static org.hamcrest.core.StringStartsWith.startsWith;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
@@ -74,6 +77,9 @@ public class TestRestService {
     public void setUp() throws Exception {
         backendUtilMockedStatic = mockStatic(BackendUtil.class);
         backendUtilMockedStatic.when(() -> BackendUtil.tryHttpConnection(any())).thenReturn(true);
+        backendUtilMockedStatic
+                .when(() -> BackendUtil.tryHttpConnection(anyString(), any(DorisTlsOptions.class)))
+                .thenReturn(true);
     }
 
     @After
@@ -145,6 +151,20 @@ public class TestRestService {
     }
 
     @Test
+    public void testChoiceFeUsesTlsOptions() throws Exception {
+        DorisTlsOptions tlsOptions = tlsOptions();
+        DorisOptions options =
+                DorisOptions.builder()
+                        .setFenodes("127.0.0.1:8030")
+                        .setTlsOptions(tlsOptions)
+                        .build();
+
+        Assert.assertEquals("127.0.0.1:8030", RestService.randomEndpoint(options, logger));
+        backendUtilMockedStatic.verify(
+                () -> BackendUtil.tryHttpConnection("127.0.0.1:8030", tlsOptions));
+    }
+
+    @Test
     public void testChoiceFeError() throws Exception {
         String nullFes = null;
         thrown.expect(IllegalArgumentException.class);
@@ -181,8 +201,9 @@ public class TestRestService {
     @Test
     public void testChoiceFeNo() throws Exception {
         String failFenodes = "127.0.0.1:1";
-        BackendUtil.tryHttpConnection(any());
-        backendUtilMockedStatic.when(() -> BackendUtil.tryHttpConnection(any())).thenReturn(false);
+        backendUtilMockedStatic
+                .when(() -> BackendUtil.tryHttpConnection(anyString(), any(DorisTlsOptions.class)))
+                .thenReturn(false);
         thrown.expect(DorisRuntimeException.class);
         thrown.expectMessage("No Doris FE is available");
         RestService.randomEndpoint(failFenodes, logger);
@@ -436,6 +457,46 @@ public class TestRestService {
     }
 
     @Test
+    public void testGetBackendsV2OverHttps() throws Exception {
+        String response =
+                "{\"backends\":[{\"ip\":\"127.0.0.1\",\"http_port\":8040,\"is_alive\":true}]}";
+        try (HttpsTestServer server = new HttpsTestServer(response)) {
+            DorisOptions options =
+                    DorisOptions.builder()
+                            .setFenodes(server.getEndpoint("localhost"))
+                            .setAutoRedirect(false)
+                            .setTlsOptions(tlsOptions())
+                            .build();
+
+            List<BackendV2.BackendRowV2> backends =
+                    RestService.getBackendsV2(options, DorisReadOptions.defaults(), logger);
+
+            Assert.assertEquals(1, backends.size());
+            Assert.assertEquals("127.0.0.1:8040", backends.get(0).toBackendString());
+        }
+    }
+
+    @Test
+    public void testGetSchemaOverHttpsWithApacheClient() throws Exception {
+        String response =
+                "{\"data\":{\"keysType\":\"UNIQUE_KEYS\",\"properties\":[],\"status\":200}}";
+        try (HttpsTestServer server = new HttpsTestServer(response)) {
+            DorisOptions options =
+                    DorisOptions.builder()
+                            .setFenodes(server.getEndpoint("localhost"))
+                            .setUsername("root")
+                            .setPassword("")
+                            .setTlsOptions(tlsOptions())
+                            .build();
+
+            Schema schema = RestService.getSchema(options, "db", "tbl", logger);
+
+            Assert.assertEquals(200, schema.getStatus());
+            Assert.assertEquals("UNIQUE_KEYS", schema.getKeysType());
+        }
+    }
+
+    @Test
     public void testAllEndpoints() {
         thrown.expect(DorisRuntimeException.class);
         thrown.expectMessage(startsWith("fenodes is empty"));
@@ -478,7 +539,10 @@ public class TestRestService {
                     "{\"msg\":\"success\",\"code\":0,\"data\":{\"keysType\":\"UNIQUE_KEYS\",\"properties\":[{\"name\":\"name\",\"aggregation_type\":\"\",\"comment\":\"\",\"type\":\"VARCHAR\"},{\"name\":\"age\",\"aggregation_type\":\"REPLACE\",\"comment\":\"\",\"type\":\"INT\"}],\"status\":200},\"count\":0}";
             JsonNode jsonNode = new ObjectMapper().readTree(res);
             restServiceMockedStatic
-                    .when(() -> RestService.handleResponse(any(), any()))
+                    .when(
+                            () ->
+                                    RestService.handleResponse(
+                                            any(), any(DorisTlsOptions.class), any()))
                     .thenReturn(jsonNode);
             restServiceMockedStatic
                     .when(() -> RestService.getSchema(any(), any(), any(), any()))
@@ -499,7 +563,10 @@ public class TestRestService {
 
         try (MockedStatic<RestService> restServiceMockedStatic = mockStatic(RestService.class)) {
             restServiceMockedStatic
-                    .when(() -> RestService.handleResponse(any(), any()))
+                    .when(
+                            () ->
+                                    RestService.handleResponse(
+                                            any(), any(DorisTlsOptions.class), any()))
                     .thenReturn(jsonNode);
             restServiceMockedStatic
                     .when(() -> RestService.getArrowFlightSqlPort(any()))
@@ -516,5 +583,32 @@ public class TestRestService {
             Integer port = RestService.tryGetArrowFlightSqlPort(options, readOptions, logger);
             Assert.assertEquals(29747, port.intValue());
         }
+    }
+
+    @Test
+    public void testTryGetArrowFlightSqlPortOverHttps() throws Exception {
+        String response =
+                "{\"data\":{\"meta\":[{\"name\":\"ArrowFlightSqlPort\"}],\"data\":[[29747]]}}";
+        try (HttpsTestServer server = new HttpsTestServer(response)) {
+            DorisOptions options =
+                    DorisOptions.builder()
+                            .setFenodes(server.getEndpoint("localhost"))
+                            .setUsername("root")
+                            .setPassword("")
+                            .setTlsOptions(tlsOptions())
+                            .build();
+
+            Assert.assertEquals(
+                    Integer.valueOf(29747),
+                    RestService.tryGetArrowFlightSqlPort(
+                            options, DorisReadOptions.defaults(), logger));
+        }
+    }
+
+    private DorisTlsOptions tlsOptions() throws Exception {
+        return DorisTlsOptions.builder()
+                .setEnabled(true)
+                .setCaCertificatePath(HttpsTestServer.resourcePath("/tls/ca.pem"))
+                .build();
     }
 }

@@ -17,8 +17,10 @@
 
 package org.apache.doris.flink.sink;
 
+import org.apache.doris.flink.cfg.DorisTlsOptions;
 import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.apache.doris.flink.rest.models.BackendV2;
+import org.apache.doris.flink.testutil.HttpsTestServer;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -29,6 +31,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mockStatic;
 
 public class TestBackendUtil {
@@ -42,7 +45,9 @@ public class TestBackendUtil {
 
     @Test
     public void testGetAvailableBackend() throws Exception {
-        backendUtilMockedStatic.when(() -> BackendUtil.tryHttpConnection(any())).thenReturn(true);
+        backendUtilMockedStatic
+                .when(() -> BackendUtil.tryHttpConnection(anyString(), any(DorisTlsOptions.class)))
+                .thenReturn(true);
         List<BackendV2.BackendRowV2> backends =
                 Arrays.asList(
                         newBackend("127.0.0.2", 8040),
@@ -55,9 +60,26 @@ public class TestBackendUtil {
         Assert.assertEquals(backends.get(0).toBackendString(), backendUtil.getAvailableBackend());
     }
 
+    @Test
+    public void testGetAvailableBackendUsesTlsOptions() throws Exception {
+        DorisTlsOptions tlsOptions = tlsOptions();
+        backendUtilMockedStatic
+                .when(() -> BackendUtil.tryHttpConnection(anyString(), any(DorisTlsOptions.class)))
+                .thenReturn(true);
+        List<BackendV2.BackendRowV2> backends = Arrays.asList(newBackend("127.0.0.2", 8040));
+
+        BackendUtil backendUtil = new BackendUtil(backends, tlsOptions);
+
+        Assert.assertEquals(backends.get(0).toBackendString(), backendUtil.getAvailableBackend());
+        backendUtilMockedStatic.verify(
+                () -> BackendUtil.tryHttpConnection("127.0.0.2:8040", tlsOptions));
+    }
+
     @Test(expected = DorisRuntimeException.class)
     public void testNoAvailableBackend() throws Exception {
-        backendUtilMockedStatic.when(() -> BackendUtil.tryHttpConnection(any())).thenReturn(false);
+        backendUtilMockedStatic
+                .when(() -> BackendUtil.tryHttpConnection(anyString(), any(DorisTlsOptions.class)))
+                .thenReturn(false);
         List<BackendV2.BackendRowV2> backends =
                 Arrays.asList(
                         newBackend("127.0.0.1", 12345),
@@ -81,6 +103,19 @@ public class TestBackendUtil {
     }
 
     @Test
+    public void testTryHttpsConnection() throws Exception {
+        DorisTlsOptions tlsOptions = tlsOptions();
+        try (HttpsTestServer server = new HttpsTestServer()) {
+            String endpoint = server.getEndpoint("localhost");
+            backendUtilMockedStatic
+                    .when(() -> BackendUtil.tryHttpConnection(endpoint, tlsOptions))
+                    .thenCallRealMethod();
+
+            Assert.assertTrue(BackendUtil.tryHttpConnection(endpoint, tlsOptions));
+        }
+    }
+
+    @Test
     public void testInitBackends() {
         BackendUtil backendUtil = new BackendUtil("127.0.0.1:1");
         Assert.assertTrue(backendUtil.getBackends().isEmpty());
@@ -91,6 +126,13 @@ public class TestBackendUtil {
         backend.setIp(host);
         backend.setHttpPort(port);
         return backend;
+    }
+
+    private DorisTlsOptions tlsOptions() throws Exception {
+        return DorisTlsOptions.builder()
+                .setEnabled(true)
+                .setCaCertificatePath(HttpsTestServer.resourcePath("/tls/ca.pem"))
+                .build();
     }
 
     @After

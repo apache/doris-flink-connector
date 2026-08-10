@@ -113,7 +113,8 @@ public class DorisValueReader extends ValueReader implements AutoCloseable {
 
     private BackendClient backendClient() {
         try {
-            return new BackendClient(new Routing(partition.getBeAddress()), readOptions);
+            return new BackendClient(
+                    new Routing(partition.getBeAddress()), readOptions, options.getTlsOptions());
         } catch (IllegalArgumentException e) {
             LOG.error("init backend:{} client failed,", partition.getBeAddress(), e);
             throw new DorisRuntimeException(e);

@@ -42,6 +42,25 @@ If you wish to contribute or use a connector from flink 1.13 (and earlier), plea
 
 More information about compilation and usage, please visit [Flink Doris Connector](https://doris.apache.org/docs/dev/ecosystem/flink-doris-connector)
 
+### TLS Configuration
+
+The connector can apply one TLS policy to Doris HTTP, MySQL/JDBC, BE Thrift, and Arrow Flight SQL connections:
+
+```properties
+doris.enable.tls=true
+doris.tls.ca-certificate-path=/etc/doris-tls/ca-chain.pem
+doris.tls.skip-hostname-verification=false
+doris.tls.excluded-protocols=
+```
+
+`doris.enable.tls` is disabled by default. When TLS is enabled and the CA path is empty, the connector uses the JVM or protocol driver's default trust store. When a CA path is configured, it must point to a PEM CA certificate chain on the local filesystem of every process that connects to Doris. Hostname verification remains enabled by default.
+
+`doris.tls.excluded-protocols` accepts a comma-separated subset of `http`, `mysql`, `thrift`, and `arrowflight`. Use it only when the corresponding Doris server protocol is excluded from TLS. For example, add `thrift` when the BE Thrift service used by the non-Flight source remains plaintext. The connector does not probe protocols or fall back to plaintext after a TLS failure. When Connector-managed MySQL TLS is active, do not also put TLS properties such as `sslMode`, `useSSL`, or trust-store properties in `jdbc-url`. Arrow Flight TLS does not support the connector's hostname-only skip policy, so `doris.tls.skip-hostname-verification=true` fails fast unless `arrowflight` is excluded.
+
+This release supports one-way TLS only: the connector verifies the Doris server certificate but does not provide a client certificate or private key. It therefore cannot connect to a Doris endpoint configured to require client certificates.
+
+The CA path is a local file path, not an HDFS or HTTP URI. For standalone deployments, provision the file at the same path on all relevant JobManager, TaskManager, and SQL Gateway hosts. For YARN, localize the file with `yarn.ship-files` and configure its container-local relative path. For Kubernetes, mount a ConfigMap or Secret into the relevant pods at a consistent absolute path. A process that opens Catalog/JDBC connections must also be able to read the file.
+
 ## License
 
 [Apache License, Version 2.0](https://www.apache.org/licenses/LICENSE-2.0)

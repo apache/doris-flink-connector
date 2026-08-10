@@ -25,7 +25,7 @@ import java.io.Serializable;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
-import java.util.Objects;
+import java.util.Properties;
 
 public class SimpleJdbcConnectionProvider implements JdbcConnectionProvider, Serializable {
 
@@ -35,6 +35,7 @@ public class SimpleJdbcConnectionProvider implements JdbcConnectionProvider, Ser
     private final DorisConnectionOptions options;
 
     private transient Connection connection;
+    private transient DorisJdbcTlsAdapter tlsAdapter;
 
     public SimpleJdbcConnectionProvider(DorisConnectionOptions options) {
         this.options = options;
@@ -45,6 +46,7 @@ public class SimpleJdbcConnectionProvider implements JdbcConnectionProvider, Ser
         if (connection != null && !connection.isClosed() && connection.isValid(10)) {
             return connection;
         }
+        closeConnection();
         try {
             Class.forName("com.mysql.cj.jdbc.Driver");
         } catch (ClassNotFoundException ex) {
@@ -52,12 +54,17 @@ public class SimpleJdbcConnectionProvider implements JdbcConnectionProvider, Ser
                     "can not found class com.mysql.cj.jdbc.Driver, use class com.mysql.jdbc.Driver");
             Class.forName("com.mysql.jdbc.Driver");
         }
-        if (!Objects.isNull(options.getUsername())) {
-            connection =
-                    DriverManager.getConnection(
-                            options.getJdbcUrl(), options.getUsername(), options.getPassword());
-        } else {
-            connection = DriverManager.getConnection(options.getJdbcUrl());
+        tlsAdapter = DorisJdbcTlsAdapter.create(options.getTlsOptions());
+        try {
+            tlsAdapter.validateJdbcUrl(options.getJdbcUrl());
+            Properties properties =
+                    tlsAdapter.createConnectionProperties(
+                            options.getUsername(), options.getPassword());
+            connection = DriverManager.getConnection(options.getJdbcUrl(), properties);
+        } catch (SQLException e) {
+            tlsAdapter.close();
+            tlsAdapter = null;
+            throw e;
         }
         return connection;
     }
@@ -72,6 +79,10 @@ public class SimpleJdbcConnectionProvider implements JdbcConnectionProvider, Ser
             } finally {
                 connection = null;
             }
+        }
+        if (tlsAdapter != null) {
+            tlsAdapter.close();
+            tlsAdapter = null;
         }
     }
 }

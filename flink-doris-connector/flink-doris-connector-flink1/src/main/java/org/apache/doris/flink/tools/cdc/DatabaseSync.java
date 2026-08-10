@@ -17,6 +17,7 @@
 
 package org.apache.doris.flink.tools.cdc;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -209,7 +210,8 @@ public abstract class DatabaseSync {
         return uidName;
     }
 
-    private DorisConnectionOptions getDorisConnectionOptions() {
+    @VisibleForTesting
+    DorisConnectionOptions getDorisConnectionOptions() {
         String fenodes = sinkConfig.getString(DorisConfigOptions.FENODES);
         String benodes = sinkConfig.getString(DorisConfigOptions.BENODES);
         String user = sinkConfig.getString(DorisConfigOptions.USERNAME);
@@ -224,7 +226,8 @@ public abstract class DatabaseSync {
                         .withBenodes(benodes)
                         .withUsername(user)
                         .withPassword(passwd)
-                        .withJdbcUrl(jdbcUrl);
+                        .withJdbcUrl(jdbcUrl)
+                        .withTlsOptions(DorisConfigOptions.getTlsOptions(sinkConfig));
         return builder.build();
     }
 
@@ -239,29 +242,9 @@ public abstract class DatabaseSync {
 
     /** create doris sink. */
     public DorisSink<String> buildDorisSink(String tableIdentifier) {
-        String fenodes = sinkConfig.getString(DorisConfigOptions.FENODES);
-        String benodes = sinkConfig.getString(DorisConfigOptions.BENODES);
-        String user = sinkConfig.getString(DorisConfigOptions.USERNAME);
-        String passwd = sinkConfig.getString(DorisConfigOptions.PASSWORD, "");
-        String jdbcUrl = sinkConfig.getString(DorisConfigOptions.JDBC_URL);
+        DorisOptions.Builder dorisBuilder = getDorisOptionsBuilder(tableIdentifier);
 
         DorisSink.Builder<String> builder = DorisSink.builder();
-        DorisOptions.Builder dorisBuilder = DorisOptions.builder();
-        dorisBuilder
-                .setJdbcUrl(jdbcUrl)
-                .setFenodes(fenodes)
-                .setBenodes(benodes)
-                .setUsername(user)
-                .setPassword(passwd);
-        sinkConfig
-                .getOptional(DorisConfigOptions.AUTO_REDIRECT)
-                .ifPresent(dorisBuilder::setAutoRedirect);
-
-        // single sink not need table identifier
-        if (!singleSink && !StringUtils.isNullOrWhitespaceOnly(tableIdentifier)) {
-            dorisBuilder.setTableIdentifier(tableIdentifier);
-        }
-
         Properties pro = new Properties();
         // default json data format
         pro.setProperty("format", "json");
@@ -336,6 +319,33 @@ public abstract class DatabaseSync {
                 .setSerializer(buildSchemaSerializer(dorisBuilder, executionOptions))
                 .setDorisOptions(dorisBuilder.build());
         return builder.build();
+    }
+
+    @VisibleForTesting
+    DorisOptions.Builder getDorisOptionsBuilder(String tableIdentifier) {
+        String fenodes = sinkConfig.getString(DorisConfigOptions.FENODES);
+        String benodes = sinkConfig.getString(DorisConfigOptions.BENODES);
+        String user = sinkConfig.getString(DorisConfigOptions.USERNAME);
+        String passwd = sinkConfig.getString(DorisConfigOptions.PASSWORD, "");
+        String jdbcUrl = sinkConfig.getString(DorisConfigOptions.JDBC_URL);
+
+        DorisOptions.Builder dorisBuilder = DorisOptions.builder();
+        dorisBuilder
+                .setJdbcUrl(jdbcUrl)
+                .setFenodes(fenodes)
+                .setBenodes(benodes)
+                .setUsername(user)
+                .setPassword(passwd)
+                .setTlsOptions(DorisConfigOptions.getTlsOptions(sinkConfig));
+        sinkConfig
+                .getOptional(DorisConfigOptions.AUTO_REDIRECT)
+                .ifPresent(dorisBuilder::setAutoRedirect);
+
+        // single sink not need table identifier
+        if (!singleSink && !StringUtils.isNullOrWhitespaceOnly(tableIdentifier)) {
+            dorisBuilder.setTableIdentifier(tableIdentifier);
+        }
+        return dorisBuilder;
     }
 
     public DorisRecordSerializer<String> buildSchemaSerializer(

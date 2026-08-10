@@ -51,7 +51,27 @@ public class DorisOptions extends DorisConnectionOptions {
             String tableIdentifier,
             String jdbcUrl,
             boolean redirect) {
-        super(fenodes, beNodes, username, password, jdbcUrl, redirect);
+        this(
+                fenodes,
+                beNodes,
+                username,
+                password,
+                tableIdentifier,
+                jdbcUrl,
+                redirect,
+                DorisTlsOptions.disabled());
+    }
+
+    public DorisOptions(
+            String fenodes,
+            String beNodes,
+            String username,
+            String password,
+            String tableIdentifier,
+            String jdbcUrl,
+            boolean redirect,
+            DorisTlsOptions tlsOptions) {
+        super(fenodes, beNodes, username, password, jdbcUrl, redirect, tlsOptions);
         this.tableIdentifier = tableIdentifier;
     }
 
@@ -82,13 +102,21 @@ public class DorisOptions extends DorisConnectionOptions {
                 && Objects.equals(username, that.username)
                 && Objects.equals(password, that.password)
                 && Objects.equals(jdbcUrl, that.jdbcUrl)
-                && Objects.equals(benodes, that.benodes);
+                && Objects.equals(benodes, that.benodes)
+                && Objects.equals(tlsOptions, that.tlsOptions);
     }
 
     @Override
     public int hashCode() {
         return Objects.hash(
-                fenodes, username, password, jdbcUrl, benodes, autoRedirect, tableIdentifier);
+                fenodes,
+                username,
+                password,
+                jdbcUrl,
+                benodes,
+                autoRedirect,
+                tableIdentifier,
+                tlsOptions);
     }
 
     /** Builder of {@link DorisOptions}. */
@@ -100,6 +128,7 @@ public class DorisOptions extends DorisConnectionOptions {
         private String password;
         private boolean autoRedirect = true;
         private String tableIdentifier;
+        private DorisTlsOptions tlsOptions = DorisTlsOptions.disabled();
 
         /**
          * Sets the tableIdentifier for the DorisOptions.
@@ -179,6 +208,11 @@ public class DorisOptions extends DorisConnectionOptions {
             return this;
         }
 
+        public Builder setTlsOptions(DorisTlsOptions tlsOptions) {
+            this.tlsOptions = tlsOptions;
+            return this;
+        }
+
         /**
          * Build the {@link DorisOptions}.
          *
@@ -189,7 +223,14 @@ public class DorisOptions extends DorisConnectionOptions {
             // multi table load, don't need check
             // checkNotNull(tableIdentifier, "No tableIdentifier supplied.");
             return new DorisOptions(
-                    fenodes, benodes, username, password, tableIdentifier, jdbcUrl, autoRedirect);
+                    fenodes,
+                    benodes,
+                    username,
+                    password,
+                    tableIdentifier,
+                    jdbcUrl,
+                    autoRedirect,
+                    tlsOptions);
         }
     }
 }
