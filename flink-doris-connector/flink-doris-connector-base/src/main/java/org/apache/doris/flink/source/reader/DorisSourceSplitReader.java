@@ -75,9 +75,16 @@ public class DorisSourceSplitReader implements SplitReader<List, DorisSourceSpli
         }
         currentSplitId = nextSplit.splitId();
         LOG.info("Fetch a new split {}", nextSplit);
-        valueReader =
-                ValueReader.createReader(
-                        nextSplit.getPartitionDefinition(), options, readOptions, LOG);
+        valueReader = createValueReader(nextSplit);
+    }
+
+    /**
+     * Creates the {@link ValueReader} for a split. Default behavior delegates to {@link
+     * ValueReader#createReader} (thrift or Arrow Flight SQL per read options). Protected to allow
+     * tests to substitute a fake reader without opening a real Doris BE connection.
+     */
+    protected ValueReader createValueReader(DorisSourceSplit split) {
+        return ValueReader.createReader(split.getPartitionDefinition(), options, readOptions, LOG);
     }
 
     private DorisSplitRecords finishSplit() {
@@ -107,7 +114,18 @@ public class DorisSourceSplitReader implements SplitReader<List, DorisSourceSpli
     @Override
     public void close() throws Exception {
         if (valueReader != null) {
-            valueReader.close();
+            try {
+                valueReader.close();
+            } catch (InterruptedException e) {
+                // Preserve the interrupt status so Flink task cancellation semantics stay intact;
+                // close() is best-effort and must not abort reader shutdown.
+                Thread.currentThread().interrupt();
+                LOG.warn("Interrupted while closing value reader.", e);
+            } catch (Exception e) {
+                LOG.warn("Error while closing value reader.", e);
+            } finally {
+                valueReader = null;
+            }
         }
     }
 }
