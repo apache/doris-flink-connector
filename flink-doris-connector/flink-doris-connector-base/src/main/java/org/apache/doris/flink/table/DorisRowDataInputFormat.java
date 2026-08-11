@@ -125,6 +125,12 @@ public class DorisRowDataInputFormat extends RichInputFormat<RowData, DorisTable
         }
         try {
             valueReader.close();
+        } catch (InterruptedException e) {
+            // Preserve the interrupt status so Flink task cancellation semantics stay intact;
+            // do not rethrow, close() must be best-effort so a failing teardown never blocks
+            // input-format lifecycle / source shutdown.
+            Thread.currentThread().interrupt();
+            LOG.warn("Interrupted while closing doris value reader.", e);
         } catch (Exception e) {
             LOG.warn("Failed to close doris value reader.", e);
         } finally {
