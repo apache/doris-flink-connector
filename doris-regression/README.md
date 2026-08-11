@@ -29,7 +29,7 @@ connector version in `pom.xml`.
 mvn clean package
 ```
 
-The shaded artifact is generated at `target/flink-doris-case.jar`.
+The shaded artifact is generated at `target/flink-doris-regression-case.jar`.
 
 ## Entry Points
 
