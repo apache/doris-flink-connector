@@ -116,8 +116,13 @@ public class DorisSourceSplitReader implements SplitReader<List, DorisSourceSpli
         if (valueReader != null) {
             try {
                 valueReader.close();
+            } catch (InterruptedException e) {
+                // Preserve the interrupt status so Flink task cancellation semantics stay intact;
+                // close() is best-effort and must not abort reader shutdown.
+                Thread.currentThread().interrupt();
+                LOG.warn("Interrupted while closing value reader.", e);
             } catch (Exception e) {
-                LOG.warn("Error while closing value reader: {}", e.getMessage());
+                LOG.warn("Error while closing value reader.", e);
             } finally {
                 valueReader = null;
             }

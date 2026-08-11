@@ -47,7 +47,7 @@ public class DorisSourceSplitReaderTest {
         }
 
         @Override
-        public List next() {
+        public List<Object> next() {
             return Collections.emptyList();
         }
 
@@ -69,7 +69,7 @@ public class DorisSourceSplitReaderTest {
         }
 
         @Override
-        public List next() {
+        public List<Object> next() {
             return Collections.emptyList();
         }
 
