@@ -15,19 +15,18 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.flink.sink.writer;
+package org.apache.doris.flink.sink.writer.tvf;
 
-public enum WriteMode {
-    STREAM_LOAD,
-    STREAM_LOAD_BATCH,
-    COPY,
-    TVF;
+import java.io.Closeable;
+import java.sql.SQLException;
+import java.util.Map;
 
-    public static WriteMode of(String name) {
-        try {
-            return WriteMode.valueOf(name.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Unsupported write mode: " + name);
-        }
-    }
+/** JDBC operations required by the TVF committer. */
+interface S3TvfLoadClient extends Closeable {
+
+    void executeInsert(String sql, Map<String, String> sessionVariables) throws SQLException;
+
+    S3TvfLoadState getLoadState(String database, String label) throws SQLException;
+
+    void cancelLoad(String database, String label) throws SQLException;
 }

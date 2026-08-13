@@ -15,19 +15,19 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.flink.sink.writer;
+package org.apache.doris.flink.sink.writer.tvf;
 
-public enum WriteMode {
-    STREAM_LOAD,
-    STREAM_LOAD_BATCH,
-    COPY,
-    TVF;
+/** States returned by SHOW LOAD for an INSERT label. */
+enum S3TvfLoadState {
+    PENDING,
+    ETL,
+    LOADING,
+    FINISHED,
+    CANCELLED,
+    NOT_FOUND,
+    UNKNOWN;
 
-    public static WriteMode of(String name) {
-        try {
-            return WriteMode.valueOf(name.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Unsupported write mode: " + name);
-        }
+    public boolean isActive() {
+        return this == PENDING || this == ETL || this == LOADING;
     }
 }

@@ -15,19 +15,24 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.flink.sink.writer;
+package org.apache.doris.flink.sink.writer.tvf;
 
-public enum WriteMode {
-    STREAM_LOAD,
-    STREAM_LOAD_BATCH,
-    COPY,
-    TVF;
+/** SQL quoting utilities used by the TVF write path. */
+final class TvfSqlUtils {
 
-    public static WriteMode of(String name) {
-        try {
-            return WriteMode.valueOf(name.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Unsupported write mode: " + name);
-        }
+    private TvfSqlUtils() {}
+
+    static String quoteIdentifier(String value) {
+        return "`" + value.replace("`", "``") + "`";
+    }
+
+    static String quoteLiteral(String value) {
+        String escaped =
+                value.replace("\\", "\\\\")
+                        .replace("'", "\\'")
+                        .replace("\u0000", "\\0")
+                        .replace("\n", "\\n")
+                        .replace("\r", "\\r");
+        return "'" + escaped + "'";
     }
 }

@@ -161,4 +161,53 @@ public class DorisExecutionOptionsTest {
         DorisExecutionOptions.Builder builder = DorisExecutionOptions.builder().setMaxRetries(-1);
         builder.build();
     }
+
+    @Test
+    public void testS3TvfOptions() {
+        S3TvfOptions s3TvfOptions =
+                S3TvfOptions.builder()
+                        .setEndpoint("https://s3.example.com")
+                        .setRegion("us-east-1")
+                        .setBucket("bucket")
+                        .setPrefix("prefix")
+                        .setAccessKey("ak")
+                        .setSecretKey("sk")
+                        .build();
+
+        DorisExecutionOptions executionOptions =
+                DorisExecutionOptions.builder()
+                        .setWriteMode(WriteMode.TVF)
+                        .setLabelPrefix("label")
+                        .setS3TvfOptions(s3TvfOptions)
+                        .build();
+
+        Assert.assertEquals(s3TvfOptions, executionOptions.getS3TvfOptions());
+        Assert.assertNotEquals(
+                executionOptions,
+                DorisExecutionOptions.builder()
+                        .setWriteMode(WriteMode.TVF)
+                        .setLabelPrefix("other-label")
+                        .build());
+    }
+
+    @Test
+    public void testTvfPropertiesAreSessionVariablesWithoutStreamLoadDefaults() {
+        Properties sessionVariables = new Properties();
+        sessionVariables.setProperty("enable_unique_key_partial_update", "true");
+
+        DorisExecutionOptions executionOptions =
+                DorisExecutionOptions.builder()
+                        .setWriteMode(WriteMode.TVF)
+                        .setLabelPrefix("label")
+                        .setStreamLoadProp(sessionVariables)
+                        .build();
+
+        Assert.assertEquals(sessionVariables, executionOptions.getStreamLoadProp());
+        Assert.assertEquals(1, executionOptions.getStreamLoadProp().size());
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testTvfRequiresLabelPrefix() {
+        DorisExecutionOptions.builder().setWriteMode(WriteMode.TVF).build();
+    }
 }

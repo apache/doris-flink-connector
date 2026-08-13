@@ -15,19 +15,13 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.flink.sink.writer;
+package org.apache.doris.flink.sink.writer.tvf;
 
-public enum WriteMode {
-    STREAM_LOAD,
-    STREAM_LOAD_BATCH,
-    COPY,
-    TVF;
+import java.io.Closeable;
+import java.io.IOException;
 
-    public static WriteMode of(String name) {
-        try {
-            return WriteMode.valueOf(name.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Unsupported write mode: " + name);
-        }
-    }
+/** Object storage operations required by the TVF writer. */
+public interface S3ObjectStore extends Closeable {
+
+    void put(String objectKey, byte[] content) throws IOException;
 }

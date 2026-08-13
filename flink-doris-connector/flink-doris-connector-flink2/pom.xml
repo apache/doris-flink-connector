@@ -164,6 +164,18 @@ under the License.
                             <pattern>org.apache.thrift</pattern>
                             <shadedPattern>org.apache.doris.shaded.org.apache.thrift</shadedPattern>
                         </relocation>
+                        <relocation>
+                            <pattern>software.amazon.awssdk</pattern>
+                            <shadedPattern>org.apache.doris.shaded.software.amazon.awssdk</shadedPattern>
+                        </relocation>
+                        <relocation>
+                            <pattern>software.amazon.eventstream</pattern>
+                            <shadedPattern>org.apache.doris.shaded.software.amazon.eventstream</shadedPattern>
+                        </relocation>
+                        <relocation>
+                            <pattern>org.reactivestreams</pattern>
+                            <shadedPattern>org.apache.doris.shaded.org.reactivestreams</shadedPattern>
+                        </relocation>
                     </relocations>
                     <filters>
                         <filter>

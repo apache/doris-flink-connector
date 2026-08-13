@@ -53,17 +53,17 @@ public class RowDataSerializer implements DorisRecordSerializer<RowData> {
     private static final Logger LOG = LoggerFactory.getLogger(RowDataSerializer.class);
     String[] fieldNames;
     String type;
-    private ObjectMapper objectMapper;
+    protected ObjectMapper objectMapper;
     private final String fieldDelimiter;
     private final boolean enableDelete;
-    private final DorisRowConverter rowConverter;
+    protected final DorisRowConverter rowConverter;
     private ArrowSerializer arrowSerializer;
     ByteArrayOutputStream outputStream;
     private final int arrowBatchCnt = 1000;
     private int arrowWriteCnt = 0;
     private final DataType[] dataTypes;
 
-    private RowDataSerializer(
+    protected RowDataSerializer(
             String[] fieldNames,
             DataType[] dataTypes,
             String type,

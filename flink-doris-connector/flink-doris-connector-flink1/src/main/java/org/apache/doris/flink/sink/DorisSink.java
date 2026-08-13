@@ -41,6 +41,9 @@ import org.apache.doris.flink.sink.writer.DorisWriterState;
 import org.apache.doris.flink.sink.writer.DorisWriterStateSerializer;
 import org.apache.doris.flink.sink.writer.WriteMode;
 import org.apache.doris.flink.sink.writer.serializer.DorisRecordSerializer;
+import org.apache.doris.flink.sink.writer.tvf.S3TvfCommittableSerializer;
+import org.apache.doris.flink.sink.writer.tvf.S3TvfCommitter;
+import org.apache.doris.flink.sink.writer.tvf.S3TvfWriterAdapter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -77,6 +80,9 @@ public class DorisSink<IN>
 
     /** The uniq model has 2pc close by default unless 2pc is forced open. */
     private void checkKeyType() {
+        if (WriteMode.TVF.equals(dorisExecutionOptions.getWriteMode())) {
+            return;
+        }
         if (dorisExecutionOptions.enabled2PC()
                 && !dorisExecutionOptions.force2PC()
                 && RestService.isUniqueKeyType(dorisOptions, dorisReadOptions, LOG)) {
@@ -96,6 +102,8 @@ public class DorisSink<IN>
             return new DorisCommitter(dorisOptions, dorisReadOptions, dorisExecutionOptions);
         } else if (WriteMode.COPY.equals(dorisExecutionOptions.getWriteMode())) {
             return new DorisCopyCommitter(dorisOptions, dorisExecutionOptions.getMaxRetries());
+        } else if (WriteMode.TVF.equals(dorisExecutionOptions.getWriteMode())) {
+            return new S3TvfCommitter(dorisOptions, dorisExecutionOptions);
         }
         throw new IllegalArgumentException(
                 "Unsupported write mode " + dorisExecutionOptions.getWriteMode());
@@ -125,6 +133,9 @@ public class DorisSink<IN>
         } else if (WriteMode.COPY.equals(dorisExecutionOptions.getWriteMode())) {
             return new DorisCopyWriterAdapter<>(
                     initContext, serializer, dorisOptions, dorisReadOptions, dorisExecutionOptions);
+        } else if (WriteMode.TVF.equals(dorisExecutionOptions.getWriteMode())) {
+            return new S3TvfWriterAdapter<>(
+                    initContext, serializer, dorisOptions, dorisExecutionOptions);
         }
         throw new IllegalArgumentException(
                 "Unsupported write mode " + dorisExecutionOptions.getWriteMode());
@@ -142,6 +153,8 @@ public class DorisSink<IN>
             return new DorisCommittableSerializer();
         } else if (WriteMode.COPY.equals(dorisExecutionOptions.getWriteMode())) {
             return new CopyCommittableSerializer();
+        } else if (WriteMode.TVF.equals(dorisExecutionOptions.getWriteMode())) {
+            return new S3TvfCommittableSerializer();
         }
         throw new IllegalArgumentException(
                 "Unsupported write mode " + dorisExecutionOptions.getWriteMode());
