@@ -165,6 +165,14 @@ public class S3TvfOptions implements Serializable {
         }
 
         public S3TvfOptions build() {
+            if (prefix != null) {
+                for (char character : "*?[]{},\\".toCharArray()) {
+                    if (prefix.indexOf(character) >= 0) {
+                        throw new IllegalArgumentException(
+                                "sink.s3.prefix must not contain glob characters: * ? [ ] { } , \\");
+                    }
+                }
+            }
             return new S3TvfOptions(this);
         }
     }

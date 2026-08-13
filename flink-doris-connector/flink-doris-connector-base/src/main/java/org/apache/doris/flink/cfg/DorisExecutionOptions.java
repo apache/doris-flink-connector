@@ -588,6 +588,9 @@ public class DorisExecutionOptions implements Serializable {
                     writeMode != WriteMode.TVF
                             || (labelPrefix != null && !labelPrefix.trim().isEmpty()),
                     "sink.label-prefix must be set for TVF write mode");
+            Preconditions.checkArgument(
+                    writeMode != WriteMode.TVF || s3TvfOptions != null,
+                    "S3 TVF options must be set for TVF write mode");
 
             // If format=json is set but read_json_by_line is not set, record may not be written.
             if (writeMode != WriteMode.TVF
@@ -613,8 +616,12 @@ public class DorisExecutionOptions implements Serializable {
                     "bufferFlushMaxRows must be greater than or equal to 10000");
 
             Preconditions.checkArgument(
-                    bufferFlushMaxBytes >= 10485760,
-                    "bufferFlushMaxBytes must be greater than or equal to 10485760(10MB)");
+                    writeMode == WriteMode.TVF
+                            ? bufferFlushMaxBytes > 0
+                            : bufferFlushMaxBytes >= 10485760,
+                    writeMode == WriteMode.TVF
+                            ? "bufferFlushMaxBytes must be greater than 0"
+                            : "bufferFlushMaxBytes must be greater than or equal to 10485760(10MB)");
 
             return new DorisExecutionOptions(
                     checkInterval,

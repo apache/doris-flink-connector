@@ -45,4 +45,16 @@ public class S3TvfOptionsTest {
         Assert.assertFalse(options.toString().contains("access-key"));
         Assert.assertFalse(options.toString().contains("secret-key"));
     }
+
+    @Test
+    public void testRejectsGlobCharactersInPrefix() {
+        for (String character : new String[] {"*", "?", "[", "]", "{", "}", ",", "\\"}) {
+            try {
+                S3TvfOptions.builder().setPrefix("path/" + character + "/prefix").build();
+                Assert.fail("Expected prefix containing '" + character + "' to be rejected.");
+            } catch (IllegalArgumentException expected) {
+                // Expected.
+            }
+        }
+    }
 }

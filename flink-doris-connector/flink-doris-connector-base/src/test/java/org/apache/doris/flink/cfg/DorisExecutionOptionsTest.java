@@ -187,6 +187,7 @@ public class DorisExecutionOptionsTest {
                 DorisExecutionOptions.builder()
                         .setWriteMode(WriteMode.TVF)
                         .setLabelPrefix("other-label")
+                        .setS3TvfOptions(s3TvfOptions)
                         .build());
     }
 
@@ -200,6 +201,7 @@ public class DorisExecutionOptionsTest {
                         .setWriteMode(WriteMode.TVF)
                         .setLabelPrefix("label")
                         .setStreamLoadProp(sessionVariables)
+                        .setS3TvfOptions(s3TvfOptions())
                         .build();
 
         Assert.assertEquals(sessionVariables, executionOptions.getStreamLoadProp());
@@ -209,5 +211,41 @@ public class DorisExecutionOptionsTest {
     @Test(expected = IllegalArgumentException.class)
     public void testTvfRequiresLabelPrefix() {
         DorisExecutionOptions.builder().setWriteMode(WriteMode.TVF).build();
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testTvfRequiresS3Options() {
+        DorisExecutionOptions.builder().setWriteMode(WriteMode.TVF).setLabelPrefix("label").build();
+    }
+
+    @Test
+    public void testTvfAllowsSmallBuffer() {
+        DorisExecutionOptions.builder()
+                .setWriteMode(WriteMode.TVF)
+                .setLabelPrefix("label")
+                .setS3TvfOptions(s3TvfOptions())
+                .setBufferFlushMaxBytes(1024)
+                .build();
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testTvfRequiresPositiveBuffer() {
+        DorisExecutionOptions.builder()
+                .setWriteMode(WriteMode.TVF)
+                .setLabelPrefix("label")
+                .setS3TvfOptions(s3TvfOptions())
+                .setBufferFlushMaxBytes(0)
+                .build();
+    }
+
+    private static S3TvfOptions s3TvfOptions() {
+        return S3TvfOptions.builder()
+                .setEndpoint("https://s3.example.com")
+                .setRegion("us-east-1")
+                .setBucket("bucket")
+                .setPrefix("prefix")
+                .setAccessKey("ak")
+                .setSecretKey("sk")
+                .build();
     }
 }
