@@ -44,8 +44,7 @@ public abstract class AbstractContainerTestBase {
     @BeforeClass
     public static void initContainers() {
         originalTimeZone = TimeZone.getDefault();
-        // TODO: Remove this workaround after Doris returns DATETIME without an Arrow timezone.
-        TimeZone.setDefault(TimeZone.getTimeZone("Asia/Shanghai"));
+        TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
         LOG.info("Trying to start doris containers.");
         initDorisContainer();
     }

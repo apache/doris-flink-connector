@@ -148,11 +148,22 @@ public class Doris2DorisE2ECase extends AbstractContainerTestBase {
 
         tEnv.executeSql("INSERT INTO doris_sink SELECT * FROM doris_source").await();
 
+        // TODO: Remove the legacy Scanner expectations after Doris returns DATETIME as a
+        // timezone-naive Arrow timestamp.
+        String c11Row1 = useFlightRead ? "2025-03-11T12:34:56" : "2025-03-11T04:34:56";
+        String c11Row2 = useFlightRead ? "2024-12-25T23:59:59" : "2024-12-25T15:59:59";
+        String c11Row3 = useFlightRead ? "2023-06-15T08:00" : "2023-06-15T00:00";
         List<String> excepted =
                 Arrays.asList(
-                        "1,true,127,32767,2147483647,9223372036854775807,170141183460469231731687303715884105727,3.14,2.71828,12345.6789,2025-03-11,2025-03-11T12:34:56,A,Hello, Doris!,This is a string,[\"Alice\", \"Bob\"],{\"key1\":\"value1\", \"key2\":\"value2\"},{\"name\":\"Tom\", \"age\":30},{\"key\":\"value\"},{\"data\":123,\"type\":\"variant\"}",
-                        "2,false,-128,-32768,-2147483648,-9223372036854775808,-170141183460469231731687303715884105728,-1.23,1.0E-4,-9999.9999,2024-12-25,2024-12-25T23:59:59,B,Doris Test,Another string!,[\"Charlie\", \"David\"],{\"k1\":\"v1\", \"k2\":\"v2\"},{\"name\":\"Jerry\", \"age\":25},{\"status\":\"ok\"},{\"data\":[1,2,3]}",
-                        "3,true,0,0,0,0,0,0.0,0.0,0.0000,2023-06-15,2023-06-15T08:00,C,Test Doris,Sample text,[\"Eve\", \"Frank\"],{\"alpha\":\"beta\"},{\"name\":\"Alice\", \"age\":40},{\"nested\":{\"key\":\"value\"}},{\"variant\":\"test\"}",
+                        "1,true,127,32767,2147483647,9223372036854775807,170141183460469231731687303715884105727,3.14,2.71828,12345.6789,2025-03-11,"
+                                + c11Row1
+                                + ",A,Hello, Doris!,This is a string,[\"Alice\", \"Bob\"],{\"key1\":\"value1\", \"key2\":\"value2\"},{\"name\":\"Tom\", \"age\":30},{\"key\":\"value\"},{\"data\":123,\"type\":\"variant\"}",
+                        "2,false,-128,-32768,-2147483648,-9223372036854775808,-170141183460469231731687303715884105728,-1.23,1.0E-4,-9999.9999,2024-12-25,"
+                                + c11Row2
+                                + ",B,Doris Test,Another string!,[\"Charlie\", \"David\"],{\"k1\":\"v1\", \"k2\":\"v2\"},{\"name\":\"Jerry\", \"age\":25},{\"status\":\"ok\"},{\"data\":[1,2,3]}",
+                        "3,true,0,0,0,0,0,0.0,0.0,0.0000,2023-06-15,"
+                                + c11Row3
+                                + ",C,Test Doris,Sample text,[\"Eve\", \"Frank\"],{\"alpha\":\"beta\"},{\"name\":\"Alice\", \"age\":40},{\"nested\":{\"key\":\"value\"}},{\"variant\":\"test\"}",
                         "4,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null");
 
         String query = String.format("SELECT * FROM %s.%s", DATABASE_SINK, TABLE);
