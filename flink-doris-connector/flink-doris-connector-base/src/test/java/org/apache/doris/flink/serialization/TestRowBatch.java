@@ -101,8 +101,7 @@ public class TestRowBatch {
     @Test
     public void testMatchesArrowFieldsByName() throws Exception {
         List<Field> arrowFields = new ArrayList<>();
-        arrowFields.add(
-                new Field("age", FieldType.nullable(new ArrowType.Int(32, true)), null));
+        arrowFields.add(new Field("age", FieldType.nullable(new ArrowType.Int(32, true)), null));
         arrowFields.add(new Field("name", FieldType.nullable(new ArrowType.Utf8()), null));
 
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
