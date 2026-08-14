@@ -38,6 +38,9 @@ jobs:
         distribution: adopt
         java-version: '17'
 
+    - name: Configure Doris prerequisites
+      run: sudo sysctl -w vm.max_map_count=2000000
+
     - name: Run E2ECases (Flink2 module)
       run: |
         cd flink-doris-connector && mvn test \
