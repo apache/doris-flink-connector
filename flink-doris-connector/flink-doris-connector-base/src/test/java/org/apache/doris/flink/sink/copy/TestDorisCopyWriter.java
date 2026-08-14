@@ -22,6 +22,7 @@ import org.apache.flink.api.common.time.Deadline;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
+import org.apache.doris.flink.cfg.DorisTlsOptions;
 import org.apache.doris.flink.sink.HttpTestUtil;
 import org.apache.doris.flink.sink.OptionUtils;
 import org.apache.doris.flink.sink.TestUtil;
@@ -124,5 +125,30 @@ public class TestDorisCopyWriter {
         List<DorisWriterState> writerStates = copyWriter.snapshotState(1);
         Assert.assertTrue(writerStates.isEmpty());
         copyWriter.close();
+    }
+
+    @Test
+    public void testCopyUploadUsesHttps() throws Exception {
+        DorisOptions tlsOptions =
+                DorisOptions.builder()
+                        .setFenodes("fe.example:8030")
+                        .setTableIdentifier("db.table")
+                        .setTlsOptions(DorisTlsOptions.builder().setEnabled(true).build())
+                        .build();
+        DorisCopyWriter<String> copyWriter =
+                new DorisCopyWriter<String>(
+                        1,
+                        1,
+                        new SimpleStringSerializer(),
+                        tlsOptions,
+                        readOptions,
+                        executionOptions);
+        try {
+            Assert.assertEquals(
+                    "https://fe.example:8030/copy/upload",
+                    copyWriter.getBatchStageLoad().getUploadUrl());
+        } finally {
+            copyWriter.close();
+        }
     }
 }

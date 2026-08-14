@@ -26,10 +26,12 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
+import org.apache.doris.flink.cfg.DorisTlsOptions;
 import org.apache.doris.flink.exception.DorisException;
 import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.apache.doris.flink.exception.LabelAlreadyExistsException;
 import org.apache.doris.flink.exception.StreamLoadException;
+import org.apache.doris.flink.rest.DorisUrlBuilder;
 import org.apache.doris.flink.rest.models.RespContent;
 import org.apache.doris.flink.sink.EscapeHandler;
 import org.apache.doris.flink.sink.HttpPutBuilder;
@@ -77,8 +79,8 @@ public class DorisStreamLoad implements Serializable {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private final LabelGenerator labelGenerator;
     private final byte[] lineDelimiter;
-    private static final String LOAD_URL_PATTERN = "http://%s/api/%s/%s/_stream_load";
-    private static final String ABORT_URL_PATTERN = "http://%s/api/%s/_stream_load_2pc";
+    private static final String LOAD_URL_PATTERN = "/api/%s/%s/_stream_load";
+    private static final String ABORT_URL_PATTERN = "/api/%s/_stream_load_2pc";
     public static final String JOB_EXIST_FINISHED = "FINISHED";
 
     private String loadUrlStr;
@@ -88,6 +90,7 @@ public class DorisStreamLoad implements Serializable {
     private final String passwd;
     private final String db;
     private final String table;
+    private final DorisTlsOptions tlsOptions;
     private final boolean enable2PC;
     private final boolean enableDelete;
     private final Properties streamLoadProp;
@@ -114,8 +117,8 @@ public class DorisStreamLoad implements Serializable {
         this.user = dorisOptions.getUsername();
         this.passwd = dorisOptions.getPassword();
         this.labelGenerator = labelGenerator;
-        this.loadUrlStr = String.format(LOAD_URL_PATTERN, hostPort, db, table);
-        this.abortUrlStr = String.format(ABORT_URL_PATTERN, hostPort, db);
+        this.tlsOptions = dorisOptions.getTlsOptions();
+        refreshUrls();
         this.enable2PC = executionOptions.enabled2PC();
         this.streamLoadProp = executionOptions.getStreamLoadProp();
         this.enableDelete = executionOptions.getDeletable();
@@ -169,14 +172,32 @@ public class DorisStreamLoad implements Serializable {
     }
 
     @VisibleForTesting
+    public String getLoadUrl() {
+        return loadUrlStr;
+    }
+
+    @VisibleForTesting
+    public String getAbortUrl() {
+        return abortUrlStr;
+    }
+
+    @VisibleForTesting
     public byte[] getLineDelimiter() {
         return lineDelimiter;
     }
 
     public void setHostPort(String hostPort) {
         this.hostPort = hostPort;
-        this.loadUrlStr = String.format(LOAD_URL_PATTERN, hostPort, this.db, this.table);
-        this.abortUrlStr = String.format(ABORT_URL_PATTERN, hostPort, db);
+        refreshUrls();
+    }
+
+    private void refreshUrls() {
+        this.loadUrlStr =
+                DorisUrlBuilder.buildHttpUrl(
+                        tlsOptions, hostPort, String.format(LOAD_URL_PATTERN, db, table));
+        this.abortUrlStr =
+                DorisUrlBuilder.buildHttpUrl(
+                        tlsOptions, hostPort, String.format(ABORT_URL_PATTERN, db));
     }
 
     public Future<RespContent> getPendingLoadFuture() {

@@ -19,6 +19,11 @@ package org.apache.doris.flink.container.instance;
 
 import org.apache.flink.util.Preconditions;
 
+import org.apache.doris.flink.cfg.DorisConnectionOptions;
+import org.apache.doris.flink.cfg.DorisTlsOptions;
+import org.apache.doris.flink.cfg.DorisTlsOptions.Protocol;
+import org.apache.doris.flink.connection.JdbcConnectionProvider;
+import org.apache.doris.flink.connection.SimpleJdbcConnectionProvider;
 import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,6 +38,8 @@ import java.sql.Statement;
 public class DorisCustomerContainer implements ContainerService {
     private static final Logger LOG = LoggerFactory.getLogger(DorisCustomerContainer.class);
     private static final String JDBC_URL = "jdbc:mysql://%s:%s";
+
+    private JdbcConnectionProvider jdbcConnectionProvider;
 
     @Override
     public void startContainer() {
@@ -76,16 +83,27 @@ public class DorisCustomerContainer implements ContainerService {
     }
 
     @Override
-    public Connection getQueryConnection() {
+    public synchronized Connection getQueryConnection() {
         LOG.info("Try to get query connection from doris.");
-        String jdbcUrl =
-                String.format(
-                        JDBC_URL,
-                        System.getProperty("doris_host"),
-                        System.getProperty("doris_query_port"));
+        String jdbcUrl = getJdbcUrl();
         try {
+            DorisTlsOptions tlsOptions = getTlsOptions();
+            if (tlsOptions.isEnabledFor(Protocol.MYSQL)) {
+                if (jdbcConnectionProvider == null) {
+                    DorisConnectionOptions connectionOptions =
+                            new DorisConnectionOptions.DorisConnectionOptionsBuilder()
+                                    .withFenodes(getFenodes())
+                                    .withUsername(getUsername())
+                                    .withPassword(getPassword())
+                                    .withJdbcUrl(jdbcUrl)
+                                    .withTlsOptions(tlsOptions)
+                                    .build();
+                    jdbcConnectionProvider = new SimpleJdbcConnectionProvider(connectionOptions);
+                }
+                return jdbcConnectionProvider.getOrEstablishConnection();
+            }
             return DriverManager.getConnection(jdbcUrl, getUsername(), getPassword());
-        } catch (SQLException e) {
+        } catch (Exception e) {
             LOG.info("Failed to get doris query connection. jdbcUrl={}", jdbcUrl, e);
             throw new DorisRuntimeException(e);
         }
@@ -118,6 +136,19 @@ public class DorisCustomerContainer implements ContainerService {
     }
 
     @Override
+    public DorisTlsOptions getTlsOptions() {
+        return DorisTlsOptions.builder()
+                .setEnabled(Boolean.parseBoolean(System.getProperty("doris_enable_tls", "false")))
+                .setCaCertificatePath(System.getProperty("doris_tls_ca_certificate_path", ""))
+                .setSkipHostnameVerification(
+                        Boolean.parseBoolean(
+                                System.getProperty(
+                                        "doris_tls_skip_hostname_verification", "false")))
+                .setExcludedProtocols(System.getProperty("doris_tls_excluded_protocols", ""))
+                .build();
+    }
+
+    @Override
     public String getFenodes() {
         return System.getProperty("doris_host") + ":" + System.getProperty("doris_http_port");
     }
@@ -128,5 +159,10 @@ public class DorisCustomerContainer implements ContainerService {
     }
 
     @Override
-    public void close() {}
+    public synchronized void close() {
+        if (jdbcConnectionProvider != null) {
+            jdbcConnectionProvider.close();
+            jdbcConnectionProvider = null;
+        }
+    }
 }

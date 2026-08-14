@@ -18,6 +18,7 @@
 package org.apache.doris.flink.table;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.io.DefaultInputSplitAssigner;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.RichInputFormat;
@@ -31,6 +32,7 @@ import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
+import org.apache.doris.flink.cfg.DorisTlsOptions;
 import org.apache.doris.flink.deserialization.converter.DorisRowConverter;
 import org.apache.doris.flink.rest.PartitionDefinition;
 import org.apache.doris.flink.source.reader.DorisValueReader;
@@ -114,6 +116,11 @@ public class DorisRowDataInputFormat extends RichInputFormat<RowData, DorisTable
         return rowDataTypeInfo;
     }
 
+    @VisibleForTesting
+    DorisOptions getOptions() {
+        return options;
+    }
+
     /**
      * Checks whether all data has been read.
      *
@@ -177,12 +184,14 @@ public class DorisRowDataInputFormat extends RichInputFormat<RowData, DorisTable
     /** Builder for {@link DorisRowDataInputFormat}. */
     public static class Builder {
         private DorisOptions.Builder optionsBuilder;
+        private DorisTlsOptions.Builder tlsOptionsBuilder;
         private List<PartitionDefinition> partitions;
         private DorisReadOptions readOptions;
         private RowType rowType;
 
         public Builder() {
             this.optionsBuilder = DorisOptions.builder();
+            this.tlsOptionsBuilder = DorisTlsOptions.builder();
         }
 
         public Builder setFenodes(String fenodes) {
@@ -202,6 +211,26 @@ public class DorisRowDataInputFormat extends RichInputFormat<RowData, DorisTable
 
         public Builder setPassword(String password) {
             this.optionsBuilder.setPassword(password);
+            return this;
+        }
+
+        public Builder setTlsEnabled(boolean enabled) {
+            this.tlsOptionsBuilder.setEnabled(enabled);
+            return this;
+        }
+
+        public Builder setTlsCaCertificatePath(String path) {
+            this.tlsOptionsBuilder.setCaCertificatePath(path);
+            return this;
+        }
+
+        public Builder setTlsSkipHostnameVerification(boolean skip) {
+            this.tlsOptionsBuilder.setSkipHostnameVerification(skip);
+            return this;
+        }
+
+        public Builder setTlsExcludedProtocols(String protocols) {
+            this.tlsOptionsBuilder.setExcludedProtocols(protocols);
             return this;
         }
 
@@ -226,6 +255,7 @@ public class DorisRowDataInputFormat extends RichInputFormat<RowData, DorisTable
         }
 
         public DorisRowDataInputFormat build() {
+            optionsBuilder.setTlsOptions(tlsOptionsBuilder.build());
             return new DorisRowDataInputFormat(
                     optionsBuilder.build(), partitions, readOptions, rowType);
         }

@@ -20,6 +20,7 @@ package org.apache.doris.flink.sink.committer;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
+import org.apache.doris.flink.cfg.DorisTlsOptions;
 import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.rest.models.BackendV2;
@@ -30,13 +31,16 @@ import org.apache.doris.flink.sink.OptionUtils;
 import org.apache.http.ProtocolVersion;
 import org.apache.http.StatusLine;
 import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.message.BasicStatusLine;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
 
 import java.util.Collections;
@@ -81,6 +85,9 @@ public class TestDorisCommitter {
                         Collections.singletonList(
                                 BackendV2.BackendRowV2.of("127.0.0.1", 8040, true)));
         backendUtilMockedStatic.when(() -> BackendUtil.tryHttpConnection(any())).thenReturn(true);
+        backendUtilMockedStatic
+                .when(() -> BackendUtil.tryHttpConnection(any(), any()))
+                .thenReturn(true);
 
         dorisCommitter =
                 new DorisCommitter(dorisOptions, readOptions, executionOptions, httpClient);
@@ -99,6 +106,38 @@ public class TestDorisCommitter {
         final MockCommitRequest<DorisCommittable> request =
                 new MockCommitRequest<>(dorisCommittable);
         dorisCommitter.commit(Collections.singletonList(request));
+    }
+
+    @Test
+    public void testCommitUsesHttps() throws Exception {
+        DorisOptions options =
+                DorisOptions.builder()
+                        .setFenodes("fe.example:8030")
+                        .setTlsOptions(DorisTlsOptions.builder().setEnabled(true).build())
+                        .build();
+        CloseableHttpClient client = mock(CloseableHttpClient.class);
+        CloseableHttpResponse response = mock(CloseableHttpResponse.class);
+        HttpEntityMock responseEntity = new HttpEntityMock();
+        responseEntity.setValue("{\"status\":\"Success\"}");
+        when(client.execute(any())).thenReturn(response);
+        when(response.getStatusLine()).thenReturn(normalLine);
+        when(response.getEntity()).thenReturn(responseEntity);
+        DorisCommitter committer =
+                new DorisCommitter(
+                        options,
+                        DorisReadOptions.defaults(),
+                        DorisExecutionOptions.builder().build(),
+                        client);
+        ArgumentCaptor<HttpUriRequest> request = ArgumentCaptor.forClass(HttpUriRequest.class);
+
+        committer.commit(
+                Collections.singletonList(
+                        new MockCommitRequest<>(new DorisCommittable("be.example:8040", "db", 1))));
+
+        org.mockito.Mockito.verify(client).execute(request.capture());
+        Assert.assertEquals(
+                "https://be.example:8040/api/db/_stream_load_2pc",
+                request.getValue().getURI().toString());
     }
 
     @Test

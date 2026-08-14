@@ -17,10 +17,31 @@
 
 package org.apache.doris.flink.cfg;
 
+import org.apache.flink.util.InstantiationUtil;
+
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.lang.reflect.Field;
+
 public class DorisOptionsTest {
+
+    @Test
+    public void testMissingTlsOptionsFallsBackToDisabled() throws Exception {
+        DorisConnectionOptions options =
+                new DorisConnectionOptions("127.0.0.1:8030", "root", "password");
+        Field tlsOptionsField = DorisConnectionOptions.class.getDeclaredField("tlsOptions");
+        tlsOptionsField.setAccessible(true);
+        tlsOptionsField.set(options, null);
+
+        byte[] serialized = InstantiationUtil.serializeObject(options);
+        DorisConnectionOptions restored =
+                InstantiationUtil.deserializeObject(
+                        serialized, Thread.currentThread().getContextClassLoader());
+
+        Assert.assertNotNull(restored.getTlsOptions());
+        Assert.assertFalse(restored.getTlsOptions().isEnabled());
+    }
 
     @Test
     public void testEquals() {
@@ -32,7 +53,12 @@ public class DorisOptionsTest {
                         .setPassword("password")
                         .setBenodes("benodes")
                         .setAutoRedirect(true)
-                        .setJdbcUrl("xxx");
+                        .setJdbcUrl("xxx")
+                        .setTlsOptions(
+                                DorisTlsOptions.builder()
+                                        .setEnabled(true)
+                                        .setCaCertificatePath("certs/ca.pem")
+                                        .build());
         DorisOptions.Builder options1 =
                 DorisOptions.builder()
                         .setFenodes("fenodes")
@@ -41,7 +67,12 @@ public class DorisOptionsTest {
                         .setPassword("password")
                         .setBenodes("benodes")
                         .setAutoRedirect(true)
-                        .setJdbcUrl("xxx");
+                        .setJdbcUrl("xxx")
+                        .setTlsOptions(
+                                DorisTlsOptions.builder()
+                                        .setEnabled(true)
+                                        .setCaCertificatePath("certs/ca.pem")
+                                        .build());
         DorisOptions exceptedOption = options.build();
         Assert.assertNotEquals(exceptedOption, null);
         Assert.assertEquals(exceptedOption, options.build());
@@ -72,6 +103,10 @@ public class DorisOptionsTest {
 
         options1.setAutoRedirect(true);
         options1.setJdbcUrl("xxx1");
+        Assert.assertNotEquals(exceptedOption, options1.build());
+
+        options1.setJdbcUrl("xxx");
+        options1.setTlsOptions(DorisTlsOptions.disabled());
         Assert.assertNotEquals(exceptedOption, options1.build());
     }
 }

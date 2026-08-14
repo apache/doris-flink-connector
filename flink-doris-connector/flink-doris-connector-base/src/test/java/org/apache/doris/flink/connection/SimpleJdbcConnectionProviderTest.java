@@ -23,19 +23,48 @@ import org.mockito.MockedStatic;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.util.Properties;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
 
 public class SimpleJdbcConnectionProviderTest {
+
+    @Test
+    public void testTryWithResourcesClosesOwnedConnection() throws Exception {
+        Connection connection = mock(Connection.class);
+        DorisConnectionOptions connectionOptions =
+                new DorisConnectionOptions.DorisConnectionOptionsBuilder()
+                        .withFenodes("127.0.0.1:8030")
+                        .withJdbcUrl("jdbc:mysql://127.0.0.1:9030")
+                        .withUsername("root")
+                        .withPassword("")
+                        .build();
+
+        try (MockedStatic<DriverManager> driverManager = mockStatic(DriverManager.class)) {
+            driverManager
+                    .when(() -> DriverManager.getConnection(anyString(), any(Properties.class)))
+                    .thenReturn(connection);
+
+            try (SimpleJdbcConnectionProvider connectionProvider =
+                    new SimpleJdbcConnectionProvider(connectionOptions)) {
+                connectionProvider.getOrEstablishConnection();
+            }
+        }
+
+        verify(connection).close();
+    }
 
     @Test
     public void testGetOrEstablishConnection() throws Exception {
         MockedStatic<DriverManager> driverManagerMockedStatic = mockStatic(DriverManager.class);
         Connection connection = mock(Connection.class);
-        when(DriverManager.getConnection(any(), any(), any())).thenReturn(connection);
+        driverManagerMockedStatic
+                .when(() -> DriverManager.getConnection(anyString(), any(Properties.class)))
+                .thenReturn(connection);
 
         DorisConnectionOptions connectionOptions =
                 new DorisConnectionOptions.DorisConnectionOptionsBuilder()
@@ -54,7 +83,6 @@ public class SimpleJdbcConnectionProviderTest {
                         .withJdbcUrl("jdbc:mysql://127.0.0.1:9030")
                         .build();
         connectionProvider = new SimpleJdbcConnectionProvider(connectionOptions);
-        when(DriverManager.getConnection(any(), any(), any())).thenReturn(connection);
         connectionProvider.getOrEstablishConnection();
 
         driverManagerMockedStatic.close();

@@ -20,6 +20,7 @@ package org.apache.doris.flink.sink.writer;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
+import org.apache.doris.flink.cfg.DorisTlsOptions;
 import org.apache.doris.flink.exception.DorisException;
 import org.apache.doris.flink.rest.models.RespContent;
 import org.apache.doris.flink.sink.HttpTestUtil;
@@ -300,6 +301,50 @@ public class TestDorisStreamLoad {
                         new LabelGenerator("test001", true),
                         httpClient);
         Assert.assertNull(dorisStreamLoad.getLineDelimiter());
+    }
+
+    @Test
+    public void testTlsUrlsFollowHostRefreshAndProtocolExclusion() throws Exception {
+        CloseableHttpClient httpClient = mock(CloseableHttpClient.class);
+        DorisOptions tlsDorisOptions =
+                DorisOptions.builder()
+                        .setFenodes("fe:8030")
+                        .setTableIdentifier("db.table")
+                        .setTlsOptions(DorisTlsOptions.builder().setEnabled(true).build())
+                        .build();
+        DorisStreamLoad streamLoad =
+                new DorisStreamLoad(
+                        "be-1:8040",
+                        tlsDorisOptions,
+                        executionOptions,
+                        new LabelGenerator("test001", true),
+                        httpClient);
+        Assert.assertEquals("https://be-1:8040/api/db/table/_stream_load", streamLoad.getLoadUrl());
+        Assert.assertEquals("https://be-1:8040/api/db/_stream_load_2pc", streamLoad.getAbortUrl());
+
+        streamLoad.setHostPort("be-2:8040");
+        Assert.assertEquals("https://be-2:8040/api/db/table/_stream_load", streamLoad.getLoadUrl());
+        streamLoad.close();
+
+        DorisOptions httpDorisOptions =
+                DorisOptions.builder()
+                        .setFenodes("fe:8030")
+                        .setTableIdentifier("db.table")
+                        .setTlsOptions(
+                                DorisTlsOptions.builder()
+                                        .setEnabled(true)
+                                        .setExcludedProtocols("http")
+                                        .build())
+                        .build();
+        streamLoad =
+                new DorisStreamLoad(
+                        "be-1:8040",
+                        httpDorisOptions,
+                        executionOptions,
+                        new LabelGenerator("test001", true),
+                        httpClient);
+        Assert.assertEquals("http://be-1:8040/api/db/table/_stream_load", streamLoad.getLoadUrl());
+        streamLoad.close();
     }
 
     @Test

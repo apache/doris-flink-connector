@@ -24,6 +24,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.exception.CopyLoadException;
+import org.apache.doris.flink.rest.DorisUrlBuilder;
 import org.apache.doris.flink.sink.HttpUtil;
 import org.apache.doris.flink.sink.ResponseUtil;
 import org.apache.doris.flink.sink.copy.models.BaseResponse;
@@ -44,17 +45,19 @@ import java.util.Map;
 
 public class DorisCopyCommitter implements Committer<DorisCopyCommittable>, Closeable {
     private static final Logger LOG = LoggerFactory.getLogger(DorisCopyCommitter.class);
-    private static final String commitPattern = "http://%s/copy/query";
+    private static final String COMMIT_PATH = "/copy/query";
     private static final int SUCCESS = 0;
     private static final String FAIL = "1";
     private ObjectMapper objectMapper = new ObjectMapper();
     private final DorisOptions dorisOptions;
-    private HttpClientBuilder httpClientBuilder = new HttpUtil().getHttpClientBuilderForCopyBatch();
+    private HttpClientBuilder httpClientBuilder;
     int maxRetry;
 
     public DorisCopyCommitter(DorisOptions dorisOptions, int maxRetry) {
         this.dorisOptions = dorisOptions;
         this.maxRetry = maxRetry;
+        this.httpClientBuilder =
+                new HttpUtil(dorisOptions.getTlsOptions()).getHttpClientBuilderForCopyBatch();
     }
 
     public DorisCopyCommitter(
@@ -88,7 +91,9 @@ public class DorisCopyCommitter implements Committer<DorisCopyCommittable>, Clos
             LOG.info("commit with copy sql: {}", copySQL);
             HttpPostBuilder postBuilder = new HttpPostBuilder();
             postBuilder
-                    .setUrl(String.format(commitPattern, hostPort))
+                    .setUrl(
+                            DorisUrlBuilder.buildHttpUrl(
+                                    dorisOptions.getTlsOptions(), hostPort, COMMIT_PATH))
                     .baseAuth(dorisOptions.getUsername(), dorisOptions.getPassword())
                     .setEntity(new StringEntity(objectMapper.writeValueAsString(params)));
             try (CloseableHttpClient httpClient = httpClientBuilder.build()) {

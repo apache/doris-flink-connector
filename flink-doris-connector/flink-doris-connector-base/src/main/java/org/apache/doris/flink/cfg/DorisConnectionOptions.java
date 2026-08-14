@@ -31,6 +31,7 @@ public class DorisConnectionOptions implements Serializable {
     protected final String password;
     protected String jdbcUrl;
     protected String benodes;
+    protected final DorisTlsOptions tlsOptions;
 
     /**
      * Used to enable automatic redirection of fe, When it is not enabled, it will actively request
@@ -39,15 +40,12 @@ public class DorisConnectionOptions implements Serializable {
     protected boolean autoRedirect;
 
     public DorisConnectionOptions(String fenodes, String username, String password) {
-        this.fenodes = Preconditions.checkNotNull(fenodes, "fenodes  is empty");
-        this.username = username;
-        this.password = password;
+        this(fenodes, null, username, password, null, false, DorisTlsOptions.disabled());
     }
 
     public DorisConnectionOptions(
             String fenodes, String username, String password, String jdbcUrl) {
-        this(fenodes, username, password);
-        this.jdbcUrl = jdbcUrl;
+        this(fenodes, null, username, password, jdbcUrl, false, DorisTlsOptions.disabled());
     }
 
     public DorisConnectionOptions(
@@ -57,10 +55,31 @@ public class DorisConnectionOptions implements Serializable {
             String password,
             String jdbcUrl,
             boolean autoRedirect) {
-        this(fenodes, username, password);
+        this(
+                fenodes,
+                benodes,
+                username,
+                password,
+                jdbcUrl,
+                autoRedirect,
+                DorisTlsOptions.disabled());
+    }
+
+    public DorisConnectionOptions(
+            String fenodes,
+            String benodes,
+            String username,
+            String password,
+            String jdbcUrl,
+            boolean autoRedirect,
+            DorisTlsOptions tlsOptions) {
+        this.fenodes = Preconditions.checkNotNull(fenodes, "fenodes  is empty");
         this.benodes = benodes;
+        this.username = username;
+        this.password = password;
         this.jdbcUrl = jdbcUrl;
         this.autoRedirect = autoRedirect;
+        this.tlsOptions = Preconditions.checkNotNull(tlsOptions, "tlsOptions is empty");
     }
 
     public String getFenodes() {
@@ -87,6 +106,10 @@ public class DorisConnectionOptions implements Serializable {
         return autoRedirect;
     }
 
+    public DorisTlsOptions getTlsOptions() {
+        return tlsOptions == null ? DorisTlsOptions.disabled() : tlsOptions;
+    }
+
     /** Builder for {@link DorisConnectionOptions}. */
     public static class DorisConnectionOptionsBuilder {
         private String fenodes;
@@ -95,6 +118,7 @@ public class DorisConnectionOptions implements Serializable {
         private String password;
         private String jdbcUrl;
         private boolean autoRedirect;
+        private DorisTlsOptions tlsOptions = DorisTlsOptions.disabled();
 
         public DorisConnectionOptionsBuilder withFenodes(String fenodes) {
             this.fenodes = fenodes;
@@ -126,9 +150,14 @@ public class DorisConnectionOptions implements Serializable {
             return this;
         }
 
+        public DorisConnectionOptionsBuilder withTlsOptions(DorisTlsOptions tlsOptions) {
+            this.tlsOptions = tlsOptions;
+            return this;
+        }
+
         public DorisConnectionOptions build() {
             return new DorisConnectionOptions(
-                    fenodes, benodes, username, password, jdbcUrl, autoRedirect);
+                    fenodes, benodes, username, password, jdbcUrl, autoRedirect, tlsOptions);
         }
     }
 }

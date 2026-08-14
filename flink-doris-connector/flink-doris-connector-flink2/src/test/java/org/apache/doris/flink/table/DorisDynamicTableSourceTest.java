@@ -37,7 +37,9 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.RowKind;
 
 import org.apache.doris.flink.cfg.DorisLookupOptions;
+import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
+import org.apache.doris.flink.cfg.DorisTlsOptions;
 import org.apache.doris.flink.rest.PartitionDefinition;
 import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.sink.OptionUtils;
@@ -102,6 +104,20 @@ public class DorisDynamicTableSourceTest {
     public void testDorisUseOldApi() {
         DorisReadOptions.Builder builder = OptionUtils.dorisReadOptionsBuilder();
         builder.setUseOldApi(true);
+        DorisTlsOptions tlsOptions =
+                DorisTlsOptions.builder()
+                        .setEnabled(true)
+                        .setCaCertificatePath("certs/ca.pem")
+                        .setExcludedProtocols("arrowflight")
+                        .build();
+        DorisOptions options =
+                DorisOptions.builder()
+                        .setFenodes("127.0.0.1:8030")
+                        .setTableIdentifier("db.tbl")
+                        .setUsername("root")
+                        .setPassword("")
+                        .setTlsOptions(tlsOptions)
+                        .build();
         MockedStatic<RestService> restServiceMockedStatic = mockStatic(RestService.class);
         restServiceMockedStatic
                 .when(() -> RestService.findPartitions(any(), any(), any()))
@@ -110,14 +126,15 @@ public class DorisDynamicTableSourceTest {
                                 new PartitionDefinition("", "", "", new HashSet<>(), "")));
         final DorisDynamicTableSource actualDorisSource =
                 new DorisDynamicTableSource(
-                        OptionUtils.buildDorisOptions(),
+                        options,
                         builder.build(),
                         DorisLookupOptions.builder().build(),
                         TableSchema.fromResolvedSchema(SCHEMA),
                         FactoryMocks.PHYSICAL_DATA_TYPE);
         ScanTableSource.ScanRuntimeProvider provider =
                 actualDorisSource.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
-        assertDorisInputFormat(provider);
+        DorisRowDataInputFormat inputFormat = assertDorisInputFormat(provider);
+        assertEquals(tlsOptions, inputFormat.getOptions().getTlsOptions());
         restServiceMockedStatic.close();
     }
 
@@ -252,7 +269,8 @@ public class DorisDynamicTableSourceTest {
         assertEquals(expected, copy);
     }
 
-    private void assertDorisInputFormat(ScanTableSource.ScanRuntimeProvider provider) {
+    private DorisRowDataInputFormat assertDorisInputFormat(
+            ScanTableSource.ScanRuntimeProvider provider) {
         assertThat(provider, instanceOf(InputFormatProvider.class));
         final InputFormatProvider inputFormatProvider = (InputFormatProvider) provider;
 
@@ -260,6 +278,7 @@ public class DorisDynamicTableSourceTest {
                 (InputFormat<RowData, DorisTableInputSplit>)
                         inputFormatProvider.createInputFormat();
         assertThat(inputFormat, instanceOf(DorisRowDataInputFormat.class));
+        return (DorisRowDataInputFormat) inputFormat;
     }
 
     private void assertDorisSource(ScanTableSource.ScanRuntimeProvider provider) {

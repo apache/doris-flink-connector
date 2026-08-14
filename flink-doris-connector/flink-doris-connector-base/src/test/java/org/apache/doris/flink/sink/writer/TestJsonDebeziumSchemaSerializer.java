@@ -17,11 +17,14 @@
 
 package org.apache.doris.flink.sink.writer;
 
+import org.apache.flink.util.InstantiationUtil;
+
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import org.apache.doris.flink.cfg.DorisOptions;
+import org.apache.doris.flink.cfg.DorisTlsOptions;
 import org.apache.doris.flink.exception.IllegalArgumentException;
 import org.apache.doris.flink.sink.schema.SchemaChangeManager;
 import org.apache.doris.flink.sink.writer.serializer.DorisRecord;
@@ -115,5 +118,31 @@ public class TestJsonDebeziumSchemaSerializer {
         serializer.serialize(recordValue);
         DorisRecord serializeRecord = serializer.serialize(recordSchema);
         Assert.assertNull(serializeRecord);
+    }
+
+    @Test
+    public void testSerializerWithTlsOptionsSerializationRoundTrip() throws Exception {
+        DorisOptions tlsDorisOptions =
+                DorisOptions.builder()
+                        .setFenodes("127.0.0.1:8030")
+                        .setTableIdentifier("test.t1")
+                        .setUsername("root")
+                        .setPassword("")
+                        .setTlsOptions(
+                                DorisTlsOptions.builder()
+                                        .setEnabled(true)
+                                        .setCaCertificatePath("/etc/doris/ca.pem")
+                                        .build())
+                        .build();
+        JsonDebeziumSchemaSerializer tlsSerializer =
+                JsonDebeziumSchemaSerializer.builder().setDorisOptions(tlsDorisOptions).build();
+
+        byte[] serialized = InstantiationUtil.serializeObject(tlsSerializer);
+        JsonDebeziumSchemaSerializer restored =
+                InstantiationUtil.deserializeObject(
+                        serialized, Thread.currentThread().getContextClassLoader());
+
+        Assert.assertNotNull(restored);
+        Assert.assertNotNull(restored.getJsonDebeziumSchemaChange());
     }
 }

@@ -19,6 +19,7 @@ package org.apache.doris.flink.backend;
 
 import org.apache.doris.flink.cfg.ConfigurationOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
+import org.apache.doris.flink.cfg.DorisTlsOptions;
 import org.apache.doris.flink.exception.ConnectedFailedException;
 import org.apache.doris.flink.exception.DorisInternalException;
 import org.apache.doris.flink.serialization.Routing;
@@ -31,11 +32,9 @@ import org.apache.doris.sdk.thrift.TScanNextBatchParams;
 import org.apache.doris.sdk.thrift.TScanOpenParams;
 import org.apache.doris.sdk.thrift.TScanOpenResult;
 import org.apache.doris.sdk.thrift.TStatusCode;
-import org.apache.thrift.TConfiguration;
 import org.apache.thrift.TException;
 import org.apache.thrift.protocol.TBinaryProtocol;
 import org.apache.thrift.protocol.TProtocol;
-import org.apache.thrift.transport.TSocket;
 import org.apache.thrift.transport.TTransport;
 import org.apache.thrift.transport.TTransportException;
 import org.slf4j.Logger;
@@ -55,9 +54,18 @@ public class BackendClient {
     private final int socketTimeout;
     private final int connectTimeout;
     private final int thriftMaxMessageSize;
+    private final DorisReadOptions readOptions;
+    private final DorisTlsOptions tlsOptions;
 
     public BackendClient(Routing routing, DorisReadOptions readOptions) {
+        this(routing, readOptions, DorisTlsOptions.disabled());
+    }
+
+    public BackendClient(
+            Routing routing, DorisReadOptions readOptions, DorisTlsOptions tlsOptions) {
         this.routing = routing;
+        this.readOptions = readOptions;
+        this.tlsOptions = tlsOptions;
         this.connectTimeout =
                 readOptions.getRequestConnectTimeoutMs() == null
                         ? ConfigurationOptions.DORIS_REQUEST_CONNECT_TIMEOUT_MS_DEFAULT
@@ -90,15 +98,7 @@ public class BackendClient {
             logger.debug("Attempt {} to connect {}.", attempt, routing);
             try {
                 TBinaryProtocol.Factory factory = new TBinaryProtocol.Factory();
-                TConfiguration.Builder configBuilder = TConfiguration.custom();
-                configBuilder.setMaxMessageSize(thriftMaxMessageSize);
-                transport =
-                        new TSocket(
-                                configBuilder.build(),
-                                routing.getHost(),
-                                routing.getPort(),
-                                socketTimeout,
-                                connectTimeout);
+                transport = DorisThriftTransportFactory.create(routing, readOptions, tlsOptions);
                 TProtocol protocol = factory.getProtocol(transport);
                 client = new TDorisExternalService.Client(protocol);
                 logger.trace(

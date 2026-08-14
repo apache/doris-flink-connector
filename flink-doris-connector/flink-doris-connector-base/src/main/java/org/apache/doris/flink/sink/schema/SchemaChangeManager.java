@@ -29,8 +29,10 @@ import org.apache.doris.flink.catalog.doris.DorisSystem;
 import org.apache.doris.flink.catalog.doris.FieldSchema;
 import org.apache.doris.flink.catalog.doris.TableSchema;
 import org.apache.doris.flink.cfg.DorisOptions;
+import org.apache.doris.flink.connection.DorisHttpClientFactory;
 import org.apache.doris.flink.exception.DorisSchemaChangeException;
 import org.apache.doris.flink.exception.IllegalArgumentException;
+import org.apache.doris.flink.rest.DorisUrlBuilder;
 import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.rest.models.Field;
 import org.apache.doris.flink.rest.models.Schema;
@@ -41,7 +43,6 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,9 +57,8 @@ import java.util.Optional;
 public class SchemaChangeManager implements Serializable {
     private static final long serialVersionUID = 1L;
     private static final Logger LOG = LoggerFactory.getLogger(SchemaChangeManager.class);
-    private static final String CHECK_SCHEMA_CHANGE_API =
-            "http://%s/api/enable_light_schema_change/%s/%s";
-    private static final String SCHEMA_CHANGE_API = "http://%s/api/query/default_cluster/%s";
+    private static final String CHECK_SCHEMA_CHANGE_API = "/api/enable_light_schema_change/%s/%s";
+    private static final String SCHEMA_CHANGE_API = "/api/query/default_cluster/%s";
     private ObjectMapper objectMapper = new ObjectMapper();
     private DorisOptions dorisOptions;
     private String charsetEncoding = "UTF-8";
@@ -210,11 +210,10 @@ public class SchemaChangeManager implements Serializable {
             return false;
         }
         String requestUrl =
-                String.format(
-                        CHECK_SCHEMA_CHANGE_API,
-                        RestService.randomEndpoint(dorisOptions.getFenodes(), LOG),
-                        database,
-                        table);
+                DorisUrlBuilder.buildHttpUrl(
+                        dorisOptions.getTlsOptions(),
+                        RestService.randomEndpoint(dorisOptions, LOG),
+                        String.format(CHECK_SCHEMA_CHANGE_API, database, table));
         HttpGetWithEntity httpGet = new HttpGetWithEntity(requestUrl);
         httpGet.setHeader(HttpHeaders.AUTHORIZATION, authHeader());
         httpGet.setEntity(
@@ -278,10 +277,10 @@ public class SchemaChangeManager implements Serializable {
         Map<String, String> param = new HashMap<>();
         param.put("stmt", ddl);
         String requestUrl =
-                String.format(
-                        SCHEMA_CHANGE_API,
-                        RestService.randomEndpoint(dorisOptions.getFenodes(), LOG),
-                        database);
+                DorisUrlBuilder.buildHttpUrl(
+                        dorisOptions.getTlsOptions(),
+                        RestService.randomEndpoint(dorisOptions, LOG),
+                        String.format(SCHEMA_CHANGE_API, database));
         HttpPost httpPost = new HttpPost(requestUrl);
         httpPost.setHeader(HttpHeaders.AUTHORIZATION, authHeader());
         httpPost.setHeader(
@@ -293,7 +292,8 @@ public class SchemaChangeManager implements Serializable {
     }
 
     private String handleResponse(HttpUriRequest request) {
-        try (CloseableHttpClient httpclient = HttpClients.createDefault()) {
+        try (CloseableHttpClient httpclient =
+                DorisHttpClientFactory.create(dorisOptions.getTlsOptions())) {
             CloseableHttpResponse response = httpclient.execute(request);
             final int statusCode = response.getStatusLine().getStatusCode();
             final String reasonPhrase = response.getStatusLine().getReasonPhrase();
@@ -329,7 +329,8 @@ public class SchemaChangeManager implements Serializable {
     private boolean sendHttpPostRequest(String sql, String database)
             throws IOException, IllegalArgumentException {
         HttpPost httpPost = buildHttpPost(sql, database);
-        try (CloseableHttpClient httpclient = HttpClients.createDefault()) {
+        try (CloseableHttpClient httpclient =
+                DorisHttpClientFactory.create(dorisOptions.getTlsOptions())) {
             CloseableHttpResponse response = httpclient.execute(httpPost);
             final int statusCode = response.getStatusLine().getStatusCode();
             if (statusCode == 200 && response.getEntity() != null) {

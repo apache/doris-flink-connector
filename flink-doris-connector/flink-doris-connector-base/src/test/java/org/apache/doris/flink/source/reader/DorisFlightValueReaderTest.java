@@ -19,10 +19,15 @@ package org.apache.doris.flink.source.reader;
 
 import org.apache.arrow.adbc.core.AdbcConnection;
 import org.apache.arrow.adbc.core.AdbcDatabase;
+import org.apache.arrow.adbc.core.AdbcDriver;
+import org.apache.arrow.adbc.driver.flightsql.FlightSqlConnectionProperties;
 import org.apache.arrow.adbc.driver.flightsql.FlightSqlDriver;
+import org.apache.arrow.flight.Location;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
+import org.apache.doris.flink.cfg.DorisTlsOptions;
+import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.apache.doris.flink.rest.PartitionDefinition;
 import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.rest.models.Schema;
@@ -33,8 +38,11 @@ import org.junit.jupiter.api.Test;
 import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
 
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -76,7 +84,7 @@ class DorisFlightValueReaderTest {
                     .when(() -> RestService.getSchema(eq(options), eq(readOptions), any()))
                     .thenReturn(new Schema());
             restService
-                    .when(() -> RestService.randomEndpoint(eq(options.getFenodes()), any()))
+                    .when(() -> RestService.randomEndpoint(eq(options), any()))
                     .thenReturn("127.0.0.1:8030");
 
             assertThatThrownBy(() -> new DorisFlightValueReader(split, options, readOptions))
@@ -142,5 +150,78 @@ class DorisFlightValueReaderTest {
                 .contains("'incrementType' = 'DETAIL'")
                 .endsWith(
                         "ORDER BY __DORIS_BINLOG_TSO__, __DORIS_BINLOG_LSN__, __DORIS_BINLOG_OP__");
+    }
+
+    @Test
+    void usesTlsLocationAndRootCertificates() {
+        DorisOptions options = options(DorisTlsOptions.builder().setEnabled(true).build());
+        InputStream rootCertificates = new ByteArrayInputStream(new byte[] {1, 2, 3});
+
+        Map<String, Object> parameters =
+                DorisFlightValueReader.createConnectionParameters(
+                        "fe.example", 9040, options, rootCertificates);
+
+        assertThat(AdbcDriver.PARAM_URI.get(parameters))
+                .isEqualTo(Location.forGrpcTls("fe.example", 9040).getUri().toString());
+        assertThat(FlightSqlConnectionProperties.TLS_ROOT_CERTS.get(parameters))
+                .isSameAs(rootCertificates);
+        assertThat(parameters)
+                .doesNotContainKey(FlightSqlConnectionProperties.TLS_SKIP_VERIFY.getKey());
+    }
+
+    @Test
+    void systemTrustDoesNotSetRootCertificates() {
+        DorisOptions options = options(DorisTlsOptions.builder().setEnabled(true).build());
+
+        Map<String, Object> parameters =
+                DorisFlightValueReader.createConnectionParameters(
+                        "fe.example", 9040, options, null);
+
+        assertThat(parameters)
+                .doesNotContainKey(FlightSqlConnectionProperties.TLS_ROOT_CERTS.getKey());
+    }
+
+    @Test
+    void excludedArrowFlightUsesInsecureLocation() {
+        DorisOptions options =
+                options(
+                        DorisTlsOptions.builder()
+                                .setEnabled(true)
+                                .setExcludedProtocols("arrowflight")
+                                .build());
+
+        Map<String, Object> parameters =
+                DorisFlightValueReader.createConnectionParameters(
+                        "fe.example", 9040, options, null);
+
+        assertThat(AdbcDriver.PARAM_URI.get(parameters))
+                .isEqualTo(Location.forGrpcInsecure("fe.example", 9040).getUri().toString());
+    }
+
+    @Test
+    void hostnameSkipFailsClosedForArrowFlightTls() {
+        DorisOptions options =
+                options(
+                        DorisTlsOptions.builder()
+                                .setEnabled(true)
+                                .setSkipHostnameVerification(true)
+                                .build());
+
+        assertThatThrownBy(
+                        () ->
+                                DorisFlightValueReader.createConnectionParameters(
+                                        "fe.example", 9040, options, null))
+                .isInstanceOf(DorisRuntimeException.class)
+                .hasMessageContaining("Arrow Flight")
+                .hasMessageContaining("hostname verification");
+    }
+
+    private DorisOptions options(DorisTlsOptions tlsOptions) {
+        return DorisOptions.builder()
+                .setFenodes("fe.example:8030")
+                .setUsername("root")
+                .setPassword("")
+                .setTlsOptions(tlsOptions)
+                .build();
     }
 }

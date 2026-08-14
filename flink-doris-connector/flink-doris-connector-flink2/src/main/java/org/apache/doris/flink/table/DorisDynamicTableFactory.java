@@ -45,6 +45,7 @@ import static org.apache.doris.flink.table.DorisConfigOptions.BENODES;
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_BATCH_SIZE;
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_DESERIALIZE_ARROW_ASYNC;
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_DESERIALIZE_QUEUE_SIZE;
+import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_ENABLE_TLS;
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_EXEC_MEM_LIMIT;
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_FILTER_QUERY;
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_READ_FIELD;
@@ -54,6 +55,9 @@ import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_REQUEST_READ
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_REQUEST_RETRIES;
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_TABLET_SIZE;
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_THRIFT_MAX_MESSAGE_SIZE;
+import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_TLS_CA_CERTIFICATE_PATH;
+import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_TLS_EXCLUDED_PROTOCOLS;
+import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_TLS_SKIP_HOSTNAME_VERIFICATION;
 import static org.apache.doris.flink.table.DorisConfigOptions.FENODES;
 import static org.apache.doris.flink.table.DorisConfigOptions.FLIGHT_SQL_PORT;
 import static org.apache.doris.flink.table.DorisConfigOptions.IDENTIFIER;
@@ -128,6 +132,10 @@ public final class DorisDynamicTableFactory
         options.add(PASSWORD);
         options.add(JDBC_URL);
         options.add(AUTO_REDIRECT);
+        options.add(DORIS_ENABLE_TLS);
+        options.add(DORIS_TLS_CA_CERTIFICATE_PATH);
+        options.add(DORIS_TLS_SKIP_HOSTNAME_VERIFICATION);
+        options.add(DORIS_TLS_EXCLUDED_PROTOCOLS);
 
         options.add(DORIS_READ_FIELD);
         options.add(DORIS_FILTER_QUERY);
@@ -220,6 +228,7 @@ public final class DorisDynamicTableFactory
                         .setBenodes(benodes)
                         .setAutoRedirect(readableConfig.get(AUTO_REDIRECT))
                         .setJdbcUrl(readableConfig.get(JDBC_URL))
+                        .setTlsOptions(DorisConfigOptions.getTlsOptions(readableConfig))
                         .setTableIdentifier(readableConfig.get(TABLE_IDENTIFIER));
 
         readableConfig.getOptional(USERNAME).ifPresent(builder::setUsername);

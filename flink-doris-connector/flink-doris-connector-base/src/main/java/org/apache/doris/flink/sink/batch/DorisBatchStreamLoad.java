@@ -25,8 +25,10 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
+import org.apache.doris.flink.cfg.DorisTlsOptions;
 import org.apache.doris.flink.exception.DorisBatchLoadException;
 import org.apache.doris.flink.exception.DorisRuntimeException;
+import org.apache.doris.flink.rest.DorisUrlBuilder;
 import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.rest.models.RespContent;
 import org.apache.doris.flink.sink.BackendUtil;
@@ -90,11 +92,12 @@ public class DorisBatchStreamLoad implements Serializable {
     private static final long STREAM_LOAD_MAX_ROWS = Integer.MAX_VALUE;
     private final LabelGenerator labelGenerator;
     private final byte[] lineDelimiter;
-    private static final String LOAD_URL_PATTERN = "http://%s/api/%s/%s/_stream_load";
+    private static final String LOAD_URL_PATTERN = "/api/%s/%s/_stream_load";
     private String loadUrl;
     private String hostPort;
     private final String username;
     private final String password;
+    private final DorisTlsOptions tlsOptions;
     private final Properties loadProps;
     private Map<String, BatchRecordBuffer> bufferMap = new ConcurrentHashMap<>();
     private DorisExecutionOptions executionOptions;
@@ -121,11 +124,13 @@ public class DorisBatchStreamLoad implements Serializable {
             DorisExecutionOptions executionOptions,
             LabelGenerator labelGenerator,
             int subTaskId) {
+        this.tlsOptions = dorisOptions.getTlsOptions();
         this.backendUtil =
                 StringUtils.isNotEmpty(dorisOptions.getBenodes())
-                        ? new BackendUtil(dorisOptions.getBenodes())
+                        ? new BackendUtil(dorisOptions.getBenodes(), tlsOptions)
                         : new BackendUtil(
-                                RestService.getBackendsV2(dorisOptions, dorisReadOptions, LOG));
+                                RestService.getBackendsV2(dorisOptions, dorisReadOptions, LOG),
+                                tlsOptions);
         this.hostPort = backendUtil.getAvailableBackend();
         this.username = dorisOptions.getUsername();
         this.password = dorisOptions.getPassword();
@@ -157,7 +162,7 @@ public class DorisBatchStreamLoad implements Serializable {
             Preconditions.checkState(
                     tableInfo.length == 2,
                     "tableIdentifier input error, the format is database.table");
-            this.loadUrl = String.format(LOAD_URL_PATTERN, hostPort, tableInfo[0], tableInfo[1]);
+            this.loadUrl = buildLoadUrl(tableInfo[0], tableInfo[1]);
         }
         this.loadAsyncExecutor = new LoadAsyncExecutor(executionOptions.getFlushQueueSize());
         this.loadExecutorService =
@@ -173,7 +178,7 @@ public class DorisBatchStreamLoad implements Serializable {
         this.loadExecutorService.execute(loadAsyncExecutor);
         this.subTaskId = subTaskId;
         this.httpClientBuilder =
-                new HttpUtil(dorisReadOptions, executionOptions.isHttpUtf8Charset())
+                new HttpUtil(dorisReadOptions, executionOptions.isHttpUtf8Charset(), tlsOptions)
                         .getHttpClientBuilderForBatch();
     }
 
@@ -567,8 +572,13 @@ public class DorisBatchStreamLoad implements Serializable {
 
         private void refreshLoadUrl(String database, String table) {
             hostPort = backendUtil.getAvailableBackend(subTaskId);
-            loadUrl = String.format(LOAD_URL_PATTERN, hostPort, database, table);
+            loadUrl = buildLoadUrl(database, table);
         }
+    }
+
+    private String buildLoadUrl(String database, String table) {
+        return DorisUrlBuilder.buildHttpUrl(
+                tlsOptions, hostPort, String.format(LOAD_URL_PATTERN, database, table));
     }
 
     static class DefaultThreadFactory implements ThreadFactory {
@@ -590,6 +600,11 @@ public class DorisBatchStreamLoad implements Serializable {
     @VisibleForTesting
     public void setBackendUtil(BackendUtil backendUtil) {
         this.backendUtil = backendUtil;
+    }
+
+    @VisibleForTesting
+    public String getLoadUrl() {
+        return loadUrl;
     }
 
     @VisibleForTesting

@@ -17,11 +17,14 @@
 
 package org.apache.doris.flink.source.reader;
 
+import org.apache.flink.annotation.VisibleForTesting;
+
 import org.apache.arrow.adbc.core.AdbcConnection;
 import org.apache.arrow.adbc.core.AdbcDatabase;
 import org.apache.arrow.adbc.core.AdbcDriver;
 import org.apache.arrow.adbc.core.AdbcException;
 import org.apache.arrow.adbc.core.AdbcStatement;
+import org.apache.arrow.adbc.driver.flightsql.FlightSqlConnectionProperties;
 import org.apache.arrow.adbc.driver.flightsql.FlightSqlDriver;
 import org.apache.arrow.flight.Location;
 import org.apache.arrow.memory.RootAllocator;
@@ -30,6 +33,8 @@ import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
+import org.apache.doris.flink.cfg.DorisTlsOptions;
+import org.apache.doris.flink.connection.DorisTlsContextFactory;
 import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.apache.doris.flink.exception.IllegalArgumentException;
 import org.apache.doris.flink.exception.ShouldNeverHappenException;
@@ -45,6 +50,8 @@ import org.apache.doris.flink.source.split.DorisStreamSplit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -209,28 +216,24 @@ public class DorisFlightValueReader extends ValueReader implements AutoCloseable
     }
 
     private AdbcConnection openConnection() {
-        final Map<String, Object> parameters = new HashMap<>();
         allocator = new RootAllocator(Integer.MAX_VALUE);
         FlightSqlDriver driver = new FlightSqlDriver(allocator);
         int flightSqlPort = resolveFlightSqlPort();
         String[] split = null;
         try {
-            split = RestService.randomEndpoint(options.getFenodes(), LOG).split(":");
+            split = RestService.randomEndpoint(options, LOG).split(":");
         } catch (IllegalArgumentException e) {
             throw new RuntimeException("Get FENode Error", e);
         }
-        AdbcDriver.PARAM_URI.set(
-                parameters,
-                Location.forGrpcInsecure(String.valueOf(split[0]), flightSqlPort)
-                        .getUri()
-                        .toString());
-        AdbcDriver.PARAM_USERNAME.set(parameters, options.getUsername());
-        AdbcDriver.PARAM_PASSWORD.set(parameters, options.getPassword());
-        try {
+        DorisTlsOptions tlsOptions = options.getTlsOptions();
+        try (InputStream rootCertificates = openRootCertificates(tlsOptions)) {
+            Map<String, Object> parameters =
+                    createConnectionParameters(
+                            String.valueOf(split[0]), flightSqlPort, options, rootCertificates);
             database = driver.open(parameters);
             return database.connect();
-        } catch (AdbcException e) {
-            LOG.debug("Open Flight Connection error: {}", e.getDetails());
+        } catch (AdbcException | IOException e) {
+            LOG.debug("Open Flight Connection error: {}", e.getMessage());
             throw new RuntimeException(e);
         }
     }
@@ -246,6 +249,35 @@ public class DorisFlightValueReader extends ValueReader implements AutoCloseable
         }
         readOptions.setFlightSqlPort(port);
         return port;
+    }
+
+    @VisibleForTesting
+    static Map<String, Object> createConnectionParameters(
+            String host, int port, DorisOptions options, InputStream rootCertificates) {
+        Map<String, Object> parameters = new HashMap<>();
+        boolean tlsEnabled =
+                options.getTlsOptions().isEnabledFor(DorisTlsOptions.Protocol.ARROW_FLIGHT);
+        if (tlsEnabled && options.getTlsOptions().isSkipHostnameVerification()) {
+            throw new DorisRuntimeException(
+                    "Arrow Flight TLS does not support skipping only hostname verification");
+        }
+        Location location =
+                tlsEnabled ? Location.forGrpcTls(host, port) : Location.forGrpcInsecure(host, port);
+        AdbcDriver.PARAM_URI.set(parameters, location.getUri().toString());
+        AdbcDriver.PARAM_USERNAME.set(parameters, options.getUsername());
+        AdbcDriver.PARAM_PASSWORD.set(parameters, options.getPassword());
+        if (tlsEnabled && rootCertificates != null) {
+            FlightSqlConnectionProperties.TLS_ROOT_CERTS.set(parameters, rootCertificates);
+        }
+        return parameters;
+    }
+
+    private InputStream openRootCertificates(DorisTlsOptions tlsOptions) {
+        if (!tlsOptions.isEnabledFor(DorisTlsOptions.Protocol.ARROW_FLIGHT)
+                || StringUtils.isEmpty(tlsOptions.getCaCertificatePath())) {
+            return null;
+        }
+        return DorisTlsContextFactory.openCaCertificate(tlsOptions);
     }
 
     /**
