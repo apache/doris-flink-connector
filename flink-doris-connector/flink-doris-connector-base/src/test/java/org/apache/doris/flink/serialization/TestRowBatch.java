@@ -99,6 +99,45 @@ public class TestRowBatch {
     @Rule public ExpectedException thrown = ExpectedException.none();
 
     @Test
+    public void testMatchesArrowFieldsByName() throws Exception {
+        List<Field> arrowFields = new ArrayList<>();
+        arrowFields.add(
+                new Field("age", FieldType.nullable(new ArrowType.Int(32, true)), null));
+        arrowFields.add(new Field("name", FieldType.nullable(new ArrowType.Utf8()), null));
+
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        try (VectorSchemaRoot root =
+                        VectorSchemaRoot.create(
+                                new org.apache.arrow.vector.types.pojo.Schema(arrowFields),
+                                new RootAllocator(Integer.MAX_VALUE));
+                ArrowStreamWriter writer =
+                        new ArrowStreamWriter(
+                                root,
+                                new DictionaryProvider.MapDictionaryProvider(),
+                                outputStream)) {
+            writer.start();
+            root.setRowCount(1);
+            ((IntVector) root.getVector("age")).setSafe(0, 18);
+            ((VarCharVector) root.getVector("name")).setSafe(0, "doris".getBytes());
+            root.getFieldVectors().forEach(vector -> vector.setValueCount(1));
+            writer.writeBatch();
+            writer.end();
+        }
+
+        TScanBatchResult scanBatchResult = new TScanBatchResult();
+        scanBatchResult.setRows(outputStream.toByteArray());
+        Schema schema =
+                RestService.parseSchema(
+                        "{\"properties\":[{\"type\":\"VARCHAR\",\"name\":\"name\"},"
+                                + "{\"type\":\"INT\",\"name\":\"age\"}],\"status\":200}",
+                        logger);
+
+        RowBatch rowBatch = new RowBatch(scanBatchResult, schema).readArrow();
+
+        Assert.assertEquals(Arrays.asList("doris", 18), rowBatch.next());
+    }
+
+    @Test
     public void testRowBatch() throws Exception {
         // schema
         List<Field> childrenBuilder = new ArrayList<>();
@@ -1024,7 +1063,7 @@ public class TestRowBatch {
         scanBatchResult.setRows(outputStream.toByteArray());
 
         String schemaStr =
-                "{\"properties\":[{\"type\":\"VARIANT\",\"name\":\"k\",\"comment\":\"\"}"
+                "{\"properties\":[{\"type\":\"VARIANT\",\"name\":\"k1\",\"comment\":\"\"}"
                         + "], \"status\":200}";
 
         Schema schema = RestService.parseSchema(schemaStr, logger);

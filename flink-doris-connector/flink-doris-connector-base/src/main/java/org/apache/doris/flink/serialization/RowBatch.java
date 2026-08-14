@@ -217,11 +217,14 @@ public class RowBatch {
 
     public void convertArrowToRowBatch() throws DorisException {
         try {
-            for (int col = 0; col < fieldVectors.size(); col++) {
-                FieldVector fieldVector = fieldVectors.get(col);
+            for (int col = 0; col < schema.size(); col++) {
+                final String colName = schema.get(col).getName();
+                FieldVector fieldVector = root.getVector(colName);
+                if (fieldVector == null) {
+                    throw new IllegalArgumentException("Arrow field not found: " + colName);
+                }
                 MinorType minorType = fieldVector.getMinorType();
                 final String currentType = schema.get(col).getType();
-                final String colName = schema.get(col).getName();
                 for (int rowIndex = 0; rowIndex < rowCountInOneBatch; rowIndex++) {
                     boolean passed = doConvert(col, rowIndex, minorType, currentType, fieldVector);
                     if (!passed) {

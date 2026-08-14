@@ -28,6 +28,7 @@ import org.slf4j.LoggerFactory;
 import java.sql.Connection;
 import java.util.List;
 import java.util.Objects;
+import java.util.TimeZone;
 import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertArrayEquals;
@@ -38,9 +39,13 @@ public abstract class AbstractContainerTestBase {
     private static final Logger LOG = LoggerFactory.getLogger(AbstractContainerTestBase.class);
     protected static ContainerService dorisContainerService;
     public static final int DEFAULT_PARALLELISM = 2;
+    private static TimeZone originalTimeZone;
 
     @BeforeClass
     public static void initContainers() {
+        originalTimeZone = TimeZone.getDefault();
+        // TODO: Remove this workaround after Doris returns DATETIME without an Arrow timezone.
+        TimeZone.setDefault(TimeZone.getTimeZone("Asia/Shanghai"));
         LOG.info("Trying to start doris containers.");
         initDorisContainer();
     }
@@ -86,8 +91,12 @@ public abstract class AbstractContainerTestBase {
 
     @AfterClass
     public static void closeContainers() {
-        LOG.info("Starting to close containers.");
-        closeDorisContainer();
+        try {
+            LOG.info("Starting to close containers.");
+            closeDorisContainer();
+        } finally {
+            TimeZone.setDefault(originalTimeZone);
+        }
     }
 
     private static void closeDorisContainer() {

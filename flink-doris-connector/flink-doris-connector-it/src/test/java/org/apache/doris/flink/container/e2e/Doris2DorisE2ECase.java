@@ -24,8 +24,6 @@ import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.doris.flink.container.AbstractContainerTestBase;
 import org.apache.doris.flink.container.ContainerUtils;
 import org.apache.doris.flink.table.DorisConfigOptions;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -34,7 +32,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.TimeZone;
 import java.util.UUID;
 
 @RunWith(Parameterized.class)
@@ -43,7 +40,6 @@ public class Doris2DorisE2ECase extends AbstractContainerTestBase {
     private static final String DATABASE_SOURCE = "test_doris2doris_source";
     private static final String DATABASE_SINK = "test_doris2doris_sink";
     private static final String TABLE = "test_tbl";
-    private static TimeZone originalTimeZone;
 
     private final boolean useFlightRead;
 
@@ -54,18 +50,6 @@ public class Doris2DorisE2ECase extends AbstractContainerTestBase {
     @Parameterized.Parameters(name = "useFlightRead: {0}")
     public static Object[] parameters() {
         return new Object[][] {new Object[] {false}, new Object[] {true}};
-    }
-
-    @BeforeClass
-    public static void setUpTimeZone() {
-        originalTimeZone = TimeZone.getDefault();
-        // TODO: Remove this workaround after Doris preserves DATETIME values across time zones.
-        TimeZone.setDefault(TimeZone.getTimeZone("Asia/Shanghai"));
-    }
-
-    @AfterClass
-    public static void restoreTimeZone() {
-        TimeZone.setDefault(originalTimeZone);
     }
 
     @Test
