@@ -196,13 +196,18 @@ public class DorisContainer implements ContainerService {
 
     private void initializeJdbcConnection() throws Exception {
         initializeJDBCDriver();
-        try (Connection connection = getQueryConnection();
-                Statement statement = connection.createStatement()) {
-            ResultSet resultSet;
-            do {
+        while (true) {
+            try (Connection connection = getQueryConnection();
+                    Statement statement = connection.createStatement();
+                    ResultSet resultSet = statement.executeQuery("show backends")) {
                 LOG.info("Waiting for the Backend to start successfully.");
-                resultSet = statement.executeQuery("show backends");
-            } while (!isBeReady(resultSet, Duration.ofSeconds(1L)));
+                if (isBeReady(resultSet, Duration.ofSeconds(1L))) {
+                    break;
+                }
+            } catch (DorisRuntimeException | SQLException e) {
+                LOG.info("Waiting for the Frontend to accept connections.");
+                LockSupport.parkNanos(Duration.ofSeconds(1L).toNanos());
+            }
         }
         LOG.info("Connected to Doris successfully.");
     }
