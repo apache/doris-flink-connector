@@ -21,6 +21,8 @@ import org.apache.doris.flink.deserialization.SimpleListDeserializationSchema;
 import org.apache.doris.flink.sink.OptionUtils;
 import org.apache.doris.flink.source.split.DorisSnapshotSplit;
 import org.apache.doris.flink.source.split.DorisSourceSplit;
+import org.apache.doris.flink.source.split.DorisSourceSplitState;
+import org.apache.doris.flink.source.split.DorisStreamSplit;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -64,5 +66,17 @@ public class DorisSourceReaderTest {
         reader.close();
 
         assertEquals(0, context.getNumSplitRequests());
+    }
+
+    @Test
+    public void testRequestsMoreWorkAfterCompletedStreamSplit() throws Exception {
+        final TestingReaderContext context = new TestingReaderContext();
+        final DorisSourceReader reader = createReader(context);
+        DorisStreamSplit split = DorisStreamSplit.of("2026-07-20 10:00:00", "2026-07-20 10:00:10");
+
+        reader.onSplitFinished(
+                Collections.singletonMap(split.splitId(), new DorisSourceSplitState(split)));
+
+        assertEquals(1, context.getNumSplitRequests());
     }
 }

@@ -49,6 +49,8 @@ public class DorisReadOptions implements Serializable {
     private String scanTimestamp;
     private DorisBinlogIncrementType binlogIncrementType;
     private Long binlogPollIntervalMs;
+    private String binlogOffsetTable;
+    private String binlogConsumerId;
 
     public DorisReadOptions(
             String readFields,
@@ -71,6 +73,54 @@ public class DorisReadOptions implements Serializable {
             String scanTimestamp,
             DorisBinlogIncrementType binlogIncrementType,
             Long binlogPollIntervalMs) {
+        this(
+                readFields,
+                filterQuery,
+                requestTabletSize,
+                requestConnectTimeoutMs,
+                requestReadTimeoutMs,
+                requestQueryTimeoutS,
+                requestRetries,
+                requestBatchSize,
+                execMemLimit,
+                deserializeQueueSize,
+                deserializeArrowAsync,
+                useOldApi,
+                useFlightSql,
+                flightSqlPort,
+                rowLimit,
+                thriftMaxMessageSize,
+                scanMode,
+                scanTimestamp,
+                binlogIncrementType,
+                binlogPollIntervalMs,
+                null,
+                null);
+    }
+
+    public DorisReadOptions(
+            String readFields,
+            String filterQuery,
+            Integer requestTabletSize,
+            Integer requestConnectTimeoutMs,
+            Integer requestReadTimeoutMs,
+            Integer requestQueryTimeoutS,
+            Integer requestRetries,
+            Integer requestBatchSize,
+            Long execMemLimit,
+            Integer deserializeQueueSize,
+            Boolean deserializeArrowAsync,
+            boolean useOldApi,
+            boolean useFlightSql,
+            Integer flightSqlPort,
+            Long rowLimit,
+            Integer thriftMaxMessageSize,
+            DorisSourceScanMode scanMode,
+            String scanTimestamp,
+            DorisBinlogIncrementType binlogIncrementType,
+            Long binlogPollIntervalMs,
+            String binlogOffsetTable,
+            String binlogConsumerId) {
         this.readFields = readFields;
         this.filterQuery = filterQuery;
         this.requestTabletSize = requestTabletSize;
@@ -91,6 +141,8 @@ public class DorisReadOptions implements Serializable {
         this.scanTimestamp = scanTimestamp;
         this.binlogIncrementType = binlogIncrementType;
         this.binlogPollIntervalMs = binlogPollIntervalMs;
+        this.binlogOffsetTable = binlogOffsetTable;
+        this.binlogConsumerId = binlogConsumerId;
     }
 
     public String getReadFields() {
@@ -189,6 +241,14 @@ public class DorisReadOptions implements Serializable {
         return binlogPollIntervalMs;
     }
 
+    public String getBinlogOffsetTable() {
+        return binlogOffsetTable;
+    }
+
+    public String getBinlogConsumerId() {
+        return binlogConsumerId;
+    }
+
     public static Builder builder() {
         return new Builder();
     }
@@ -225,7 +285,9 @@ public class DorisReadOptions implements Serializable {
                 && scanMode == that.scanMode
                 && Objects.equals(scanTimestamp, that.scanTimestamp)
                 && binlogIncrementType == that.binlogIncrementType
-                && Objects.equals(binlogPollIntervalMs, that.binlogPollIntervalMs);
+                && Objects.equals(binlogPollIntervalMs, that.binlogPollIntervalMs)
+                && Objects.equals(binlogOffsetTable, that.binlogOffsetTable)
+                && Objects.equals(binlogConsumerId, that.binlogConsumerId);
     }
 
     @Override
@@ -250,7 +312,9 @@ public class DorisReadOptions implements Serializable {
                 scanMode,
                 scanTimestamp,
                 binlogIncrementType,
-                binlogPollIntervalMs);
+                binlogPollIntervalMs,
+                binlogOffsetTable,
+                binlogConsumerId);
     }
 
     public DorisReadOptions copy() {
@@ -274,7 +338,9 @@ public class DorisReadOptions implements Serializable {
                 scanMode,
                 scanTimestamp,
                 binlogIncrementType,
-                binlogPollIntervalMs);
+                binlogPollIntervalMs,
+                binlogOffsetTable,
+                binlogConsumerId);
     }
 
     /** Builder of {@link DorisReadOptions}. */
@@ -306,6 +372,8 @@ public class DorisReadOptions implements Serializable {
         private String scanTimestamp;
         private DorisBinlogIncrementType binlogIncrementType = DorisBinlogIncrementType.DETAIL;
         private Long binlogPollIntervalMs = 10_000L;
+        private String binlogOffsetTable;
+        private String binlogConsumerId;
 
         /**
          * Sets the readFields for doris table to push down projection, such as name,age.
@@ -496,6 +564,16 @@ public class DorisReadOptions implements Serializable {
             return this;
         }
 
+        public Builder setBinlogOffsetTable(String binlogOffsetTable) {
+            this.binlogOffsetTable = binlogOffsetTable;
+            return this;
+        }
+
+        public Builder setBinlogConsumerId(String binlogConsumerId) {
+            this.binlogConsumerId = binlogConsumerId;
+            return this;
+        }
+
         /**
          * Build the {@link DorisReadOptions}.
          *
@@ -522,7 +600,9 @@ public class DorisReadOptions implements Serializable {
                     scanMode,
                     scanTimestamp,
                     binlogIncrementType,
-                    binlogPollIntervalMs);
+                    binlogPollIntervalMs,
+                    binlogOffsetTable,
+                    binlogConsumerId);
         }
     }
 }

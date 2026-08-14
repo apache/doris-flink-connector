@@ -343,6 +343,16 @@ public class DorisConfigOptions {
                     .withDescription(
                             "Interval between attempts to discover the next Stream split; must be "
                                     + "at least 1 second");
+    public static final ConfigOption<String> SOURCE_BINLOG_OFFSET_TABLE =
+            ConfigOptions.key("source.binlog.offset-table")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("Doris table used to persist completed checkpoint offsets");
+    public static final ConfigOption<String> SOURCE_BINLOG_CONSUMER_ID =
+            ConfigOptions.key("source.binlog.consumer-id")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("Stable consumer identifier in the binlog offset table");
     public static final ConfigOption<Integer> FLIGHT_SQL_PORT =
             ConfigOptions.key("source.flight-sql-port")
                     .intType()

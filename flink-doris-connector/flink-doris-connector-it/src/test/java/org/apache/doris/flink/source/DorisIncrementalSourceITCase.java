@@ -17,19 +17,27 @@
 
 package org.apache.doris.flink.source;
 
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.types.RowKind;
 
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 
 /** Integration cases for Doris incremental Source startup modes and changelog records. */
 public class DorisIncrementalSourceITCase extends AbstractDorisIncrementalITCase {
     private static final String TABLE_INITIAL = "tbl_incremental_initial";
     private static final String TABLE_LATEST = "tbl_incremental_latest";
     private static final String TABLE_FROM_TIMESTAMP = "tbl_incremental_from_timestamp";
+    private static final String TABLE_OFFSET_PERSISTENCE = "tbl_incremental_offset_persistence";
+    private static final String OFFSET_TABLE = "tbl_incremental_source_offsets";
+    private static final String CONSUMER_ID = "incremental-source-it";
 
     @Test
     public void testInitialDetailChangelogAcrossSnapshotBoundary() throws Exception {
@@ -128,6 +136,86 @@ public class DorisIncrementalSourceITCase extends AbstractDorisIncrementalITCase
                     "from-timestamp mode emitted unexpected Snapshot rows",
                     Arrays.asList(historicalRow),
                     collector.getRows());
+        }
+    }
+
+    @Test
+    public void testPublishesOnlyCompletedCheckpointOffsets() throws Exception {
+        initializeIncrementalTable(TABLE_OFFSET_PERSISTENCE);
+        initializeOffsetTable();
+        String startTimestamp = resolveCurrentDorisTimestamp(TABLE_OFFSET_PERSISTENCE);
+        waitForDorisTimestampAfter(TABLE_OFFSET_PERSISTENCE, startTimestamp);
+
+        try (IncrementalResultCollector collector =
+                startSourceWithOffsetPersistence(
+                        TABLE_OFFSET_PERSISTENCE,
+                        "from-timestamp",
+                        startTimestamp,
+                        OFFSET_TABLE,
+                        CONSUMER_ID)) {
+            String sourceStartedAt = resolveCurrentDorisTimestamp(TABLE_OFFSET_PERSISTENCE);
+            waitForDorisTimestampAfter(TABLE_OFFSET_PERSISTENCE, sourceStartedAt);
+            Assert.assertNull(
+                    "Offset was published before checkpoint completion", queryPublishedOffset());
+
+            String firstOffset = checkpointUntilOffsetAfter(collector, null);
+            waitForDorisTimestampAfter(TABLE_OFFSET_PERSISTENCE, firstOffset);
+            String secondOffset = checkpointUntilOffsetAfter(collector, firstOffset);
+            Assert.assertTrue(
+                    "Completed checkpoint did not advance the published offset",
+                    secondOffset.compareTo(firstOffset) > 0);
+        }
+    }
+
+    private void initializeOffsetTable() {
+        executeDorisSql(
+                String.format("DROP TABLE IF EXISTS %s.%s", DATABASE, OFFSET_TABLE),
+                String.format(
+                        "CREATE TABLE %s.%s (\n"
+                                + "  `consumer_id` VARCHAR(256) NOT NULL,\n"
+                                + "  `offset_timestamp` DATETIME NOT NULL,\n"
+                                + "  `update_time` DATETIMEV2(3) NOT NULL\n"
+                                + ") UNIQUE KEY(`consumer_id`)\n"
+                                + "DISTRIBUTED BY HASH(`consumer_id`) BUCKETS 1\n"
+                                + "PROPERTIES (\n"
+                                + "  \"replication_num\" = \"1\",\n"
+                                + "  \"enable_unique_key_merge_on_write\" = \"true\"\n"
+                                + ")",
+                        DATABASE, OFFSET_TABLE));
+    }
+
+    private String checkpointUntilOffsetAfter(
+            IncrementalResultCollector collector, String previousOffset) throws Exception {
+        AtomicReference<String> publishedOffset = new AtomicReference<>();
+        waitUntilCondition(
+                () -> {
+                    completeCheckpoint(collector.getJobClient());
+                    String currentOffset = queryPublishedOffset();
+                    publishedOffset.set(currentOffset);
+                    return currentOffset != null
+                            && (previousOffset == null
+                                    || currentOffset.compareTo(previousOffset) > 0);
+                },
+                Deadline.fromNow(DEFAULT_TIMEOUT),
+                100L,
+                "Published offset did not advance beyond "
+                        + previousOffset
+                        + "; current="
+                        + publishedOffset.get());
+        return publishedOffset.get();
+    }
+
+    private String queryPublishedOffset() throws Exception {
+        try (Connection connection = getDorisQueryConnection();
+                PreparedStatement statement =
+                        connection.prepareStatement(
+                                String.format(
+                                        "SELECT offset_timestamp FROM %s.%s WHERE consumer_id = ?",
+                                        DATABASE, OFFSET_TABLE))) {
+            statement.setString(1, CONSUMER_ID);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                return resultSet.next() ? resultSet.getString(1) : null;
+            }
         }
     }
 }

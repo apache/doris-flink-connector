@@ -27,10 +27,17 @@ import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.source.split.DorisSourceSplit;
 import org.apache.doris.flink.source.split.DorisSourceSplitState;
+import org.apache.doris.flink.source.split.DorisStreamSplit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
+import java.util.SortedMap;
+import java.util.TreeMap;
 
 /** A {@link SourceReader} that read records from {@link DorisSourceSplit}. */
 public class DorisSourceReader<T>
@@ -39,6 +46,13 @@ public class DorisSourceReader<T>
 
     private static final Logger LOG = LoggerFactory.getLogger(DorisSourceReader.class);
 
+    private final boolean offsetPublishingEnabled;
+    // Accessed by the SourceReader thread and the SplitFetcher callback thread.
+    private final SortedMap<Long, String> offsetsToPublish =
+            Collections.synchronizedSortedMap(new TreeMap<>());
+    // Only fully consumed Stream split boundaries are safe to publish.
+    @Nullable private String lastFinishedStreamOffset;
+
     public DorisSourceReader(
             DorisOptions options,
             DorisReadOptions readOptions,
@@ -46,10 +60,12 @@ public class DorisSourceReader<T>
             SourceReaderContext context,
             Configuration config) {
         super(
-                () -> new DorisSourceSplitReader(options, readOptions),
+                new DorisSourceFetcherManager(options, readOptions, config),
                 recordEmitter,
                 config,
                 context);
+        offsetPublishingEnabled =
+                readOptions.getBinlogOffsetTable() != null && context.getIndexOfSubtask() == 0;
     }
 
     @Override
@@ -62,8 +78,60 @@ public class DorisSourceReader<T>
 
     @Override
     protected void onSplitFinished(Map<String, DorisSourceSplitState> finishedSplitIds) {
+        for (DorisSourceSplitState splitState : finishedSplitIds.values()) {
+            DorisSourceSplit split = splitState.toDorisSourceSplit();
+            if (split instanceof DorisStreamSplit) {
+                lastFinishedStreamOffset = ((DorisStreamSplit) split).getEndTimestamp();
+            }
+        }
         if (getNumberOfCurrentlyAssignedSplits() == 0) {
             context.sendSplitRequest();
+        }
+    }
+
+    @Override
+    public List<DorisSourceSplit> snapshotState(long checkpointId) {
+        List<DorisSourceSplit> splits = super.snapshotState(checkpointId);
+        if (offsetPublishingEnabled && lastFinishedStreamOffset != null) {
+            offsetsToPublish.put(checkpointId, lastFinishedStreamOffset);
+        }
+        return splits;
+    }
+
+    @Override
+    public void notifyCheckpointComplete(long checkpointId) {
+        String offset = offsetsToPublish.get(checkpointId);
+        if (offset == null) {
+            LOG.debug("No Doris source offset to publish for checkpoint {}", checkpointId);
+            return;
+        }
+        ((DorisSourceFetcherManager) splitFetcherManager)
+                .publishOffset(
+                        offset,
+                        error -> {
+                            if (error != null) {
+                                // External offset publication does not affect Flink checkpoint
+                                // correctness.
+                                LOG.warn(
+                                        "Failed to publish Doris source offset {} for checkpoint {}",
+                                        offset,
+                                        checkpointId,
+                                        error);
+                            } else {
+                                LOG.debug(
+                                        "Published Doris source offset {} for checkpoint {}",
+                                        offset,
+                                        checkpointId);
+                            }
+                            // A later checkpoint republishes lastFinishedStreamOffset after a
+                            // failure, so completed publication attempts do not need to be kept.
+                            removeAllOffsetsToPublishUpToCheckpoint(checkpointId);
+                        });
+    }
+
+    private void removeAllOffsetsToPublishUpToCheckpoint(long checkpointId) {
+        while (!offsetsToPublish.isEmpty() && offsetsToPublish.firstKey() <= checkpointId) {
+            offsetsToPublish.remove(offsetsToPublish.firstKey());
         }
     }
 

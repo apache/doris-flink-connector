@@ -75,6 +75,8 @@ class DorisSourceOptionsTest {
         assertThat(options.getScanTimestamp()).isNull();
         assertThat(options.getBinlogIncrementType()).isEqualTo(DorisBinlogIncrementType.DETAIL);
         assertThat(options.getBinlogPollIntervalMs()).isEqualTo(10_000L);
+        assertThat(options.getBinlogOffsetTable()).isNull();
+        assertThat(options.getBinlogConsumerId()).isNull();
     }
 
     @Test
@@ -85,6 +87,8 @@ class DorisSourceOptionsTest {
                         .setScanTimestamp("2026-07-20 10:00:00")
                         .setBinlogIncrementType(DorisBinlogIncrementType.MIN_DELTA)
                         .setBinlogPollIntervalMs(3_000L)
+                        .setBinlogOffsetTable("ops.flink_source_offsets")
+                        .setBinlogConsumerId("prod.sales.orders")
                         .build();
 
         DorisReadOptions copy = options.copy();
@@ -94,6 +98,8 @@ class DorisSourceOptionsTest {
         assertThat(copy.getScanTimestamp()).isEqualTo("2026-07-20 10:00:00");
         assertThat(copy.getBinlogIncrementType()).isEqualTo(DorisBinlogIncrementType.MIN_DELTA);
         assertThat(copy.getBinlogPollIntervalMs()).isEqualTo(3_000L);
+        assertThat(copy.getBinlogOffsetTable()).isEqualTo("ops.flink_source_offsets");
+        assertThat(copy.getBinlogConsumerId()).isEqualTo("prod.sales.orders");
     }
 
     @Test
@@ -157,6 +163,46 @@ class DorisSourceOptionsTest {
     }
 
     @Test
+    void validatesOffsetPersistenceOptions() {
+        assertThatThrownBy(
+                        () ->
+                                buildSource(
+                                        DorisReadOptions.builder()
+                                                .setScanMode(DorisSourceScanMode.LATEST)
+                                                .setBinlogOffsetTable("ops.flink_source_offsets")
+                                                .build()))
+                .hasMessageContaining("must be configured together");
+        assertThatThrownBy(
+                        () ->
+                                buildSource(
+                                        DorisReadOptions.builder()
+                                                .setScanMode(DorisSourceScanMode.SNAPSHOT)
+                                                .setBinlogOffsetTable("ops.flink_source_offsets")
+                                                .setBinlogConsumerId("prod.sales.orders")
+                                                .build()))
+                .hasMessageContaining("only valid in incremental source modes");
+        assertThatThrownBy(
+                        () ->
+                                buildSource(
+                                        DorisReadOptions.builder()
+                                                .setScanMode(DorisSourceScanMode.LATEST)
+                                                .setBinlogOffsetTable("ops.flink_source_offsets")
+                                                .setBinlogConsumerId("prod.sales.orders")
+                                                .build()))
+                .hasMessageContaining("jdbc-url");
+        assertThat(
+                        buildSource(
+                                DorisReadOptions.builder()
+                                        .setScanMode(DorisSourceScanMode.LATEST)
+                                        .setBinlogOffsetTable("ops.flink_source_offsets")
+                                        .setBinlogConsumerId("prod.sales.orders")
+                                        .build(),
+                                "db.table",
+                                "jdbc:mysql://127.0.0.1:9030"))
+                .isNotNull();
+    }
+
+    @Test
     void incrementalSourceIsUnbounded() {
         DorisSource<?> source =
                 buildSource(
@@ -174,11 +220,17 @@ class DorisSourceOptionsTest {
 
     private static DorisSource<?> buildSource(
             DorisReadOptions readOptions, String tableIdentifier) {
+        return buildSource(readOptions, tableIdentifier, null);
+    }
+
+    private static DorisSource<?> buildSource(
+            DorisReadOptions readOptions, String tableIdentifier, String jdbcUrl) {
         return DorisSource.<List<?>>builder()
                 .setDorisOptions(
                         DorisOptions.builder()
                                 .setFenodes("127.0.0.1:8030")
                                 .setTableIdentifier(tableIdentifier)
+                                .setJdbcUrl(jdbcUrl)
                                 .build())
                 .setDorisReadOptions(readOptions)
                 .setDeserializer(new SimpleListDeserializationSchema())

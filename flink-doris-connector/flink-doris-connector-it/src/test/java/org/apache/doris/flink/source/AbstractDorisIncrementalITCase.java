@@ -168,13 +168,44 @@ public abstract class AbstractDorisIncrementalITCase extends AbstractITCaseServi
             Configuration configuration,
             Duration checkpointInterval)
             throws Exception {
+        return startSource(
+                table, scanMode, scanTimestamp, configuration, checkpointInterval, null, null);
+    }
+
+    protected IncrementalResultCollector startSourceWithOffsetPersistence(
+            String table,
+            String scanMode,
+            String scanTimestamp,
+            String offsetTable,
+            String consumerId)
+            throws Exception {
+        return startSource(
+                table,
+                scanMode,
+                scanTimestamp,
+                new Configuration(),
+                MANUAL_CHECKPOINT_INTERVAL,
+                offsetTable,
+                consumerId);
+    }
+
+    private IncrementalResultCollector startSource(
+            String table,
+            String scanMode,
+            String scanTimestamp,
+            Configuration configuration,
+            Duration checkpointInterval,
+            String offsetTable,
+            String consumerId)
+            throws Exception {
         StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(configuration);
         env.setParallelism(DEFAULT_PARALLELISM);
         env.setRuntimeMode(RuntimeExecutionMode.STREAMING);
         env.enableCheckpointing(checkpointInterval.toMillis());
         StreamTableEnvironment tableEnvironment = StreamTableEnvironment.create(env);
-        tableEnvironment.executeSql(sourceDdl(table, scanMode, scanTimestamp));
+        tableEnvironment.executeSql(
+                sourceDdl(table, scanMode, scanTimestamp, offsetTable, consumerId));
         TableResult result =
                 tableEnvironment.executeSql("SELECT id, name FROM doris_incremental_source");
         IncrementalResultCollector collector = new IncrementalResultCollector(result);
@@ -231,7 +262,24 @@ public abstract class AbstractDorisIncrementalITCase extends AbstractITCaseServi
         return Integer.getInteger("doris_flight_sql_port", 9611);
     }
 
-    private String sourceDdl(String table, String scanMode, String scanTimestamp) {
+    private String sourceDdl(
+            String table,
+            String scanMode,
+            String scanTimestamp,
+            String offsetTable,
+            String consumerId) {
+        String offsetOptions =
+                offsetTable == null
+                        ? ""
+                        : String.format(
+                                ",\n"
+                                        + "  'jdbc-url' = '%s',\n"
+                                        + "  'source.binlog.offset-table' = '%s.%s',\n"
+                                        + "  'source.binlog.consumer-id' = '%s'",
+                                escapeSqlLiteral(getDorisQueryUrl()),
+                                DATABASE,
+                                offsetTable,
+                                escapeSqlLiteral(consumerId));
         if (scanTimestamp == null) {
             return String.format(
                     "CREATE TABLE doris_incremental_source (\n"
@@ -249,7 +297,7 @@ public abstract class AbstractDorisIncrementalITCase extends AbstractITCaseServi
                             + "  'source.use-flight-sql' = 'true',\n"
                             + "  'source.flight-sql-port' = '%d',\n"
                             + "  'source.binlog.increment-type' = 'detail',\n"
-                            + "  'source.binlog.poll-interval' = '1s'\n"
+                            + "  'source.binlog.poll-interval' = '1s'%s\n"
                             + ")",
                     DorisConfigOptions.IDENTIFIER,
                     escapeSqlLiteral(getFenodes()),
@@ -258,7 +306,8 @@ public abstract class AbstractDorisIncrementalITCase extends AbstractITCaseServi
                     escapeSqlLiteral(getDorisUsername()),
                     escapeSqlLiteral(getDorisPassword()),
                     escapeSqlLiteral(scanMode),
-                    getFlightSqlPort());
+                    getFlightSqlPort(),
+                    offsetOptions);
         }
 
         return String.format(
@@ -278,7 +327,7 @@ public abstract class AbstractDorisIncrementalITCase extends AbstractITCaseServi
                         + "  'source.use-flight-sql' = 'true',\n"
                         + "  'source.flight-sql-port' = '%d',\n"
                         + "  'source.binlog.increment-type' = 'detail',\n"
-                        + "  'source.binlog.poll-interval' = '1s'\n"
+                        + "  'source.binlog.poll-interval' = '1s'%s\n"
                         + ")",
                 DorisConfigOptions.IDENTIFIER,
                 escapeSqlLiteral(getFenodes()),
@@ -288,7 +337,8 @@ public abstract class AbstractDorisIncrementalITCase extends AbstractITCaseServi
                 escapeSqlLiteral(getDorisPassword()),
                 escapeSqlLiteral(scanMode),
                 escapeSqlLiteral(scanTimestamp),
-                getFlightSqlPort());
+                getFlightSqlPort(),
+                offsetOptions);
     }
 
     private static String escapeSqlLiteral(String value) {

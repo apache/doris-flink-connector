@@ -84,7 +84,9 @@ import static org.apache.doris.flink.table.DorisConfigOptions.SINK_MAX_RETRIES;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_PARALLELISM;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_USE_CACHE;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_WRITE_MODE;
+import static org.apache.doris.flink.table.DorisConfigOptions.SOURCE_BINLOG_CONSUMER_ID;
 import static org.apache.doris.flink.table.DorisConfigOptions.SOURCE_BINLOG_INCREMENT_TYPE;
+import static org.apache.doris.flink.table.DorisConfigOptions.SOURCE_BINLOG_OFFSET_TABLE;
 import static org.apache.doris.flink.table.DorisConfigOptions.SOURCE_BINLOG_POLL_INTERVAL;
 import static org.apache.doris.flink.table.DorisConfigOptions.SOURCE_SCAN_MODE;
 import static org.apache.doris.flink.table.DorisConfigOptions.SOURCE_SCAN_TIMESTAMP;
@@ -171,6 +173,8 @@ public final class DorisDynamicTableFactory
         options.add(SOURCE_SCAN_TIMESTAMP);
         options.add(SOURCE_BINLOG_INCREMENT_TYPE);
         options.add(SOURCE_BINLOG_POLL_INTERVAL);
+        options.add(SOURCE_BINLOG_OFFSET_TABLE);
+        options.add(SOURCE_BINLOG_CONSUMER_ID);
         options.add(SINK_WRITE_MODE);
         options.add(SINK_IGNORE_COMMIT_ERROR);
 
@@ -247,6 +251,10 @@ public final class DorisDynamicTableFactory
                         DorisBinlogIncrementType.fromOption(
                                 readableConfig.get(SOURCE_BINLOG_INCREMENT_TYPE)))
                 .setBinlogPollIntervalMs(readableConfig.get(SOURCE_BINLOG_POLL_INTERVAL).toMillis())
+                .setBinlogOffsetTable(
+                        readableConfig.getOptional(SOURCE_BINLOG_OFFSET_TABLE).orElse(null))
+                .setBinlogConsumerId(
+                        readableConfig.getOptional(SOURCE_BINLOG_CONSUMER_ID).orElse(null))
                 .setUseFlightSql(readableConfig.get(USE_FLIGHT_SQL))
                 .setFlightSqlPort(readableConfig.get(FLIGHT_SQL_PORT));
         return builder.build();

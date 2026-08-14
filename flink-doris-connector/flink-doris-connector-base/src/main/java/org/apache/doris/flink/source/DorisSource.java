@@ -221,6 +221,19 @@ public class DorisSource<OUT>
             Preconditions.checkArgument(
                     readOptions.getBinlogPollIntervalMs() >= MIN_BINLOG_POLL_INTERVAL_MS,
                     "source.binlog.poll-interval must be at least 1 second");
+            String offsetTable = readOptions.getBinlogOffsetTable();
+            String consumerId = readOptions.getBinlogConsumerId();
+            Preconditions.checkArgument(
+                    (offsetTable == null) == (consumerId == null),
+                    "source.binlog.offset-table and source.binlog.consumer-id must be configured together");
+            if (offsetTable != null) {
+                Preconditions.checkArgument(
+                        readOptions.getScanMode().hasIncrementalPhase(),
+                        "source.binlog offset persistence is only valid in incremental source modes");
+                Preconditions.checkNotNull(
+                        options.getJdbcUrl(),
+                        "jdbc-url is required when source.binlog.offset-table is configured");
+            }
             return new DorisSource<>(options, readOptions, boundedness, deserializer);
         }
     }

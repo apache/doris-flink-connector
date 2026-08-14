@@ -23,14 +23,18 @@ import org.apache.flink.connector.base.source.reader.splitreader.SplitsChange;
 
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
+import org.apache.doris.flink.connection.SimpleJdbcConnectionProvider;
 import org.apache.doris.flink.source.split.DorisSourceSplit;
 import org.apache.doris.flink.source.split.DorisSplitRecords;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Queue;
+import java.util.function.Consumer;
 
 /** The {@link SplitReader} implementation for the doris source. */
 public class DorisSourceSplitReader implements SplitReader<DorisSourceRecord, DorisSourceSplit> {
@@ -40,6 +44,7 @@ public class DorisSourceSplitReader implements SplitReader<DorisSourceRecord, Do
     private final Queue<DorisSourceSplit> splits;
     private final DorisOptions options;
     private final DorisReadOptions readOptions;
+    @Nullable private final DorisOffsetPublisher offsetPublisher;
     private ValueReader valueReader;
     private String currentSplitId;
 
@@ -47,6 +52,13 @@ public class DorisSourceSplitReader implements SplitReader<DorisSourceRecord, Do
         this.options = options;
         this.readOptions = readOptions;
         this.splits = new ArrayDeque<>();
+        this.offsetPublisher =
+                readOptions.getBinlogOffsetTable() == null
+                        ? null
+                        : new DorisOffsetPublisher(
+                                new SimpleJdbcConnectionProvider(options),
+                                readOptions.getBinlogOffsetTable(),
+                                readOptions.getBinlogConsumerId());
     }
 
     @Override
@@ -100,10 +112,19 @@ public class DorisSourceSplitReader implements SplitReader<DorisSourceRecord, Do
     @Override
     public void wakeUp() {}
 
+    void publishOffset(String offset, Consumer<Exception> callback) {
+        if (offsetPublisher != null) {
+            offsetPublisher.publish(offset, callback);
+        }
+    }
+
     @Override
     public void close() throws Exception {
         if (valueReader != null) {
             valueReader.close();
+        }
+        if (offsetPublisher != null) {
+            offsetPublisher.close();
         }
     }
 }
