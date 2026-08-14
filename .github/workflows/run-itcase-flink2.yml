@@ -39,7 +39,9 @@ jobs:
         java-version: '17'
 
     - name: Configure Doris prerequisites
-      run: sudo sysctl -w vm.max_map_count=2000000
+      run: |
+        sudo sysctl -w vm.max_map_count=2000000
+        sudo swapoff -a
 
     - name: Run ITCases (Flink2 module)
       run: |
