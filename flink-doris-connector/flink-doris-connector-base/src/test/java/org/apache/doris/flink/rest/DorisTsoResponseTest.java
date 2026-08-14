@@ -98,7 +98,7 @@ class DorisTsoResponseTest {
         ObjectMapper mapper = new ObjectMapper();
 
         try (MockedStatic<RestService> mocked = mockStatic(RestService.class, CALLS_REAL_METHODS)) {
-            mocked.when(() -> RestService.handleResponse(any(), any()))
+            mocked.when(() -> RestService.handleResponse(any(), any(), any()))
                     .thenAnswer(
                             invocation -> {
                                 HttpRequestBase request = invocation.getArgument(0);
