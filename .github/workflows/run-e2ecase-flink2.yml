@@ -44,4 +44,4 @@ jobs:
           -Pflink2 -pl flink-doris-connector-it -am \
           -DfailIfNoTests=false \
           -Dtest="*E2ECase" \
-          -Dimage="apache/doris:doris-all-in-one-2.1.0"
+          -Dimage="jnsimba/doris-all-in-one:4.1.3"

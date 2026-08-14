@@ -40,7 +40,11 @@ class JdbcS3TvfLoadClient implements S3TvfLoadClient {
     private final SimpleJdbcConnectionProvider connectionProvider;
 
     public JdbcS3TvfLoadClient(DorisOptions dorisOptions) {
-        this.connectionProvider = new SimpleJdbcConnectionProvider(dorisOptions);
+        this(new SimpleJdbcConnectionProvider(dorisOptions));
+    }
+
+    JdbcS3TvfLoadClient(SimpleJdbcConnectionProvider connectionProvider) {
+        this.connectionProvider = connectionProvider;
     }
 
     @Override
@@ -64,22 +68,31 @@ class JdbcS3TvfLoadClient implements S3TvfLoadClient {
                 "SHOW LOAD FROM "
                         + quoteIdentifier(database)
                         + " WHERE LABEL = "
-                        + quoteLiteral(label)
-                        + " ORDER BY CreateTime DESC LIMIT 1";
+                        + quoteLiteral(label);
         try (Statement statement = connection().createStatement();
                 ResultSet resultSet = statement.executeQuery(sql)) {
-            if (!resultSet.next()) {
-                return S3TvfLoadState.NOT_FOUND;
+            S3TvfLoadState resolvedState = S3TvfLoadState.NOT_FOUND;
+            // A failed retry can add a CANCELLED row beside the original FINISHED row.
+            while (resultSet.next()) {
+                S3TvfLoadState state = S3TvfLoadState.UNKNOWN;
+                String stateValue = resultSet.getString("State");
+                if (stateValue != null) {
+                    try {
+                        state = S3TvfLoadState.valueOf(stateValue.toUpperCase(Locale.ROOT));
+                    } catch (IllegalArgumentException ignored) {
+                        // Keep UNKNOWN for unrecognized Doris states.
+                    }
+                }
+                if (state == S3TvfLoadState.FINISHED) {
+                    return state;
+                }
+                if (state.isActive()
+                        || (state == S3TvfLoadState.CANCELLED && !resolvedState.isActive())
+                        || resolvedState == S3TvfLoadState.NOT_FOUND) {
+                    resolvedState = state;
+                }
             }
-            String state = resultSet.getString("State");
-            if (state == null) {
-                return S3TvfLoadState.UNKNOWN;
-            }
-            try {
-                return S3TvfLoadState.valueOf(state.toUpperCase(Locale.ROOT));
-            } catch (IllegalArgumentException ignored) {
-                return S3TvfLoadState.UNKNOWN;
-            }
+            return resolvedState;
         }
     }
 

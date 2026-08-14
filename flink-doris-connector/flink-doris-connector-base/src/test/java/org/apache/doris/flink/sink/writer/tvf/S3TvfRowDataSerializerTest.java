@@ -55,9 +55,9 @@ public class S3TvfRowDataSerializerTest {
                         StandardCharsets.UTF_8);
 
         Assert.assertEquals(
-                "{\"weight\":\"60.2\",\"id\":\"3\",\"__DORIS_DELETE_SIGN__\":\"0\"}", insertJson);
+                "{\"weight\":\"60.2\",\"id\":\"3\",\"__doris_delete_sign__\":\"0\"}", insertJson);
         Assert.assertEquals(
-                "{\"weight\":\"60.2\",\"id\":\"3\",\"__DORIS_DELETE_SIGN__\":\"1\"}", deleteJson);
+                "{\"weight\":\"60.2\",\"id\":\"3\",\"__doris_delete_sign__\":\"1\"}", deleteJson);
     }
 
     private static S3TvfRowDataSerializer createSerializer(boolean deletable) {

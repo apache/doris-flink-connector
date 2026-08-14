@@ -30,13 +30,14 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.apache.doris.flink.sink.writer.LoadConstants.DORIS_DELETE_SIGN;
 import static org.apache.doris.flink.sink.writer.LoadConstants.JSON;
 
 /** Serializes the fixed TVF column set as one JSON object per row. */
 public class S3TvfRowDataSerializer extends RowDataSerializer {
 
     private static final long serialVersionUID = 1L;
+    // S3 TVF lowercases inferred column names, while JSON key matching is case-sensitive.
+    private static final String TVF_DELETE_SIGN = "__doris_delete_sign__";
 
     private final List<String> selectedColumns;
     private final int[] selectedIndexes;
@@ -78,7 +79,7 @@ public class S3TvfRowDataSerializer extends RowDataSerializer {
             values.put(selectedColumns.get(i), field == null ? null : field.toString());
         }
         if (deletable) {
-            values.put(DORIS_DELETE_SIGN, parseDeleteSign(record.getRowKind()));
+            values.put(TVF_DELETE_SIGN, parseDeleteSign(record.getRowKind()));
         }
         return objectMapper.writeValueAsString(values);
     }
