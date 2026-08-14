@@ -16,10 +16,11 @@
 
 package org.apache.doris.flink.source.reader;
 
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.fetcher.SingleThreadFetcherManager;
 import org.apache.flink.connector.base.source.reader.fetcher.SplitFetcher;
 import org.apache.flink.connector.base.source.reader.fetcher.SplitFetcherTask;
+import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
@@ -32,8 +33,10 @@ public class DorisSourceFetcherManager
         extends SingleThreadFetcherManager<DorisSourceRecord, DorisSourceSplit> {
 
     public DorisSourceFetcherManager(
-            DorisOptions options, DorisReadOptions readOptions, Configuration configuration) {
-        super(() -> new DorisSourceSplitReader(options, readOptions), configuration);
+            FutureCompletingBlockingQueue<RecordsWithSplitIds<DorisSourceRecord>> elementsQueue,
+            DorisOptions options,
+            DorisReadOptions readOptions) {
+        super(elementsQueue, () -> new DorisSourceSplitReader(options, readOptions));
     }
 
     public void publishOffset(String offset, Consumer<Exception> callback) {

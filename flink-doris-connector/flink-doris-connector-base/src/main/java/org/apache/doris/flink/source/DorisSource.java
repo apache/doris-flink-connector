@@ -26,6 +26,8 @@ import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
+import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
+import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.util.Preconditions;
 
@@ -37,7 +39,9 @@ import org.apache.doris.flink.source.enumerator.DorisSourceCheckpoint;
 import org.apache.doris.flink.source.enumerator.DorisSourceCheckpointSerializer;
 import org.apache.doris.flink.source.enumerator.DorisSourceEnumerator;
 import org.apache.doris.flink.source.reader.DorisRecordEmitter;
+import org.apache.doris.flink.source.reader.DorisSourceFetcherManager;
 import org.apache.doris.flink.source.reader.DorisSourceReader;
+import org.apache.doris.flink.source.reader.DorisSourceRecord;
 import org.apache.doris.flink.source.split.DorisSourceSplit;
 import org.apache.doris.flink.source.split.DorisSourceSplitSerializer;
 import org.slf4j.Logger;
@@ -79,8 +83,11 @@ public class DorisSource<OUT>
     @Override
     public SourceReader<OUT, DorisSourceSplit> createReader(SourceReaderContext readerContext)
             throws Exception {
+        FutureCompletingBlockingQueue<RecordsWithSplitIds<DorisSourceRecord>> elementsQueue =
+                new FutureCompletingBlockingQueue<>();
         return new DorisSourceReader<>(
-                options,
+                elementsQueue,
+                new DorisSourceFetcherManager(elementsQueue, options, readOptions),
                 readOptions,
                 new DorisRecordEmitter<>(deserializer),
                 readerContext,

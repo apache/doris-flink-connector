@@ -21,9 +21,10 @@ import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.RecordEmitter;
+import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.SingleThreadMultiplexSourceReaderBase;
+import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 
-import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.source.split.DorisSourceSplit;
 import org.apache.doris.flink.source.split.DorisSourceSplitState;
@@ -54,16 +55,13 @@ public class DorisSourceReader<T>
     @Nullable private String lastFinishedStreamOffset;
 
     public DorisSourceReader(
-            DorisOptions options,
+            FutureCompletingBlockingQueue<RecordsWithSplitIds<DorisSourceRecord>> elementsQueue,
+            DorisSourceFetcherManager fetcherManager,
             DorisReadOptions readOptions,
             RecordEmitter<DorisSourceRecord, T, DorisSourceSplitState> recordEmitter,
             SourceReaderContext context,
             Configuration config) {
-        super(
-                new DorisSourceFetcherManager(options, readOptions, config),
-                recordEmitter,
-                config,
-                context);
+        super(elementsQueue, fetcherManager, recordEmitter, config, context);
         offsetPublishingEnabled =
                 readOptions.getBinlogOffsetTable() != null && context.getIndexOfSubtask() == 0;
     }

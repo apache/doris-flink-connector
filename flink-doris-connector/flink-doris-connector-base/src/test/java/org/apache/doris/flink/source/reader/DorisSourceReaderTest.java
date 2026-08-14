@@ -17,6 +17,11 @@
 
 package org.apache.doris.flink.source.reader;
 
+import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
+import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
+
+import org.apache.doris.flink.cfg.DorisOptions;
+import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.deserialization.SimpleListDeserializationSchema;
 import org.apache.doris.flink.sink.OptionUtils;
 import org.apache.doris.flink.source.split.DorisSnapshotSplit;
@@ -34,9 +39,14 @@ import static org.junit.Assert.assertEquals;
 public class DorisSourceReaderTest {
 
     private static DorisSourceReader createReader(TestingReaderContext context) {
+        DorisOptions options = OptionUtils.buildDorisOptions();
+        DorisReadOptions readOptions = OptionUtils.buildDorisReadOptions();
+        FutureCompletingBlockingQueue<RecordsWithSplitIds<DorisSourceRecord>> elementsQueue =
+                new FutureCompletingBlockingQueue<>();
         return new DorisSourceReader<>(
-                OptionUtils.buildDorisOptions(),
-                OptionUtils.buildDorisReadOptions(),
+                elementsQueue,
+                new DorisSourceFetcherManager(elementsQueue, options, readOptions),
+                readOptions,
                 new DorisRecordEmitter<>(new SimpleListDeserializationSchema()),
                 context,
                 context.getConfiguration());
