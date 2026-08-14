@@ -196,20 +196,33 @@ public class DorisContainer implements ContainerService {
 
     private void initializeJdbcConnection() throws Exception {
         initializeJDBCDriver();
-        while (true) {
+        Duration timeout = Duration.ofMinutes(5L);
+        long startNanos = System.nanoTime();
+        Throwable lastFailure = null;
+        boolean frontendReady = false;
+        while (System.nanoTime() - startNanos < timeout.toNanos()) {
             try (Connection connection = getQueryConnection();
                     Statement statement = connection.createStatement();
                     ResultSet resultSet = statement.executeQuery("show backends")) {
+                frontendReady = true;
+                lastFailure = null;
                 LOG.info("Waiting for the Backend to start successfully.");
                 if (isBeReady(resultSet, Duration.ofSeconds(1L))) {
-                    break;
+                    LOG.info("Connected to Doris successfully.");
+                    return;
                 }
             } catch (DorisRuntimeException | SQLException e) {
+                frontendReady = false;
+                lastFailure = e;
                 LOG.info("Waiting for the Frontend to accept connections.");
                 LockSupport.parkNanos(Duration.ofSeconds(1L).toNanos());
             }
         }
-        LOG.info("Connected to Doris successfully.");
+        throw new DorisRuntimeException(
+                String.format(
+                        "Doris %s did not become ready within %d seconds.",
+                        frontendReady ? "Backend" : "Frontend", timeout.getSeconds()),
+                lastFailure);
     }
 
     private boolean isBeReady(ResultSet rs, Duration duration) throws SQLException {
