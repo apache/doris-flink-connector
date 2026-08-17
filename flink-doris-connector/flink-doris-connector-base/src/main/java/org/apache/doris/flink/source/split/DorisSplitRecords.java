@@ -19,20 +19,20 @@ package org.apache.doris.flink.source.split;
 
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 
+import org.apache.doris.flink.source.reader.DorisSourceRecord;
 import org.apache.doris.flink.source.reader.DorisValueReader;
 import org.apache.doris.flink.source.reader.ValueReader;
 
 import javax.annotation.Nullable;
 
 import java.util.Collections;
-import java.util.List;
 import java.util.Set;
 
 /**
  * An implementation of {@link RecordsWithSplitIds}. This is essentially a slim wrapper around the
  * {@link DorisValueReader} that only adds information about the current split, or finished splits
  */
-public class DorisSplitRecords implements RecordsWithSplitIds<List> {
+public class DorisSplitRecords implements RecordsWithSplitIds<DorisSourceRecord> {
 
     private final Set<String> finishedSplits;
     private final ValueReader valueReader;
@@ -67,10 +67,9 @@ public class DorisSplitRecords implements RecordsWithSplitIds<List> {
 
     @Nullable
     @Override
-    public List nextRecordFromSplit() {
+    public DorisSourceRecord nextRecordFromSplit() {
         if (valueReader != null && valueReader.hasNext()) {
-            List next = valueReader.next();
-            return next;
+            return valueReader.next();
         }
         return null;
     }

@@ -344,6 +344,38 @@ public class DorisConfigOptions {
                     .booleanType()
                     .defaultValue(Boolean.TRUE)
                     .withDescription("use arrow flight sql read");
+    public static final ConfigOption<String> SOURCE_SCAN_MODE =
+            ConfigOptions.key("source.scan.mode")
+                    .stringType()
+                    .defaultValue("snapshot")
+                    .withDescription("Doris source scan mode");
+    public static final ConfigOption<String> SOURCE_SCAN_TIMESTAMP =
+            ConfigOptions.key("source.scan.timestamp")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("Exclusive start timestamp for from-timestamp mode");
+    public static final ConfigOption<String> SOURCE_BINLOG_INCREMENT_TYPE =
+            ConfigOptions.key("source.binlog.increment-type")
+                    .stringType()
+                    .defaultValue("detail")
+                    .withDescription("Doris row-binlog increment type");
+    public static final ConfigOption<Duration> SOURCE_BINLOG_POLL_INTERVAL =
+            ConfigOptions.key("source.binlog.poll-interval")
+                    .durationType()
+                    .defaultValue(Duration.ofSeconds(10))
+                    .withDescription(
+                            "Interval between attempts to discover the next Stream split; must be "
+                                    + "at least 1 second");
+    public static final ConfigOption<String> SOURCE_BINLOG_OFFSET_TABLE =
+            ConfigOptions.key("source.binlog.offset-table")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("Doris table used to persist completed checkpoint offsets");
+    public static final ConfigOption<String> SOURCE_BINLOG_CONSUMER_ID =
+            ConfigOptions.key("source.binlog.consumer-id")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("Stable consumer identifier in the binlog offset table");
     public static final ConfigOption<Integer> FLIGHT_SQL_PORT =
             ConfigOptions.key("source.flight-sql-port")
                     .intType()

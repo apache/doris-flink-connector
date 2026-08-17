@@ -21,15 +21,28 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.util.Collector;
 
+import org.apache.doris.flink.source.reader.DorisSourceRecord;
+
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The deserialization schema describes how to turn the doris list record into data types
+ * The deserialization schema describes how to turn a Doris source record into data types
  * (Java/Scala objects) that are processed by Flink.
  */
 @PublicEvolving
 public interface DorisDeserializationSchema<T> extends Serializable, ResultTypeQueryable<T> {
 
     void deserialize(List<?> record, Collector<T> out) throws Exception;
+
+    /**
+     * Deserializes a Doris source record including its changelog metadata.
+     *
+     * <p>The default implementation preserves compatibility with existing deserialization schemas
+     * by passing only a mutable list of field values to {@link #deserialize(List, Collector)}.
+     */
+    default void deserialize(DorisSourceRecord record, Collector<T> out) throws Exception {
+        deserialize(new ArrayList<>(record.getFieldValues()), out);
+    }
 }

@@ -18,44 +18,25 @@
 package org.apache.doris.flink.source.split;
 
 import org.apache.flink.core.io.SimpleVersionedSerializer;
-import org.apache.flink.core.memory.DataInputDeserializer;
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputSerializer;
-import org.apache.flink.core.memory.DataOutputView;
 
 import org.apache.doris.flink.rest.PartitionDefinition;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Set;
 
-/** A serializer for the {@link DorisSourceSplit}. */
+/** Versioned serializer for snapshot and stream Doris source splits. */
 public class DorisSourceSplitSerializer implements SimpleVersionedSerializer<DorisSourceSplit> {
-
     public static final DorisSourceSplitSerializer INSTANCE = new DorisSourceSplitSerializer();
 
-    private static final ThreadLocal<DataOutputSerializer> SERIALIZER_CACHE =
-            ThreadLocal.withInitial(() -> new DataOutputSerializer(64));
-
-    private static final int VERSION = 2;
-
-    private static void writeLongArray(DataOutputView out, Long[] values) throws IOException {
-        out.writeInt(values.length);
-        for (Long val : values) {
-            out.writeLong(val);
-        }
-    }
-
-    private static Long[] readLongArray(DataInputView in) throws IOException {
-        final int len = in.readInt();
-        final Long[] values = new Long[len];
-        for (int i = 0; i < len; i++) {
-            values[i] = in.readLong();
-        }
-        return values;
-    }
+    private static final int VERSION = 3;
+    private static final byte SNAPSHOT_KIND = 0;
+    private static final byte STREAM_KIND = 1;
 
     @Override
     public int getVersion() {
@@ -64,68 +45,94 @@ public class DorisSourceSplitSerializer implements SimpleVersionedSerializer<Dor
 
     @Override
     public byte[] serialize(DorisSourceSplit split) throws IOException {
-
-        // optimization: the splits lazily cache their own serialized form
-        if (split.serializedFormCache != null) {
-            return split.serializedFormCache;
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        try (DataOutputStream out = new DataOutputStream(bytes)) {
+            if (split instanceof DorisSnapshotSplit) {
+                out.writeByte(SNAPSHOT_KIND);
+                writeSnapshot(out, (DorisSnapshotSplit) split);
+            } else if (split instanceof DorisStreamSplit) {
+                out.writeByte(STREAM_KIND);
+                writeStream(out, (DorisStreamSplit) split);
+            } else {
+                throw new IOException("Unknown Doris source split type: " + split.getClass());
+            }
         }
-
-        final DataOutputSerializer out = SERIALIZER_CACHE.get();
-
-        PartitionDefinition partDef = split.getPartitionDefinition();
-        out.writeUTF(partDef.getDatabase());
-        out.writeUTF(partDef.getTable());
-        out.writeUTF(partDef.getBeAddress());
-        writeLongArray(out, partDef.getTabletIds().toArray(new Long[] {}));
-        // writeUTF has a length limit, but the query plan is sometimes very long
-        final byte[] queryPlanBytes = partDef.getQueryPlan().getBytes(StandardCharsets.UTF_8);
-        out.writeInt(queryPlanBytes.length);
-        out.write(queryPlanBytes);
-
-        out.writeUTF(split.splitId());
-
-        final byte[] result = out.getCopyOfBuffer();
-        out.clear();
-
-        // optimization: cache the serialized from, so we avoid the byte work during repeated
-        // serialization
-        split.serializedFormCache = result;
-
-        return result;
+        return bytes.toByteArray();
     }
 
     @Override
     public DorisSourceSplit deserialize(int version, byte[] serialized) throws IOException {
-        switch (version) {
-            case 1:
-            case 2:
-                return deserializeSplit(version, serialized);
-            default:
-                throw new IOException("Unknown version: " + version);
+        if (version != VERSION) {
+            throw new IOException("Unknown version: " + version);
+        }
+        try (DataInputStream in = new DataInputStream(new ByteArrayInputStream(serialized))) {
+            byte kind = in.readByte();
+            if (kind == SNAPSHOT_KIND) {
+                return readSnapshot(in);
+            }
+            if (kind == STREAM_KIND) {
+                return readStream(in);
+            }
+            throw new IOException("Unknown Doris source split kind: " + kind);
         }
     }
 
-    private DorisSourceSplit deserializeSplit(int version, byte[] serialized) throws IOException {
-        final DataInputDeserializer in = new DataInputDeserializer(serialized);
-        final String database = in.readUTF();
-        final String table = in.readUTF();
-        final String beAddress = in.readUTF();
-        Long[] vals = readLongArray(in);
-        final Set<Long> tabletIds = new HashSet<>(Arrays.asList(vals));
-
-        // read query plan
-        final int len = in.readInt();
-        final byte[] bytes = new byte[len];
-        in.read(bytes);
-        final String queryPlan = new String(bytes, StandardCharsets.UTF_8);
-
-        // read split id
-        String splitId = "splitId";
-        if (version >= 2) {
-            splitId = in.readUTF();
+    private static void writeSnapshot(DataOutputStream out, DorisSnapshotSplit split)
+            throws IOException {
+        PartitionDefinition partition = split.getPartitionDefinition();
+        out.writeUTF(split.splitId());
+        out.writeUTF(partition.getDatabase());
+        out.writeUTF(partition.getTable());
+        out.writeUTF(partition.getBeAddress());
+        out.writeInt(partition.getTabletIds().size());
+        for (Long tabletId : new java.util.TreeSet<>(partition.getTabletIds())) {
+            out.writeLong(tabletId);
         }
-        PartitionDefinition partDef =
-                new PartitionDefinition(database, table, beAddress, tabletIds, queryPlan);
-        return new DorisSourceSplit(splitId, partDef);
+        byte[] queryPlan = partition.getQueryPlan().getBytes(StandardCharsets.UTF_8);
+        out.writeInt(queryPlan.length);
+        out.write(queryPlan);
+    }
+
+    private static DorisSnapshotSplit readSnapshot(DataInputStream in) throws IOException {
+        String splitId = in.readUTF();
+        String database = in.readUTF();
+        String table = in.readUTF();
+        String beAddress = in.readUTF();
+        int tabletCount = in.readInt();
+        if (tabletCount < 0) {
+            throw new IOException("Negative tablet count: " + tabletCount);
+        }
+        Set<Long> tabletIds = new LinkedHashSet<>(tabletCount);
+        for (int index = 0; index < tabletCount; index++) {
+            tabletIds.add(in.readLong());
+        }
+        String queryPlan = readQueryPlan(in);
+        return new DorisSnapshotSplit(
+                splitId, new PartitionDefinition(database, table, beAddress, tabletIds, queryPlan));
+    }
+
+    private static String readQueryPlan(DataInputStream in) throws IOException {
+        int queryPlanLength = in.readInt();
+        if (queryPlanLength < 0) {
+            throw new IOException("Negative query plan length: " + queryPlanLength);
+        }
+        byte[] queryPlanBytes = new byte[queryPlanLength];
+        in.readFully(queryPlanBytes);
+        return new String(queryPlanBytes, StandardCharsets.UTF_8);
+    }
+
+    private static void writeStream(DataOutputStream out, DorisStreamSplit split)
+            throws IOException {
+        out.writeUTF(split.splitId());
+        out.writeUTF(split.getStartTimestamp());
+        out.writeUTF(split.getEndTimestamp());
+    }
+
+    private static DorisStreamSplit readStream(DataInputStream in) throws IOException {
+        try {
+            return new DorisStreamSplit(in.readUTF(), in.readUTF(), in.readUTF());
+        } catch (IllegalArgumentException e) {
+            throw new IOException("Invalid stream split", e);
+        }
     }
 }

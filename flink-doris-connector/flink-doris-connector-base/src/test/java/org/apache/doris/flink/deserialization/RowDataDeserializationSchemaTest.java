@@ -20,6 +20,7 @@ package org.apache.doris.flink.deserialization;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.util.Collector;
 
+import org.apache.doris.flink.source.reader.DorisSourceRecord;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -47,6 +48,20 @@ public class RowDataDeserializationSchemaTest {
         List<String> actual =
                 collector.list.stream().map(Object::toString).collect(Collectors.toList());
         assertEquals(expected, actual);
+    }
+
+    @Test
+    public void deserializeSourceRecordPreservesRowKind() throws Exception {
+        SimpleCollector collector = new SimpleCollector();
+        RowDataDeserializationSchema deserializationSchema =
+                new RowDataDeserializationSchema(PHYSICAL_TYPE);
+        DorisSourceRecord record =
+                DorisSourceRecord.incremental(
+                        Arrays.asList("doris", "2", "false"), 101L, 1001L, 1L);
+
+        deserializationSchema.deserialize(record, collector);
+
+        assertEquals("-D(doris,2,false)", collector.list.get(0).toString());
     }
 
     private static class SimpleCollector implements Collector<RowData> {

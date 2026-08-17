@@ -17,9 +17,17 @@
 
 package org.apache.doris.flink.source.reader;
 
+import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
+import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
+
+import org.apache.doris.flink.cfg.DorisOptions;
+import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.deserialization.SimpleListDeserializationSchema;
 import org.apache.doris.flink.sink.OptionUtils;
+import org.apache.doris.flink.source.split.DorisSnapshotSplit;
 import org.apache.doris.flink.source.split.DorisSourceSplit;
+import org.apache.doris.flink.source.split.DorisSourceSplitState;
+import org.apache.doris.flink.source.split.DorisStreamSplit;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -31,16 +39,21 @@ import static org.junit.Assert.assertEquals;
 public class DorisSourceReaderTest {
 
     private static DorisSourceReader createReader(TestingReaderContext context) {
+        DorisOptions options = OptionUtils.buildDorisOptions();
+        DorisReadOptions readOptions = OptionUtils.buildDorisReadOptions();
+        FutureCompletingBlockingQueue<RecordsWithSplitIds<DorisSourceRecord>> elementsQueue =
+                new FutureCompletingBlockingQueue<>();
         return new DorisSourceReader<>(
-                OptionUtils.buildDorisOptions(),
-                OptionUtils.buildDorisReadOptions(),
+                elementsQueue,
+                new DorisSourceFetcherManager(elementsQueue, options, readOptions),
+                readOptions,
                 new DorisRecordEmitter<>(new SimpleListDeserializationSchema()),
                 context,
                 context.getConfiguration());
     }
 
     private static DorisSourceSplit createTestDorisSplit() throws IOException {
-        return new DorisSourceSplit("splitId", OptionUtils.buildPartitionDef());
+        return new DorisSnapshotSplit("splitId", OptionUtils.buildPartitionDef());
     }
 
     @Test
@@ -63,5 +76,17 @@ public class DorisSourceReaderTest {
         reader.close();
 
         assertEquals(0, context.getNumSplitRequests());
+    }
+
+    @Test
+    public void testRequestsMoreWorkAfterCompletedStreamSplit() throws Exception {
+        final TestingReaderContext context = new TestingReaderContext();
+        final DorisSourceReader reader = createReader(context);
+        DorisStreamSplit split = DorisStreamSplit.of("2026-07-20 10:00:00", "2026-07-20 10:00:10");
+
+        reader.onSplitFinished(
+                Collections.singletonMap(split.splitId(), new DorisSourceSplitState(split)));
+
+        assertEquals(1, context.getNumSplitRequests());
     }
 }

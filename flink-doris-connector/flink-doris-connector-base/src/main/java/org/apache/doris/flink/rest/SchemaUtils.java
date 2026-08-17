@@ -56,8 +56,8 @@ public class SchemaUtils {
         Map<String, Field> collect =
                 tableSchema.getProperties().stream()
                         .collect(Collectors.toMap(Field::getName, Function.identity()));
-        tscanColumnDescs
-                .getFields()
+        tscanColumnDescs.getFields().stream()
+                .filter(desc -> collect.containsKey(desc.getName()))
                 .forEach(
                         desc ->
                                 schema.put(
