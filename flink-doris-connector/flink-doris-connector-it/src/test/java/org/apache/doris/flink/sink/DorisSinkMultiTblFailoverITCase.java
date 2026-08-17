@@ -149,13 +149,6 @@ public class DorisSinkMultiTblFailoverITCase extends AbstractITCaseService {
         LOG.info("start to create add table");
         initializeTable(TABLE_MULTI_CSV_NO_EXIST_TBL);
 
-        LOG.info("wait job restart success");
-        // wait table restart success
-        waitForJobStatus(
-                jobClient,
-                Collections.singletonList(RUNNING),
-                Deadline.fromNow(Duration.ofSeconds(60)));
-
         LOG.info("wait job running finished");
         waitForJobStatus(
                 jobClient,
