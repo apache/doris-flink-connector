@@ -28,6 +28,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 public class S3TvfWriterTest {
 
@@ -95,6 +101,40 @@ public class S3TvfWriterTest {
         Assert.assertEquals("prefix/label_tbl_2_12_0.json", objectStore.objectKeys.get(1));
     }
 
+    @Test
+    public void testUploadIsAsyncAndPrepareCommitWaits() throws Exception {
+        BlockingObjectStore objectStore = new BlockingObjectStore();
+        S3TvfWriter<String> writer = createWriter(6L, objectStore);
+        ExecutorService caller = Executors.newSingleThreadExecutor();
+        writer.write("12345");
+
+        Future<?> write =
+                caller.submit(
+                        () -> {
+                            writer.write("67890");
+                            return null;
+                        });
+        try {
+            Assert.assertTrue(objectStore.uploadStarted.await(5, TimeUnit.SECONDS));
+            write.get(1, TimeUnit.SECONDS);
+
+            Future<Collection<S3TvfCommittable>> commit = caller.submit(writer::prepareCommit);
+            try {
+                commit.get(1, TimeUnit.SECONDS);
+                Assert.fail("prepareCommit must wait for pending uploads");
+            } catch (TimeoutException expected) {
+                // Expected while the object store upload is blocked.
+            }
+
+            objectStore.allowUpload.countDown();
+            Assert.assertEquals(1, commit.get(5, TimeUnit.SECONDS).size());
+        } finally {
+            objectStore.allowUpload.countDown();
+            caller.shutdownNow();
+            writer.close();
+        }
+    }
+
     private static S3TvfWriter<String> createWriter(
             long restoredCheckpointId, RecordingObjectStore objectStore) {
         DorisRecordSerializer<String> serializer =
@@ -118,12 +158,29 @@ public class S3TvfWriterTest {
         private final List<byte[]> contents = new ArrayList<>();
 
         @Override
-        public void put(String objectKey, byte[] content) {
+        public void put(String objectKey, byte[] content) throws IOException {
             objectKeys.add(objectKey);
             contents.add(content);
         }
 
         @Override
         public void close() throws IOException {}
+    }
+
+    private static class BlockingObjectStore extends RecordingObjectStore {
+        private final CountDownLatch uploadStarted = new CountDownLatch(1);
+        private final CountDownLatch allowUpload = new CountDownLatch(1);
+
+        @Override
+        public void put(String objectKey, byte[] content) throws IOException {
+            uploadStarted.countDown();
+            try {
+                allowUpload.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IOException("Interrupted while waiting to upload.", e);
+            }
+            super.put(objectKey, content);
+        }
     }
 }

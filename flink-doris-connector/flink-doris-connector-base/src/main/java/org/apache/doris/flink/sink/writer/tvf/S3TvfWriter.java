@@ -18,6 +18,7 @@
 package org.apache.doris.flink.sink.writer.tvf;
 
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
 import org.apache.doris.flink.sink.writer.DorisWriterState;
 import org.apache.doris.flink.sink.writer.serializer.DorisRecord;
@@ -29,11 +30,17 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.atomic.AtomicReference;
 
 /** Shared writer that stages JSON Lines files in S3-compatible object storage. */
 public class S3TvfWriter<IN> {
 
     private static final byte NEW_LINE = '\n';
+    private static final int UPLOAD_QUEUE_SIZE = 1;
 
     private final int subtaskId;
     private final DorisRecordSerializer<IN> serializer;
@@ -47,6 +54,10 @@ public class S3TvfWriter<IN> {
     private final int maxBytes;
     private final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
     private final List<String> currentObjectKeys = new ArrayList<>();
+    private final BlockingQueue<Runnable> uploadQueue =
+            new LinkedBlockingQueue<>(UPLOAD_QUEUE_SIZE);
+    private final AtomicReference<IOException> uploadException = new AtomicReference<>();
+    private final ExecutorService uploadExecutor;
 
     private long currentCheckpointId;
     private int fileNumber;
@@ -75,20 +86,27 @@ public class S3TvfWriter<IN> {
         this.columns = Collections.unmodifiableList(new ArrayList<>(columns));
         this.deleteSignEnabled = deleteSignEnabled;
         this.maxBytes = maxBytes;
+        this.uploadExecutor =
+                Executors.newSingleThreadExecutor(
+                        new ExecutorThreadFactory("s3-tvf-upload-" + subtaskId));
+        this.uploadExecutor.execute(this::processUploads);
         serializer.initial();
     }
 
     public void write(IN value) throws IOException {
+        checkUploadException();
         append(serializer.serialize(value));
     }
 
     public void flush() throws IOException {
         append(serializer.flush());
         uploadBuffer();
+        waitForUploads();
     }
 
     public Collection<S3TvfCommittable> prepareCommit() throws IOException {
         uploadBuffer();
+        waitForUploads();
         if (currentObjectKeys.isEmpty()) {
             return Collections.emptyList();
         }
@@ -116,6 +134,7 @@ public class S3TvfWriter<IN> {
         try {
             serializer.close();
         } finally {
+            uploadExecutor.shutdownNow();
             objectStore.close();
         }
     }
@@ -150,8 +169,59 @@ public class S3TvfWriter<IN> {
                         "%s_%s_%d_%d_%d.json",
                         labelPrefix, table, subtaskId, currentCheckpointId, fileNumber++);
         String objectKey = objectPrefix + (objectPrefix.endsWith("/") ? "" : "/") + fileName;
-        objectStore.put(objectKey, buffer.toByteArray());
-        currentObjectKeys.add(objectKey);
+        byte[] content = buffer.toByteArray();
+        putUpload(
+                () -> {
+                    if (uploadException.get() != null) {
+                        return;
+                    }
+                    try {
+                        objectStore.put(objectKey, content);
+                        currentObjectKeys.add(objectKey);
+                    } catch (Exception e) {
+                        IOException failure =
+                                e instanceof IOException
+                                        ? (IOException) e
+                                        : new IOException(
+                                                "Failed to upload object '" + objectKey + "'.", e);
+                        uploadException.compareAndSet(null, failure);
+                    }
+                });
         buffer.reset();
+    }
+
+    private void processUploads() {
+        while (!Thread.currentThread().isInterrupted()) {
+            try {
+                uploadQueue.take().run();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+    }
+
+    private void waitForUploads() throws IOException {
+        for (int i = 0; i <= UPLOAD_QUEUE_SIZE; i++) {
+            putUpload(() -> {});
+        }
+        checkUploadException();
+    }
+
+    private void putUpload(Runnable upload) throws IOException {
+        checkUploadException();
+        try {
+            uploadQueue.put(upload);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IOException("Interrupted while adding an S3 upload to the queue.", e);
+        }
+        checkUploadException();
+    }
+
+    private void checkUploadException() throws IOException {
+        IOException exception = uploadException.get();
+        if (exception != null) {
+            throw exception;
+        }
     }
 }
