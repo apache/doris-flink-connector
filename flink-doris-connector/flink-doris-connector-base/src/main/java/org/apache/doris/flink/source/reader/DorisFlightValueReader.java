@@ -41,7 +41,6 @@ import org.apache.doris.flink.exception.IllegalArgumentException;
 import org.apache.doris.flink.exception.ShouldNeverHappenException;
 import org.apache.doris.flink.rest.PartitionDefinition;
 import org.apache.doris.flink.rest.RestService;
-import org.apache.doris.flink.rest.SchemaUtils;
 import org.apache.doris.flink.rest.models.Schema;
 import org.apache.doris.flink.serialization.RowBatch;
 import org.slf4j.Logger;
@@ -217,13 +216,7 @@ public class DorisFlightValueReader extends ValueReader implements AutoCloseable
             if (!eos.get() && (rowBatch == null || !rowBatch.hasNext())) {
                 if (!eos.get()) {
                     eos.set(!arrowReader.loadNextBatch());
-                    rowBatch =
-                            new RowBatch(
-                                            arrowReader,
-                                            SchemaUtils.convertToSchema(
-                                                    this.schema,
-                                                    arrowReader.getVectorSchemaRoot().getSchema()))
-                                    .readFlightArrow();
+                    rowBatch = new RowBatch(arrowReader, this.schema).readFlightArrow();
                 }
             }
             hasNext = !eos.get();

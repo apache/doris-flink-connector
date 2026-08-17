@@ -51,6 +51,7 @@ import org.apache.arrow.vector.types.Types.MinorType;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.doris.flink.exception.DorisException;
 import org.apache.doris.flink.exception.DorisRuntimeException;
+import org.apache.doris.flink.rest.SchemaUtils;
 import org.apache.doris.flink.rest.models.Schema;
 import org.apache.doris.flink.util.FastDateUtil;
 import org.apache.doris.flink.util.IPUtils;
@@ -121,18 +122,27 @@ public class RowBatch {
     }
 
     public RowBatch(TScanBatchResult nextResult, Schema schema) {
-        this.schema = schema;
         this.rootAllocator = new RootAllocator(Integer.MAX_VALUE);
         this.arrowStreamReader =
                 new ArrowStreamReader(
                         new ByteArrayInputStream(nextResult.getRows()), rootAllocator);
+        this.schema = convertSchema(arrowStreamReader, schema);
         this.offsetInRowBatch = 0;
     }
 
     public RowBatch(ArrowReader nextResult, Schema schema) {
-        this.schema = schema;
         this.arrowStreamReader = nextResult;
+        this.schema = convertSchema(arrowStreamReader, schema);
         this.offsetInRowBatch = 0;
+    }
+
+    private static Schema convertSchema(ArrowReader arrowReader, Schema tableSchema) {
+        try {
+            return SchemaUtils.convertToSchema(
+                    tableSchema, arrowReader.getVectorSchemaRoot().getSchema());
+        } catch (IOException e) {
+            throw new DorisRuntimeException("Failed to read Arrow schema.", e);
+        }
     }
 
     public RowBatch readFlightArrow() {
@@ -217,14 +227,11 @@ public class RowBatch {
 
     public void convertArrowToRowBatch() throws DorisException {
         try {
-            for (int col = 0; col < schema.size(); col++) {
-                final String colName = schema.get(col).getName();
-                FieldVector fieldVector = root.getVector(colName);
-                if (fieldVector == null) {
-                    throw new IllegalArgumentException("Arrow field not found: " + colName);
-                }
+            for (int col = 0; col < fieldVectors.size(); col++) {
+                FieldVector fieldVector = fieldVectors.get(col);
                 MinorType minorType = fieldVector.getMinorType();
                 final String currentType = schema.get(col).getType();
+                final String colName = schema.get(col).getName();
                 for (int rowIndex = 0; rowIndex < rowCountInOneBatch; rowIndex++) {
                     boolean passed = doConvert(col, rowIndex, minorType, currentType, fieldVector);
                     if (!passed) {
@@ -570,7 +577,7 @@ public class RowBatch {
                 addValueToRow(rowIndex, structValue);
                 break;
             default:
-                String errMsg = "Unsupported type " + schema.get(col).getType();
+                String errMsg = "Unsupported type " + currentType;
                 logger.error(errMsg);
                 throw new DorisException(errMsg);
         }
