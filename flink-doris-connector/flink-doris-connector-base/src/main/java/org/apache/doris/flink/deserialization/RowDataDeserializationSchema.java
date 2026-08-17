@@ -25,6 +25,7 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Collector;
 
 import org.apache.doris.flink.deserialization.converter.DorisRowConverter;
+import org.apache.doris.flink.source.reader.DorisSourceRecord;
 
 import java.util.List;
 
@@ -49,6 +50,13 @@ public class RowDataDeserializationSchema implements DorisDeserializationSchema<
     @Override
     public void deserialize(List<?> record, Collector<RowData> out) throws Exception {
         RowData row = rowConverter.convertInternal(record);
+        out.collect(row);
+    }
+
+    @Override
+    public void deserialize(DorisSourceRecord record, Collector<RowData> out) throws Exception {
+        RowData row = rowConverter.convertInternal(record.getFieldValues());
+        row.setRowKind(record.getRowKind());
         out.collect(row);
     }
 }

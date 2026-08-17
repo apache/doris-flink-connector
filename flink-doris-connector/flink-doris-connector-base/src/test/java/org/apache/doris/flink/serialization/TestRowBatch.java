@@ -99,77 +99,41 @@ public class TestRowBatch {
     @Rule public ExpectedException thrown = ExpectedException.none();
 
     @Test
-    public void testMatchesArrowFieldsByName() throws Exception {
-        List<Field> arrowFields = new ArrayList<>();
-        arrowFields.add(new Field("age", FieldType.nullable(new ArrowType.Int(32, true)), null));
-        arrowFields.add(new Field("name", FieldType.nullable(new ArrowType.Utf8()), null));
-
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        try (VectorSchemaRoot root =
-                        VectorSchemaRoot.create(
-                                new org.apache.arrow.vector.types.pojo.Schema(arrowFields),
-                                new RootAllocator(Integer.MAX_VALUE));
-                ArrowStreamWriter writer =
+    public void testSnapshotSchemaFollowsArrowProjection() throws Exception {
+        try (RootAllocator allocator = new RootAllocator(Integer.MAX_VALUE);
+                IntVector age = new IntVector("age", allocator);
+                VarCharVector name = new VarCharVector("name", allocator);
+                VectorSchemaRoot root = VectorSchemaRoot.of(age, name);
+                ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+                ArrowStreamWriter arrowStreamWriter =
                         new ArrowStreamWriter(
                                 root,
                                 new DictionaryProvider.MapDictionaryProvider(),
                                 outputStream)) {
-            writer.start();
+            age.allocateNew(1);
+            age.setSafe(0, 18);
+            age.setValueCount(1);
+            name.allocateNew();
+            name.setSafe(0, "doris".getBytes(StandardCharsets.UTF_8));
+            name.setValueCount(1);
             root.setRowCount(1);
-            ((IntVector) root.getVector("age")).setSafe(0, 18);
-            ((VarCharVector) root.getVector("name")).setSafe(0, "doris".getBytes());
-            root.getFieldVectors().forEach(vector -> vector.setValueCount(1));
-            writer.writeBatch();
-            writer.end();
+
+            arrowStreamWriter.start();
+            arrowStreamWriter.writeBatch();
+            arrowStreamWriter.end();
+
+            TScanBatchResult scanBatchResult = new TScanBatchResult();
+            scanBatchResult.setRows(outputStream.toByteArray());
+
+            Schema schema = new Schema();
+            schema.put("name", "VARCHAR", "", 0, 0, "");
+            schema.put("age", "INT", "", 0, 0, "");
+            schema.put("score", "DOUBLE", "", 0, 0, "");
+
+            RowBatch rowBatch = new RowBatch(scanBatchResult, schema).readArrow();
+
+            assertEquals(Arrays.asList(18, "doris"), rowBatch.next());
         }
-
-        TScanBatchResult scanBatchResult = new TScanBatchResult();
-        scanBatchResult.setRows(outputStream.toByteArray());
-        Schema schema =
-                RestService.parseSchema(
-                        "{\"properties\":[{\"type\":\"VARCHAR\",\"name\":\"name\"},"
-                                + "{\"type\":\"INT\",\"name\":\"age\"}],\"status\":200}",
-                        logger);
-
-        RowBatch rowBatch = new RowBatch(scanBatchResult, schema).readArrow();
-
-        Assert.assertEquals(Arrays.asList(18, "doris"), rowBatch.next());
-    }
-
-    @Test
-    public void testReadsProjectedArrowFields() throws Exception {
-        List<Field> arrowFields = new ArrayList<>();
-        arrowFields.add(new Field("age", FieldType.nullable(new ArrowType.Int(32, true)), null));
-
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        try (VectorSchemaRoot root =
-                        VectorSchemaRoot.create(
-                                new org.apache.arrow.vector.types.pojo.Schema(arrowFields),
-                                new RootAllocator(Integer.MAX_VALUE));
-                ArrowStreamWriter writer =
-                        new ArrowStreamWriter(
-                                root,
-                                new DictionaryProvider.MapDictionaryProvider(),
-                                outputStream)) {
-            writer.start();
-            root.setRowCount(1);
-            ((IntVector) root.getVector("age")).setSafe(0, 18);
-            root.getVector("age").setValueCount(1);
-            writer.writeBatch();
-            writer.end();
-        }
-
-        TScanBatchResult scanBatchResult = new TScanBatchResult();
-        scanBatchResult.setRows(outputStream.toByteArray());
-        Schema schema =
-                RestService.parseSchema(
-                        "{\"properties\":[{\"type\":\"VARCHAR\",\"name\":\"name\"},"
-                                + "{\"type\":\"INT\",\"name\":\"age\"}],\"status\":200}",
-                        logger);
-
-        RowBatch rowBatch = new RowBatch(scanBatchResult, schema).readArrow();
-
-        Assert.assertEquals(Arrays.asList(18), rowBatch.next());
     }
 
     @Test

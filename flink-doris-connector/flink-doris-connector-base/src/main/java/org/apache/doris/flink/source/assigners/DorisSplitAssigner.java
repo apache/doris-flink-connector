@@ -17,39 +17,20 @@
 
 package org.apache.doris.flink.source.assigners;
 
-import org.apache.doris.flink.source.enumerator.PendingSplitsCheckpoint;
 import org.apache.doris.flink.source.split.DorisSourceSplit;
 
-import javax.annotation.Nullable;
-
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
-/**
- * The {@code DorisSplitAssigner} is responsible for deciding what split should be processed. It
- * determines split processing order.
- */
-public interface DorisSplitAssigner {
+/** Common pending-split operations shared by phase-specific Doris assigners. */
+interface DorisSplitAssigner<SplitT extends DorisSourceSplit> {
 
-    /**
-     * Gets the next split.
-     *
-     * <p>When this method returns an empty {@code Optional}, then the set of splits is assumed to
-     * be done and the source will finish once the readers finished their current splits.
-     */
-    Optional<DorisSourceSplit> getNext(@Nullable String hostname);
+    Optional<SplitT> getNext();
 
-    /**
-     * Adds a set of splits to this assigner. This happens for example when some split processing
-     * failed and the splits need to be re-added, or when new splits got discovered.
-     */
-    void addSplits(Collection<DorisSourceSplit> splits);
+    void addSplits(Collection<SplitT> splits);
 
-    /**
-     * Creates a snapshot of the state of this split assigner, to be stored in a checkpoint.
-     *
-     * @param checkpointId The ID of the checkpoint for which the snapshot is created.
-     * @return an object containing the state of the split enumerator.
-     */
-    PendingSplitsCheckpoint snapshotState(long checkpointId);
+    List<SplitT> remainingSplits();
+
+    boolean hasPendingSplits();
 }

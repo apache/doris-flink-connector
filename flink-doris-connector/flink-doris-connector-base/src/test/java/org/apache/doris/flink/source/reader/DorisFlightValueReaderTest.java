@@ -8,31 +8,152 @@
 //
 //   http://www.apache.org/licenses/LICENSE-2.0
 //
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
 
 package org.apache.doris.flink.source.reader;
 
+import org.apache.arrow.adbc.core.AdbcConnection;
+import org.apache.arrow.adbc.core.AdbcDatabase;
 import org.apache.arrow.adbc.core.AdbcDriver;
 import org.apache.arrow.adbc.driver.flightsql.FlightSqlConnectionProperties;
+import org.apache.arrow.adbc.driver.flightsql.FlightSqlDriver;
 import org.apache.arrow.flight.Location;
+import org.apache.arrow.memory.RootAllocator;
 import org.apache.doris.flink.cfg.DorisOptions;
+import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.cfg.DorisTlsOptions;
 import org.apache.doris.flink.exception.DorisRuntimeException;
-import org.junit.Assert;
-import org.junit.Test;
+import org.apache.doris.flink.rest.PartitionDefinition;
+import org.apache.doris.flink.rest.RestService;
+import org.apache.doris.flink.rest.models.Schema;
+import org.apache.doris.flink.source.DorisBinlogIncrementType;
+import org.apache.doris.flink.source.split.DorisSnapshotSplit;
+import org.apache.doris.flink.source.split.DorisStreamSplit;
+import org.junit.jupiter.api.Test;
+import org.mockito.MockedConstruction;
+import org.mockito.MockedStatic;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
+import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.Map;
 
-public class DorisFlightValueReaderTest {
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockConstruction;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+class DorisFlightValueReaderTest {
 
     @Test
-    public void testTlsLocationAndRootCertificates() {
+    void closesAcquiredResourcesWhenInitializationFails() throws Exception {
+        DorisSnapshotSplit split = mock(DorisSnapshotSplit.class);
+        DorisOptions options =
+                DorisOptions.builder()
+                        .setFenodes("127.0.0.1:8030")
+                        .setTableIdentifier("sales.orders")
+                        .build();
+        DorisReadOptions readOptions = DorisReadOptions.builder().setFlightSqlPort(8815).build();
+        AdbcDatabase database = mock(AdbcDatabase.class);
+        AdbcConnection connection = mock(AdbcConnection.class);
+        when(database.connect()).thenReturn(connection);
+        when(connection.createStatement()).thenThrow(new RuntimeException("create failed"));
+
+        try (MockedStatic<RestService> restService = mockStatic(RestService.class);
+                MockedConstruction<RootAllocator> allocators =
+                        mockConstruction(RootAllocator.class);
+                MockedConstruction<FlightSqlDriver> drivers =
+                        mockConstruction(
+                                FlightSqlDriver.class,
+                                (driver, context) ->
+                                        when(driver.open(anyMap())).thenReturn(database))) {
+            restService
+                    .when(() -> RestService.getSchema(eq(options), eq(readOptions), any()))
+                    .thenReturn(new Schema());
+            restService
+                    .when(() -> RestService.randomEndpoint(eq(options), any()))
+                    .thenReturn("127.0.0.1:8030");
+
+            assertThatThrownBy(() -> new DorisFlightValueReader(split, options, readOptions))
+                    .isInstanceOf(RuntimeException.class)
+                    .hasMessage("create failed");
+
+            verify(connection).close();
+            verify(database).close();
+            verify(allocators.constructed().get(0)).close();
+        }
+    }
+
+    @Test
+    void closesRemainingResourcesAfterOneCloseFails() throws Exception {
+        AutoCloseable first = mock(AutoCloseable.class);
+        AutoCloseable second = mock(AutoCloseable.class);
+        doThrow(new java.io.IOException("first failed")).when(first).close();
+
+        assertThatThrownBy(() -> DorisFlightValueReader.closeAll(first, second))
+                .hasMessageContaining("first failed");
+        verify(second).close();
+    }
+
+    @Test
+    void buildsSnapshotSqlWithTabletRestriction() {
+        DorisOptions options =
+                DorisOptions.builder()
+                        .setFenodes("127.0.0.1:8030")
+                        .setTableIdentifier("sales.orders")
+                        .build();
+        DorisReadOptions readOptions = DorisReadOptions.builder().setReadFields("`id`").build();
+        PartitionDefinition partition =
+                new PartitionDefinition(
+                        "sales",
+                        "orders",
+                        "be:9060",
+                        new LinkedHashSet<>(Arrays.asList(2L, 1L)),
+                        "plan");
+
+        assertThat(DorisFlightValueReader.buildSnapshotSql(options, readOptions, partition))
+                .contains("SELECT `id` FROM `sales`.`orders`")
+                .contains("TABLET(1,2)");
+    }
+
+    @Test
+    void buildsExplicitOrderedIncrementalSql() {
+        DorisOptions options =
+                DorisOptions.builder()
+                        .setFenodes("127.0.0.1:8030")
+                        .setTableIdentifier("sales.orders")
+                        .build();
+        DorisReadOptions readOptions = DorisReadOptions.builder().setReadFields("`id`").build();
+        DorisStreamSplit split = DorisStreamSplit.of("2026-07-20 10:00:00", "2026-07-20 10:00:10");
+
+        String sql =
+                DorisFlightValueReader.buildIncrementalSql(
+                        options, readOptions, split, DorisBinlogIncrementType.DETAIL);
+
+        assertThat(sql)
+                .contains("`sales`.`orders`@incr")
+                .contains("'startTimestamp' = '2026-07-20 10:00:00'")
+                .contains("'endTimestamp' = '2026-07-20 10:00:10'")
+                .contains("'incrementType' = 'DETAIL'")
+                .endsWith(
+                        "ORDER BY __DORIS_BINLOG_TSO__, __DORIS_BINLOG_LSN__, __DORIS_BINLOG_OP__");
+    }
+
+    @Test
+    void usesTlsLocationAndRootCertificates() {
         DorisOptions options = options(DorisTlsOptions.builder().setEnabled(true).build());
         InputStream rootCertificates = new ByteArrayInputStream(new byte[] {1, 2, 3});
 
@@ -40,29 +161,28 @@ public class DorisFlightValueReaderTest {
                 DorisFlightValueReader.createConnectionParameters(
                         "fe.example", 9040, options, rootCertificates);
 
-        Assert.assertEquals(
-                Location.forGrpcTls("fe.example", 9040).getUri().toString(),
-                AdbcDriver.PARAM_URI.get(parameters));
-        Assert.assertSame(
-                rootCertificates, FlightSqlConnectionProperties.TLS_ROOT_CERTS.get(parameters));
-        Assert.assertFalse(
-                parameters.containsKey(FlightSqlConnectionProperties.TLS_SKIP_VERIFY.getKey()));
+        assertThat(AdbcDriver.PARAM_URI.get(parameters))
+                .isEqualTo(Location.forGrpcTls("fe.example", 9040).getUri().toString());
+        assertThat(FlightSqlConnectionProperties.TLS_ROOT_CERTS.get(parameters))
+                .isSameAs(rootCertificates);
+        assertThat(parameters)
+                .doesNotContainKey(FlightSqlConnectionProperties.TLS_SKIP_VERIFY.getKey());
     }
 
     @Test
-    public void testSystemTrustDoesNotSetRootCertificates() {
+    void systemTrustDoesNotSetRootCertificates() {
         DorisOptions options = options(DorisTlsOptions.builder().setEnabled(true).build());
 
         Map<String, Object> parameters =
                 DorisFlightValueReader.createConnectionParameters(
                         "fe.example", 9040, options, null);
 
-        Assert.assertFalse(
-                parameters.containsKey(FlightSqlConnectionProperties.TLS_ROOT_CERTS.getKey()));
+        assertThat(parameters)
+                .doesNotContainKey(FlightSqlConnectionProperties.TLS_ROOT_CERTS.getKey());
     }
 
     @Test
-    public void testExcludedArrowFlightUsesInsecureLocation() {
+    void excludedArrowFlightUsesInsecureLocation() {
         DorisOptions options =
                 options(
                         DorisTlsOptions.builder()
@@ -74,13 +194,12 @@ public class DorisFlightValueReaderTest {
                 DorisFlightValueReader.createConnectionParameters(
                         "fe.example", 9040, options, null);
 
-        Assert.assertEquals(
-                Location.forGrpcInsecure("fe.example", 9040).getUri().toString(),
-                AdbcDriver.PARAM_URI.get(parameters));
+        assertThat(AdbcDriver.PARAM_URI.get(parameters))
+                .isEqualTo(Location.forGrpcInsecure("fe.example", 9040).getUri().toString());
     }
 
     @Test
-    public void testHostnameSkipFailsClosedForArrowFlightTls() {
+    void hostnameSkipFailsClosedForArrowFlightTls() {
         DorisOptions options =
                 options(
                         DorisTlsOptions.builder()
@@ -88,13 +207,13 @@ public class DorisFlightValueReaderTest {
                                 .setSkipHostnameVerification(true)
                                 .build());
 
-        try {
-            DorisFlightValueReader.createConnectionParameters("fe.example", 9040, options, null);
-            Assert.fail("Expected unsupported hostname verification policy to fail");
-        } catch (DorisRuntimeException e) {
-            Assert.assertTrue(e.getMessage().contains("Arrow Flight"));
-            Assert.assertTrue(e.getMessage().contains("hostname verification"));
-        }
+        assertThatThrownBy(
+                        () ->
+                                DorisFlightValueReader.createConnectionParameters(
+                                        "fe.example", 9040, options, null))
+                .isInstanceOf(DorisRuntimeException.class)
+                .hasMessageContaining("Arrow Flight")
+                .hasMessageContaining("hostname verification");
     }
 
     private DorisOptions options(DorisTlsOptions tlsOptions) {

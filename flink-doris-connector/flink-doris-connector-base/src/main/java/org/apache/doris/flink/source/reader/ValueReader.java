@@ -19,20 +19,36 @@ package org.apache.doris.flink.source.reader;
 
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
+import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.apache.doris.flink.rest.PartitionDefinition;
 import org.apache.doris.flink.rest.RestService;
+import org.apache.doris.flink.source.split.DorisSnapshotSplit;
+import org.apache.doris.flink.source.split.DorisSourceSplit;
+import org.apache.doris.flink.source.split.DorisStreamSplit;
 import org.slf4j.Logger;
-
-import java.util.List;
 
 public abstract class ValueReader {
 
     public static ValueReader createReader(
-            PartitionDefinition partition,
+            DorisSourceSplit split,
             DorisOptions options,
             DorisReadOptions readOptions,
             Logger logger) {
+        if (split instanceof DorisStreamSplit) {
+            return new DorisFlightValueReader(split, options, readOptions);
+        }
+        if (!(split instanceof DorisSnapshotSplit)) {
+            throw new DorisRuntimeException("Unknown Doris split type: " + split);
+        }
+
+        PartitionDefinition partition = ((DorisSnapshotSplit) split).getPartitionDefinition();
         logger.info("create reader for partition: {}", partition.toStringWithoutPlan());
+        String tableIdentifier = options.getTableIdentifier();
+        boolean catalogSnapshot =
+                tableIdentifier != null && tableIdentifier.split("\\.", -1).length == 3;
+        if (readOptions.getScanMode().hasIncrementalPhase() || catalogSnapshot) {
+            return new DorisFlightValueReader(split, options, readOptions);
+        }
         if (readOptions.getUseFlightSql()) {
             Integer adbcPort = RestService.tryGetArrowFlightSqlPort(options, readOptions, logger);
             if (adbcPort != null && adbcPort > 0) {
@@ -40,7 +56,7 @@ public abstract class ValueReader {
                 logger.info(
                         "Using Arrow Flight SQL port to read data, port is: {}.",
                         readOptions.getFlightSqlPort());
-                return new DorisFlightValueReader(partition, options, readOptions);
+                return new DorisFlightValueReader(split, options, readOptions);
             } else {
                 logger.warn(
                         "Arrow Flight SQL port [{}] is invalid or not available. Falling back to Thrift.",
@@ -53,7 +69,7 @@ public abstract class ValueReader {
 
     public abstract boolean hasNext();
 
-    public abstract List next();
+    public abstract DorisSourceRecord next();
 
     public abstract void close() throws Exception;
 }

@@ -91,7 +91,7 @@ public class DorisSourceFunction extends RichParallelSourceFunction<List<?>>
             try (DorisValueReader valueReader =
                     new DorisValueReader(partitions, options, readOptions)) {
                 while (isRunning && valueReader.hasNext()) {
-                    List<?> next = valueReader.next();
+                    List<?> next = valueReader.next().getFieldValues();
                     sourceContext.collect(next);
                 }
             } catch (Exception e) {

@@ -17,6 +17,9 @@
 
 package org.apache.doris.flink.cfg;
 
+import org.apache.doris.flink.source.DorisBinlogIncrementType;
+import org.apache.doris.flink.source.DorisSourceScanMode;
+
 import java.io.Serializable;
 import java.util.Objects;
 
@@ -42,6 +45,12 @@ public class DorisReadOptions implements Serializable {
     // for flink sql limit push down
     private Long rowLimit;
     private Integer thriftMaxMessageSize;
+    private DorisSourceScanMode scanMode;
+    private String scanTimestamp;
+    private DorisBinlogIncrementType binlogIncrementType;
+    private Long binlogPollIntervalMs;
+    private String binlogOffsetTable;
+    private String binlogConsumerId;
 
     public DorisReadOptions(
             String readFields,
@@ -59,7 +68,59 @@ public class DorisReadOptions implements Serializable {
             boolean useFlightSql,
             Integer flightSqlPort,
             Long rowLimit,
-            Integer thriftMaxMessageSize) {
+            Integer thriftMaxMessageSize,
+            DorisSourceScanMode scanMode,
+            String scanTimestamp,
+            DorisBinlogIncrementType binlogIncrementType,
+            Long binlogPollIntervalMs) {
+        this(
+                readFields,
+                filterQuery,
+                requestTabletSize,
+                requestConnectTimeoutMs,
+                requestReadTimeoutMs,
+                requestQueryTimeoutS,
+                requestRetries,
+                requestBatchSize,
+                execMemLimit,
+                deserializeQueueSize,
+                deserializeArrowAsync,
+                useOldApi,
+                useFlightSql,
+                flightSqlPort,
+                rowLimit,
+                thriftMaxMessageSize,
+                scanMode,
+                scanTimestamp,
+                binlogIncrementType,
+                binlogPollIntervalMs,
+                null,
+                null);
+    }
+
+    public DorisReadOptions(
+            String readFields,
+            String filterQuery,
+            Integer requestTabletSize,
+            Integer requestConnectTimeoutMs,
+            Integer requestReadTimeoutMs,
+            Integer requestQueryTimeoutS,
+            Integer requestRetries,
+            Integer requestBatchSize,
+            Long execMemLimit,
+            Integer deserializeQueueSize,
+            Boolean deserializeArrowAsync,
+            boolean useOldApi,
+            boolean useFlightSql,
+            Integer flightSqlPort,
+            Long rowLimit,
+            Integer thriftMaxMessageSize,
+            DorisSourceScanMode scanMode,
+            String scanTimestamp,
+            DorisBinlogIncrementType binlogIncrementType,
+            Long binlogPollIntervalMs,
+            String binlogOffsetTable,
+            String binlogConsumerId) {
         this.readFields = readFields;
         this.filterQuery = filterQuery;
         this.requestTabletSize = requestTabletSize;
@@ -76,6 +137,12 @@ public class DorisReadOptions implements Serializable {
         this.flightSqlPort = flightSqlPort;
         this.rowLimit = rowLimit;
         this.thriftMaxMessageSize = thriftMaxMessageSize;
+        this.scanMode = scanMode;
+        this.scanTimestamp = scanTimestamp;
+        this.binlogIncrementType = binlogIncrementType;
+        this.binlogPollIntervalMs = binlogPollIntervalMs;
+        this.binlogOffsetTable = binlogOffsetTable;
+        this.binlogConsumerId = binlogConsumerId;
     }
 
     public String getReadFields() {
@@ -158,6 +225,30 @@ public class DorisReadOptions implements Serializable {
         return thriftMaxMessageSize;
     }
 
+    public DorisSourceScanMode getScanMode() {
+        return scanMode;
+    }
+
+    public String getScanTimestamp() {
+        return scanTimestamp;
+    }
+
+    public DorisBinlogIncrementType getBinlogIncrementType() {
+        return binlogIncrementType;
+    }
+
+    public Long getBinlogPollIntervalMs() {
+        return binlogPollIntervalMs;
+    }
+
+    public String getBinlogOffsetTable() {
+        return binlogOffsetTable;
+    }
+
+    public String getBinlogConsumerId() {
+        return binlogConsumerId;
+    }
+
     public static Builder builder() {
         return new Builder();
     }
@@ -190,7 +281,13 @@ public class DorisReadOptions implements Serializable {
                 && Objects.equals(useFlightSql, that.useFlightSql)
                 && Objects.equals(flightSqlPort, that.flightSqlPort)
                 && Objects.equals(rowLimit, that.rowLimit)
-                && Objects.equals(thriftMaxMessageSize, that.thriftMaxMessageSize);
+                && Objects.equals(thriftMaxMessageSize, that.thriftMaxMessageSize)
+                && scanMode == that.scanMode
+                && Objects.equals(scanTimestamp, that.scanTimestamp)
+                && binlogIncrementType == that.binlogIncrementType
+                && Objects.equals(binlogPollIntervalMs, that.binlogPollIntervalMs)
+                && Objects.equals(binlogOffsetTable, that.binlogOffsetTable)
+                && Objects.equals(binlogConsumerId, that.binlogConsumerId);
     }
 
     @Override
@@ -211,7 +308,13 @@ public class DorisReadOptions implements Serializable {
                 useFlightSql,
                 flightSqlPort,
                 rowLimit,
-                thriftMaxMessageSize);
+                thriftMaxMessageSize,
+                scanMode,
+                scanTimestamp,
+                binlogIncrementType,
+                binlogPollIntervalMs,
+                binlogOffsetTable,
+                binlogConsumerId);
     }
 
     public DorisReadOptions copy() {
@@ -231,7 +334,13 @@ public class DorisReadOptions implements Serializable {
                 useFlightSql,
                 flightSqlPort,
                 rowLimit,
-                thriftMaxMessageSize);
+                thriftMaxMessageSize,
+                scanMode,
+                scanTimestamp,
+                binlogIncrementType,
+                binlogPollIntervalMs,
+                binlogOffsetTable,
+                binlogConsumerId);
     }
 
     /** Builder of {@link DorisReadOptions}. */
@@ -259,6 +368,12 @@ public class DorisReadOptions implements Serializable {
         private Long rowLimit;
         private Integer thriftMaxMessageSize =
                 ConfigurationOptions.DORIS_THRIFT_MAX_MESSAGE_SIZE_DEFAULT;
+        private DorisSourceScanMode scanMode = DorisSourceScanMode.SNAPSHOT;
+        private String scanTimestamp;
+        private DorisBinlogIncrementType binlogIncrementType = DorisBinlogIncrementType.DETAIL;
+        private Long binlogPollIntervalMs = 10_000L;
+        private String binlogOffsetTable;
+        private String binlogConsumerId;
 
         /**
          * Sets the readFields for doris table to push down projection, such as name,age.
@@ -429,6 +544,36 @@ public class DorisReadOptions implements Serializable {
             return this;
         }
 
+        public Builder setScanMode(DorisSourceScanMode scanMode) {
+            this.scanMode = scanMode;
+            return this;
+        }
+
+        public Builder setScanTimestamp(String scanTimestamp) {
+            this.scanTimestamp = scanTimestamp;
+            return this;
+        }
+
+        public Builder setBinlogIncrementType(DorisBinlogIncrementType binlogIncrementType) {
+            this.binlogIncrementType = binlogIncrementType;
+            return this;
+        }
+
+        public Builder setBinlogPollIntervalMs(Long binlogPollIntervalMs) {
+            this.binlogPollIntervalMs = binlogPollIntervalMs;
+            return this;
+        }
+
+        public Builder setBinlogOffsetTable(String binlogOffsetTable) {
+            this.binlogOffsetTable = binlogOffsetTable;
+            return this;
+        }
+
+        public Builder setBinlogConsumerId(String binlogConsumerId) {
+            this.binlogConsumerId = binlogConsumerId;
+            return this;
+        }
+
         /**
          * Build the {@link DorisReadOptions}.
          *
@@ -451,7 +596,13 @@ public class DorisReadOptions implements Serializable {
                     useFlightSql,
                     flightSqlPort,
                     rowLimit,
-                    thriftMaxMessageSize);
+                    thriftMaxMessageSize,
+                    scanMode,
+                    scanTimestamp,
+                    binlogIncrementType,
+                    binlogPollIntervalMs,
+                    binlogOffsetTable,
+                    binlogConsumerId);
         }
     }
 }

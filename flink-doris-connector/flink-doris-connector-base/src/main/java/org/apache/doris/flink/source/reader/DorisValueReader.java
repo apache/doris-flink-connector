@@ -37,7 +37,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
-import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -276,13 +275,13 @@ public class DorisValueReader extends ValueReader implements AutoCloseable {
      *
      * @return next value
      */
-    public List next() {
+    public DorisSourceRecord next() {
         if (!hasNext()) {
             LOG.error(SHOULD_NOT_HAPPEN_MESSAGE);
             throw new ShouldNeverHappenException();
         }
         readRowCount++;
-        return rowBatch.next();
+        return DorisSourceRecord.snapshot(rowBatch.next());
     }
 
     @Override

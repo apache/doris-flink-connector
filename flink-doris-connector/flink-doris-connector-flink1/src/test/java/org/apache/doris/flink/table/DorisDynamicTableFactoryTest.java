@@ -18,6 +18,7 @@
 package org.apache.doris.flink.table;
 
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.factories.utils.FactoryMocks;
@@ -29,6 +30,8 @@ import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.cfg.DorisTlsOptions;
 import org.apache.doris.flink.cfg.S3TvfOptions;
 import org.apache.doris.flink.sink.writer.WriteMode;
+import org.apache.doris.flink.source.DorisBinlogIncrementType;
+import org.apache.doris.flink.source.DorisSourceScanMode;
 import org.junit.Test;
 
 import java.util.HashMap;
@@ -54,6 +57,26 @@ import static org.junit.Assert.assertNotEquals;
 public class DorisDynamicTableFactoryTest {
 
     @Test
+    public void testIncrementalSourceRejectsOldApi() {
+        Map<String, String> properties = getAllOptions();
+        properties.put("source.scan.mode", "latest");
+        properties.put("source.use-old-api", "true");
+
+        try {
+            FactoryMocks.createTableSource(SCHEMA, properties);
+            org.junit.Assert.fail("Expected incremental mode to reject source.use-old-api=true");
+        } catch (ValidationException e) {
+            Throwable rootCause = e;
+            while (rootCause.getCause() != null) {
+                rootCause = rootCause.getCause();
+            }
+            assertEquals(
+                    "source.use-old-api=true only supports source.scan.mode=snapshot",
+                    rootCause.getMessage());
+        }
+    }
+
+    @Test
     public void testDorisSourceProperties() {
         Map<String, String> properties = getAllOptions();
         properties.put("doris.request.query.timeout", "21600s");
@@ -73,6 +96,10 @@ public class DorisDynamicTableFactoryTest {
         properties.put("lookup.jdbc.read.thread-size", "1");
         properties.put("source.use-flight-sql", "true");
         properties.put("source.flight-sql-port", "-1");
+        properties.put("source.scan.mode", "from-timestamp");
+        properties.put("source.scan.timestamp", "2026-07-20 10:00:00");
+        properties.put("source.binlog.increment-type", "min_delta");
+        properties.put("source.binlog.poll-interval", "3s");
         DynamicTableSource actual = FactoryMocks.createTableSource(SCHEMA, properties);
         DorisOptions options =
                 DorisOptions.builder()
@@ -109,7 +136,11 @@ public class DorisDynamicTableFactoryTest {
                 .setRequestTabletSize(DORIS_TABLET_SIZE_DEFAULT)
                 .setUseFlightSql(USE_FLIGHT_SQL_DEFAULT)
                 .setFlightSqlPort(FLIGHT_SQL_PORT_DEFAULT)
-                .setThriftMaxMessageSize(DORIS_THRIFT_MAX_MESSAGE_SIZE_DEFAULT);
+                .setThriftMaxMessageSize(DORIS_THRIFT_MAX_MESSAGE_SIZE_DEFAULT)
+                .setScanMode(DorisSourceScanMode.FROM_TIMESTAMP)
+                .setScanTimestamp("2026-07-20 10:00:00")
+                .setBinlogIncrementType(DorisBinlogIncrementType.MIN_DELTA)
+                .setBinlogPollIntervalMs(3_000L);
         DorisDynamicTableSource expected =
                 new DorisDynamicTableSource(
                         options,

@@ -19,6 +19,7 @@ package org.apache.doris.flink.table;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.connector.source.AsyncTableFunctionProvider;
@@ -35,6 +36,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.types.RowKind;
 import org.apache.flink.util.StringUtils;
 
 import org.apache.doris.flink.cfg.DorisLookupOptions;
@@ -45,11 +47,13 @@ import org.apache.doris.flink.exception.DorisException;
 import org.apache.doris.flink.rest.PartitionDefinition;
 import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.source.DorisSource;
+import org.apache.doris.flink.source.DorisSourceScanMode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -76,6 +80,11 @@ public final class DorisDynamicTableSource
             DorisLookupOptions lookupOptions,
             TableSchema physicalSchema,
             DataType physicalRowDataType) {
+        if (readOptions.getUseOldApi()
+                && readOptions.getScanMode() != DorisSourceScanMode.SNAPSHOT) {
+            throw new ValidationException(
+                    "source.use-old-api=true only supports source.scan.mode=snapshot");
+        }
         this.options = options;
         this.lookupOptions = lookupOptions;
         this.readOptions = readOptions;
@@ -85,9 +94,17 @@ public final class DorisDynamicTableSource
 
     @Override
     public ChangelogMode getChangelogMode() {
-        // in our example the format decides about the changelog mode
-        // but it could also be the source itself
-        return ChangelogMode.insertOnly();
+        if (!readOptions.getScanMode().hasIncrementalPhase()
+                || readOptions.getBinlogIncrementType()
+                        == org.apache.doris.flink.source.DorisBinlogIncrementType.APPEND_ONLY) {
+            return ChangelogMode.insertOnly();
+        }
+        return ChangelogMode.newBuilder()
+                .addContainedKind(RowKind.INSERT)
+                .addContainedKind(RowKind.DELETE)
+                .addContainedKind(RowKind.UPDATE_BEFORE)
+                .addContainedKind(RowKind.UPDATE_AFTER)
+                .build();
     }
 
     @Override
@@ -190,6 +207,10 @@ public final class DorisDynamicTableSource
 
     @Override
     public Result applyFilters(List<ResolvedExpression> filters) {
+        if (readOptions.getScanMode().hasIncrementalPhase()) {
+            return Result.of(Collections.emptyList(), filters);
+        }
+
         List<ResolvedExpression> acceptedFilters = new ArrayList<>();
         List<ResolvedExpression> remainingFilters = new ArrayList<>();
 
@@ -256,6 +277,9 @@ public final class DorisDynamicTableSource
 
     @Override
     public void applyLimit(long limit) {
+        if (readOptions.getScanMode().hasIncrementalPhase()) {
+            return;
+        }
         // partial limit push down to reduce the amount of data scanned
         readOptions.setRowLimit(limit);
     }

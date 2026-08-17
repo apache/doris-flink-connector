@@ -33,6 +33,8 @@ import org.apache.doris.flink.cfg.DorisLookupOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.sink.writer.WriteMode;
+import org.apache.doris.flink.source.DorisBinlogIncrementType;
+import org.apache.doris.flink.source.DorisSourceScanMode;
 
 import java.util.HashSet;
 import java.util.Properties;
@@ -93,6 +95,12 @@ import static org.apache.doris.flink.table.DorisConfigOptions.SINK_S3_REGION;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_S3_SECRET_KEY;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_USE_CACHE;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_WRITE_MODE;
+import static org.apache.doris.flink.table.DorisConfigOptions.SOURCE_BINLOG_CONSUMER_ID;
+import static org.apache.doris.flink.table.DorisConfigOptions.SOURCE_BINLOG_INCREMENT_TYPE;
+import static org.apache.doris.flink.table.DorisConfigOptions.SOURCE_BINLOG_OFFSET_TABLE;
+import static org.apache.doris.flink.table.DorisConfigOptions.SOURCE_BINLOG_POLL_INTERVAL;
+import static org.apache.doris.flink.table.DorisConfigOptions.SOURCE_SCAN_MODE;
+import static org.apache.doris.flink.table.DorisConfigOptions.SOURCE_SCAN_TIMESTAMP;
 import static org.apache.doris.flink.table.DorisConfigOptions.SOURCE_USE_OLD_API;
 import static org.apache.doris.flink.table.DorisConfigOptions.STREAM_LOAD_PROP_PREFIX;
 import static org.apache.doris.flink.table.DorisConfigOptions.TABLE_IDENTIFIER;
@@ -176,6 +184,12 @@ public final class DorisDynamicTableFactory
         options.add(SINK_USE_CACHE);
 
         options.add(SOURCE_USE_OLD_API);
+        options.add(SOURCE_SCAN_MODE);
+        options.add(SOURCE_SCAN_TIMESTAMP);
+        options.add(SOURCE_BINLOG_INCREMENT_TYPE);
+        options.add(SOURCE_BINLOG_POLL_INTERVAL);
+        options.add(SOURCE_BINLOG_OFFSET_TABLE);
+        options.add(SOURCE_BINLOG_CONSUMER_ID);
         options.add(SINK_WRITE_MODE);
         options.add(SINK_IGNORE_COMMIT_ERROR);
 
@@ -208,10 +222,13 @@ public final class DorisDynamicTableFactory
         TableSchema physicalSchema =
                 TableSchemaUtils.getPhysicalSchema(context.getCatalogTable().getSchema());
         // create and return dynamic table source
+        DorisOptions dorisOptions = getDorisOptions(options);
+        DorisReadOptions readOptions = getDorisReadOptions(options);
+        DorisLookupOptions lookupOptions = getDorisLookupOptions(options);
         return new DorisDynamicTableSource(
-                getDorisOptions(helper.getOptions()),
-                getDorisReadOptions(helper.getOptions()),
-                getDorisLookupOptions(helper.getOptions()),
+                dorisOptions,
+                readOptions,
+                lookupOptions,
                 physicalSchema,
                 context.getPhysicalRowDataType());
     }
@@ -251,6 +268,16 @@ public final class DorisDynamicTableFactory
                 .setRequestRetries(readableConfig.get(DORIS_REQUEST_RETRIES))
                 .setRequestTabletSize(readableConfig.get(DORIS_TABLET_SIZE))
                 .setUseOldApi(readableConfig.get(SOURCE_USE_OLD_API))
+                .setScanMode(DorisSourceScanMode.fromOption(readableConfig.get(SOURCE_SCAN_MODE)))
+                .setScanTimestamp(readableConfig.getOptional(SOURCE_SCAN_TIMESTAMP).orElse(null))
+                .setBinlogIncrementType(
+                        DorisBinlogIncrementType.fromOption(
+                                readableConfig.get(SOURCE_BINLOG_INCREMENT_TYPE)))
+                .setBinlogPollIntervalMs(readableConfig.get(SOURCE_BINLOG_POLL_INTERVAL).toMillis())
+                .setBinlogOffsetTable(
+                        readableConfig.getOptional(SOURCE_BINLOG_OFFSET_TABLE).orElse(null))
+                .setBinlogConsumerId(
+                        readableConfig.getOptional(SOURCE_BINLOG_CONSUMER_ID).orElse(null))
                 .setUseFlightSql(readableConfig.get(USE_FLIGHT_SQL))
                 .setFlightSqlPort(readableConfig.get(FLIGHT_SQL_PORT));
         return builder.build();

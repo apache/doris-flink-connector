@@ -17,18 +17,20 @@
 
 package org.apache.doris.flink.source.enumerator;
 
-import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.connector.testutils.source.reader.TestingSplitEnumeratorContext;
 
+import org.apache.doris.flink.cfg.DorisOptions;
+import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.rest.PartitionDefinition;
-import org.apache.doris.flink.source.DorisSource;
-import org.apache.doris.flink.source.assigners.SimpleSplitAssigner;
+import org.apache.doris.flink.source.DorisSourceScanMode;
+import org.apache.doris.flink.source.assigners.DorisSourceSplitAssigner;
+import org.apache.doris.flink.source.split.DorisSnapshotSplit;
 import org.apache.doris.flink.source.split.DorisSourceSplit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -38,7 +40,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class DorisSourceEnumeratorTest {
     private static long splitId = 1L;
     private TestingSplitEnumeratorContext<DorisSourceSplit> context;
-    private DorisSourceSplit split;
+    private DorisSnapshotSplit split;
     private DorisSourceEnumerator enumerator;
 
     @BeforeEach
@@ -46,23 +48,17 @@ public class DorisSourceEnumeratorTest {
         this.context = new TestingSplitEnumeratorContext<>(2);
         this.split = createRandomSplit();
         this.enumerator = createEnumerator(context, split);
+        this.enumerator.start();
     }
 
     @Test
-    void testCheckpointNoSplitRequested() throws Exception {
-        PendingSplitsCheckpoint state = enumerator.snapshotState(1L);
-        assertThat(state.getSplits()).contains(split);
-    }
+    void testCheckpointAndRestoreWithoutSplitRequest() throws Exception {
+        DorisSourceCheckpoint state = enumerator.snapshotState(1L);
+        assertThat(state.getPendingSplits()).containsExactly(split);
 
-    @Test
-    void testRestoreEnumerator() throws Exception {
-        PendingSplitsCheckpoint state = enumerator.snapshotState(1L);
-
-        DorisSource<String> source = DorisSource.<String>builder().build();
-        SplitEnumerator<DorisSourceSplit, PendingSplitsCheckpoint> restoreEnumerator =
-                source.restoreEnumerator(context, state);
-        PendingSplitsCheckpoint pendingSplitsCheckpoint = restoreEnumerator.snapshotState(1L);
-        assertThat(pendingSplitsCheckpoint.getSplits()).contains(split);
+        DorisSourceEnumerator restored = createEnumerator(context, state);
+        restored.start();
+        assertThat(restored.snapshotState(2L).getPendingSplits()).containsExactly(split);
     }
 
     @Test
@@ -70,7 +66,7 @@ public class DorisSourceEnumeratorTest {
         context.registerReader(1, "somehost");
         enumerator.addReader(1);
         enumerator.handleSplitRequest(1, "somehost");
-        assertThat(enumerator.snapshotState(1L).getSplits()).isEmpty();
+        assertThat(enumerator.snapshotState(1L).getPendingSplits()).isEmpty();
         assertThat(context.getSplitAssignments().get(1).getAssignedSplits()).contains(split);
     }
 
@@ -78,7 +74,7 @@ public class DorisSourceEnumeratorTest {
     void testSplitRequestForNonRegisteredReader() throws Exception {
         enumerator.handleSplitRequest(1, "somehost");
         assertThat(context.getSplitAssignments()).doesNotContainKey(1);
-        assertThat(enumerator.snapshotState(1L).getSplits()).contains(split);
+        assertThat(enumerator.snapshotState(1L).getPendingSplits()).contains(split);
     }
 
     @Test
@@ -95,10 +91,10 @@ public class DorisSourceEnumeratorTest {
         assertThat(context.getSplitAssignments().get(1).hasReceivedNoMoreSplitsSignal()).isTrue();
     }
 
-    private static DorisSourceSplit createRandomSplit() {
+    private static DorisSnapshotSplit createRandomSplit() {
         Set<Long> tabletIds = new HashSet<>();
         tabletIds.add(1001L);
-        return new DorisSourceSplit(
+        return new DorisSnapshotSplit(
                 String.valueOf(splitId),
                 new PartitionDefinition("db", "tbl", "127.0.0.1", tabletIds, "queryPlan"));
     }
@@ -106,6 +102,34 @@ public class DorisSourceEnumeratorTest {
     private static DorisSourceEnumerator createEnumerator(
             final SplitEnumeratorContext<DorisSourceSplit> context,
             final DorisSourceSplit... splits) {
-        return new DorisSourceEnumerator(context, new SimpleSplitAssigner(Arrays.asList(splits)));
+        ArrayList<DorisSnapshotSplit> snapshots = new ArrayList<>();
+        for (DorisSourceSplit split : splits) {
+            snapshots.add((DorisSnapshotSplit) split);
+        }
+        return createEnumerator(
+                context,
+                new DorisSourceCheckpoint(
+                        DorisSourceCheckpoint.Phase.SNAPSHOT,
+                        null,
+                        context.currentParallelism(),
+                        snapshots));
+    }
+
+    private static DorisSourceEnumerator createEnumerator(
+            final SplitEnumeratorContext<DorisSourceSplit> context,
+            DorisSourceCheckpoint checkpoint) {
+        DorisSourceSplitAssigner splitAssigner =
+                DorisSourceSplitAssigner.restore(
+                        DorisOptions.builder()
+                                .setFenodes("127.0.0.1:8030")
+                                .setTableIdentifier("db.tbl")
+                                .build(),
+                        DorisReadOptions.builder()
+                                .setScanMode(DorisSourceScanMode.SNAPSHOT)
+                                .setBinlogPollIntervalMs(10_000L)
+                                .build(),
+                        checkpoint,
+                        context.currentParallelism());
+        return new DorisSourceEnumerator(context, splitAssigner, 10_000L);
     }
 }

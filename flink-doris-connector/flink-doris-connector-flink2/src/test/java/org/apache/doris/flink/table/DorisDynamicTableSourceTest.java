@@ -25,6 +25,7 @@ import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.source.InputFormatProvider;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.SourceProvider;
+import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
@@ -33,6 +34,7 @@ import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.legacy.api.TableSchema;
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.types.RowKind;
 
 import org.apache.doris.flink.cfg.DorisLookupOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
@@ -41,8 +43,10 @@ import org.apache.doris.flink.cfg.DorisTlsOptions;
 import org.apache.doris.flink.rest.PartitionDefinition;
 import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.sink.OptionUtils;
+import org.apache.doris.flink.source.DorisBinlogIncrementType;
 import org.apache.doris.flink.source.DorisSource;
-import org.apache.doris.flink.source.enumerator.PendingSplitsCheckpoint;
+import org.apache.doris.flink.source.DorisSourceScanMode;
+import org.apache.doris.flink.source.enumerator.DorisSourceCheckpoint;
 import org.apache.doris.flink.source.split.DorisSourceSplit;
 import org.apache.doris.flink.utils.FactoryMocks;
 import org.junit.Assert;
@@ -59,6 +63,7 @@ import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mockStatic;
@@ -133,6 +138,137 @@ public class DorisDynamicTableSourceTest {
         restServiceMockedStatic.close();
     }
 
+    @Test
+    public void testIncrementalModeUsesFlip27Source() {
+        DorisReadOptions readOptions =
+                OptionUtils.dorisReadOptionsBuilder()
+                        .setScanMode(DorisSourceScanMode.LATEST)
+                        .build();
+        DorisDynamicTableSource tableSource =
+                new DorisDynamicTableSource(
+                        OptionUtils.buildDorisOptions(),
+                        readOptions,
+                        DorisLookupOptions.builder().build(),
+                        TableSchema.fromResolvedSchema(SCHEMA),
+                        FactoryMocks.PHYSICAL_DATA_TYPE);
+
+        assertDorisSource(tableSource.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE));
+        assertTrue(tableSource.getChangelogMode().contains(RowKind.UPDATE_BEFORE));
+
+        DorisReadOptions appendOnly =
+                OptionUtils.dorisReadOptionsBuilder()
+                        .setScanMode(DorisSourceScanMode.LATEST)
+                        .setBinlogIncrementType(DorisBinlogIncrementType.APPEND_ONLY)
+                        .build();
+        DorisDynamicTableSource appendOnlySource =
+                new DorisDynamicTableSource(
+                        OptionUtils.buildDorisOptions(),
+                        appendOnly,
+                        DorisLookupOptions.builder().build(),
+                        TableSchema.fromResolvedSchema(SCHEMA),
+                        FactoryMocks.PHYSICAL_DATA_TYPE);
+        assertTrue(appendOnlySource.getChangelogMode().containsOnly(RowKind.INSERT));
+    }
+
+    @Test
+    public void testIncrementalModeKeepsFiltersInFlink() {
+        DorisReadOptions readOptions =
+                OptionUtils.dorisReadOptionsBuilder()
+                        .setScanMode(DorisSourceScanMode.LATEST)
+                        .build();
+        DorisDynamicTableSource tableSource =
+                new DorisDynamicTableSource(
+                        OptionUtils.buildDorisOptions(),
+                        readOptions,
+                        DorisLookupOptions.builder().build(),
+                        TableSchema.fromResolvedSchema(SCHEMA),
+                        FactoryMocks.PHYSICAL_DATA_TYPE);
+        ResolvedExpression field = new FieldReferenceExpression("a", DataTypes.STRING(), 0, 2);
+        ResolvedExpression filter =
+                CallExpression.anonymous(
+                        BuiltInFunctionDefinitions.EQUALS,
+                        Arrays.asList(field, valueLiteral("doris")),
+                        DataTypes.BOOLEAN());
+
+        SupportsFilterPushDown.Result result =
+                tableSource.applyFilters(Collections.singletonList(filter));
+
+        assertTrue(result.getAcceptedFilters().isEmpty());
+        assertEquals(Collections.singletonList(filter), result.getRemainingFilters());
+        assertTrue(tableSource.getResolvedFilterQuery().isEmpty());
+    }
+
+    @Test
+    public void testIncrementalModeIgnoresLimitPushdown() {
+        DorisReadOptions readOptions =
+                OptionUtils.dorisReadOptionsBuilder()
+                        .setScanMode(DorisSourceScanMode.LATEST)
+                        .build();
+        DorisDynamicTableSource tableSource =
+                new DorisDynamicTableSource(
+                        OptionUtils.buildDorisOptions(),
+                        readOptions,
+                        DorisLookupOptions.builder().build(),
+                        TableSchema.fromResolvedSchema(SCHEMA),
+                        FactoryMocks.PHYSICAL_DATA_TYPE);
+
+        tableSource.applyLimit(10L);
+
+        assertNull(readOptions.getRowLimit());
+    }
+
+    @Test
+    public void testIncrementalSourceCopyPreservesSemantics() {
+        int[][] projectedFields = {{0}, {2}};
+        DataType projectedDataType =
+                ResolvedSchema.of(
+                                Column.physical("a", DataTypes.STRING()),
+                                Column.physical("c", DataTypes.BOOLEAN()))
+                        .toPhysicalRowDataType();
+        DorisReadOptions readOptions =
+                OptionUtils.dorisReadOptionsBuilder()
+                        .setScanMode(DorisSourceScanMode.FROM_TIMESTAMP)
+                        .setScanTimestamp("2026-07-20 10:00:00")
+                        .setBinlogIncrementType(DorisBinlogIncrementType.MIN_DELTA)
+                        .setBinlogPollIntervalMs(3_000L)
+                        .build();
+        DorisDynamicTableSource tableSource =
+                new DorisDynamicTableSource(
+                        OptionUtils.buildDorisOptions(),
+                        readOptions,
+                        DorisLookupOptions.builder().build(),
+                        TableSchema.fromResolvedSchema(SCHEMA),
+                        FactoryMocks.PHYSICAL_DATA_TYPE);
+        tableSource.applyProjection(projectedFields, projectedDataType);
+
+        DorisDynamicTableSource copy = (DorisDynamicTableSource) tableSource.copy();
+
+        Assert.assertNotSame(tableSource, copy);
+        assertEquals(tableSource, copy);
+        assertEquals(tableSource.getChangelogMode(), copy.getChangelogMode());
+
+        DorisReadOptions expectedReadOptions =
+                OptionUtils.dorisReadOptionsBuilder()
+                        .setReadFields("`a`, `c`")
+                        .setScanMode(DorisSourceScanMode.FROM_TIMESTAMP)
+                        .setScanTimestamp("2026-07-20 10:00:00")
+                        .setBinlogIncrementType(DorisBinlogIncrementType.MIN_DELTA)
+                        .setBinlogPollIntervalMs(3_000L)
+                        .build();
+        DorisDynamicTableSource expected =
+                new DorisDynamicTableSource(
+                        OptionUtils.buildDorisOptions(),
+                        expectedReadOptions,
+                        DorisLookupOptions.builder().build(),
+                        TableSchema.fromResolvedSchema(SCHEMA),
+                        projectedDataType);
+        assertEquals(expected, copy);
+
+        readOptions.setReadFields("`b`");
+        Assert.assertNotEquals(tableSource, copy);
+        assertEquals(expected, copy);
+    }
+
     private DorisRowDataInputFormat assertDorisInputFormat(
             ScanTableSource.ScanRuntimeProvider provider) {
         assertThat(provider, instanceOf(InputFormatProvider.class));
@@ -149,8 +285,8 @@ public class DorisDynamicTableSourceTest {
         assertThat(provider, instanceOf(SourceProvider.class));
         final SourceProvider sourceProvider = (SourceProvider) provider;
 
-        Source<RowData, DorisSourceSplit, PendingSplitsCheckpoint> source =
-                (Source<RowData, DorisSourceSplit, PendingSplitsCheckpoint>)
+        Source<RowData, DorisSourceSplit, DorisSourceCheckpoint> source =
+                (Source<RowData, DorisSourceSplit, DorisSourceCheckpoint>)
                         sourceProvider.createSource();
         assertThat(source, instanceOf(DorisSource.class));
     }
