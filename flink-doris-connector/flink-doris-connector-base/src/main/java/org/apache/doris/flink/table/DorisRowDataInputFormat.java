@@ -36,6 +36,7 @@ import org.apache.doris.flink.cfg.DorisTlsOptions;
 import org.apache.doris.flink.deserialization.converter.DorisRowConverter;
 import org.apache.doris.flink.rest.PartitionDefinition;
 import org.apache.doris.flink.source.reader.DorisValueReader;
+import org.apache.doris.flink.source.reader.ValueReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,7 +58,7 @@ public class DorisRowDataInputFormat extends RichInputFormat<RowData, DorisTable
     private List<PartitionDefinition> dorisPartitions;
     private TypeInformation<RowData> rowDataTypeInfo;
 
-    private DorisValueReader valueReader;
+    private ValueReader valueReader;
     private transient boolean hasNext;
 
     private final DorisRowConverter rowConverter;
@@ -99,8 +100,17 @@ public class DorisRowDataInputFormat extends RichInputFormat<RowData, DorisTable
      */
     @Override
     public void open(DorisTableInputSplit inputSplit) throws IOException {
-        valueReader = new DorisValueReader(inputSplit.partition, options, readOptions);
+        valueReader = createValueReader(inputSplit.partition);
         hasNext = valueReader.hasNext();
+    }
+
+    /**
+     * Creates the {@link ValueReader} for a partition. Default behavior constructs a {@link
+     * DorisValueReader} (thrift). Protected to allow tests to substitute a fake reader without
+     * opening a real Doris BE connection.
+     */
+    protected ValueReader createValueReader(PartitionDefinition partition) {
+        return new DorisValueReader(partition, options, readOptions);
     }
 
     /**
@@ -109,7 +119,24 @@ public class DorisRowDataInputFormat extends RichInputFormat<RowData, DorisTable
      * @throws IOException Indicates that a resource could not be closed.
      */
     @Override
-    public void close() throws IOException {}
+    public void close() throws IOException {
+        if (valueReader == null) {
+            return;
+        }
+        try {
+            valueReader.close();
+        } catch (InterruptedException e) {
+            // Preserve the interrupt status so Flink task cancellation semantics stay intact;
+            // do not rethrow, close() must be best-effort so a failing teardown never blocks
+            // input-format lifecycle / source shutdown.
+            Thread.currentThread().interrupt();
+            LOG.warn("Interrupted while closing doris value reader.", e);
+        } catch (Exception e) {
+            LOG.warn("Failed to close doris value reader.", e);
+        } finally {
+            valueReader = null;
+        }
+    }
 
     @Override
     public TypeInformation<RowData> getProducedType() {
