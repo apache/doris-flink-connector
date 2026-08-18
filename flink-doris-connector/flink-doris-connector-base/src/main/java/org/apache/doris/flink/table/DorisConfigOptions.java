@@ -22,9 +22,11 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.factories.FactoryUtil;
 
 import org.apache.doris.flink.cfg.DorisTlsOptions;
+import org.apache.doris.flink.cfg.S3TvfOptions;
 import org.apache.doris.flink.sink.writer.WriteMode;
 
 import java.time.Duration;
@@ -41,6 +43,9 @@ import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_REQUEST_READ
 import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_REQUEST_RETRIES_DEFAULT;
 import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_TABLET_SIZE_DEFAULT;
 import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_THRIFT_MAX_MESSAGE_SIZE_DEFAULT;
+import static org.apache.doris.flink.sink.writer.LoadConstants.FORMAT_KEY;
+import static org.apache.doris.flink.sink.writer.LoadConstants.JSON;
+import static org.apache.doris.flink.sink.writer.LoadConstants.READ_JSON_BY_LINE;
 
 /** Options for the Doris connector. */
 @PublicEvolving
@@ -270,7 +275,8 @@ public class DorisConfigOptions {
             ConfigOptions.key("sink.label-prefix")
                     .stringType()
                     .defaultValue("")
-                    .withDescription("the unique label prefix.");
+                    .withDescription(
+                            "Label prefix. In TVF write mode it must remain stable across recovery and be unique for independent jobs writing the same table.");
     public static final ConfigOption<Boolean> SINK_ENABLE_DELETE =
             ConfigOptions.key("sink.enable-delete")
                     .booleanType()
@@ -281,7 +287,51 @@ public class DorisConfigOptions {
             ConfigOptions.key("sink.write-mode")
                     .stringType()
                     .defaultValue(WriteMode.STREAM_LOAD.name())
-                    .withDescription("Write mode, supports stream_load, stream_load_batch");
+                    .withDescription(
+                            "Write mode, supports stream_load, stream_load_batch, copy and tvf");
+
+    public static final ConfigOption<String> SINK_S3_ENDPOINT =
+            ConfigOptions.key("sink.s3.endpoint")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("Endpoint of the S3-compatible object storage.");
+
+    public static final ConfigOption<String> SINK_S3_REGION =
+            ConfigOptions.key("sink.s3.region")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("Region of the S3-compatible object storage.");
+
+    public static final ConfigOption<String> SINK_S3_BUCKET =
+            ConfigOptions.key("sink.s3.bucket")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("Bucket used to stage files for the S3 TVF.");
+
+    public static final ConfigOption<String> SINK_S3_PREFIX =
+            ConfigOptions.key("sink.s3.prefix")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Object key path prefix used to stage files. It may be shared by multiple jobs.");
+
+    public static final ConfigOption<String> SINK_S3_ACCESS_KEY =
+            ConfigOptions.key("sink.s3.access-key")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("Access key of the S3-compatible object storage.");
+
+    public static final ConfigOption<String> SINK_S3_SECRET_KEY =
+            ConfigOptions.key("sink.s3.secret-key")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("Secret key of the S3-compatible object storage.");
+
+    public static final ConfigOption<Boolean> SINK_S3_PATH_STYLE_ACCESS =
+            ConfigOptions.key("sink.s3.path-style-access")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription("Whether to use path-style access for object storage.");
 
     public static final ConfigOption<Boolean> SINK_IGNORE_COMMIT_ERROR =
             ConfigOptions.key("sink.ignore.commit-error")
@@ -316,7 +366,7 @@ public class DorisConfigOptions {
                     .memoryType()
                     .defaultValue(MemorySize.parse("100mb"))
                     .withDescription(
-                            "The maximum number of bytes flushed in each batch, the default is 10MB");
+                            "The maximum number of bytes flushed in each batch, the default is 100MB");
 
     public static final ConfigOption<Duration> SINK_BUFFER_FLUSH_INTERVAL =
             ConfigOptions.key("sink.buffer-flush.interval")
@@ -404,6 +454,49 @@ public class DorisConfigOptions {
                         readableConfig.get(DORIS_TLS_SKIP_HOSTNAME_VERIFICATION))
                 .setExcludedProtocols(readableConfig.get(DORIS_TLS_EXCLUDED_PROTOCOLS))
                 .build();
+    }
+
+    public static S3TvfOptions getS3TvfOptions(
+            ReadableConfig readableConfig, Properties loadProperties) {
+        validateTvfLoadProperties(loadProperties);
+        String endpoint = requireNonBlank(readableConfig, SINK_S3_ENDPOINT);
+        String region = requireNonBlank(readableConfig, SINK_S3_REGION);
+        String bucket = requireNonBlank(readableConfig, SINK_S3_BUCKET);
+        String prefix = requireNonBlank(readableConfig, SINK_S3_PREFIX);
+        String accessKey = requireNonBlank(readableConfig, SINK_S3_ACCESS_KEY);
+        String secretKey = requireNonBlank(readableConfig, SINK_S3_SECRET_KEY);
+
+        return S3TvfOptions.builder()
+                .setEndpoint(endpoint)
+                .setRegion(region)
+                .setBucket(bucket)
+                .setPrefix(prefix)
+                .setAccessKey(accessKey)
+                .setSecretKey(secretKey)
+                .setPathStyleAccess(readableConfig.get(SINK_S3_PATH_STYLE_ACCESS))
+                .build();
+    }
+
+    private static void validateTvfLoadProperties(Properties loadProperties) {
+        String format = loadProperties.getProperty(FORMAT_KEY);
+        if (format != null && !JSON.equalsIgnoreCase(format.trim())) {
+            throw new ValidationException("TVF write mode only supports JSON format.");
+        }
+        String readJsonByLine = loadProperties.getProperty(READ_JSON_BY_LINE);
+        if (readJsonByLine != null && !Boolean.parseBoolean(readJsonByLine.trim())) {
+            throw new ValidationException(
+                    "TVF write mode requires 'sink.properties.read_json_by_line' to be true.");
+        }
+    }
+
+    private static String requireNonBlank(
+            ReadableConfig readableConfig, ConfigOption<String> option) {
+        String value = readableConfig.getOptional(option).orElse(null);
+        if (value == null || value.trim().isEmpty()) {
+            throw new ValidationException(
+                    String.format("Option '%s' is required for TVF write mode.", option.key()));
+        }
+        return value.trim();
     }
 
     public static final ConfigOption<Boolean> SINK_HTTP_UTF8_CHARSET =

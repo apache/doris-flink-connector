@@ -69,6 +69,7 @@ public class DorisExecutionOptions implements Serializable {
     private final boolean ignoreUpdateBefore;
     private final WriteMode writeMode;
     private final boolean ignoreCommitError;
+    private final S3TvfOptions s3TvfOptions;
 
     public DorisExecutionOptions(
             int checkInterval,
@@ -90,6 +91,50 @@ public class DorisExecutionOptions implements Serializable {
             boolean force2PC,
             WriteMode writeMode,
             boolean ignoreCommitError) {
+        this(
+                checkInterval,
+                maxRetries,
+                bufferSize,
+                bufferCount,
+                labelPrefix,
+                useCache,
+                httpUtf8Charset,
+                streamLoadProp,
+                enableDelete,
+                enable2PC,
+                enableBatchMode,
+                flushQueueSize,
+                bufferFlushMaxRows,
+                bufferFlushMaxBytes,
+                bufferFlushIntervalMs,
+                ignoreUpdateBefore,
+                force2PC,
+                writeMode,
+                ignoreCommitError,
+                null);
+    }
+
+    private DorisExecutionOptions(
+            int checkInterval,
+            int maxRetries,
+            int bufferSize,
+            int bufferCount,
+            String labelPrefix,
+            boolean useCache,
+            boolean httpUtf8Charset,
+            Properties streamLoadProp,
+            Boolean enableDelete,
+            Boolean enable2PC,
+            boolean enableBatchMode,
+            int flushQueueSize,
+            int bufferFlushMaxRows,
+            int bufferFlushMaxBytes,
+            long bufferFlushIntervalMs,
+            boolean ignoreUpdateBefore,
+            boolean force2PC,
+            WriteMode writeMode,
+            boolean ignoreCommitError,
+            S3TvfOptions s3TvfOptions) {
         Preconditions.checkArgument(maxRetries >= 0);
         this.checkInterval = checkInterval;
         this.maxRetries = maxRetries;
@@ -112,6 +157,7 @@ public class DorisExecutionOptions implements Serializable {
         this.ignoreUpdateBefore = ignoreUpdateBefore;
         this.writeMode = writeMode;
         this.ignoreCommitError = ignoreCommitError;
+        this.s3TvfOptions = s3TvfOptions;
     }
 
     public static Builder builder() {
@@ -223,6 +269,10 @@ public class DorisExecutionOptions implements Serializable {
         return ignoreCommitError;
     }
 
+    public S3TvfOptions getS3TvfOptions() {
+        return s3TvfOptions;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -250,6 +300,7 @@ public class DorisExecutionOptions implements Serializable {
                 && Objects.equals(streamLoadProp, that.streamLoadProp)
                 && Objects.equals(enableDelete, that.enableDelete)
                 && Objects.equals(enable2PC, that.enable2PC)
+                && Objects.equals(s3TvfOptions, that.s3TvfOptions)
                 && writeMode == that.writeMode;
     }
 
@@ -274,7 +325,8 @@ public class DorisExecutionOptions implements Serializable {
                 enableBatchMode,
                 ignoreUpdateBefore,
                 writeMode,
-                ignoreCommitError);
+                ignoreCommitError,
+                s3TvfOptions);
     }
 
     /** Builder of {@link DorisExecutionOptions}. */
@@ -303,6 +355,7 @@ public class DorisExecutionOptions implements Serializable {
         private boolean ignoreUpdateBefore = true;
         private WriteMode writeMode = WriteMode.STREAM_LOAD;
         private boolean ignoreCommitError = false;
+        private S3TvfOptions s3TvfOptions;
 
         /**
          * Sets the checkInterval to check exception with the interval while loading, The default is
@@ -520,21 +573,37 @@ public class DorisExecutionOptions implements Serializable {
             return this;
         }
 
+        public Builder setS3TvfOptions(S3TvfOptions s3TvfOptions) {
+            this.s3TvfOptions = s3TvfOptions;
+            return this;
+        }
+
         /**
          * Build the {@link DorisExecutionOptions}.
          *
          * @return a DorisExecutionOptions with the settings made for this builder.
          */
         public DorisExecutionOptions build() {
+            Preconditions.checkArgument(
+                    writeMode != WriteMode.TVF
+                            || (labelPrefix != null && !labelPrefix.trim().isEmpty()),
+                    "sink.label-prefix must be set for TVF write mode");
+            Preconditions.checkArgument(
+                    writeMode != WriteMode.TVF || s3TvfOptions != null,
+                    "S3 TVF options must be set for TVF write mode");
+
             // If format=json is set but read_json_by_line is not set, record may not be written.
-            if (streamLoadProp != null
+            if (writeMode != WriteMode.TVF
+                    && streamLoadProp != null
                     && streamLoadProp.containsKey(FORMAT_KEY)
                     && JSON.equals(streamLoadProp.getProperty(FORMAT_KEY))) {
                 streamLoadProp.put(READ_JSON_BY_LINE, true);
             }
 
             // Enable gz compression by default
-            if (streamLoadProp != null && !streamLoadProp.containsKey(COMPRESS_TYPE)) {
+            if (writeMode != WriteMode.TVF
+                    && streamLoadProp != null
+                    && !streamLoadProp.containsKey(COMPRESS_TYPE)) {
                 streamLoadProp.put(COMPRESS_TYPE, COMPRESS_TYPE_GZ);
             }
 
@@ -547,8 +616,12 @@ public class DorisExecutionOptions implements Serializable {
                     "bufferFlushMaxRows must be greater than or equal to 10000");
 
             Preconditions.checkArgument(
-                    bufferFlushMaxBytes >= 10485760,
-                    "bufferFlushMaxBytes must be greater than or equal to 10485760(10MB)");
+                    writeMode == WriteMode.TVF
+                            ? bufferFlushMaxBytes > 0
+                            : bufferFlushMaxBytes >= 10485760,
+                    writeMode == WriteMode.TVF
+                            ? "bufferFlushMaxBytes must be greater than 0"
+                            : "bufferFlushMaxBytes must be greater than or equal to 10485760(10MB)");
 
             return new DorisExecutionOptions(
                     checkInterval,
@@ -569,7 +642,8 @@ public class DorisExecutionOptions implements Serializable {
                     ignoreUpdateBefore,
                     force2PC,
                     writeMode,
-                    ignoreCommitError);
+                    ignoreCommitError,
+                    s3TvfOptions);
         }
     }
 }

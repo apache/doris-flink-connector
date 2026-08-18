@@ -121,19 +121,9 @@ jobs:
           -Dflink.major.version=2.2
 
   build-flink2-jdk21:
-    name: "Build Flink ${{ matrix.flink-major }} on JDK 21"
+    name: "Build Flink 2.x on JDK 21"
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - flink-version: 2.0.0
-            flink-major: '2.0'
-          - flink-version: 2.1.0
-            flink-major: '2.1'
-          - flink-version: 2.2.0
-            flink-major: '2.2'
+    timeout-minutes: 90
     defaults:
       run:
         shell: bash
@@ -149,19 +139,19 @@ jobs:
         java-version: '21'
         cache: maven
 
-    - name: Build Flink connector
+    - name: Build Flink connectors
       run: |
-        mvn clean package \
-          -pl flink-doris-connector-flink2 -am \
-          -Pflink2 \
-          -Dflink.version=${{ matrix.flink-version }} \
-          -Dflink.major.version=${{ matrix.flink-major }}
+        for flink_major in 2.0 2.1 2.2; do
+          mvn clean package \
+            -pl flink-doris-connector-flink2 -am \
+            -Pflink2 \
+            -Dflink.version="${flink_major}.0" \
+            -Dflink.major.version="${flink_major}"
 
-    - name: Verify Java 17 bytecode
-      run: |
-        javap -verbose \
-          flink-doris-connector-base/target/classes/org/apache/doris/flink/serialization/RowBatch.class \
-          | grep -q 'major version: 61'
-        javap -verbose \
-          flink-doris-connector-flink2/target/classes/org/apache/doris/flink/table/DorisDynamicTableFactory.class \
-          | grep -q 'major version: 61'
+          javap -verbose \
+            flink-doris-connector-base/target/classes/org/apache/doris/flink/serialization/RowBatch.class \
+            | grep -q 'major version: 61'
+          javap -verbose \
+            flink-doris-connector-flink2/target/classes/org/apache/doris/flink/table/DorisDynamicTableFactory.class \
+            | grep -q 'major version: 61'
+        done

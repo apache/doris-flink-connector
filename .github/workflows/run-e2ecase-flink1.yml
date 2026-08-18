@@ -38,10 +38,15 @@ jobs:
         distribution: adopt
         java-version: '8'
 
+    - name: Configure Doris prerequisites
+      run: |
+        sudo sysctl -w vm.max_map_count=2000000
+        sudo swapoff -a
+
     - name: Run E2ECases (Flink1 module)
       run: |
         cd flink-doris-connector && mvn test \
           -Pflink1 -pl flink-doris-connector-it -am \
           -DfailIfNoTests=false \
           -Dtest="*E2ECase" \
-          -Dimage="apache/doris:doris-all-in-one-2.1.0"
+          -Dimage="jnsimba/doris-all-in-one:4.1.3"

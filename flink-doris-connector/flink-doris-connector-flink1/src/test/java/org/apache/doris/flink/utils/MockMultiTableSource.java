@@ -73,11 +73,13 @@ public class MockMultiTableSource extends RichParallelSourceFunction<RecordWithM
     public void run(SourceContext<RecordWithMeta> ctx) throws Exception {
         int taskId = getRuntimeContext().getIndexOfThisSubtask();
         while (this.running && id < this.numEventsTotal) {
-            id = id + 1;
-            for (int i = 1; i <= tableNum; i++) {
-                String record = id + "," + taskId;
-                RecordWithMeta output = new RecordWithMeta(database, tableName + i, record);
-                ctx.collect(output);
+            synchronized (ctx.getCheckpointLock()) {
+                id = id + 1;
+                for (int i = 1; i <= tableNum; i++) {
+                    String record = id + "," + taskId;
+                    RecordWithMeta output = new RecordWithMeta(database, tableName + i, record);
+                    ctx.collect(output);
+                }
             }
 
             // Wait for the checkpoint to complete before sending the next record

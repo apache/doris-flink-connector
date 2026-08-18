@@ -48,7 +48,7 @@ import java.util.concurrent.locks.LockSupport;
 
 public class DorisContainer implements ContainerService {
     private static final Logger LOG = LoggerFactory.getLogger(DorisContainer.class);
-    private static final String DEFAULT_DOCKER_IMAGE = "apache/doris:doris-all-in-one-2.1.0";
+    private static final String DEFAULT_DOCKER_IMAGE = "jnsimba/doris-all-in-one:4.1.3";
     private static final String DORIS_DOCKER_IMAGE =
             System.getProperty("image") == null
                     ? DEFAULT_DOCKER_IMAGE
@@ -196,15 +196,33 @@ public class DorisContainer implements ContainerService {
 
     private void initializeJdbcConnection() throws Exception {
         initializeJDBCDriver();
-        try (Connection connection = getQueryConnection();
-                Statement statement = connection.createStatement()) {
-            ResultSet resultSet;
-            do {
+        Duration timeout = Duration.ofMinutes(5L);
+        long startNanos = System.nanoTime();
+        Throwable lastFailure = null;
+        boolean frontendReady = false;
+        while (System.nanoTime() - startNanos < timeout.toNanos()) {
+            try (Connection connection = getQueryConnection();
+                    Statement statement = connection.createStatement();
+                    ResultSet resultSet = statement.executeQuery("show backends")) {
+                frontendReady = true;
+                lastFailure = null;
                 LOG.info("Waiting for the Backend to start successfully.");
-                resultSet = statement.executeQuery("show backends");
-            } while (!isBeReady(resultSet, Duration.ofSeconds(1L)));
+                if (isBeReady(resultSet, Duration.ofSeconds(1L))) {
+                    LOG.info("Connected to Doris successfully.");
+                    return;
+                }
+            } catch (DorisRuntimeException | SQLException e) {
+                frontendReady = false;
+                lastFailure = e;
+                LOG.info("Waiting for the Frontend to accept connections.");
+                LockSupport.parkNanos(Duration.ofSeconds(1L).toNanos());
+            }
         }
-        LOG.info("Connected to Doris successfully.");
+        throw new DorisRuntimeException(
+                String.format(
+                        "Doris %s did not become ready within %d seconds.",
+                        frontendReady ? "Backend" : "Frontend", timeout.getSeconds()),
+                lastFailure);
     }
 
     private boolean isBeReady(ResultSet rs, Duration duration) throws SQLException {

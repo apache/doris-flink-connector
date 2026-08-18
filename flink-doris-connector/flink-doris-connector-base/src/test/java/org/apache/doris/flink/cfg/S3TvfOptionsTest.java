@@ -1,0 +1,60 @@
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
+
+package org.apache.doris.flink.cfg;
+
+import org.junit.Assert;
+import org.junit.Test;
+
+public class S3TvfOptionsTest {
+
+    @Test
+    public void testBuildOptionsAndMaskCredentials() {
+        S3TvfOptions options =
+                S3TvfOptions.builder()
+                        .setEndpoint("https://s3.example.com")
+                        .setRegion("us-east-1")
+                        .setBucket("bucket")
+                        .setPrefix("doris")
+                        .setAccessKey("access-key")
+                        .setSecretKey("secret-key")
+                        .setPathStyleAccess(true)
+                        .build();
+
+        Assert.assertEquals("https://s3.example.com", options.getEndpoint());
+        Assert.assertEquals("us-east-1", options.getRegion());
+        Assert.assertEquals("bucket", options.getBucket());
+        Assert.assertEquals("doris", options.getPrefix());
+        Assert.assertEquals("access-key", options.getAccessKey());
+        Assert.assertEquals("secret-key", options.getSecretKey());
+        Assert.assertTrue(options.isPathStyleAccess());
+        Assert.assertFalse(options.toString().contains("access-key"));
+        Assert.assertFalse(options.toString().contains("secret-key"));
+    }
+
+    @Test
+    public void testRejectsGlobCharactersInPrefix() {
+        for (String character : new String[] {"*", "?", "[", "]", "{", "}", ",", "\\"}) {
+            try {
+                S3TvfOptions.builder().setPrefix("path/" + character + "/prefix").build();
+                Assert.fail("Expected prefix containing '" + character + "' to be rejected.");
+            } catch (IllegalArgumentException expected) {
+                // Expected.
+            }
+        }
+    }
+}

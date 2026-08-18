@@ -86,6 +86,13 @@ import static org.apache.doris.flink.table.DorisConfigOptions.SINK_IGNORE_UPDATE
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_LABEL_PREFIX;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_MAX_RETRIES;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_PARALLELISM;
+import static org.apache.doris.flink.table.DorisConfigOptions.SINK_S3_ACCESS_KEY;
+import static org.apache.doris.flink.table.DorisConfigOptions.SINK_S3_BUCKET;
+import static org.apache.doris.flink.table.DorisConfigOptions.SINK_S3_ENDPOINT;
+import static org.apache.doris.flink.table.DorisConfigOptions.SINK_S3_PATH_STYLE_ACCESS;
+import static org.apache.doris.flink.table.DorisConfigOptions.SINK_S3_PREFIX;
+import static org.apache.doris.flink.table.DorisConfigOptions.SINK_S3_REGION;
+import static org.apache.doris.flink.table.DorisConfigOptions.SINK_S3_SECRET_KEY;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_USE_CACHE;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_WRITE_MODE;
 import static org.apache.doris.flink.table.DorisConfigOptions.SOURCE_BINLOG_CONSUMER_ID;
@@ -189,6 +196,13 @@ public final class DorisDynamicTableFactory
         options.add(USE_FLIGHT_SQL);
         options.add(FLIGHT_SQL_PORT);
         options.add(SINK_HTTP_UTF8_CHARSET);
+        options.add(SINK_S3_ENDPOINT);
+        options.add(SINK_S3_REGION);
+        options.add(SINK_S3_BUCKET);
+        options.add(SINK_S3_PREFIX);
+        options.add(SINK_S3_ACCESS_KEY);
+        options.add(SINK_S3_SECRET_KEY);
+        options.add(SINK_S3_PATH_STYLE_ACCESS);
         return options;
     }
 
@@ -289,7 +303,12 @@ public final class DorisDynamicTableFactory
             builder.enable2PC();
         }
 
-        builder.setWriteMode(WriteMode.of(readableConfig.get(SINK_WRITE_MODE)));
+        WriteMode writeMode = WriteMode.of(readableConfig.get(SINK_WRITE_MODE));
+        builder.setWriteMode(writeMode);
+        if (writeMode == WriteMode.TVF) {
+            builder.setS3TvfOptions(
+                    DorisConfigOptions.getS3TvfOptions(readableConfig, streamLoadProp));
+        }
         builder.setBatchMode(readableConfig.get(SINK_ENABLE_BATCH_MODE));
         // Compatible with previous versions
         if (readableConfig.get(SINK_ENABLE_BATCH_MODE)) {

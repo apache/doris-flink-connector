@@ -20,7 +20,8 @@ package org.apache.doris.flink.sink.writer;
 public enum WriteMode {
     STREAM_LOAD,
     STREAM_LOAD_BATCH,
-    COPY;
+    COPY,
+    TVF;
 
     public static WriteMode of(String name) {
         try {

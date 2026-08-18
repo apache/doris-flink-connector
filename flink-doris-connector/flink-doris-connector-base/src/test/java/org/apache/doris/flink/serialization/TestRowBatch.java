@@ -1062,7 +1062,7 @@ public class TestRowBatch {
         scanBatchResult.setRows(outputStream.toByteArray());
 
         String schemaStr =
-                "{\"properties\":[{\"type\":\"VARIANT\",\"name\":\"k\",\"comment\":\"\"}"
+                "{\"properties\":[{\"type\":\"VARIANT\",\"name\":\"k1\",\"comment\":\"\"}"
                         + "], \"status\":200}";
 
         Schema schema = RestService.parseSchema(schemaStr, logger);

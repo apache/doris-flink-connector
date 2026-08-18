@@ -420,53 +420,73 @@ public class DorisSourceITCase extends AbstractITCaseService {
                         tEnv,
                         "SELECT id,brilliant_time FROM doris_source_datetime_filter_and_projection_push_down where brilliant_time >= '2023-01-01 00:00:00.999999999' order by id");
 
+        // TODO: Remove the legacy Scanner expectation after Doris returns DATETIME as a
+        // timezone-naive Arrow timestamp.
+        String expectedMinute = useFlightSql ? "2023-01-01T00:00" : "2022-12-31T16:00";
+        String expectedTimestampPrefix = useFlightSql ? "2023-01-01T00:00:" : "2022-12-31T16:00:";
         String[] expectedProjectionResult =
                 new String[] {
-                    "+I[1, 2023-01-01T00:00, 2023-01-01T00:00:00.000001]",
-                    "+I[2, 2023-01-01T00:00:01, 2023-01-01T00:00:00.005]",
-                    "+I[3, 2023-01-01T00:00:02, 2023-01-01T00:00:00.000009]",
-                    "+I[4, 2023-01-01T00:00:02, 2023-01-01T00:00:00.999999]",
-                    "+I[5, 2023-01-01T00:00:02, 2023-01-01T00:00:00.999999]",
-                    "+I[6, 2023-01-01T00:00:02, 2023-01-01T00:00:01]"
+                    "+I[1, " + expectedMinute + ", " + expectedTimestampPrefix + "00.000001]",
+                    "+I[2, "
+                            + expectedTimestampPrefix
+                            + "01, "
+                            + expectedTimestampPrefix
+                            + "00.005]",
+                    "+I[3, "
+                            + expectedTimestampPrefix
+                            + "02, "
+                            + expectedTimestampPrefix
+                            + "00.000009]",
+                    "+I[4, "
+                            + expectedTimestampPrefix
+                            + "02, "
+                            + expectedTimestampPrefix
+                            + "00.999999]",
+                    "+I[5, "
+                            + expectedTimestampPrefix
+                            + "02, "
+                            + expectedTimestampPrefix
+                            + "00.999999]",
+                    "+I[6, " + expectedTimestampPrefix + "02, " + expectedTimestampPrefix + "01]"
                 };
         String[] expectedPushDownDatetimeResult =
                 new String[] {
-                    "+I[1, 2023-01-01T00:00]",
-                    "+I[2, 2023-01-01T00:00:01]",
-                    "+I[3, 2023-01-01T00:00:02]",
-                    "+I[4, 2023-01-01T00:00:02]",
-                    "+I[5, 2023-01-01T00:00:02]",
-                    "+I[6, 2023-01-01T00:00:02]"
+                    "+I[1, " + expectedMinute + "]",
+                    "+I[2, " + expectedTimestampPrefix + "01]",
+                    "+I[3, " + expectedTimestampPrefix + "02]",
+                    "+I[4, " + expectedTimestampPrefix + "02]",
+                    "+I[5, " + expectedTimestampPrefix + "02]",
+                    "+I[6, " + expectedTimestampPrefix + "02]"
                 };
         String[] expectedPushDownWithMicrosecondResult =
                 new String[] {
-                    "+I[2, 2023-01-01T00:00:00.005]",
-                    "+I[3, 2023-01-01T00:00:00.000009]",
-                    "+I[4, 2023-01-01T00:00:00.999999]",
-                    "+I[5, 2023-01-01T00:00:00.999999]",
-                    "+I[6, 2023-01-01T00:00:01]"
+                    "+I[2, " + expectedTimestampPrefix + "00.005]",
+                    "+I[3, " + expectedTimestampPrefix + "00.000009]",
+                    "+I[4, " + expectedTimestampPrefix + "00.999999]",
+                    "+I[5, " + expectedTimestampPrefix + "00.999999]",
+                    "+I[6, " + expectedTimestampPrefix + "01]"
                 };
 
         String[] expectedPushDownWithNanosecondResult =
                 new String[] {
-                    "+I[2, 2023-01-01T00:00:00.005]",
-                    "+I[4, 2023-01-01T00:00:00.999999]",
-                    "+I[5, 2023-01-01T00:00:00.999999]",
-                    "+I[6, 2023-01-01T00:00:01]"
+                    "+I[2, " + expectedTimestampPrefix + "00.005]",
+                    "+I[4, " + expectedTimestampPrefix + "00.999999]",
+                    "+I[5, " + expectedTimestampPrefix + "00.999999]",
+                    "+I[6, " + expectedTimestampPrefix + "01]"
                 };
 
         String[] expectedPushDownWithNanosecondRoundDownResult =
                 new String[] {
-                    "+I[4, 2023-01-01T00:00:00.999999]",
-                    "+I[5, 2023-01-01T00:00:00.999999]",
-                    "+I[6, 2023-01-01T00:00:01]"
+                    "+I[4, " + expectedTimestampPrefix + "00.999999]",
+                    "+I[5, " + expectedTimestampPrefix + "00.999999]",
+                    "+I[6, " + expectedTimestampPrefix + "01]"
                 };
 
         String[] expectedPushDownWithNanosecondRoundUpResult =
                 new String[] {
-                    "+I[4, 2023-01-01T00:00:00.999999]",
-                    "+I[5, 2023-01-01T00:00:00.999999]",
-                    "+I[6, 2023-01-01T00:00:01]"
+                    "+I[4, " + expectedTimestampPrefix + "00.999999]",
+                    "+I[5, " + expectedTimestampPrefix + "00.999999]",
+                    "+I[6, " + expectedTimestampPrefix + "01]"
                 };
         checkResultInAnyOrder(
                 "testTableSourceTimestampFilterAndProjectionPushDown",

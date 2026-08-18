@@ -28,6 +28,8 @@ import org.apache.doris.flink.cfg.DorisLookupOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.cfg.DorisTlsOptions;
+import org.apache.doris.flink.cfg.S3TvfOptions;
+import org.apache.doris.flink.sink.writer.WriteMode;
 import org.apache.doris.flink.source.DorisBinlogIncrementType;
 import org.apache.doris.flink.source.DorisSourceScanMode;
 import org.junit.Test;
@@ -277,6 +279,69 @@ public class DorisDynamicTableFactoryTest {
         assertThrows(
                 ValidationException.class,
                 () -> FactoryMocks.createTableSink(SCHEMA, new HashMap<>()));
+    }
+
+    @Test
+    public void testTvfSinkProperties() {
+        Map<String, String> properties = getAllOptions();
+        properties.put("sink.write-mode", "TVF");
+        properties.put("sink.label-prefix", "flink");
+        properties.put("sink.buffer-flush.max-bytes", "10MB");
+        properties.put("sink.s3.endpoint", "https://s3.example.com");
+        properties.put("sink.s3.region", "us-east-1");
+        properties.put("sink.s3.bucket", "bucket");
+        properties.put("sink.s3.prefix", "prefix");
+        properties.put("sink.s3.access-key", "ak");
+        properties.put("sink.s3.secret-key", "sk");
+        properties.put("sink.s3.path-style-access", "true");
+        properties.put("sink.properties.columns", "a,c");
+
+        DorisDynamicTableSink actual =
+                (DorisDynamicTableSink) FactoryMocks.createTableSink(SCHEMA, properties);
+
+        DorisOptions options =
+                DorisOptions.builder()
+                        .setTableIdentifier("db.tbl")
+                        .setFenodes("127.0.0.1:8030")
+                        .setBenodes("127.0.0.1:8040")
+                        .setAutoRedirect(true)
+                        .setUsername("root")
+                        .setPassword("")
+                        .setJdbcUrl("jdbc:mysql://127.0.0.1:9030")
+                        .setTlsOptions(tlsOptions())
+                        .build();
+        S3TvfOptions s3TvfOptions =
+                S3TvfOptions.builder()
+                        .setEndpoint("https://s3.example.com")
+                        .setRegion("us-east-1")
+                        .setBucket("bucket")
+                        .setPrefix("prefix")
+                        .setAccessKey("ak")
+                        .setSecretKey("sk")
+                        .setPathStyleAccess(true)
+                        .build();
+        DorisExecutionOptions executionOptions =
+                DorisExecutionOptions.builder()
+                        .setWriteMode(WriteMode.TVF)
+                        .setLabelPrefix("flink")
+                        .setBufferFlushMaxBytes(10 * 1024 * 1024)
+                        .setStreamLoadProp(
+                                new Properties() {
+                                    {
+                                        setProperty("columns", "a,c");
+                                    }
+                                })
+                        .setS3TvfOptions(s3TvfOptions)
+                        .build();
+
+        DorisDynamicTableSink expected =
+                new DorisDynamicTableSink(
+                        options,
+                        DorisReadOptions.builder().build(),
+                        executionOptions,
+                        TableSchema.fromResolvedSchema(SCHEMA),
+                        null);
+        assertEquals(expected, actual);
     }
 
     private Map<String, String> getAllOptions() {

@@ -676,7 +676,7 @@ public class RowBatch {
                 addValueToRow(rowIndex, structValue);
                 break;
             default:
-                String errMsg = "Unsupported type " + schema.get(col).getType();
+                String errMsg = "Unsupported type " + currentType;
                 logger.error(errMsg);
                 throw new DorisException(errMsg);
         }

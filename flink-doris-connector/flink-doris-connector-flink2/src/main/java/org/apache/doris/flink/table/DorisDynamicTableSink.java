@@ -32,12 +32,16 @@ import org.apache.doris.flink.connection.SimpleJdbcConnectionProvider;
 import org.apache.doris.flink.exception.DorisSystemException;
 import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.sink.DorisSink;
+import org.apache.doris.flink.sink.writer.WriteMode;
+import org.apache.doris.flink.sink.writer.serializer.DorisRecordSerializer;
 import org.apache.doris.flink.sink.writer.serializer.RowDataSerializer;
+import org.apache.doris.flink.sink.writer.tvf.S3TvfRowDataSerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.sql.Statement;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 import java.util.Properties;
 import java.util.stream.Collectors;
@@ -83,43 +87,59 @@ public class DorisDynamicTableSink implements DynamicTableSink, SupportsOverwrit
 
     @Override
     public SinkRuntimeProvider getSinkRuntimeProvider(Context context) {
-        Properties loadProperties = executionOptions.getStreamLoadProp();
         boolean deletable =
                 executionOptions.getDeletable()
                         && RestService.isUniqueKeyType(options, readOptions, LOG);
-        if (!loadProperties.containsKey(COLUMNS_KEY)) {
-            String[] fieldNames = tableSchema.getFieldNames();
-            Preconditions.checkState(fieldNames != null && fieldNames.length > 0);
-            String columns =
-                    String.join(
-                            ",",
-                            Arrays.stream(fieldNames)
-                                    .map(
-                                            item ->
-                                                    String.format(
-                                                            "`%s`", item.trim().replace("`", "")))
-                                    .collect(Collectors.toList()));
-            if (deletable) {
-                columns = String.format("%s,%s", columns, DORIS_DELETE_SIGN);
+        DorisRecordSerializer<RowData> serializer;
+        if (WriteMode.TVF.equals(executionOptions.getWriteMode())) {
+            List<String> columns =
+                    TvfColumnUtils.resolveColumns(
+                            executionOptions.getStreamLoadProp(), tableSchema.getFieldNames());
+            serializer =
+                    new S3TvfRowDataSerializer(
+                            tableSchema.getFieldNames(),
+                            tableSchema.getFieldDataTypes(),
+                            columns,
+                            deletable);
+        } else {
+            Properties loadProperties = executionOptions.getStreamLoadProp();
+            if (!loadProperties.containsKey(COLUMNS_KEY)) {
+                String[] fieldNames = tableSchema.getFieldNames();
+                Preconditions.checkState(fieldNames != null && fieldNames.length > 0);
+                String columns =
+                        String.join(
+                                ",",
+                                Arrays.stream(fieldNames)
+                                        .map(
+                                                item ->
+                                                        String.format(
+                                                                "`%s`",
+                                                                item.trim().replace("`", "")))
+                                        .collect(Collectors.toList()));
+                if (deletable) {
+                    columns = String.format("%s,%s", columns, DORIS_DELETE_SIGN);
+                }
+                loadProperties.put(COLUMNS_KEY, columns);
             }
-            loadProperties.put(COLUMNS_KEY, columns);
-        }
 
-        RowDataSerializer.Builder serializerBuilder = RowDataSerializer.builder();
-        serializerBuilder
-                .setFieldNames(tableSchema.getFieldNames())
-                .setFieldType(tableSchema.getFieldDataTypes())
-                .setType(loadProperties.getProperty(FORMAT_KEY, CSV))
-                .enableDelete(deletable)
-                .setFieldDelimiter(
-                        loadProperties.getProperty(FIELD_DELIMITER_KEY, FIELD_DELIMITER_DEFAULT));
+            serializer =
+                    RowDataSerializer.builder()
+                            .setFieldNames(tableSchema.getFieldNames())
+                            .setFieldType(tableSchema.getFieldDataTypes())
+                            .setType(loadProperties.getProperty(FORMAT_KEY, CSV))
+                            .enableDelete(deletable)
+                            .setFieldDelimiter(
+                                    loadProperties.getProperty(
+                                            FIELD_DELIMITER_KEY, FIELD_DELIMITER_DEFAULT))
+                            .build();
+        }
 
         DorisSink.Builder<RowData> dorisSinkBuilder = DorisSink.builder();
         dorisSinkBuilder
                 .setDorisOptions(options)
                 .setDorisReadOptions(readOptions)
                 .setDorisExecutionOptions(executionOptions)
-                .setSerializer(serializerBuilder.build());
+                .setSerializer(serializer);
         DorisSink<RowData> dorisSink = dorisSinkBuilder.build();
 
         // for insert overwrite

@@ -99,6 +99,7 @@ under the License.
         <log4j.version>2.17.1</log4j.version>
         <arrow.version>15.0.2</arrow.version>
         <adbc.version>0.12.0</adbc.version>
+        <awssdk.version>2.29.52</awssdk.version>
     </properties>
 
     <modules>
