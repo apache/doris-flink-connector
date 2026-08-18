@@ -257,8 +257,8 @@ public class DorisWriter<IN> {
         // the txn of successful precommit cannot be aborted.
         if (executionOptions.enabled2PC() && multiTableLoad) {
             LOG.info("Try to abort may have successfully preCommitted label.");
-            for (Map.Entry<String, DorisStreamLoad> entry : dorisStreamLoadMap.entrySet()) {
-                DorisStreamLoad abortLoader = entry.getValue();
+            for (String key : loadingMap.keySet()) {
+                DorisStreamLoad abortLoader = dorisStreamLoadMap.get(key);
                 try {
                     abortLoader.abortTransactionByLabel(abortLoader.getCurrentLabel());
                 } catch (Exception ex) {

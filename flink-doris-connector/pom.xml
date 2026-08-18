@@ -82,13 +82,14 @@ under the License.
         <maven.compiler.target>8</maven.compiler.target>
         <checkstyle.version>8.14</checkstyle.version>
         <maven-checkstyle-plugin.version>2.17</maven-checkstyle-plugin.version>
-        <spotless.version>2.27.1</spotless.version>
+        <spotless.version>2.44.0</spotless.version>
         <httpcomponents.version>4.5.13</httpcomponents.version>
         <commons-codec.version>1.15</commons-codec.version>
         <fasterxml.version>2.13.3</fasterxml.version>
         <guava.version>31.1-jre</guava.version>
         <slf4j.version>1.7.25</slf4j.version>
         <mockito.version>4.2.0</mockito.version>
+        <byte-buddy.version>1.12.4</byte-buddy.version>
         <testcontainers.version>1.17.6</testcontainers.version>
         <junit.version>4.12</junit.version>
         <hamcrest.version>1.3</hamcrest.version>
@@ -261,6 +262,18 @@ under the License.
                 <scope>test</scope>
             </dependency>
             <dependency>
+                <groupId>net.bytebuddy</groupId>
+                <artifactId>byte-buddy</artifactId>
+                <version>${byte-buddy.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>net.bytebuddy</groupId>
+                <artifactId>byte-buddy-agent</artifactId>
+                <version>${byte-buddy.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
                 <groupId>org.apache.flink</groupId>
                 <artifactId>flink-runtime-web</artifactId>
                 <version>${flink.version}</version>
@@ -420,36 +433,6 @@ under the License.
                 <artifactId>maven-shade-plugin</artifactId>
             </plugin>
             <plugin>
-                <groupId>com.diffplug.spotless</groupId>
-                <artifactId>spotless-maven-plugin</artifactId>
-                <version>${spotless.version}</version>
-                <configuration>
-                    <java>
-                        <googleJavaFormat>
-                            <version>1.24.0</version>
-                            <style>AOSP</style>
-                        </googleJavaFormat>
-
-                        <!-- \# refers to the static imports -->
-                        <importOrder>
-                            <order>org.apache.flink,org.apache.flink.shaded,,javax,java,scala,\#
-                            </order>
-                        </importOrder>
-
-                        <removeUnusedImports/>
-                    </java>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>spotless-check</id>
-                        <phase>validate</phase>
-                        <goals>
-                            <goal>check</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-checkstyle-plugin</artifactId>
                 <version>${maven-checkstyle-plugin.version}</version>
@@ -509,29 +492,11 @@ under the License.
                 <flink.major.version>2.2</flink.major.version>
                 <maven.compiler.source>17</maven.compiler.source>
                 <maven.compiler.target>17</maven.compiler.target>
+                <maven.compiler.release>17</maven.compiler.release>
             </properties>
             <modules>
                 <module>flink-doris-connector-flink2</module>
             </modules>
-        </profile>
-
-        <profile>
-            <id>java-8-target</id>
-            <activation>
-                <jdk>[1.8,11)</jdk>
-            </activation>
-            <build>
-                <plugins>
-                    <!-- There is a conflict between JDK 8 and 17; JDK 8 skips format checks.-->
-                    <plugin>
-                        <groupId>com.diffplug.spotless</groupId>
-                        <artifactId>spotless-maven-plugin</artifactId>
-                        <configuration>
-                            <skip>true</skip>
-                        </configuration>
-                    </plugin>
-                </plugins>
-            </build>
         </profile>
 
         <profile>
@@ -540,6 +505,8 @@ under the License.
                 <jdk>[17,)</jdk>
             </activation>
             <properties>
+                <!-- Mockito 4 retains JDK 8 support; newer Byte Buddy enables inline mocks on JDK 21. -->
+                <byte-buddy.version>1.14.12</byte-buddy.version>
                 <test.jvm.args>
                     --add-opens=java.base/java.lang=ALL-UNNAMED
                     --add-opens=java.base/java.lang.reflect=ALL-UNNAMED
@@ -552,6 +519,41 @@ under the License.
                     --add-exports=java.base/sun.nio.ch=ALL-UNNAMED
                 </test.jvm.args>
             </properties>
+            <build>
+                <plugins>
+                    <!-- Spotless 2.44 requires Java 11; Flink 1/JDK 8 already skips format checks. -->
+                    <plugin>
+                        <groupId>com.diffplug.spotless</groupId>
+                        <artifactId>spotless-maven-plugin</artifactId>
+                        <version>${spotless.version}</version>
+                        <configuration>
+                            <java>
+                                <googleJavaFormat>
+                                    <version>1.24.0</version>
+                                    <style>AOSP</style>
+                                </googleJavaFormat>
+
+                                <!-- \# refers to the static imports -->
+                                <importOrder>
+                                    <order>org.apache.flink,org.apache.flink.shaded,,javax,java,scala,\#
+                                    </order>
+                                </importOrder>
+
+                                <removeUnusedImports/>
+                            </java>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>spotless-check</id>
+                                <phase>validate</phase>
+                                <goals>
+                                    <goal>check</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
         </profile>
 
 

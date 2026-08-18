@@ -24,6 +24,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.NullNode;
 import org.apache.doris.flink.cfg.DorisOptions;
+import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.apache.doris.flink.sink.writer.ChangeEvent;
 import org.apache.doris.flink.sink.writer.serializer.DorisRecord;
 import org.apache.doris.flink.sink.writer.serializer.jsondebezium.CdcDataChange;
@@ -127,6 +128,13 @@ public class MongoJsonDebeziumDataChange extends CdcDataChange implements Change
     @Override
     public Map<String, Object> extractAfterRow(JsonNode recordRoot) {
         JsonNode dataNode = recordRoot.get(FIELD_DATA);
+        if (dataNode != null && dataNode.isTextual()) {
+            try {
+                dataNode = objectMapper.readTree(dataNode.asText());
+            } catch (IOException e) {
+                throw new DorisRuntimeException("Failed to parse fullDocument JSON", e);
+            }
+        }
         return JsonNodeExtractUtil.extractAfterRow(dataNode, objectMapper);
     }
 

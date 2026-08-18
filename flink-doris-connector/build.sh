@@ -37,6 +37,7 @@ if [[ ${have_tty} -eq 1 ]]; then
   GREEN=$(printf '\033[32m')
   YELLOW=$(printf '\033[33m')
   BLUE=$(printf '\033[34m')
+  WHITE=$(printf '\033[37m')
   BOLD=$(printf '\033[1m')
   RESET=$(printf '\033[0m')
 else
@@ -52,29 +53,25 @@ fi
 echo_r () {
     # Color red: Error, Failed
     [[ $# -ne 1 ]] && return 1
-    # shellcheck disable=SC2059
-    printf "[%sDoris%s] %s$1%s\n"  $BLUE $RESET $RED $RESET
+    printf "[%sDoris%s] %s%s%s\n" "$BLUE" "$RESET" "$RED" "$1" "$RESET"
 }
 
 echo_g () {
     # Color green: Success
     [[ $# -ne 1 ]] && return 1
-    # shellcheck disable=SC2059
-    printf "[%sDoris%s] %s$1%s\n"  $BLUE $RESET $GREEN $RESET
+    printf "[%sDoris%s] %s%s%s\n" "$BLUE" "$RESET" "$GREEN" "$1" "$RESET"
 }
 
 echo_y () {
     # Color yellow: Warning
     [[ $# -ne 1 ]] && return 1
-    # shellcheck disable=SC2059
-    printf "[%sDoris%s] %s$1%s\n"  $BLUE $RESET $YELLOW $RESET
+    printf "[%sDoris%s] %s%s%s\n" "$BLUE" "$RESET" "$YELLOW" "$1" "$RESET"
 }
 
 echo_w () {
     # Color yellow: White
     [[ $# -ne 1 ]] && return 1
-    # shellcheck disable=SC2059
-    printf "[%sDoris%s] %s$1%s\n"  $BLUE $RESET $WHITE $RESET
+    printf "[%sDoris%s] %s%s%s\n" "$BLUE" "$RESET" "$WHITE" "$1" "$RESET"
 }
 
 # OS specific support.  $var _must_ be set to either true or false.
@@ -117,7 +114,7 @@ fi
 selectFlink() {
   echo 'Flink-Doris-Connector supports multiple versions of flink. Which version do you need ?'
   echo '  [Flink 1.x requires JDK 8]'
-  echo '  [Flink 2.x requires JDK 17]'
+  echo '  [Flink 2.x builds require JDK 17 or 21; artifacts target Java 17]'
   select flink in "1.15.x" "1.16.x" "1.17.x" "1.18.x" "1.19.x" "1.20.x" "2.0.x" "2.1.x" "2.2.x"
   do
     case $flink in
@@ -194,22 +191,32 @@ fi
 FLINK_MAJOR_VERSION=0
 [ ${FLINK_VERSION} != 0 ] && FLINK_MAJOR_VERSION=${FLINK_VERSION%.*}
 
-# Sanity check: Flink 1.x requires JDK 1.8, Flink 2.x requires JDK 17
+# Sanity check: Flink 1.x requires JDK 8; Flink 2.x builds require JDK 17 or 21.
 JAVA_VERSION=$(java -version 2>&1 | awk -F'"' '/version/ {print $2}')
+if [[ "${JAVA_VERSION}" =~ ^1\.([0-9]+)([-._+].*)?$ ]]; then
+    JAVA_MAJOR_VERSION=${BASH_REMATCH[1]}
+elif [[ "${JAVA_VERSION}" =~ ^([0-9]+)([-._+].*)?$ ]]; then
+    JAVA_MAJOR_VERSION=${BASH_REMATCH[1]}
+else
+    echo_r "Error: Unable to determine the build JDK major version from '${JAVA_VERSION}'."
+    exit 1
+fi
+
 if [ "${FLINK_PROFILE}" = "flink1" ]; then
-    if [[ "${JAVA_VERSION}" != 1.8* ]]; then
-        echo_r "Error: Flink ${FLINK_VERSION} requires JDK 1.8, but found version '${JAVA_VERSION}'."
-        echo_r "Please switch to JDK 1.8 before building Flink 1.x."
+    if [[ "${JAVA_MAJOR_VERSION}" != "8" ]]; then
+        echo_r "Error: Flink ${FLINK_VERSION} builds require JDK 8, but found build JDK '${JAVA_VERSION}'."
+        echo_r "Please switch the build JDK to 8 before building Flink 1.x."
         exit 1
     fi
 elif [ "${FLINK_PROFILE}" = "flink2" ]; then
-    if [[ "${JAVA_VERSION}" != 17* ]]; then
-        echo_r "Error: Flink ${FLINK_VERSION} requires JDK 17, but found version '${JAVA_VERSION}'."
-        echo_r "Please switch to JDK 17 before building Flink 2.x."
+    if [[ "${JAVA_MAJOR_VERSION}" != "17" && "${JAVA_MAJOR_VERSION}" != "21" ]]; then
+        echo_r "Error: Flink ${FLINK_VERSION} builds require JDK 17 or 21, but found build JDK '${JAVA_VERSION}'."
+        echo_r "Please switch the build JDK to 17 or 21; Flink 2.x artifacts target Java 17."
         exit 1
     fi
 fi
-echo_g " JDK version check passed: ${JAVA_VERSION}"
+echo_g " Build JDK version check passed: ${JAVA_VERSION}"
+[ "${FLINK_PROFILE}" = "flink2" ] && echo_g " Flink 2.x artifact target: Java 17"
 
 echo_g " flink version: ${FLINK_VERSION}, major version: ${FLINK_MAJOR_VERSION}"
 echo_g " build starting..."
