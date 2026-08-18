@@ -66,8 +66,8 @@ jobs:
           test -s "flink-doris-connector/flink-doris-connector-it/target/surefire-reports/${report}"
         done
 
-  jdk21-sensitive-itcases:
-    name: "Run sensitive ITCases (Flink ${{ matrix.flink-major }}, JDK 21)"
+  jdk21-core-itcases:
+    name: "Run core ITCases (Flink ${{ matrix.flink-major }}, JDK 21)"
     runs-on: ubuntu-latest
     timeout-minutes: 60
     strategy:
@@ -95,7 +95,7 @@ jobs:
         sudo sysctl -w vm.max_map_count=2000000
         sudo swapoff -a
 
-    - name: Run sensitive ITCases (Flink2 module)
+    - name: Run core ITCases (Flink2 module)
       run: |
         cd flink-doris-connector && mvn test \
         -Pflink2 -pl flink-doris-connector-it -am \
@@ -105,7 +105,7 @@ jobs:
         -Dflink.major.version=${{ matrix.flink-major }} \
         -Dimage="jnsimba/doris-all-in-one:4.1.3"
 
-    - name: Verify selected ITCase reports
+    - name: Verify core ITCase reports
       run: |
         for report in \
           TEST-org.apache.doris.flink.source.DorisSourceITCase.xml \
