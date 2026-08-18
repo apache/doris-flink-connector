@@ -200,6 +200,10 @@ public class DorisWriter<IN> {
             registerMetrics(tableKey);
         }
         streamLoader.writeRecord(record.getRow());
+        DorisWriteMetrics metrics = sinkMetricsMap.get(tableKey);
+        if (metrics != null) {
+            metrics.recordSend(record.getRow().length);
+        }
     }
 
     @VisibleForTesting

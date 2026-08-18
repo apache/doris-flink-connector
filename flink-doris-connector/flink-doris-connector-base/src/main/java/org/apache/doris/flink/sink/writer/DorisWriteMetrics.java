@@ -58,6 +58,9 @@ public class DorisWriteMetrics implements Serializable {
 
     private transient Counter totalFlushFilteredRows;
     private transient Counter totalFlushUnselectedRows;
+    // Standard FLIP-33 sink metrics, shared by all tables of the writer
+    private transient Counter numRecordsSend;
+    private transient Counter numBytesSend;
     // Histogram
     private transient Histogram beginTxnTimeHistogramMs;
     private transient Histogram commitAndPublishTimeHistogramMs;
@@ -105,8 +108,19 @@ public class DorisWriteMetrics implements Serializable {
         }
     }
 
+    /**
+     * Called for every record sent to Doris, regardless of the final load result, to keep the
+     * standard FLIP-33 sink metrics in line with the records the writer has sent.
+     */
+    public void recordSend(long bytes) {
+        numRecordsSend.inc();
+        numBytesSend.inc(bytes);
+    }
+
     @VisibleForTesting
     public void register(SinkWriterMetricGroup sinkMetricGroup) {
+        numRecordsSend = sinkMetricGroup.getNumRecordsSendCounter();
+        numBytesSend = sinkMetricGroup.getNumBytesSendCounter();
         totalFlushNumberTotalRows =
                 sinkMetricGroup.counter(
                         String.format(
@@ -224,6 +238,14 @@ public class DorisWriteMetrics implements Serializable {
         return totalFlushLoadBytes;
     }
 
+    public Counter getNumRecordsSend() {
+        return numRecordsSend;
+    }
+
+    public Counter getNumBytesSend() {
+        return numBytesSend;
+    }
+
     public Counter getTotalFlushNumberTotalRows() {
         return totalFlushNumberTotalRows;
     }
@@ -279,6 +301,16 @@ public class DorisWriteMetrics implements Serializable {
     @VisibleForTesting
     public void setTotalFlushLoadBytes(Counter totalFlushLoadBytes) {
         this.totalFlushLoadBytes = totalFlushLoadBytes;
+    }
+
+    @VisibleForTesting
+    public void setNumRecordsSend(Counter numRecordsSend) {
+        this.numRecordsSend = numRecordsSend;
+    }
+
+    @VisibleForTesting
+    public void setNumBytesSend(Counter numBytesSend) {
+        this.numBytesSend = numBytesSend;
     }
 
     @VisibleForTesting
