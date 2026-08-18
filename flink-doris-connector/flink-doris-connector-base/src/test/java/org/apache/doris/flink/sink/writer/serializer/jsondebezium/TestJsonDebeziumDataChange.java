@@ -101,6 +101,32 @@ public class TestJsonDebeziumDataChange extends TestJsonDebeziumChangeBase {
     }
 
     @Test
+    public void testSerializeDeleteSkippedWhenDeleteDisabled() throws IOException {
+        changeContext =
+                new JsonDebeziumChangeContext(
+                        dorisOptions,
+                        tableMapping,
+                        null,
+                        null,
+                        null,
+                        objectMapper,
+                        null,
+                        lineDelimiter,
+                        ignoreUpdateBefore,
+                        "",
+                        "",
+                        false);
+        dataChange = new JsonDebeziumDataChange(changeContext);
+
+        String record =
+                "{\"before\":{\"id\":1,\"name\":\"doris-update\",\"dt\":\"2022-01-01\",\"dtime\":\"2022-01-01 10:01:02\",\"ts\":\"2022-01-01 10:01:03\"},\"after\":null,\"source\":{\"version\":\"1.5.4.Final\",\"connector\":\"mysql\",\"name\":\"mysql_binlog_source\",\"ts_ms\":1663924328000,\"snapshot\":\"false\",\"db\":\"test\",\"sequence\":null,\"table\":\"t1\",\"server_id\":1,\"gtid\":null,\"file\":\"binlog.000006\",\"pos\":12500,\"row\":0,\"thread\":null,\"query\":null},\"op\":\"d\",\"ts_ms\":1663924328869,\"transaction\":null}";
+        JsonNode recordRoot = objectMapper.readValue(record, JsonNode.class);
+        String op = extractJsonNode(recordRoot, "op");
+        DorisRecord dorisRecord = dataChange.serialize(record, recordRoot, op);
+        Assert.assertNull(dorisRecord);
+    }
+
+    @Test
     public void testSerializeUpdateBefore() throws IOException {
         changeContext =
                 new JsonDebeziumChangeContext(
