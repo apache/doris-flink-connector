@@ -17,22 +17,34 @@
 
 package org.apache.doris.flink.tools.cdc.mongodb;
 
-import org.apache.doris.flink.tools.cdc.DatabaseSyncConfig;
-
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 
 public class MongoDateConverter {
+    private static final String DEFAULT_TIME_ZONE = "UTC";
+    private static volatile String timeZone = DEFAULT_TIME_ZONE;
+
     private static final ThreadLocal<DateTimeFormatter> dateFormatterThreadLocal =
-            ThreadLocal.withInitial(
-                    () -> DateTimeFormatter.ofPattern(DatabaseSyncConfig.DATETIME_MICRO_FORMAT));
+            ThreadLocal.withInitial(() -> DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS"));
+
+    public static void setTimeZone(String timeZone) {
+        MongoDateConverter.timeZone = timeZone;
+    }
+
+    public static String getTimeZone() {
+        return timeZone;
+    }
 
     public static String convertTimestampToString(long timestamp) {
+        return convertTimestampToString(timestamp, timeZone);
+    }
+
+    public static String convertTimestampToString(long timestamp, String timeZone) {
         Instant instant = Instant.ofEpochMilli(timestamp);
-        LocalDateTime localDateTime =
-                LocalDateTime.ofInstant(instant, ZoneId.of(DatabaseSyncConfig.TIME_ZONE_SHANGHAI));
+        LocalDateTime localDateTime = LocalDateTime.ofInstant(instant, ZoneId.of(timeZone));
         return dateFormatterThreadLocal.get().format(localDateTime);
     }
+
 }
