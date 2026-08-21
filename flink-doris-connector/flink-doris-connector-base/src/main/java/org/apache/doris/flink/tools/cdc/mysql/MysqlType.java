@@ -192,9 +192,10 @@ public class MysqlType {
             case CHAR:
             case VARCHAR:
                 Preconditions.checkNotNull(length);
-                return length * 3 > 65533
+                // utf8mb4 characters take up to 4 bytes each in UTF-8
+                return length * 4 > 65533
                         ? DorisType.STRING
-                        : String.format("%s(%s)", DorisType.VARCHAR, length * 3);
+                        : String.format("%s(%s)", DorisType.VARCHAR, length * 4);
             case TINYTEXT:
             case TEXT:
             case MEDIUMTEXT:
