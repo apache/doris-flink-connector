@@ -88,8 +88,14 @@ public class JsonDebeziumDataChange extends CdcDataChange {
             case OP_UPDATE:
                 return DorisRecord.of(dorisTableIdentifier, extractUpdate(recordRoot));
             case OP_DELETE:
+                if (!enableDelete) {
+                    // Drop delete events early to avoid useless serialization, network
+                    // transfer and stream load overhead on the Doris side.
+                    LOG.debug("skip delete record because delete is disabled: {}", record);
+                    return null;
+                }
                 valueMap = extractBeforeRow(recordRoot);
-                addDeleteSign(valueMap, enableDelete);
+                addDeleteSign(valueMap, true);
                 break;
             default:
                 LOG.error("parse record fail, unknown op {} in {}", op, record);
