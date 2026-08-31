@@ -143,6 +143,7 @@ public class CdcTools {
         boolean ignoreDefaultValue = params.has(DatabaseSyncConfig.IGNORE_DEFAULT_VALUE);
         boolean ignoreIncompatible = params.has(DatabaseSyncConfig.IGNORE_INCOMPATIBLE);
         boolean singleSink = params.has(DatabaseSyncConfig.SINGLE_SINK);
+        boolean skipNoPkTables = params.has(DatabaseSyncConfig.SKIP_NO_PK_TABLES);
 
         Preconditions.checkArgument(params.has(DatabaseSyncConfig.SINK_CONF));
         Map<String, String> sinkMap = getConfigMap(params, DatabaseSyncConfig.SINK_CONF);
@@ -169,6 +170,7 @@ public class CdcTools {
                 .setTableConfig(tableConfig)
                 .setCreateTableOnly(createTableOnly)
                 .setSingleSink(singleSink)
+                .setSkipNoPkTables(skipNoPkTables)
                 .setIgnoreIncompatible(ignoreIncompatible)
                 .setSchemaChangeMode(schemaChangeMode)
                 .create();

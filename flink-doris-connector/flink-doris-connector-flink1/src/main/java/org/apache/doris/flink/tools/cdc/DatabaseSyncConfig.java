@@ -67,6 +67,7 @@ public class DatabaseSyncConfig {
     public static final String IGNORE_DEFAULT_VALUE = "ignore-default-value";
     public static final String IGNORE_INCOMPATIBLE = "ignore-incompatible";
     public static final String SINGLE_SINK = "single-sink";
+    public static final String SKIP_NO_PK_TABLES = "skip-no-pk-tables";
     ////////// doris-table-conf //////////
     public static final String TABLE_CONF = "table-conf";
 
