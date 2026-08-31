@@ -48,6 +48,7 @@ public class JsonDebeziumChangeContext implements Serializable {
     private final String targetTablePrefix;
     private final String targetTableSuffix;
     private TableNameConverter tableNameConverter;
+    private String timeZone;
 
     public JsonDebeziumChangeContext(
             DorisOptions dorisOptions,
@@ -104,6 +105,38 @@ public class JsonDebeziumChangeContext implements Serializable {
                 targetTableSuffix,
                 enableDelete);
         this.tableNameConverter = tableNameConverter;
+    }
+
+    public JsonDebeziumChangeContext(
+            DorisOptions dorisOptions,
+            Map<String, String> tableMapping,
+            String sourceTableName,
+            String targetDatabase,
+            DorisTableConfig dorisTableConfig,
+            ObjectMapper objectMapper,
+            Pattern pattern,
+            String lineDelimiter,
+            boolean ignoreUpdateBefore,
+            String targetTablePrefix,
+            String targetTableSuffix,
+            boolean enableDelete,
+            TableNameConverter tableNameConverter,
+            String timeZone) {
+        this(
+                dorisOptions,
+                tableMapping,
+                sourceTableName,
+                targetDatabase,
+                dorisTableConfig,
+                objectMapper,
+                pattern,
+                lineDelimiter,
+                ignoreUpdateBefore,
+                targetTablePrefix,
+                targetTableSuffix,
+                enableDelete,
+                tableNameConverter);
+        this.timeZone = timeZone;
     }
 
     public DorisOptions getDorisOptions() {
@@ -168,5 +201,9 @@ public class JsonDebeziumChangeContext implements Serializable {
     @VisibleForTesting
     public void setTableNameConverter(TableNameConverter tableNameConverter) {
         this.tableNameConverter = tableNameConverter;
+    }
+
+    public String getTimeZone() {
+        return timeZone;
     }
 }
