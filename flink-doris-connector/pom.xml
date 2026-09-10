@@ -488,8 +488,8 @@ under the License.
         <profile>
             <id>flink2</id>
             <properties>
-                <flink.version>2.2.0</flink.version>
-                <flink.major.version>2.2</flink.major.version>
+                <flink.version>2.3.0</flink.version>
+                <flink.major.version>2.3</flink.major.version>
                 <maven.compiler.source>17</maven.compiler.source>
                 <maven.compiler.target>17</maven.compiler.target>
                 <maven.compiler.release>17</maven.compiler.release>
