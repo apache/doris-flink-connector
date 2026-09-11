@@ -61,5 +61,8 @@ ${MVN} clean deploy -Papache-release -DretryFailedDeploymentCount=10 -pl flink-d
 echo "Deploying Flink 2.2..."
 ${MVN} clean deploy -Papache-release -DretryFailedDeploymentCount=10 -pl flink-doris-connector-flink2 -am -Pflink2 -Dflink.version=2.2.0 -Dflink.major.version=2.2 -DskipTests=true
 
+echo "Deploying Flink 2.3..."
+${MVN} clean deploy -Papache-release -DretryFailedDeploymentCount=10 -pl flink-doris-connector-flink2 -am -Pflink2 -Dflink.version=2.3.0 -Dflink.major.version=2.3 -DskipTests=true
+
 echo "Deploy jar with jdk17 finished."
 cd ${CURR_DIR}

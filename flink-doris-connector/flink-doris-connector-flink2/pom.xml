@@ -32,8 +32,8 @@ under the License.
     <description>Flink Doris Connector for Flink 2.0+ </description>
 
     <properties>
-        <flink.version>2.2.0</flink.version>
-        <flink.major.version>2.2</flink.major.version>
+        <flink.version>2.3.0</flink.version>
+        <flink.major.version>2.3</flink.major.version>
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
     </properties>

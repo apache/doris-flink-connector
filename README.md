@@ -37,6 +37,7 @@ Flink Doris Connector supports the following Flink versions:
 | 2.0.x         | JDK 17                         |
 | 2.1.x         | JDK 17; JDK 21 (experimental) |
 | 2.2.x         | JDK 17; JDK 21 (experimental) |
+| 2.3.x         | JDK 17; JDK 21 (experimental) |
 
 Flink 2.x artifacts are compiled with Java 17 (`--release 17`, classfile major version 61) and can be built with JDK 17 or JDK 21. JDK 21 runtime compatibility is experimental for the Flink versions listed above; JDK 17 remains the recommended runtime.
 

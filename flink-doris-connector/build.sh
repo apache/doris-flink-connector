@@ -115,7 +115,7 @@ selectFlink() {
   echo 'Flink-Doris-Connector supports multiple versions of flink. Which version do you need ?'
   echo '  [Flink 1.x requires JDK 8]'
   echo '  [Flink 2.x builds require JDK 17 or 21; artifacts target Java 17]'
-  select flink in "1.15.x" "1.16.x" "1.17.x" "1.18.x" "1.19.x" "1.20.x" "2.0.x" "2.1.x" "2.2.x"
+  select flink in "1.15.x" "1.16.x" "1.17.x" "1.18.x" "1.19.x" "1.20.x" "2.0.x" "2.1.x" "2.2.x" "2.3.x"
   do
     case $flink in
       "1.15.x")
@@ -144,6 +144,9 @@ selectFlink() {
         ;;
       "2.2.x")
         return 9
+        ;;
+      "2.3.x")
+        return 10
         ;;
       *)
         echo "invalid selected, exit.."
@@ -182,6 +185,10 @@ elif [ ${flinkVer} -eq 8 ]; then
     FLINK_PROFILE="flink2"
 elif [ ${flinkVer} -eq 9 ]; then
     FLINK_VERSION="2.2.0"
+    FLINK_MODULE="flink-doris-connector-flink2"
+    FLINK_PROFILE="flink2"
+elif [ ${flinkVer} -eq 10 ]; then
+    FLINK_VERSION="2.3.0"
     FLINK_MODULE="flink-doris-connector-flink2"
     FLINK_PROFILE="flink2"
 fi

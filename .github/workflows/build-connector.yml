@@ -120,6 +120,14 @@ jobs:
           -Dflink.version=2.2.0 \
           -Dflink.major.version=2.2
 
+    - name: Build flink connector 2.3
+      run: |
+        cd flink-doris-connector && mvn clean package \
+          -pl flink-doris-connector-flink2 -am \
+          -Pflink2 \
+          -Dflink.version=2.3.0 \
+          -Dflink.major.version=2.3
+
   build-flink2-jdk21:
     name: "Build Flink 2.x on JDK 21"
     runs-on: ubuntu-latest
@@ -141,7 +149,7 @@ jobs:
 
     - name: Build Flink connectors
       run: |
-        for flink_major in 2.0 2.1 2.2; do
+        for flink_major in 2.0 2.1 2.2 2.3; do
           mvn clean package \
             -pl flink-doris-connector-flink2 -am \
             -Pflink2 \
