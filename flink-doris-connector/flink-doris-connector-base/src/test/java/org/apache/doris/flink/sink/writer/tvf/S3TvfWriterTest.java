@@ -17,10 +17,14 @@
 
 package org.apache.doris.flink.sink.writer.tvf;
 
+import org.apache.flink.testutils.logging.TestLoggerResource;
+
 import org.apache.doris.flink.sink.writer.serializer.DorisRecord;
 import org.apache.doris.flink.sink.writer.serializer.DorisRecordSerializer;
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
+import org.slf4j.event.Level;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -36,6 +40,29 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 public class S3TvfWriterTest {
+
+    @Rule
+    public final TestLoggerResource testLogger =
+            new TestLoggerResource(S3TvfWriter.class, Level.INFO);
+
+    @Test
+    public void testLogsUploadedObjectMetrics() throws Exception {
+        RecordingObjectStore objectStore = new RecordingObjectStore();
+        S3TvfWriter<String> writer = createWriter(6L, objectStore);
+
+        writer.write("12345");
+        writer.flush();
+
+        Assert.assertTrue(
+                testLogger.getMessages().stream()
+                        .anyMatch(
+                                message ->
+                                        message.matches(
+                                                "S3 TVF object upload completed, "
+                                                        + "fileName=label_tbl_2_7_0\\.json, "
+                                                        + "objectKey=prefix/label_tbl_2_7_0\\.json, "
+                                                        + "sizeBytes=6, uploadTimeMs=\\d+\\.")));
+    }
 
     @Test
     public void testFlushByBytesAndBuildDeterministicCommittable() throws Exception {
@@ -135,8 +162,44 @@ public class S3TvfWriterTest {
         }
     }
 
+    @Test
+    public void testConfiguredUploadQueueSizeAllowsPendingUploads() throws Exception {
+        BlockingObjectStore objectStore = new BlockingObjectStore();
+        S3TvfWriter<String> writer = createWriter(6L, objectStore, 2, 6);
+        ExecutorService caller = Executors.newSingleThreadExecutor();
+
+        try {
+            writer.write("12345");
+            Assert.assertTrue(objectStore.uploadStarted.await(5, TimeUnit.SECONDS));
+
+            Future<?> pendingWrites =
+                    caller.submit(
+                            () -> {
+                                writer.write("12345");
+                                writer.write("12345");
+                                return null;
+                            });
+            pendingWrites.get(1, TimeUnit.SECONDS);
+
+            objectStore.allowUpload.countDown();
+            writer.flush();
+        } finally {
+            objectStore.allowUpload.countDown();
+            caller.shutdownNow();
+            writer.close();
+        }
+    }
+
     private static S3TvfWriter<String> createWriter(
             long restoredCheckpointId, RecordingObjectStore objectStore) {
+        return createWriter(restoredCheckpointId, objectStore, 2, 10);
+    }
+
+    private static S3TvfWriter<String> createWriter(
+            long restoredCheckpointId,
+            RecordingObjectStore objectStore,
+            int uploadQueueSize,
+            int maxBytes) {
         DorisRecordSerializer<String> serializer =
                 value -> DorisRecord.of(value.getBytes(StandardCharsets.UTF_8));
         return new S3TvfWriter<>(
@@ -150,7 +213,8 @@ public class S3TvfWriterTest {
                 "label",
                 Arrays.asList("id", "name"),
                 true,
-                10);
+                maxBytes,
+                uploadQueueSize);
     }
 
     private static class RecordingObjectStore implements S3ObjectStore {

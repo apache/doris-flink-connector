@@ -18,8 +18,10 @@
 package org.apache.doris.flink.rest;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sun.net.httpserver.HttpServer;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
+import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.util.EntityUtils;
@@ -28,10 +30,13 @@ import org.mockito.MockedStatic;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.mockStatic;
@@ -39,37 +44,6 @@ import static org.mockito.Mockito.mockStatic;
 class DorisTsoResponseTest {
 
     private static final Logger LOG = LoggerFactory.getLogger(DorisTsoResponseTest.class);
-
-    @Test
-    void extractsOnlyPhysicalTime() {
-        String response =
-                "{\"code\":0,\"msg\":\"success\",\"data\":{"
-                        + "\"current_tso\":461373440032243713,"
-                        + "\"current_tso_physical_time\":1760000000123,"
-                        + "\"current_tso_logical_counter\":1}}";
-
-        assertThat(RestService.parseCurrentTsoPhysicalTime(response)).isEqualTo(1760000000123L);
-    }
-
-    @Test
-    void rejectsErrorAndMissingPhysicalTime() {
-        assertThatThrownBy(
-                        () ->
-                                RestService.parseCurrentTsoPhysicalTime(
-                                        "{\"code\":1,\"msg\":\"Temporary failure\"}"))
-                .hasMessageContaining("Temporary failure");
-        assertThatThrownBy(
-                        () ->
-                                RestService.parseCurrentTsoPhysicalTime(
-                                        "{\"code\":0,\"msg\":\"success\",\"data\":{}}"))
-                .hasMessageContaining("current_tso_physical_time");
-    }
-
-    @Test
-    void buildsTimestampFormattingSql() {
-        assertThat(RestService.buildCurrentTimestampSql(1760000000123L))
-                .isEqualTo("SELECT FROM_UNIXTIME(1760000000123 / 1000, '%Y-%m-%d %H:%i:%s')");
-    }
 
     @Test
     void validatesTimestampFormattingResult() {
@@ -80,7 +54,58 @@ class DorisTsoResponseTest {
     }
 
     @Test
-    void retriesConfiguredFrontendAndAppliesTimeoutsAfterTsoFailure() throws Exception {
+    void includesCompleteStatementResponseInError() throws Exception {
+        DorisOptions options =
+                DorisOptions.builder()
+                        .setFenodes("frontend:8030")
+                        .setUsername("root")
+                        .setPassword("")
+                        .build();
+        DorisReadOptions readOptions = DorisReadOptions.builder().setRequestRetries(1).build();
+        String response =
+                "{\"code\":1,\"msg\":\"Error\",\"data\":\"Table [tso_status] does not exist\"}";
+
+        try (MockedStatic<RestService> mocked = mockStatic(RestService.class, CALLS_REAL_METHODS)) {
+            mocked.when(() -> RestService.handleResponse(any(), any(), any()))
+                    .thenReturn(new ObjectMapper().readTree(response));
+
+            Throwable error =
+                    catchThrowable(
+                            () -> RestService.resolveCurrentTimestamp(options, readOptions, LOG));
+
+            assertThat(error)
+                    .hasMessage("Failed to resolve current Doris timestamp after 1 attempts");
+            assertThat(error.getCause()).hasMessageContaining(response);
+        }
+    }
+
+    @Test
+    void includesHttpErrorResponseBody() throws Exception {
+        byte[] response =
+                "{\"code\":500,\"msg\":\"Error\",\"data\":\"Detailed failure\"}"
+                        .getBytes(StandardCharsets.UTF_8);
+        HttpServer server = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
+        server.createContext(
+                "/",
+                exchange -> {
+                    exchange.sendResponseHeaders(500, response.length);
+                    exchange.getResponseBody().write(response);
+                    exchange.close();
+                });
+        server.start();
+
+        try {
+            HttpGet request =
+                    new HttpGet("http://localhost:" + server.getAddress().getPort() + "/");
+            assertThatThrownBy(() -> RestService.handleResponse(request, LOG))
+                    .hasMessageContaining(new String(response, StandardCharsets.UTF_8));
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void queriesTimestampFromTsoStatusWithConfiguredRetriesAndTimeouts() throws Exception {
         DorisOptions options =
                 DorisOptions.builder()
                         .setFenodes("frontend:8030")
@@ -93,8 +118,7 @@ class DorisTsoResponseTest {
                         .setRequestReadTimeoutMs(2345)
                         .setRequestRetries(2)
                         .build();
-        AtomicInteger tsoCalls = new AtomicInteger();
-        AtomicInteger formatTimestampCalls = new AtomicInteger();
+        AtomicInteger statementCalls = new AtomicInteger();
         ObjectMapper mapper = new ObjectMapper();
 
         try (MockedStatic<RestService> mocked = mockStatic(RestService.class, CALLS_REAL_METHODS)) {
@@ -106,36 +130,30 @@ class DorisTsoResponseTest {
                                 assertThat(request.getConfig().getConnectTimeout()).isEqualTo(1234);
                                 assertThat(request.getConfig().getSocketTimeout()).isEqualTo(2345);
 
-                                if (request instanceof HttpPost) {
-                                    String statement =
-                                            EntityUtils.toString(((HttpPost) request).getEntity());
-                                    if (statement.contains("FROM_UNIXTIME")) {
-                                        formatTimestampCalls.incrementAndGet();
-                                        assertThat(request.getURI().getHost())
-                                                .isEqualTo("frontend");
-                                        return mapper.readTree(
-                                                "{\"code\":0,\"data\":{\"data\":"
-                                                        + "[[\"2026-07-20 10:00:00\"]]}}");
-                                    }
-                                } else if ("/api/tso".equals(request.getURI().getPath())) {
-                                    assertThat(request.getURI().getHost()).isEqualTo("frontend");
-                                    if (tsoCalls.getAndIncrement() == 0) {
-                                        return mapper.readTree(
-                                                "{\"code\":1,\"msg\":\"Temporary failure\"}");
-                                    }
-                                    return mapper.readTree(
-                                            "{\"code\":0,\"data\":{"
-                                                    + "\"current_tso_physical_time\":"
-                                                    + "1760000000123}}");
+                                if (!(request instanceof HttpPost)) {
+                                    throw new AssertionError(
+                                            "Expected statement request but got "
+                                                    + request.getURI());
                                 }
-                                throw new AssertionError("Unexpected request: " + request.getURI());
+                                String statement =
+                                        EntityUtils.toString(((HttpPost) request).getEntity());
+                                assertThat(statement)
+                                        .contains("FROM_UNIXTIME")
+                                        .contains("information_schema.tso_status");
+                                assertThat(request.getURI().getHost()).isEqualTo("frontend");
+                                if (statementCalls.getAndIncrement() == 0) {
+                                    return mapper.readTree(
+                                            "{\"code\":1,\"msg\":\"Temporary failure\"}");
+                                }
+                                return mapper.readTree(
+                                        "{\"code\":0,\"data\":{\"data\":"
+                                                + "[[\"2026-07-20 10:00:00\"]]}}");
                             });
 
             assertThat(RestService.resolveCurrentTimestamp(options, readOptions, LOG))
                     .isEqualTo("2026-07-20 10:00:00");
         }
 
-        assertThat(tsoCalls.get()).isEqualTo(2);
-        assertThat(formatTimestampCalls.get()).isEqualTo(1);
+        assertThat(statementCalls.get()).isEqualTo(2);
     }
 }

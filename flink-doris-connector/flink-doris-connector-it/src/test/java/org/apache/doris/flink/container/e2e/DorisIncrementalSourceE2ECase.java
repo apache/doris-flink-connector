@@ -195,7 +195,6 @@ public class DorisIncrementalSourceE2ECase extends AbstractITCaseService {
                                     + "  'username' = '%s',\n"
                                     + "  'password' = '%s',\n"
                                     + "  'sink.label-prefix' = '%s',\n"
-                                    + "  'sink.enable-2pc' = 'true',\n"
                                     + "  'sink.enable-delete' = 'true',\n"
                                     + "  'sink.ignore.update-before' = 'true',\n"
                                     + "  'sink.buffer-flush.interval' = '1s'\n"

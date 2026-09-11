@@ -63,6 +63,9 @@ class DorisSourceSplitSerializerTest {
         DorisStreamSplit split = DorisStreamSplit.of("2026-07-20 10:00:00", "2026-07-20 10:00:10");
 
         assertThat(split.splitId()).isEqualTo("stream-20260720100000-20260720100010");
+        assertThat(split.toString())
+                .isEqualTo(
+                        "DorisStreamSplit{stream-20260720100000-20260720100010, [2026-07-20 10:00:00, 2026-07-20 10:00:10)}");
         assertThat(roundTrip(split)).isEqualTo(split);
     }
 

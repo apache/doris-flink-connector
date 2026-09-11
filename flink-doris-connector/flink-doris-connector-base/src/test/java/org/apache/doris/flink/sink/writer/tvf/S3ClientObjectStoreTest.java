@@ -33,7 +33,7 @@ import static org.mockito.Mockito.verify;
 public class S3ClientObjectStoreTest {
 
     @Test
-    public void testPutObject() throws Exception {
+    public void testPutObjectUsesRepeatableContentProviderWithoutCopying() throws Exception {
         S3Client s3Client = mock(S3Client.class);
         S3ClientObjectStore objectStore = new S3ClientObjectStore(s3Client, "bucket");
         byte[] content = "{\"id\":1}\n".getBytes(StandardCharsets.UTF_8);
@@ -47,10 +47,17 @@ public class S3ClientObjectStoreTest {
         Assert.assertEquals("bucket", requestCaptor.getValue().bucket());
         Assert.assertEquals("prefix_tbl_0_1_0.json", requestCaptor.getValue().key());
         Assert.assertEquals("application/x-ndjson", requestCaptor.getValue().contentType());
-        try (InputStream input = bodyCaptor.getValue().contentStreamProvider().newStream()) {
+
+        content[0] = '[';
+        try (InputStream input = bodyCaptor.getValue().contentStreamProvider().newStream();
+                InputStream retryInput =
+                        bodyCaptor.getValue().contentStreamProvider().newStream()) {
             byte[] actual = new byte[content.length];
+            byte[] retryActual = new byte[content.length];
             Assert.assertEquals(content.length, input.read(actual));
+            Assert.assertEquals(content.length, retryInput.read(retryActual));
             Assert.assertArrayEquals(content, actual);
+            Assert.assertArrayEquals(content, retryActual);
         }
 
         objectStore.close();

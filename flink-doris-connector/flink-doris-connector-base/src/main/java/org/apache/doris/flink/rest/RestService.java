@@ -100,13 +100,11 @@ public class RestService implements Serializable {
     private static final String QUERY_PLAN_API = "/api/%s/%s/_query_plan";
     private static final String STATEMENT_EXEC_API =
             "/api/query/default_cluster/information_schema";
-    private static final String CURRENT_TSO_API = "/api/tso";
+    private static final String CURRENT_TIMESTAMP_SQL =
+            "SELECT FROM_UNIXTIME(CURRENT_TSO_PHYSICAL_TIME / 1000, "
+                    + "'%Y-%m-%d %H:%i:%s') FROM information_schema.tso_status";
 
-    /**
-     * Resolves the current Doris TSO to the timestamp format accepted by row-binlog queries. 1.
-     * Request the current TSO from a configured FE. 2. Call {@code FROM_UNIXTIME} to convert it to
-     * {@code yyyy-MM-dd HH:mm:ss}.
-     */
+    /** Resolves the current Doris TSO to the timestamp format accepted by row-binlog queries. */
     public static String resolveCurrentTimestamp(
             DorisOptions options, DorisReadOptions readOptions, Logger logger) {
         List<String> endpoints = allEndpoints(options.getFenodes(), logger);
@@ -120,17 +118,13 @@ public class RestService implements Serializable {
         for (int attempt = 0; attempt < maxAttempts; attempt++) {
             String endpoint = endpoints.get(attempt % endpoints.size());
             try {
-                long physicalTime =
-                        requestCurrentTsoPhysicalTime(options, readOptions, endpoint, logger);
-                // Currently, the TSO API does not return formatted time,
-                // so an additional formatting step is required.
                 String timestamp =
                         parseScalarStatementResult(
                                 executeStatementAtEndpoint(
                                         options,
                                         readOptions,
                                         endpoint,
-                                        buildCurrentTimestampSql(physicalTime),
+                                        CURRENT_TIMESTAMP_SQL,
                                         logger));
                 return validateCurrentTimestamp(timestamp);
             } catch (RuntimeException e) {
@@ -146,24 +140,6 @@ public class RestService implements Serializable {
         throw new DorisRuntimeException(
                 "Failed to resolve current Doris timestamp after " + maxAttempts + " attempts",
                 lastFailure);
-    }
-
-    private static long requestCurrentTsoPhysicalTime(
-            DorisOptions options, DorisReadOptions readOptions, String endpoint, Logger logger) {
-        HttpGet request =
-                new HttpGet(
-                        DorisUrlBuilder.buildHttpUrl(
-                                options.getTlsOptions(), endpoint, CURRENT_TSO_API));
-        request.setHeader(HttpHeaders.AUTHORIZATION, authHeader(options));
-        request.setConfig(createRequestConfig(readOptions));
-        try {
-            return parseCurrentTsoPhysicalTime(
-                    handleResponse(request, options.getTlsOptions(), logger).toString());
-        } catch (RuntimeException e) {
-            throw new DorisRuntimeException(
-                    "Failed to get current TSO from Doris FE " + endpoint + ": " + e.getMessage(),
-                    e);
-        }
     }
 
     private static RequestConfig createRequestConfig(DorisReadOptions readOptions) {
@@ -183,43 +159,12 @@ public class RestService implements Serializable {
     }
 
     @VisibleForTesting
-    static String buildCurrentTimestampSql(long physicalTime) {
-        return String.format(
-                "SELECT FROM_UNIXTIME(%d / 1000, '%%Y-%%m-%%d %%H:%%i:%%s')", physicalTime);
-    }
-
-    @VisibleForTesting
     static String validateCurrentTimestamp(String timestamp) {
         if (!DorisStreamSplit.isValidTimestamp(timestamp)) {
             throw new DorisRuntimeException(
                     "Doris timestamp must strictly match yyyy-MM-dd HH:mm:ss: " + timestamp);
         }
         return timestamp;
-    }
-
-    @VisibleForTesting
-    public static long parseCurrentTsoPhysicalTime(String response) {
-        try {
-            JsonNode root = objectMapper.readTree(response);
-            int code = root.path("code").asInt(Integer.MIN_VALUE);
-            if (code != REST_RESPONSE_CODE_OK) {
-                throw new DorisRuntimeException(
-                        "Failed to get current Doris TSO: " + root.path("msg").asText());
-            }
-            JsonNode physicalTimeNode = root.path("data").path("current_tso_physical_time");
-            if (physicalTimeNode.isMissingNode() || physicalTimeNode.isNull()) {
-                throw new DorisRuntimeException(
-                        "Missing current_tso_physical_time in TSO response");
-            }
-            long physicalTime = physicalTimeNode.asLong(-1L);
-            if (physicalTime <= 0) {
-                throw new DorisRuntimeException(
-                        "Invalid current_tso_physical_time: " + physicalTimeNode.asText());
-            }
-            return physicalTime;
-        } catch (JsonProcessingException e) {
-            throw new DorisRuntimeException("Invalid Doris TSO response", e);
-        }
     }
 
     /**
@@ -602,15 +547,20 @@ public class RestService implements Serializable {
                 CloseableHttpResponse response = httpclient.execute(request)) {
             final int statusCode = response.getStatusLine().getStatusCode();
             final String reasonPhrase = response.getStatusLine().getReasonPhrase();
-            if (statusCode == 200 && response.getEntity() != null) {
-                String responseEntity = EntityUtils.toString(response.getEntity());
+            String responseEntity =
+                    response.getEntity() == null
+                            ? null
+                            : EntityUtils.toString(response.getEntity());
+            if (statusCode == 200 && responseEntity != null) {
                 return objectMapper.readTree(responseEntity);
             } else {
                 throw new DorisRuntimeException(
                         "Failed to parse response, status: "
                                 + statusCode
                                 + ", reason: "
-                                + reasonPhrase);
+                                + reasonPhrase
+                                + ", response: "
+                                + responseEntity);
             }
         } catch (Exception e) {
             logger.trace("request error,", e);
@@ -653,7 +603,7 @@ public class RestService implements Serializable {
             JsonNode response = handleResponse(httpPost, options.getTlsOptions(), logger);
             if (response.has("code") && response.path("code").asInt() != REST_RESPONSE_CODE_OK) {
                 throw new DorisRuntimeException(
-                        "Failed to execute Doris statement: " + response.path("msg").asText());
+                        "Failed to execute Doris statement, response: " + response);
             }
             return response;
         } catch (DorisRuntimeException e) {

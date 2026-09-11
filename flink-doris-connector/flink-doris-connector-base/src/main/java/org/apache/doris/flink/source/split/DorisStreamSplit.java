@@ -20,7 +20,7 @@ package org.apache.doris.flink.source.split;
 import java.util.Objects;
 import java.util.regex.Pattern;
 
-/** A finite Doris row-binlog query range with an exclusive start and inclusive end. */
+/** A finite Doris row-binlog query range with an inclusive start and exclusive end. */
 public final class DorisStreamSplit implements DorisSourceSplit {
     private static final Pattern TIMESTAMP_PATTERN =
             Pattern.compile("\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}");
@@ -102,6 +102,6 @@ public final class DorisStreamSplit implements DorisSourceSplit {
 
     @Override
     public String toString() {
-        return "DorisStreamSplit{" + splitId + ", (" + startTimestamp + ", " + endTimestamp + "]}";
+        return "DorisStreamSplit{" + splitId + ", [" + startTimestamp + ", " + endTimestamp + ")}";
     }
 }

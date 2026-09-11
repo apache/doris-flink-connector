@@ -23,6 +23,8 @@ import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.doris.flink.sink.writer.DorisWriterState;
 import org.apache.doris.flink.sink.writer.serializer.DorisRecord;
 import org.apache.doris.flink.sink.writer.serializer.DorisRecordSerializer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -34,13 +36,14 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 /** Shared writer that stages JSON Lines files in S3-compatible object storage. */
 public class S3TvfWriter<IN> {
 
+    private static final Logger LOG = LoggerFactory.getLogger(S3TvfWriter.class);
     private static final byte NEW_LINE = '\n';
-    private static final int UPLOAD_QUEUE_SIZE = 1;
 
     private final int subtaskId;
     private final DorisRecordSerializer<IN> serializer;
@@ -52,10 +55,10 @@ public class S3TvfWriter<IN> {
     private final List<String> columns;
     private final boolean deleteSignEnabled;
     private final int maxBytes;
+    private final int uploadQueueSize;
     private final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
     private final List<String> currentObjectKeys = new ArrayList<>();
-    private final BlockingQueue<Runnable> uploadQueue =
-            new LinkedBlockingQueue<>(UPLOAD_QUEUE_SIZE);
+    private final BlockingQueue<Runnable> uploadQueue;
     private final AtomicReference<IOException> uploadException = new AtomicReference<>();
     private final ExecutorService uploadExecutor;
 
@@ -73,8 +76,10 @@ public class S3TvfWriter<IN> {
             String labelPrefix,
             List<String> columns,
             boolean deleteSignEnabled,
-            int maxBytes) {
+            int maxBytes,
+            int uploadQueueSize) {
         Preconditions.checkArgument(maxBytes > 0, "TVF buffer max bytes must be positive.");
+        Preconditions.checkArgument(uploadQueueSize > 0, "TVF upload queue size must be positive.");
         this.currentCheckpointId = restoredCheckpointId + 1;
         this.subtaskId = subtaskId;
         this.serializer = serializer;
@@ -86,6 +91,8 @@ public class S3TvfWriter<IN> {
         this.columns = Collections.unmodifiableList(new ArrayList<>(columns));
         this.deleteSignEnabled = deleteSignEnabled;
         this.maxBytes = maxBytes;
+        this.uploadQueueSize = uploadQueueSize;
+        this.uploadQueue = new LinkedBlockingQueue<>(uploadQueueSize);
         this.uploadExecutor =
                 Executors.newSingleThreadExecutor(
                         new ExecutorThreadFactory("s3-tvf-upload-" + subtaskId));
@@ -175,10 +182,28 @@ public class S3TvfWriter<IN> {
                     if (uploadException.get() != null) {
                         return;
                     }
+                    long uploadStartedAtNanos = System.nanoTime();
                     try {
                         objectStore.put(objectKey, content);
                         currentObjectKeys.add(objectKey);
+                        LOG.info(
+                                "S3 TVF object upload completed, fileName={}, objectKey={}, "
+                                        + "sizeBytes={}, uploadTimeMs={}.",
+                                fileName,
+                                objectKey,
+                                content.length,
+                                TimeUnit.NANOSECONDS.toMillis(
+                                        System.nanoTime() - uploadStartedAtNanos));
                     } catch (Exception e) {
+                        LOG.warn(
+                                "S3 TVF object upload failed, fileName={}, objectKey={}, "
+                                        + "sizeBytes={}, uploadTimeMs={}.",
+                                fileName,
+                                objectKey,
+                                content.length,
+                                TimeUnit.NANOSECONDS.toMillis(
+                                        System.nanoTime() - uploadStartedAtNanos),
+                                e);
                         IOException failure =
                                 e instanceof IOException
                                         ? (IOException) e
@@ -201,7 +226,7 @@ public class S3TvfWriter<IN> {
     }
 
     private void waitForUploads() throws IOException {
-        for (int i = 0; i <= UPLOAD_QUEUE_SIZE; i++) {
+        for (int i = 0; i <= uploadQueueSize; i++) {
             putUpload(() -> {});
         }
         checkUploadException();

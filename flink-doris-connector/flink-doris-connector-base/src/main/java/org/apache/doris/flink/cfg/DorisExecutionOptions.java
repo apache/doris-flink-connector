@@ -496,7 +496,7 @@ public class DorisExecutionOptions implements Serializable {
         }
 
         /**
-         * Set queue size in batch mode.
+         * Set queue size for asynchronous batch flush or TVF upload.
          *
          * @param flushQueueSize
          * @return this DorisExecutionOptions.builder.

@@ -352,7 +352,8 @@ public class DorisConfigOptions {
             ConfigOptions.key("sink.flush.queue-size")
                     .intType()
                     .defaultValue(2)
-                    .withDescription("Queue length for async stream load, default is 2");
+                    .withDescription(
+                            "Queue length for asynchronous stream load or TVF upload, default is 2");
 
     public static final ConfigOption<Integer> SINK_BUFFER_FLUSH_MAX_ROWS =
             ConfigOptions.key("sink.buffer-flush.max-rows")
@@ -403,7 +404,7 @@ public class DorisConfigOptions {
             ConfigOptions.key("source.scan.timestamp")
                     .stringType()
                     .noDefaultValue()
-                    .withDescription("Exclusive start timestamp for from-timestamp mode");
+                    .withDescription("Inclusive start timestamp for from-timestamp mode");
     public static final ConfigOption<String> SOURCE_BINLOG_INCREMENT_TYPE =
             ConfigOptions.key("source.binlog.increment-type")
                     .stringType()

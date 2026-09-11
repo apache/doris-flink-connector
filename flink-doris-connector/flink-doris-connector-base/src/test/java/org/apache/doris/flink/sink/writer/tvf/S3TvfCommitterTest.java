@@ -18,10 +18,13 @@
 package org.apache.doris.flink.sink.writer.tvf;
 
 import org.apache.flink.api.connector.sink2.Committer.CommitRequest;
+import org.apache.flink.testutils.logging.TestLoggerResource;
 
 import org.apache.doris.flink.cfg.S3TvfOptions;
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
+import org.slf4j.event.Level;
 
 import java.sql.SQLException;
 import java.util.ArrayDeque;
@@ -32,6 +35,29 @@ import java.util.Properties;
 import java.util.Queue;
 
 public class S3TvfCommitterTest {
+
+    @Rule
+    public final TestLoggerResource testLogger =
+            new TestLoggerResource(S3TvfCommitter.class, Level.INFO);
+
+    @Test
+    public void testLogsInsertMetrics() throws Exception {
+        RecordingLoadClient loadClient = new RecordingLoadClient();
+        S3TvfCommitter committer = createCommitter(loadClient, 3);
+
+        committer.commit(
+                Collections.singletonList(
+                        request(committable("prefix_tbl_0_7_0.json", "label_tbl_0_7"))));
+
+        Assert.assertTrue(
+                testLogger.getMessages().stream()
+                        .anyMatch(
+                                message ->
+                                        message.matches(
+                                                "TVF insert completed, label=label_tbl_0_7, "
+                                                        + "objectCount=1, attempt=1, "
+                                                        + "insertTimeMs=\\d+\\.")));
+    }
 
     @Test
     public void testCommitsWriterRequestsIndependently() throws Exception {

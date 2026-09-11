@@ -32,6 +32,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
 
 /** Commits staged objects with one INSERT statement per writer and checkpoint. */
 public class S3TvfCommitter implements Committer<S3TvfCommittable> {
@@ -88,16 +89,25 @@ public class S3TvfCommitter implements Committer<S3TvfCommittable> {
     private boolean commitOne(S3TvfCommittable committable) throws IOException, SQLException {
         String insertSql = sqlBuilder.buildInsertSql(committable);
         for (int attempt = 0; attempt <= maxRetries; attempt++) {
+            long insertStartedAtNanos = System.nanoTime();
             try {
                 loadClient.executeInsert(insertSql, sessionVariables);
-                LOG.info("TVF load committed with label {}.", committable.getLabel());
+                LOG.info(
+                        "TVF insert completed, label={}, objectCount={}, attempt={}, "
+                                + "insertTimeMs={}.",
+                        committable.getLabel(),
+                        committable.getObjectKeys().size(),
+                        attempt + 1,
+                        TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - insertStartedAtNanos));
                 return false;
             } catch (SQLException e) {
                 LOG.warn(
-                        "TVF insert failed for label {} on attempt {} "
-                                + "(SQLState={}, errorCode={}).",
+                        "TVF insert failed, label={}, objectCount={}, attempt={}, "
+                                + "insertTimeMs={}, SQLState={}, errorCode={}.",
                         committable.getLabel(),
+                        committable.getObjectKeys().size(),
                         attempt + 1,
+                        TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - insertStartedAtNanos),
                         e.getSQLState(),
                         e.getErrorCode());
                 if (isLabelAlreadyUsed(e, committable.getLabel())) {
