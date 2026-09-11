@@ -404,7 +404,7 @@ public class DorisConfigOptions {
             ConfigOptions.key("source.scan.timestamp")
                     .stringType()
                     .noDefaultValue()
-                    .withDescription("Exclusive start timestamp for from-timestamp mode");
+                    .withDescription("Inclusive start timestamp for from-timestamp mode");
     public static final ConfigOption<String> SOURCE_BINLOG_INCREMENT_TYPE =
             ConfigOptions.key("source.binlog.increment-type")
                     .stringType()
