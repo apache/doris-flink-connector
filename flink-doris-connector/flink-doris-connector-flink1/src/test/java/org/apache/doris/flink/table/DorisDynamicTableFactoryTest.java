@@ -100,6 +100,7 @@ public class DorisDynamicTableFactoryTest {
         properties.put("source.scan.timestamp", "2026-07-20 10:00:00");
         properties.put("source.binlog.increment-type", "min_delta");
         properties.put("source.binlog.poll-interval", "3s");
+        properties.put("source.binlog.visible-wait-timeout", "7m");
         DynamicTableSource actual = FactoryMocks.createTableSource(SCHEMA, properties);
         DorisOptions options =
                 DorisOptions.builder()
@@ -140,7 +141,8 @@ public class DorisDynamicTableFactoryTest {
                 .setScanMode(DorisSourceScanMode.FROM_TIMESTAMP)
                 .setScanTimestamp("2026-07-20 10:00:00")
                 .setBinlogIncrementType(DorisBinlogIncrementType.MIN_DELTA)
-                .setBinlogPollIntervalMs(3_000L);
+                .setBinlogPollIntervalMs(3_000L)
+                .setBinlogVisibleWaitTimeoutMs(7 * 60_000L);
         DorisDynamicTableSource expected =
                 new DorisDynamicTableSource(
                         options,

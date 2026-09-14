@@ -230,6 +230,9 @@ public class DorisSource<OUT>
             Preconditions.checkArgument(
                     readOptions.getBinlogPollIntervalMs() >= MIN_BINLOG_POLL_INTERVAL_MS,
                     "source.binlog.poll-interval must be at least 1 second");
+            Preconditions.checkArgument(
+                    readOptions.getBinlogVisibleWaitTimeoutMs() >= 0,
+                    "source.binlog.visible-wait-timeout must not be negative");
             String offsetTable = readOptions.getBinlogOffsetTable();
             String consumerId = readOptions.getBinlogConsumerId();
             Preconditions.checkArgument(

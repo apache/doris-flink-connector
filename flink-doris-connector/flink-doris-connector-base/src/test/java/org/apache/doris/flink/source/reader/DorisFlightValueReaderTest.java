@@ -20,6 +20,10 @@ package org.apache.doris.flink.source.reader;
 import org.apache.arrow.adbc.core.AdbcConnection;
 import org.apache.arrow.adbc.core.AdbcDatabase;
 import org.apache.arrow.adbc.core.AdbcDriver;
+import org.apache.arrow.adbc.core.AdbcException;
+import org.apache.arrow.adbc.core.AdbcStatement;
+import org.apache.arrow.adbc.core.AdbcStatusCode;
+import org.apache.arrow.adbc.core.ErrorDetail;
 import org.apache.arrow.adbc.driver.flightsql.FlightSqlConnectionProperties;
 import org.apache.arrow.adbc.driver.flightsql.FlightSqlDriver;
 import org.apache.arrow.flight.Location;
@@ -41,6 +45,7 @@ import org.mockito.MockedStatic;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.Map;
 
@@ -53,10 +58,44 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockConstruction;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class DorisFlightValueReaderTest {
+
+    @Test
+    void retriesVisibleWaitTimeoutUntilQuerySucceeds() throws Exception {
+        AdbcStatement statement = mock(AdbcStatement.class);
+        AdbcStatement.QueryResult result = mock(AdbcStatement.QueryResult.class);
+        when(statement.executeQuery()).thenThrow(windowError(5101)).thenReturn(result);
+
+        assertThat(DorisFlightValueReader.executeQueryWithRetry(statement, 30_000L))
+                .isSameAs(result);
+        verify(statement, times(2)).executeQuery();
+    }
+
+    @Test
+    void doesNotRetryOtherWindowErrors() throws Exception {
+        AdbcStatement statement = mock(AdbcStatement.class);
+        AdbcException error = windowError(5100);
+        when(statement.executeQuery()).thenThrow(error);
+
+        assertThatThrownBy(() -> DorisFlightValueReader.executeQueryWithRetry(statement, 30_000L))
+                .isSameAs(error);
+        verify(statement).executeQuery();
+    }
+
+    @Test
+    void stopsRetryingVisibleWaitTimeoutWhenBudgetIsExhausted() throws Exception {
+        AdbcStatement statement = mock(AdbcStatement.class);
+        AdbcException error = windowError(5101);
+        when(statement.executeQuery()).thenThrow(error);
+
+        assertThatThrownBy(() -> DorisFlightValueReader.executeQueryWithRetry(statement, 0L))
+                .isSameAs(error);
+        verify(statement).executeQuery();
+    }
 
     @Test
     void closesAcquiredResourcesWhenInitializationFails() throws Exception {
@@ -223,5 +262,16 @@ class DorisFlightValueReaderTest {
                 .setPassword("")
                 .setTlsOptions(tlsOptions)
                 .build();
+    }
+
+    private AdbcException windowError(int code) {
+        return new AdbcException(
+                "visible wait timed out",
+                null,
+                AdbcStatusCode.IO,
+                null,
+                0,
+                Collections.singletonList(
+                        new ErrorDetail("doris-error-code", Integer.toString(code))));
     }
 }

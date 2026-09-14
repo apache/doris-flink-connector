@@ -43,6 +43,7 @@ import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_REQUEST_READ
 import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_REQUEST_RETRIES_DEFAULT;
 import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_TABLET_SIZE_DEFAULT;
 import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_THRIFT_MAX_MESSAGE_SIZE_DEFAULT;
+import static org.apache.doris.flink.cfg.ConfigurationOptions.SOURCE_BINLOG_VISIBLE_WAIT_TIMEOUT_MS_DEFAULT;
 import static org.apache.doris.flink.sink.writer.LoadConstants.FORMAT_KEY;
 import static org.apache.doris.flink.sink.writer.LoadConstants.JSON;
 import static org.apache.doris.flink.sink.writer.LoadConstants.READ_JSON_BY_LINE;
@@ -417,6 +418,13 @@ public class DorisConfigOptions {
                     .withDescription(
                             "Interval between attempts to discover the next Stream split; must be "
                                     + "at least 1 second");
+    public static final ConfigOption<Duration> SOURCE_BINLOG_VISIBLE_WAIT_TIMEOUT =
+            ConfigOptions.key("source.binlog.visible-wait-timeout")
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(SOURCE_BINLOG_VISIBLE_WAIT_TIMEOUT_MS_DEFAULT))
+                    .withDescription(
+                            "Maximum time to retry an incremental query after Doris reports a "
+                                    + "visible wait timeout; 0s disables retries");
     public static final ConfigOption<String> SOURCE_BINLOG_OFFSET_TABLE =
             ConfigOptions.key("source.binlog.offset-table")
                     .stringType()

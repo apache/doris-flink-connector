@@ -82,6 +82,7 @@ class DorisSourceOptionsTest {
         assertThat(options.getScanTimestamp()).isNull();
         assertThat(options.getBinlogIncrementType()).isEqualTo(DorisBinlogIncrementType.DETAIL);
         assertThat(options.getBinlogPollIntervalMs()).isEqualTo(10_000L);
+        assertThat(options.getBinlogVisibleWaitTimeoutMs()).isEqualTo(5 * 60 * 1000L);
         assertThat(options.getBinlogOffsetTable()).isNull();
         assertThat(options.getBinlogConsumerId()).isNull();
     }
@@ -94,6 +95,7 @@ class DorisSourceOptionsTest {
                         .setScanTimestamp("2026-07-20 10:00:00")
                         .setBinlogIncrementType(DorisBinlogIncrementType.MIN_DELTA)
                         .setBinlogPollIntervalMs(3_000L)
+                        .setBinlogVisibleWaitTimeoutMs(60_000L)
                         .setBinlogOffsetTable("ops.flink_source_offsets")
                         .setBinlogConsumerId("prod.sales.orders")
                         .build();
@@ -105,6 +107,7 @@ class DorisSourceOptionsTest {
         assertThat(copy.getScanTimestamp()).isEqualTo("2026-07-20 10:00:00");
         assertThat(copy.getBinlogIncrementType()).isEqualTo(DorisBinlogIncrementType.MIN_DELTA);
         assertThat(copy.getBinlogPollIntervalMs()).isEqualTo(3_000L);
+        assertThat(copy.getBinlogVisibleWaitTimeoutMs()).isEqualTo(60_000L);
         assertThat(copy.getBinlogOffsetTable()).isEqualTo("ops.flink_source_offsets");
         assertThat(copy.getBinlogConsumerId()).isEqualTo("prod.sales.orders");
     }
@@ -160,6 +163,13 @@ class DorisSourceOptionsTest {
                 .hasMessageContaining("at least 1 second");
         assertThat(buildSource(DorisReadOptions.builder().setBinlogPollIntervalMs(1_000L).build()))
                 .isNotNull();
+        assertThatThrownBy(
+                        () ->
+                                buildSource(
+                                        DorisReadOptions.builder()
+                                                .setBinlogVisibleWaitTimeoutMs(-1L)
+                                                .build()))
+                .hasMessageContaining("visible-wait-timeout must not be negative");
         assertThat(
                         buildSource(
                                 DorisReadOptions.builder()
