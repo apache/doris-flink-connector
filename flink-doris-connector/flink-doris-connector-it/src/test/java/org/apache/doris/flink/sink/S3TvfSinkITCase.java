@@ -94,7 +94,7 @@ public class S3TvfSinkITCase extends AbstractITCaseService {
     private static final String ACCESS_KEY = "minioadmin";
     private static final String SECRET_KEY = "minioadmin";
     private static final int MINIO_PORT = 9000;
-    private static final String MINIO_IMAGE = "minio/minio:RELEASE.2024-10-13T13-34-11Z";
+    private static final String MINIO_IMAGE = "quay.io/minio/minio:RELEASE.2024-10-13T13-34-11Z";
 
     private static GenericContainer<?> minio;
     private static S3Client s3Client;
