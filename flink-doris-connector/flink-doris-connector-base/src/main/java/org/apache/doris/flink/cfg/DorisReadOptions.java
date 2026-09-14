@@ -49,6 +49,7 @@ public class DorisReadOptions implements Serializable {
     private String scanTimestamp;
     private DorisBinlogIncrementType binlogIncrementType;
     private Long binlogPollIntervalMs;
+    private Long binlogVisibleWaitTimeoutMs;
     private String binlogOffsetTable;
     private String binlogConsumerId;
 
@@ -72,7 +73,8 @@ public class DorisReadOptions implements Serializable {
             DorisSourceScanMode scanMode,
             String scanTimestamp,
             DorisBinlogIncrementType binlogIncrementType,
-            Long binlogPollIntervalMs) {
+            Long binlogPollIntervalMs,
+            Long binlogVisibleWaitTimeoutMs) {
         this(
                 readFields,
                 filterQuery,
@@ -94,6 +96,7 @@ public class DorisReadOptions implements Serializable {
                 scanTimestamp,
                 binlogIncrementType,
                 binlogPollIntervalMs,
+                binlogVisibleWaitTimeoutMs,
                 null,
                 null);
     }
@@ -119,6 +122,7 @@ public class DorisReadOptions implements Serializable {
             String scanTimestamp,
             DorisBinlogIncrementType binlogIncrementType,
             Long binlogPollIntervalMs,
+            Long binlogVisibleWaitTimeoutMs,
             String binlogOffsetTable,
             String binlogConsumerId) {
         this.readFields = readFields;
@@ -141,6 +145,7 @@ public class DorisReadOptions implements Serializable {
         this.scanTimestamp = scanTimestamp;
         this.binlogIncrementType = binlogIncrementType;
         this.binlogPollIntervalMs = binlogPollIntervalMs;
+        this.binlogVisibleWaitTimeoutMs = binlogVisibleWaitTimeoutMs;
         this.binlogOffsetTable = binlogOffsetTable;
         this.binlogConsumerId = binlogConsumerId;
     }
@@ -241,6 +246,10 @@ public class DorisReadOptions implements Serializable {
         return binlogPollIntervalMs;
     }
 
+    public Long getBinlogVisibleWaitTimeoutMs() {
+        return binlogVisibleWaitTimeoutMs;
+    }
+
     public String getBinlogOffsetTable() {
         return binlogOffsetTable;
     }
@@ -286,6 +295,7 @@ public class DorisReadOptions implements Serializable {
                 && Objects.equals(scanTimestamp, that.scanTimestamp)
                 && binlogIncrementType == that.binlogIncrementType
                 && Objects.equals(binlogPollIntervalMs, that.binlogPollIntervalMs)
+                && Objects.equals(binlogVisibleWaitTimeoutMs, that.binlogVisibleWaitTimeoutMs)
                 && Objects.equals(binlogOffsetTable, that.binlogOffsetTable)
                 && Objects.equals(binlogConsumerId, that.binlogConsumerId);
     }
@@ -313,6 +323,7 @@ public class DorisReadOptions implements Serializable {
                 scanTimestamp,
                 binlogIncrementType,
                 binlogPollIntervalMs,
+                binlogVisibleWaitTimeoutMs,
                 binlogOffsetTable,
                 binlogConsumerId);
     }
@@ -339,6 +350,7 @@ public class DorisReadOptions implements Serializable {
                 scanTimestamp,
                 binlogIncrementType,
                 binlogPollIntervalMs,
+                binlogVisibleWaitTimeoutMs,
                 binlogOffsetTable,
                 binlogConsumerId);
     }
@@ -372,6 +384,8 @@ public class DorisReadOptions implements Serializable {
         private String scanTimestamp;
         private DorisBinlogIncrementType binlogIncrementType = DorisBinlogIncrementType.DETAIL;
         private Long binlogPollIntervalMs = 10_000L;
+        private Long binlogVisibleWaitTimeoutMs =
+                ConfigurationOptions.SOURCE_BINLOG_VISIBLE_WAIT_TIMEOUT_MS_DEFAULT;
         private String binlogOffsetTable;
         private String binlogConsumerId;
 
@@ -564,6 +578,11 @@ public class DorisReadOptions implements Serializable {
             return this;
         }
 
+        public Builder setBinlogVisibleWaitTimeoutMs(Long binlogVisibleWaitTimeoutMs) {
+            this.binlogVisibleWaitTimeoutMs = binlogVisibleWaitTimeoutMs;
+            return this;
+        }
+
         public Builder setBinlogOffsetTable(String binlogOffsetTable) {
             this.binlogOffsetTable = binlogOffsetTable;
             return this;
@@ -601,6 +620,7 @@ public class DorisReadOptions implements Serializable {
                     scanTimestamp,
                     binlogIncrementType,
                     binlogPollIntervalMs,
+                    binlogVisibleWaitTimeoutMs,
                     binlogOffsetTable,
                     binlogConsumerId);
         }

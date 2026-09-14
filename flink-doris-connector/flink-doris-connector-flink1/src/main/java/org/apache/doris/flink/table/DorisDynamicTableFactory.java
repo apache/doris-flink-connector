@@ -99,6 +99,7 @@ import static org.apache.doris.flink.table.DorisConfigOptions.SOURCE_BINLOG_CONS
 import static org.apache.doris.flink.table.DorisConfigOptions.SOURCE_BINLOG_INCREMENT_TYPE;
 import static org.apache.doris.flink.table.DorisConfigOptions.SOURCE_BINLOG_OFFSET_TABLE;
 import static org.apache.doris.flink.table.DorisConfigOptions.SOURCE_BINLOG_POLL_INTERVAL;
+import static org.apache.doris.flink.table.DorisConfigOptions.SOURCE_BINLOG_VISIBLE_WAIT_TIMEOUT;
 import static org.apache.doris.flink.table.DorisConfigOptions.SOURCE_SCAN_MODE;
 import static org.apache.doris.flink.table.DorisConfigOptions.SOURCE_SCAN_TIMESTAMP;
 import static org.apache.doris.flink.table.DorisConfigOptions.SOURCE_USE_OLD_API;
@@ -188,6 +189,7 @@ public final class DorisDynamicTableFactory
         options.add(SOURCE_SCAN_TIMESTAMP);
         options.add(SOURCE_BINLOG_INCREMENT_TYPE);
         options.add(SOURCE_BINLOG_POLL_INTERVAL);
+        options.add(SOURCE_BINLOG_VISIBLE_WAIT_TIMEOUT);
         options.add(SOURCE_BINLOG_OFFSET_TABLE);
         options.add(SOURCE_BINLOG_CONSUMER_ID);
         options.add(SINK_WRITE_MODE);
@@ -274,6 +276,8 @@ public final class DorisDynamicTableFactory
                         DorisBinlogIncrementType.fromOption(
                                 readableConfig.get(SOURCE_BINLOG_INCREMENT_TYPE)))
                 .setBinlogPollIntervalMs(readableConfig.get(SOURCE_BINLOG_POLL_INTERVAL).toMillis())
+                .setBinlogVisibleWaitTimeoutMs(
+                        readableConfig.get(SOURCE_BINLOG_VISIBLE_WAIT_TIMEOUT).toMillis())
                 .setBinlogOffsetTable(
                         readableConfig.getOptional(SOURCE_BINLOG_OFFSET_TABLE).orElse(null))
                 .setBinlogConsumerId(

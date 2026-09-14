@@ -65,6 +65,8 @@ import static org.apache.doris.flink.util.ErrorMessages.SHOULD_NOT_HAPPEN_MESSAG
 public class DorisFlightValueReader extends ValueReader implements AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(DorisFlightValueReader.class);
     private static final String PREFIX = "/* ApplicationName=Flink ArrowFlightSQL Query */";
+    private static final String DORIS_ERROR_CODE = "doris-error-code";
+    private static final String INCR_VISIBLE_WAIT_TIMEOUT = "5101";
 
     protected AdbcConnection client;
     private RootAllocator allocator;
@@ -121,14 +123,52 @@ public class DorisFlightValueReader extends ValueReader implements AutoCloseable
             } else {
                 throw new DorisRuntimeException("Unknown Doris split type: " + split);
             }
-            this.queryResult = statement.executeQuery();
+            this.queryResult =
+                    split instanceof DorisStreamSplit
+                            ? executeQueryWithRetry(
+                                    statement, readOptions.getBinlogVisibleWaitTimeoutMs())
+                            : statement.executeQuery();
             this.arrowReader = queryResult.getReader();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Interrupted while retrying Doris incremental query", e);
         } catch (AdbcException e) {
             throw new RuntimeException(e);
         } finally {
             clientLock.unlock();
         }
         LOG.debug("Open scan result is, schema: {}.", schema);
+    }
+
+    static AdbcStatement.QueryResult executeQueryWithRetry(
+            AdbcStatement statement, long retryTimeoutMs)
+            throws AdbcException, InterruptedException {
+        long startTimeMs = System.currentTimeMillis();
+        int retries = 1;
+        while (true) {
+            try {
+                return statement.executeQuery();
+            } catch (AdbcException e) {
+                long elapsedMs = System.currentTimeMillis() - startTimeMs;
+                if (!isVisibleWaitTimeout(e) || elapsedMs >= retryTimeoutMs) {
+                    throw e;
+                }
+                LOG.warn(
+                        "Doris incremental query visibility wait timed out; retrying, retry: {}, elapsed: {} ms, error: {}",
+                        retries,
+                        elapsedMs,
+                        e.getMessage());
+                Thread.sleep(Math.min(retries++, 5) * 1000L);
+            }
+        }
+    }
+
+    private static boolean isVisibleWaitTimeout(AdbcException error) {
+        return error.getDetails().stream()
+                .anyMatch(
+                        detail ->
+                                DORIS_ERROR_CODE.equals(detail.getKey())
+                                        && INCR_VISIBLE_WAIT_TIMEOUT.equals(detail.getValue()));
     }
 
     private void initSchema() {

@@ -64,6 +64,7 @@ public interface ConfigurationOptions {
 
     String FLIGHT_SQL_PORT = "source.flight-sql-port";
     Integer FLIGHT_SQL_PORT_DEFAULT = -1;
+    Long SOURCE_BINLOG_VISIBLE_WAIT_TIMEOUT_MS_DEFAULT = 5 * 60 * 1000L;
 
     String SINK_HTTP_UTF8_CHARSET = "sink.http-utf8-charset";
     Boolean SINK_HTTP_UTF8_CHARSET_DEFAULT = false;
