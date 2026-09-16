@@ -57,16 +57,18 @@ public class S3TvfCommitter implements Committer<S3TvfCommittable> {
                 new JdbcS3TvfLoadClient(dorisOptions),
                 executionOptions.getS3TvfOptions(),
                 executionOptions.getStreamLoadProp(),
-                executionOptions.getMaxRetries());
+                executionOptions.getMaxRetries(),
+                executionOptions.isGzipCompressionEnabled());
     }
 
     S3TvfCommitter(
             S3TvfLoadClient loadClient,
             S3TvfOptions options,
             Properties sessionProperties,
-            int maxRetries) {
+            int maxRetries,
+            boolean gzipEnabled) {
         this.loadClient = loadClient;
-        this.sqlBuilder = new S3TvfSqlBuilder(options);
+        this.sqlBuilder = new S3TvfSqlBuilder(options, gzipEnabled);
         this.sessionVariables = toSessionVariables(sessionProperties);
         this.maxRetries = maxRetries;
     }

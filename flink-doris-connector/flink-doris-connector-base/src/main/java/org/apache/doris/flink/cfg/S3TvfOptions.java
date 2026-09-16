@@ -34,7 +34,6 @@ public class S3TvfOptions implements Serializable {
     private final String roleArn;
     private final String externalId;
     private final boolean pathStyleAccess;
-    private final boolean gzipEnabled;
 
     private S3TvfOptions(Builder builder) {
         this.endpoint = builder.endpoint;
@@ -46,7 +45,6 @@ public class S3TvfOptions implements Serializable {
         this.roleArn = builder.roleArn;
         this.externalId = builder.externalId;
         this.pathStyleAccess = builder.pathStyleAccess;
-        this.gzipEnabled = builder.gzipEnabled;
     }
 
     public static Builder builder() {
@@ -86,19 +84,15 @@ public class S3TvfOptions implements Serializable {
     }
 
     public boolean hasRoleArn() {
-        return roleArn != null && !roleArn.isEmpty();
+        return hasText(roleArn);
     }
 
     public boolean hasStaticCredentials() {
-        return accessKey != null && !accessKey.isEmpty();
+        return hasText(accessKey);
     }
 
     public boolean isPathStyleAccess() {
         return pathStyleAccess;
-    }
-
-    public boolean isGzipEnabled() {
-        return gzipEnabled;
     }
 
     @Override
@@ -111,7 +105,6 @@ public class S3TvfOptions implements Serializable {
         }
         S3TvfOptions that = (S3TvfOptions) o;
         return pathStyleAccess == that.pathStyleAccess
-                && gzipEnabled == that.gzipEnabled
                 && Objects.equals(endpoint, that.endpoint)
                 && Objects.equals(region, that.region)
                 && Objects.equals(bucket, that.bucket)
@@ -133,8 +126,7 @@ public class S3TvfOptions implements Serializable {
                 secretKey,
                 roleArn,
                 externalId,
-                pathStyleAccess,
-                gzipEnabled);
+                pathStyleAccess);
     }
 
     @Override
@@ -168,7 +160,6 @@ public class S3TvfOptions implements Serializable {
         private String roleArn;
         private String externalId;
         private boolean pathStyleAccess;
-        private boolean gzipEnabled = true;
 
         public Builder setEndpoint(String endpoint) {
             this.endpoint = endpoint;
@@ -215,11 +206,6 @@ public class S3TvfOptions implements Serializable {
             return this;
         }
 
-        public Builder setGzipEnabled(boolean gzipEnabled) {
-            this.gzipEnabled = gzipEnabled;
-            return this;
-        }
-
         public S3TvfOptions build() {
             if (prefix != null) {
                 for (char character : "*?[]{},\\".toCharArray()) {
@@ -229,7 +215,26 @@ public class S3TvfOptions implements Serializable {
                     }
                 }
             }
+            boolean hasAccessKey = hasText(accessKey);
+            boolean hasSecretKey = hasText(secretKey);
+            boolean hasRoleArn = hasText(roleArn);
+            if (hasAccessKey != hasSecretKey) {
+                throw new IllegalArgumentException(
+                        "sink.s3.access-key and sink.s3.secret-key must be configured together.");
+            }
+            if (!hasAccessKey && !hasRoleArn) {
+                throw new IllegalArgumentException(
+                        "S3 TVF options require either access/secret keys or sink.s3.role-arn.");
+            }
+            if (hasText(externalId) && !hasRoleArn) {
+                throw new IllegalArgumentException(
+                        "sink.s3.external-id requires sink.s3.role-arn.");
+            }
             return new S3TvfOptions(this);
         }
+    }
+
+    private static boolean hasText(String value) {
+        return value != null && !value.trim().isEmpty();
     }
 }

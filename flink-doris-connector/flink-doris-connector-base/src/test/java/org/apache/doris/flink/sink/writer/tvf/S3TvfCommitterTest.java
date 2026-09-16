@@ -82,7 +82,7 @@ public class S3TvfCommitterTest {
         properties.setProperty("partial_columns", "true");
         properties.setProperty("query_timeout", "60");
         properties.setProperty("compress_type", "gz");
-        S3TvfCommitter committer = new S3TvfCommitter(loadClient, options(), properties, 0);
+        S3TvfCommitter committer = new S3TvfCommitter(loadClient, options(), properties, 0, true);
 
         committer.commit(Collections.singletonList(request(committable("file.json"))));
 
@@ -92,6 +92,18 @@ public class S3TvfCommitterTest {
         Assert.assertEquals(
                 "true", loadClient.sessionVariables.get("enable_unique_key_partial_update"));
         Assert.assertEquals("60", loadClient.sessionVariables.get("query_timeout"));
+    }
+
+    @Test
+    public void testEmptyCompressTypeDisablesGzipInInsertSql() throws Exception {
+        RecordingLoadClient loadClient = new RecordingLoadClient();
+        Properties properties = new Properties();
+        properties.setProperty("compress_type", "");
+        S3TvfCommitter committer = new S3TvfCommitter(loadClient, options(), properties, 0, false);
+
+        committer.commit(Collections.singletonList(request(committable("file.json"))));
+
+        Assert.assertFalse(loadClient.lastInsertSql.contains("'compress_type' = 'gz'"));
     }
 
     @Test
@@ -204,7 +216,7 @@ public class S3TvfCommitterTest {
     private static S3TvfCommitter createCommitter(RecordingLoadClient loadClient, int maxRetries) {
         Properties sessionVariables = new Properties();
         sessionVariables.setProperty("enable_partial_update", "true");
-        return new S3TvfCommitter(loadClient, options(), sessionVariables, maxRetries);
+        return new S3TvfCommitter(loadClient, options(), sessionVariables, maxRetries, true);
     }
 
     private static S3TvfOptions options() {

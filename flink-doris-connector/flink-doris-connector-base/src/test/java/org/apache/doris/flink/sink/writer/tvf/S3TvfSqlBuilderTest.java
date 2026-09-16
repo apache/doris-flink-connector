@@ -47,7 +47,7 @@ public class S3TvfSqlBuilderTest {
                         Arrays.asList("id", "name"),
                         true);
 
-        String sql = new S3TvfSqlBuilder(options).buildInsertSql(committable);
+        String sql = new S3TvfSqlBuilder(options, true).buildInsertSql(committable);
 
         Assert.assertEquals(
                 "INSERT INTO `db`.`tbl` WITH LABEL `label_tbl_7` "
@@ -83,7 +83,7 @@ public class S3TvfSqlBuilderTest {
                         Arrays.asList("id"),
                         false);
 
-        String sql = new S3TvfSqlBuilder(options).buildInsertSql(committable);
+        String sql = new S3TvfSqlBuilder(options, true).buildInsertSql(committable);
 
         Assert.assertTrue(
                 sql.contains(
@@ -104,7 +104,7 @@ public class S3TvfSqlBuilderTest {
                         .setRoleArn("arn:aws:iam::123456789012:role/doris")
                         .build();
         String sqlWithSourceCredentials =
-                new S3TvfSqlBuilder(optionsWithSourceCredentials).buildInsertSql(committable);
+                new S3TvfSqlBuilder(optionsWithSourceCredentials, true).buildInsertSql(committable);
         Assert.assertTrue(sqlWithSourceCredentials.contains("'s3.access_key' = 'ak'"));
         Assert.assertTrue(sqlWithSourceCredentials.contains("'s3.secret_key' = 'sk'"));
         Assert.assertTrue(

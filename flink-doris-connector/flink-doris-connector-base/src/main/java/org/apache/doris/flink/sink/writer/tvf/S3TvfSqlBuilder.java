@@ -33,9 +33,11 @@ import static org.apache.doris.flink.sink.writer.tvf.TvfSqlUtils.quoteLiteral;
 class S3TvfSqlBuilder {
 
     private final S3TvfOptions options;
+    private final boolean gzipEnabled;
 
-    public S3TvfSqlBuilder(S3TvfOptions options) {
+    public S3TvfSqlBuilder(S3TvfOptions options, boolean gzipEnabled) {
         this.options = options;
+        this.gzipEnabled = gzipEnabled;
     }
 
     public String buildInsertSql(S3TvfCommittable committable) {
@@ -70,7 +72,7 @@ class S3TvfSqlBuilder {
                 + property("format", "json")
                 + ","
                 + property("read_json_by_line", "true")
-                + (options.isGzipEnabled() ? "," + property("compress_type", "gz") : "")
+                + (gzipEnabled ? "," + property("compress_type", "gz") : "")
                 + ","
                 + property("use_path_style", Boolean.toString(options.isPathStyleAccess()))
                 + ")";

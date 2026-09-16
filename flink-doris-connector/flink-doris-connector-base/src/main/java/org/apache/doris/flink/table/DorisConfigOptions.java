@@ -513,7 +513,6 @@ public class DorisConfigOptions {
                 .setRoleArn(roleArn)
                 .setExternalId(externalId)
                 .setPathStyleAccess(readableConfig.get(SINK_S3_PATH_STYLE_ACCESS))
-                .setGzipEnabled(isTvfGzipEnabled(loadProperties))
                 .build();
     }
 
@@ -527,16 +526,15 @@ public class DorisConfigOptions {
             throw new ValidationException(
                     "TVF write mode requires 'sink.properties.read_json_by_line' to be true.");
         }
-        isTvfGzipEnabled(loadProperties);
+        validateTvfCompression(loadProperties);
     }
 
-    private static boolean isTvfGzipEnabled(Properties loadProperties) {
+    private static void validateTvfCompression(Properties loadProperties) {
         String compressType = loadProperties.getProperty(COMPRESS_TYPE, COMPRESS_TYPE_GZ).trim();
         if (!compressType.isEmpty() && !COMPRESS_TYPE_GZ.equalsIgnoreCase(compressType)) {
             throw new ValidationException(
                     "TVF write mode only supports 'gz' or an empty 'sink.properties.compress_type'.");
         }
-        return COMPRESS_TYPE_GZ.equalsIgnoreCase(compressType);
     }
 
     private static String requireNonBlank(
