@@ -533,7 +533,7 @@ public class DorisConfigOptions {
         String compressType = loadProperties.getProperty(COMPRESS_TYPE, COMPRESS_TYPE_GZ).trim();
         if (!compressType.isEmpty() && !COMPRESS_TYPE_GZ.equalsIgnoreCase(compressType)) {
             throw new ValidationException(
-                    "TVF write mode only supports 'gz' or an empty 'sink.properties.compress_type'.");
+                    "TVF write mode only supports 'gz' or an empty compress_type.");
         }
     }
 

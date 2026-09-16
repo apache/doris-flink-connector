@@ -340,6 +340,44 @@ public class DorisDynamicTableFactoryTest {
                         TableSchema.fromResolvedSchema(SCHEMA),
                         null);
         assertEquals(expected, actual);
+
+        properties.remove("sink.s3.role-arn");
+        properties.remove("sink.s3.external-id");
+        properties.put("sink.s3.access-key", "ak");
+        properties.put("sink.s3.secret-key", "sk");
+        actual = (DorisDynamicTableSink) FactoryMocks.createTableSink(SCHEMA, properties);
+
+        s3TvfOptions =
+                S3TvfOptions.builder()
+                        .setEndpoint("https://s3.example.com")
+                        .setRegion("us-east-1")
+                        .setBucket("bucket")
+                        .setPrefix("prefix")
+                        .setAccessKey("ak")
+                        .setSecretKey("sk")
+                        .setPathStyleAccess(true)
+                        .build();
+        executionOptions =
+                DorisExecutionOptions.builder()
+                        .setWriteMode(WriteMode.TVF)
+                        .setLabelPrefix("flink")
+                        .setBufferFlushMaxBytes(10 * 1024 * 1024)
+                        .setStreamLoadProp(
+                                new Properties() {
+                                    {
+                                        setProperty("columns", "a,c");
+                                    }
+                                })
+                        .setS3TvfOptions(s3TvfOptions)
+                        .build();
+        expected =
+                new DorisDynamicTableSink(
+                        options,
+                        DorisReadOptions.builder().build(),
+                        executionOptions,
+                        TableSchema.fromResolvedSchema(SCHEMA),
+                        null);
+        assertEquals(expected, actual);
     }
 
     private Map<String, String> getAllOptions() {
