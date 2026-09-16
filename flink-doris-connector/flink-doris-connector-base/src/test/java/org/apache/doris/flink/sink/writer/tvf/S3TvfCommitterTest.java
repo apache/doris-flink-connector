@@ -81,12 +81,14 @@ public class S3TvfCommitterTest {
         properties.setProperty("columns", "id,name");
         properties.setProperty("partial_columns", "true");
         properties.setProperty("query_timeout", "60");
+        properties.setProperty("compress_type", "gz");
         S3TvfCommitter committer = new S3TvfCommitter(loadClient, options(), properties, 0);
 
         committer.commit(Collections.singletonList(request(committable("file.json"))));
 
         Assert.assertFalse(loadClient.sessionVariables.containsKey("columns"));
         Assert.assertFalse(loadClient.sessionVariables.containsKey("partial_columns"));
+        Assert.assertFalse(loadClient.sessionVariables.containsKey("compress_type"));
         Assert.assertEquals(
                 "true", loadClient.sessionVariables.get("enable_unique_key_partial_update"));
         Assert.assertEquals("60", loadClient.sessionVariables.get("query_timeout"));

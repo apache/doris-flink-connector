@@ -289,8 +289,8 @@ public class DorisDynamicTableFactoryTest {
         properties.put("sink.s3.region", "us-east-1");
         properties.put("sink.s3.bucket", "bucket");
         properties.put("sink.s3.prefix", "prefix");
-        properties.put("sink.s3.access-key", "ak");
-        properties.put("sink.s3.secret-key", "sk");
+        properties.put("sink.s3.role-arn", "arn:aws:iam::123456789012:role/doris");
+        properties.put("sink.s3.external-id", "external-id");
         properties.put("sink.s3.path-style-access", "true");
         properties.put("sink.properties.columns", "a,c");
 
@@ -314,8 +314,8 @@ public class DorisDynamicTableFactoryTest {
                         .setRegion("us-east-1")
                         .setBucket("bucket")
                         .setPrefix("prefix")
-                        .setAccessKey("ak")
-                        .setSecretKey("sk")
+                        .setRoleArn("arn:aws:iam::123456789012:role/doris")
+                        .setExternalId("external-id")
                         .setPathStyleAccess(true)
                         .build();
         DorisExecutionOptions executionOptions =

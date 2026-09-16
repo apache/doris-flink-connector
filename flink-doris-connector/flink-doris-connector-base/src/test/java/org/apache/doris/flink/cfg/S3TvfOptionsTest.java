@@ -32,6 +32,8 @@ public class S3TvfOptionsTest {
                         .setPrefix("doris")
                         .setAccessKey("access-key")
                         .setSecretKey("secret-key")
+                        .setRoleArn("arn:aws:iam::123456789012:role/doris")
+                        .setExternalId("external-id")
                         .setPathStyleAccess(true)
                         .build();
 
@@ -41,9 +43,13 @@ public class S3TvfOptionsTest {
         Assert.assertEquals("doris", options.getPrefix());
         Assert.assertEquals("access-key", options.getAccessKey());
         Assert.assertEquals("secret-key", options.getSecretKey());
+        Assert.assertEquals("arn:aws:iam::123456789012:role/doris", options.getRoleArn());
+        Assert.assertEquals("external-id", options.getExternalId());
         Assert.assertTrue(options.isPathStyleAccess());
+        Assert.assertTrue(options.isGzipEnabled());
         Assert.assertFalse(options.toString().contains("access-key"));
         Assert.assertFalse(options.toString().contains("secret-key"));
+        Assert.assertFalse(options.toString().contains("external-id"));
     }
 
     @Test

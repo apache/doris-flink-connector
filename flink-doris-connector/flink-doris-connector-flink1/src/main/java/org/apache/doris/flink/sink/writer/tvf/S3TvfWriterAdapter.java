@@ -75,7 +75,8 @@ public class S3TvfWriterAdapter<IN>
                         rowDataSerializer.getSelectedColumns(),
                         rowDataSerializer.isDeleteSignEnabled(),
                         executionOptions.getBufferFlushMaxBytes(),
-                        executionOptions.getFlushQueueSize());
+                        executionOptions.getFlushQueueSize(),
+                        s3Options.isGzipEnabled());
     }
 
     @Override

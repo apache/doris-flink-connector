@@ -38,6 +38,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.zip.GZIPOutputStream;
 
 /** Shared writer that stages JSON Lines files in S3-compatible object storage. */
 public class S3TvfWriter<IN> {
@@ -56,6 +57,7 @@ public class S3TvfWriter<IN> {
     private final boolean deleteSignEnabled;
     private final int maxBytes;
     private final int uploadQueueSize;
+    private final boolean gzipEnabled;
     private final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
     private final List<String> currentObjectKeys = new ArrayList<>();
     private final BlockingQueue<Runnable> uploadQueue;
@@ -77,7 +79,8 @@ public class S3TvfWriter<IN> {
             List<String> columns,
             boolean deleteSignEnabled,
             int maxBytes,
-            int uploadQueueSize) {
+            int uploadQueueSize,
+            boolean gzipEnabled) {
         Preconditions.checkArgument(maxBytes > 0, "TVF buffer max bytes must be positive.");
         Preconditions.checkArgument(uploadQueueSize > 0, "TVF upload queue size must be positive.");
         this.currentCheckpointId = restoredCheckpointId + 1;
@@ -92,6 +95,7 @@ public class S3TvfWriter<IN> {
         this.deleteSignEnabled = deleteSignEnabled;
         this.maxBytes = maxBytes;
         this.uploadQueueSize = uploadQueueSize;
+        this.gzipEnabled = gzipEnabled;
         this.uploadQueue = new LinkedBlockingQueue<>(uploadQueueSize);
         this.uploadExecutor =
                 Executors.newSingleThreadExecutor(
@@ -173,8 +177,13 @@ public class S3TvfWriter<IN> {
         }
         String fileName =
                 String.format(
-                        "%s_%s_%d_%d_%d.json",
-                        labelPrefix, table, subtaskId, currentCheckpointId, fileNumber++);
+                        "%s_%s_%d_%d_%d.json%s",
+                        labelPrefix,
+                        table,
+                        subtaskId,
+                        currentCheckpointId,
+                        fileNumber++,
+                        gzipEnabled ? ".gz" : "");
         String objectKey = objectPrefix + (objectPrefix.endsWith("/") ? "" : "/") + fileName;
         byte[] content = buffer.toByteArray();
         putUpload(
@@ -184,14 +193,15 @@ public class S3TvfWriter<IN> {
                     }
                     long uploadStartedAtNanos = System.nanoTime();
                     try {
-                        objectStore.put(objectKey, content);
+                        byte[] uploadContent = gzipEnabled ? gzip(content) : content;
+                        objectStore.put(objectKey, uploadContent);
                         currentObjectKeys.add(objectKey);
                         LOG.info(
                                 "S3 TVF object upload completed, fileName={}, objectKey={}, "
                                         + "sizeBytes={}, uploadTimeMs={}.",
                                 fileName,
                                 objectKey,
-                                content.length,
+                                uploadContent.length,
                                 TimeUnit.NANOSECONDS.toMillis(
                                         System.nanoTime() - uploadStartedAtNanos));
                     } catch (Exception e) {
@@ -213,6 +223,14 @@ public class S3TvfWriter<IN> {
                     }
                 });
         buffer.reset();
+    }
+
+    private static byte[] gzip(byte[] content) throws IOException {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        try (GZIPOutputStream gzip = new GZIPOutputStream(output)) {
+            gzip.write(content);
+        }
+        return output.toByteArray();
     }
 
     private void processUploads() {

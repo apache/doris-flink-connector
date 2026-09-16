@@ -68,6 +68,7 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3Configuration;
 import software.amazon.awssdk.services.s3.model.CreateBucketRequest;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
 
 import java.net.Inet4Address;
 import java.net.InetAddress;
@@ -198,14 +199,80 @@ public class S3TvfSinkITCase extends AbstractITCaseService {
                 "id,name,note",
                 Arrays.asList("1,doris,中文", "2,flink,quote-'and-\"", "3,null-value,null"),
                 3);
-        int objectCount =
+        ListObjectsV2Response objects =
                 s3Client.listObjectsV2(
-                                ListObjectsV2Request.builder()
-                                        .bucket(BUCKET)
-                                        .prefix(objectPrefix + "/" + labelPrefix + "_" + table)
-                                        .build())
-                        .keyCount();
-        Assert.assertTrue("Expected the buffer limit to create multiple objects", objectCount > 1);
+                        ListObjectsV2Request.builder()
+                                .bucket(BUCKET)
+                                .prefix(objectPrefix + "/" + labelPrefix + "_" + table)
+                                .build());
+        Assert.assertTrue(
+                "Expected the buffer limit to create multiple objects", objects.keyCount() > 1);
+        Assert.assertTrue(
+                "Expected TVF objects to use gzip compression by default",
+                objects.contents().stream().allMatch(object -> object.key().endsWith(".json.gz")));
+    }
+
+    @Test
+    public void testDisablesCompressionWithEmptyCompressType() throws Exception {
+        String table = uniqueName("uncompressed");
+        String objectPrefix = uniqueName("uncompressed_objects");
+        String labelPrefix = uniqueName("uncompressed_label");
+        createDuplicateTable(table, "`id` INT, `name` VARCHAR(128)");
+
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+        env.setParallelism(1);
+        StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
+        tableEnv.executeSql(
+                String.format(
+                        "CREATE TABLE tvf_sink (id INT, name STRING) WITH ("
+                                + "'connector' = 'doris',"
+                                + "'fenodes' = '%s',"
+                                + "'jdbc-url' = '%s',"
+                                + "'table.identifier' = '%s.%s',"
+                                + "'username' = '%s',"
+                                + "'password' = '%s',"
+                                + "'sink.write-mode' = 'TVF',"
+                                + "'sink.parallelism' = '1',"
+                                + "'sink.label-prefix' = '%s',"
+                                + "'sink.s3.endpoint' = '%s',"
+                                + "'sink.s3.region' = '%s',"
+                                + "'sink.s3.bucket' = '%s',"
+                                + "'sink.s3.prefix' = '%s',"
+                                + "'sink.s3.access-key' = '%s',"
+                                + "'sink.s3.secret-key' = '%s',"
+                                + "'sink.s3.path-style-access' = 'true',"
+                                + "'sink.properties.compress_type' = '')",
+                        getFenodes(),
+                        getDorisQueryUrl(),
+                        DATABASE,
+                        table,
+                        getDorisUsername(),
+                        getDorisPassword(),
+                        labelPrefix,
+                        s3Endpoint,
+                        REGION,
+                        BUCKET,
+                        objectPrefix,
+                        ACCESS_KEY,
+                        SECRET_KEY));
+        TableResult result = tableEnv.executeSql("INSERT INTO tvf_sink VALUES (1, 'doris')");
+        waitForJobStatus(
+                result.getJobClient().get(),
+                Collections.singletonList(FINISHED),
+                Deadline.fromNow(Duration.ofSeconds(120)));
+
+        assertResult(table, "id,name", Collections.singletonList("1,doris"), 2);
+        ListObjectsV2Response objects =
+                s3Client.listObjectsV2(
+                        ListObjectsV2Request.builder()
+                                .bucket(BUCKET)
+                                .prefix(objectPrefix + "/" + labelPrefix + "_" + table)
+                                .build());
+        Assert.assertTrue("Expected an uncompressed TVF object", objects.keyCount() > 0);
+        Assert.assertTrue(
+                "Expected TVF objects to remain uncompressed",
+                objects.contents().stream().allMatch(object -> object.key().endsWith(".json")));
     }
 
     @Test

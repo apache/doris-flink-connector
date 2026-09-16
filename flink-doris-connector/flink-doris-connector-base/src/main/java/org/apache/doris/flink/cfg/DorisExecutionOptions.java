@@ -601,9 +601,7 @@ public class DorisExecutionOptions implements Serializable {
             }
 
             // Enable gz compression by default
-            if (writeMode != WriteMode.TVF
-                    && streamLoadProp != null
-                    && !streamLoadProp.containsKey(COMPRESS_TYPE)) {
+            if (streamLoadProp != null && !streamLoadProp.containsKey(COMPRESS_TYPE)) {
                 streamLoadProp.put(COMPRESS_TYPE, COMPRESS_TYPE_GZ);
             }
 

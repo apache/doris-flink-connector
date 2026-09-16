@@ -26,6 +26,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.slf4j.event.Level;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -38,6 +40,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.zip.GZIPInputStream;
 
 public class S3TvfWriterTest {
 
@@ -105,6 +108,19 @@ public class S3TvfWriterTest {
 
         Assert.assertEquals("prefix/label_tbl_2_8_0.json", objectStore.objectKeys.get(1));
         Assert.assertEquals("label_tbl_2_8", writer.prepareCommit().iterator().next().getLabel());
+    }
+
+    @Test
+    public void testGzipUpload() throws Exception {
+        RecordingObjectStore objectStore = new RecordingObjectStore();
+        S3TvfWriter<String> writer = createWriter(6L, objectStore, 2, 10, true);
+
+        writer.write("12345");
+        writer.flush();
+
+        Assert.assertEquals("prefix/label_tbl_2_7_0.json.gz", objectStore.objectKeys.get(0));
+        Assert.assertArrayEquals(
+                "12345\n".getBytes(StandardCharsets.UTF_8), gunzip(objectStore.contents.get(0)));
     }
 
     @Test
@@ -192,7 +208,7 @@ public class S3TvfWriterTest {
 
     private static S3TvfWriter<String> createWriter(
             long restoredCheckpointId, RecordingObjectStore objectStore) {
-        return createWriter(restoredCheckpointId, objectStore, 2, 10);
+        return createWriter(restoredCheckpointId, objectStore, 2, 10, false);
     }
 
     private static S3TvfWriter<String> createWriter(
@@ -200,6 +216,15 @@ public class S3TvfWriterTest {
             RecordingObjectStore objectStore,
             int uploadQueueSize,
             int maxBytes) {
+        return createWriter(restoredCheckpointId, objectStore, uploadQueueSize, maxBytes, false);
+    }
+
+    private static S3TvfWriter<String> createWriter(
+            long restoredCheckpointId,
+            RecordingObjectStore objectStore,
+            int uploadQueueSize,
+            int maxBytes,
+            boolean gzipEnabled) {
         DorisRecordSerializer<String> serializer =
                 value -> DorisRecord.of(value.getBytes(StandardCharsets.UTF_8));
         return new S3TvfWriter<>(
@@ -214,7 +239,20 @@ public class S3TvfWriterTest {
                 Arrays.asList("id", "name"),
                 true,
                 maxBytes,
-                uploadQueueSize);
+                uploadQueueSize,
+                gzipEnabled);
+    }
+
+    private static byte[] gunzip(byte[] content) throws IOException {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        byte[] buffer = new byte[1024];
+        try (GZIPInputStream input = new GZIPInputStream(new ByteArrayInputStream(content))) {
+            int length;
+            while ((length = input.read(buffer)) != -1) {
+                output.write(buffer, 0, length);
+            }
+        }
+        return output.toByteArray();
     }
 
     private static class RecordingObjectStore implements S3ObjectStore {

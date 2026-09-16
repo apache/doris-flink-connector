@@ -46,6 +46,7 @@ class S3TvfSqlBuilder {
         }
         String columnSql = joinIdentifiers(loadColumns);
         String uri = buildUri(committable.getObjectKeys());
+        String credentials = buildCredentials();
 
         return "INSERT INTO "
                 + quoteIdentifier(committable.getDatabase())
@@ -60,9 +61,7 @@ class S3TvfSqlBuilder {
                 + " FROM S3("
                 + property("uri", uri)
                 + ","
-                + property("s3.access_key", options.getAccessKey())
-                + ","
-                + property("s3.secret_key", options.getSecretKey())
+                + credentials
                 + ","
                 + property("s3.region", options.getRegion())
                 + ","
@@ -71,6 +70,7 @@ class S3TvfSqlBuilder {
                 + property("format", "json")
                 + ","
                 + property("read_json_by_line", "true")
+                + (options.isGzipEnabled() ? "," + property("compress_type", "gz") : "")
                 + ","
                 + property("use_path_style", Boolean.toString(options.isPathStyleAccess()))
                 + ")";
@@ -81,6 +81,21 @@ class S3TvfSqlBuilder {
             return "s3://" + options.getBucket() + "/" + objectKeys.get(0);
         }
         return "s3://" + options.getBucket() + "/{" + String.join(",", objectKeys) + "}";
+    }
+
+    private String buildCredentials() {
+        StringJoiner credentials = new StringJoiner(",");
+        if (options.hasStaticCredentials()) {
+            credentials.add(property("s3.access_key", options.getAccessKey()));
+            credentials.add(property("s3.secret_key", options.getSecretKey()));
+        }
+        if (options.hasRoleArn()) {
+            credentials.add(property("s3.role_arn", options.getRoleArn()));
+            if (options.getExternalId() != null) {
+                credentials.add(property("s3.external_id", options.getExternalId()));
+            }
+        }
+        return credentials.toString();
     }
 
     private static String joinIdentifiers(List<String> identifiers) {

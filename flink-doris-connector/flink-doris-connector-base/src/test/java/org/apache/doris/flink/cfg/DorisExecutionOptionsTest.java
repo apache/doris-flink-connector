@@ -192,7 +192,7 @@ public class DorisExecutionOptionsTest {
     }
 
     @Test
-    public void testTvfPropertiesAreSessionVariablesWithoutStreamLoadDefaults() {
+    public void testTvfPropertiesIncludeDefaultCompression() {
         Properties sessionVariables = new Properties();
         sessionVariables.setProperty("enable_unique_key_partial_update", "true");
 
@@ -205,7 +205,9 @@ public class DorisExecutionOptionsTest {
                         .build();
 
         Assert.assertEquals(sessionVariables, executionOptions.getStreamLoadProp());
-        Assert.assertEquals(1, executionOptions.getStreamLoadProp().size());
+        Assert.assertEquals(
+                "gz", executionOptions.getStreamLoadProp().getProperty("compress_type"));
+        Assert.assertEquals(2, executionOptions.getStreamLoadProp().size());
     }
 
     @Test(expected = IllegalArgumentException.class)

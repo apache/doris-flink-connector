@@ -34,6 +34,8 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
+import static org.apache.doris.flink.sink.writer.LoadConstants.COMPRESS_TYPE;
+
 /** Commits staged objects with one INSERT statement per writer and checkpoint. */
 public class S3TvfCommitter implements Committer<S3TvfCommittable> {
 
@@ -202,7 +204,8 @@ public class S3TvfCommitter implements Committer<S3TvfCommittable> {
             if (!COLUMNS.equals(name)
                     && !PARTIAL_COLUMNS.equals(name)
                     && !FORMAT.equals(name)
-                    && !READ_JSON_BY_LINE.equals(name)) {
+                    && !READ_JSON_BY_LINE.equals(name)
+                    && !COMPRESS_TYPE.equals(name)) {
                 values.put(name, properties.getProperty(name));
             }
         }

@@ -57,7 +57,58 @@ public class S3TvfSqlBuilderTest {
                         + "'s3.access_key' = 'ak','s3.secret_key' = 'sk',"
                         + "'s3.region' = 'us-east-1','s3.endpoint' = 'https://s3.example.com',"
                         + "'format' = 'json','read_json_by_line' = 'true',"
+                        + "'compress_type' = 'gz',"
                         + "'use_path_style' = 'true')",
                 sql);
+    }
+
+    @Test
+    public void testBuildInsertSqlWithIamRole() {
+        S3TvfOptions options =
+                S3TvfOptions.builder()
+                        .setEndpoint("https://s3.us-east-1.amazonaws.com")
+                        .setRegion("us-east-1")
+                        .setBucket("bucket")
+                        .setPrefix("prefix")
+                        .setRoleArn("arn:aws:iam::123456789012:role/doris")
+                        .setExternalId("external-id")
+                        .build();
+        S3TvfCommittable committable =
+                new S3TvfCommittable(
+                        7L,
+                        "db",
+                        "tbl",
+                        "label_tbl_7",
+                        Arrays.asList("prefix_tbl_0_7_0.json"),
+                        Arrays.asList("id"),
+                        false);
+
+        String sql = new S3TvfSqlBuilder(options).buildInsertSql(committable);
+
+        Assert.assertTrue(
+                sql.contains(
+                        "'s3.role_arn' = 'arn:aws:iam::123456789012:role/doris',"
+                                + "'s3.external_id' = 'external-id'"));
+        Assert.assertFalse(sql.contains("s3.access_key"));
+        Assert.assertFalse(sql.contains("s3.secret_key"));
+        Assert.assertTrue(sql.contains("'compress_type' = 'gz'"));
+
+        S3TvfOptions optionsWithSourceCredentials =
+                S3TvfOptions.builder()
+                        .setEndpoint("https://s3.us-east-1.amazonaws.com")
+                        .setRegion("us-east-1")
+                        .setBucket("bucket")
+                        .setPrefix("prefix")
+                        .setAccessKey("ak")
+                        .setSecretKey("sk")
+                        .setRoleArn("arn:aws:iam::123456789012:role/doris")
+                        .build();
+        String sqlWithSourceCredentials =
+                new S3TvfSqlBuilder(optionsWithSourceCredentials).buildInsertSql(committable);
+        Assert.assertTrue(sqlWithSourceCredentials.contains("'s3.access_key' = 'ak'"));
+        Assert.assertTrue(sqlWithSourceCredentials.contains("'s3.secret_key' = 'sk'"));
+        Assert.assertTrue(
+                sqlWithSourceCredentials.contains(
+                        "'s3.role_arn' = 'arn:aws:iam::123456789012:role/doris'"));
     }
 }
