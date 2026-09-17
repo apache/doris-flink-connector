@@ -53,22 +53,22 @@ cd ${PROJECT_ROOT}/flink-doris-connector
 echo "Deploying to repository.apache.org for Flink 1.x"
 
 echo "Deploying Flink 1.15..."
-${MVN} clean deploy -Papache-release -DretryFailedDeploymentCount=10 -pl flink-doris-connector-flink1 -am -Pflink1 -Dflink.version=1.15.0 -Dflink.major.version=1.15 -Dflink.python.id=flink-python_2.12 -DskipTests=true
+${MVN} clean deploy -Daether.connector.basic.parallelPut=false -Papache-release -DretryFailedDeploymentCount=10 -pl flink-doris-connector-flink1 -am -Pflink1 -Dflink.version=1.15.0 -Dflink.major.version=1.15 -Dflink.python.id=flink-python_2.12 -DskipTests=true
 
 echo "Deploying Flink 1.16..."
-${MVN} clean deploy -Papache-release -DretryFailedDeploymentCount=10 -pl flink-doris-connector-flink1 -am -Pflink1 -Dflink.version=1.16.0 -Dflink.major.version=1.16 -DskipTests=true
+${MVN} clean deploy -Daether.connector.basic.parallelPut=false -Papache-release -DretryFailedDeploymentCount=10 -pl flink-doris-connector-flink1 -am -Pflink1 -Dflink.version=1.16.0 -Dflink.major.version=1.16 -DskipTests=true
 
 echo "Deploying Flink 1.17..."
-${MVN} clean deploy -Papache-release -DretryFailedDeploymentCount=10 -pl flink-doris-connector-flink1 -am -Pflink1 -Dflink.version=1.17.0 -Dflink.major.version=1.17 -DskipTests=true
+${MVN} clean deploy -Daether.connector.basic.parallelPut=false -Papache-release -DretryFailedDeploymentCount=10 -pl flink-doris-connector-flink1 -am -Pflink1 -Dflink.version=1.17.0 -Dflink.major.version=1.17 -DskipTests=true
 
 echo "Deploying Flink 1.18..."
-${MVN} clean deploy -Papache-release -DretryFailedDeploymentCount=10 -pl flink-doris-connector-flink1 -am -Pflink1 -Dflink.version=1.18.0 -Dflink.major.version=1.18 -DskipTests=true
+${MVN} clean deploy -Daether.connector.basic.parallelPut=false -Papache-release -DretryFailedDeploymentCount=10 -pl flink-doris-connector-flink1 -am -Pflink1 -Dflink.version=1.18.0 -Dflink.major.version=1.18 -DskipTests=true
 
 echo "Deploying Flink 1.19..."
-${MVN} clean deploy -Papache-release -DretryFailedDeploymentCount=10 -pl flink-doris-connector-flink1 -am -Pflink1 -Dflink.version=1.19.0 -Dflink.major.version=1.19 -DskipTests=true
+${MVN} clean deploy -Daether.connector.basic.parallelPut=false -Papache-release -DretryFailedDeploymentCount=10 -pl flink-doris-connector-flink1 -am -Pflink1 -Dflink.version=1.19.0 -Dflink.major.version=1.19 -DskipTests=true
 
 echo "Deploying Flink 1.20..."
-${MVN} clean deploy -Papache-release -DretryFailedDeploymentCount=10 -pl flink-doris-connector-flink1 -am -Pflink1 -Dflink.version=1.20.0 -Dflink.major.version=1.20 -DskipTests=true
+${MVN} clean deploy -Daether.connector.basic.parallelPut=false -Papache-release -DretryFailedDeploymentCount=10 -pl flink-doris-connector-flink1 -am -Pflink1 -Dflink.version=1.20.0 -Dflink.major.version=1.20 -DskipTests=true
 
 echo "Deploy jar with jdk1.8 finished."
 cd ${CURR_DIR}

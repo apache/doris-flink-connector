@@ -53,16 +53,16 @@ cd ${PROJECT_ROOT}/flink-doris-connector
 echo "Deploying to repository.apache.org for Flink 2.x"
 
 echo "Deploying Flink 2.0..."
-${MVN} clean deploy -Papache-release -DretryFailedDeploymentCount=10 -pl flink-doris-connector-flink2 -am -Pflink2 -Dflink.version=2.0.0 -Dflink.major.version=2.0 -DskipTests=true
+${MVN} clean deploy -Daether.connector.basic.parallelPut=false -Papache-release -DretryFailedDeploymentCount=10 -pl flink-doris-connector-flink2 -am -Pflink2 -Dflink.version=2.0.0 -Dflink.major.version=2.0 -DskipTests=true
 
 echo "Deploying Flink 2.1..."
-${MVN} clean deploy -Papache-release -DretryFailedDeploymentCount=10 -pl flink-doris-connector-flink2 -am -Pflink2 -Dflink.version=2.1.0 -Dflink.major.version=2.1 -DskipTests=true
+${MVN} clean deploy -Daether.connector.basic.parallelPut=false -Papache-release -DretryFailedDeploymentCount=10 -pl flink-doris-connector-flink2 -am -Pflink2 -Dflink.version=2.1.0 -Dflink.major.version=2.1 -DskipTests=true
 
 echo "Deploying Flink 2.2..."
-${MVN} clean deploy -Papache-release -DretryFailedDeploymentCount=10 -pl flink-doris-connector-flink2 -am -Pflink2 -Dflink.version=2.2.0 -Dflink.major.version=2.2 -DskipTests=true
+${MVN} clean deploy -Daether.connector.basic.parallelPut=false -Papache-release -DretryFailedDeploymentCount=10 -pl flink-doris-connector-flink2 -am -Pflink2 -Dflink.version=2.2.0 -Dflink.major.version=2.2 -DskipTests=true
 
 echo "Deploying Flink 2.3..."
-${MVN} clean deploy -Papache-release -DretryFailedDeploymentCount=10 -pl flink-doris-connector-flink2 -am -Pflink2 -Dflink.version=2.3.0 -Dflink.major.version=2.3 -DskipTests=true
+${MVN} clean deploy -Daether.connector.basic.parallelPut=false -Papache-release -DretryFailedDeploymentCount=10 -pl flink-doris-connector-flink2 -am -Pflink2 -Dflink.version=2.3.0 -Dflink.major.version=2.3 -DskipTests=true
 
 echo "Deploy jar with jdk17 finished."
 cd ${CURR_DIR}
