@@ -44,6 +44,8 @@ import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_REQUEST_RETR
 import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_TABLET_SIZE_DEFAULT;
 import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_THRIFT_MAX_MESSAGE_SIZE_DEFAULT;
 import static org.apache.doris.flink.cfg.ConfigurationOptions.SOURCE_BINLOG_VISIBLE_WAIT_TIMEOUT_MS_DEFAULT;
+import static org.apache.doris.flink.sink.writer.LoadConstants.COMPRESS_TYPE;
+import static org.apache.doris.flink.sink.writer.LoadConstants.COMPRESS_TYPE_GZ;
 import static org.apache.doris.flink.sink.writer.LoadConstants.FORMAT_KEY;
 import static org.apache.doris.flink.sink.writer.LoadConstants.JSON;
 import static org.apache.doris.flink.sink.writer.LoadConstants.READ_JSON_BY_LINE;
@@ -328,6 +330,18 @@ public class DorisConfigOptions {
                     .noDefaultValue()
                     .withDescription("Secret key of the S3-compatible object storage.");
 
+    public static final ConfigOption<String> SINK_S3_ROLE_ARN =
+            ConfigOptions.key("sink.s3.role-arn")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("AWS IAM role ARN used to access the S3 object storage.");
+
+    public static final ConfigOption<String> SINK_S3_EXTERNAL_ID =
+            ConfigOptions.key("sink.s3.external-id")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("External ID used when assuming the AWS IAM role.");
+
     public static final ConfigOption<Boolean> SINK_S3_PATH_STYLE_ACCESS =
             ConfigOptions.key("sink.s3.path-style-access")
                     .booleanType()
@@ -472,8 +486,22 @@ public class DorisConfigOptions {
         String region = requireNonBlank(readableConfig, SINK_S3_REGION);
         String bucket = requireNonBlank(readableConfig, SINK_S3_BUCKET);
         String prefix = requireNonBlank(readableConfig, SINK_S3_PREFIX);
-        String accessKey = requireNonBlank(readableConfig, SINK_S3_ACCESS_KEY);
-        String secretKey = requireNonBlank(readableConfig, SINK_S3_SECRET_KEY);
+        String accessKey = optionalNonBlank(readableConfig, SINK_S3_ACCESS_KEY);
+        String secretKey = optionalNonBlank(readableConfig, SINK_S3_SECRET_KEY);
+        String roleArn = optionalNonBlank(readableConfig, SINK_S3_ROLE_ARN);
+        String externalId = optionalNonBlank(readableConfig, SINK_S3_EXTERNAL_ID);
+        if ((accessKey == null) != (secretKey == null)) {
+            throw new ValidationException(
+                    "Options 'sink.s3.access-key' and 'sink.s3.secret-key' must be configured together.");
+        }
+        if (roleArn == null && accessKey == null) {
+            throw new ValidationException(
+                    "TVF write mode requires either S3 access/secret keys or 'sink.s3.role-arn'.");
+        }
+        if (externalId != null && roleArn == null) {
+            throw new ValidationException(
+                    "Option 'sink.s3.external-id' requires 'sink.s3.role-arn'.");
+        }
 
         return S3TvfOptions.builder()
                 .setEndpoint(endpoint)
@@ -482,6 +510,8 @@ public class DorisConfigOptions {
                 .setPrefix(prefix)
                 .setAccessKey(accessKey)
                 .setSecretKey(secretKey)
+                .setRoleArn(roleArn)
+                .setExternalId(externalId)
                 .setPathStyleAccess(readableConfig.get(SINK_S3_PATH_STYLE_ACCESS))
                 .build();
     }
@@ -496,16 +526,31 @@ public class DorisConfigOptions {
             throw new ValidationException(
                     "TVF write mode requires 'sink.properties.read_json_by_line' to be true.");
         }
+        validateTvfCompression(loadProperties);
+    }
+
+    private static void validateTvfCompression(Properties loadProperties) {
+        String compressType = loadProperties.getProperty(COMPRESS_TYPE, COMPRESS_TYPE_GZ).trim();
+        if (!compressType.isEmpty() && !COMPRESS_TYPE_GZ.equalsIgnoreCase(compressType)) {
+            throw new ValidationException(
+                    "TVF write mode only supports 'gz' or an empty compress_type.");
+        }
     }
 
     private static String requireNonBlank(
             ReadableConfig readableConfig, ConfigOption<String> option) {
-        String value = readableConfig.getOptional(option).orElse(null);
-        if (value == null || value.trim().isEmpty()) {
+        String value = optionalNonBlank(readableConfig, option);
+        if (value == null) {
             throw new ValidationException(
                     String.format("Option '%s' is required for TVF write mode.", option.key()));
         }
-        return value.trim();
+        return value;
+    }
+
+    private static String optionalNonBlank(
+            ReadableConfig readableConfig, ConfigOption<String> option) {
+        String value = readableConfig.getOptional(option).orElse(null);
+        return value == null || value.trim().isEmpty() ? null : value.trim();
     }
 
     public static final ConfigOption<Boolean> SINK_HTTP_UTF8_CHARSET =

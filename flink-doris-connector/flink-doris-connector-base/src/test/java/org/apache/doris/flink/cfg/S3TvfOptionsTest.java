@@ -32,6 +32,8 @@ public class S3TvfOptionsTest {
                         .setPrefix("doris")
                         .setAccessKey("access-key")
                         .setSecretKey("secret-key")
+                        .setRoleArn("arn:aws:iam::123456789012:role/doris")
+                        .setExternalId("external-id")
                         .setPathStyleAccess(true)
                         .build();
 
@@ -41,20 +43,48 @@ public class S3TvfOptionsTest {
         Assert.assertEquals("doris", options.getPrefix());
         Assert.assertEquals("access-key", options.getAccessKey());
         Assert.assertEquals("secret-key", options.getSecretKey());
+        Assert.assertEquals("arn:aws:iam::123456789012:role/doris", options.getRoleArn());
+        Assert.assertEquals("external-id", options.getExternalId());
         Assert.assertTrue(options.isPathStyleAccess());
         Assert.assertFalse(options.toString().contains("access-key"));
         Assert.assertFalse(options.toString().contains("secret-key"));
+        Assert.assertFalse(options.toString().contains("external-id"));
     }
 
     @Test
     public void testRejectsGlobCharactersInPrefix() {
         for (String character : new String[] {"*", "?", "[", "]", "{", "}", ",", "\\"}) {
             try {
-                S3TvfOptions.builder().setPrefix("path/" + character + "/prefix").build();
+                S3TvfOptions.builder()
+                        .setPrefix("path/" + character + "/prefix")
+                        .setRoleArn("arn:aws:iam::123456789012:role/doris")
+                        .build();
                 Assert.fail("Expected prefix containing '" + character + "' to be rejected.");
             } catch (IllegalArgumentException expected) {
                 // Expected.
             }
         }
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testRequiresCredentialsOrRole() {
+        S3TvfOptions.builder().build();
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testRequiresCompleteStaticCredentials() {
+        S3TvfOptions.builder()
+                .setAccessKey("access-key")
+                .setRoleArn("arn:aws:iam::123456789012:role/doris")
+                .build();
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testExternalIdRequiresRole() {
+        S3TvfOptions.builder()
+                .setAccessKey("access-key")
+                .setSecretKey("secret-key")
+                .setExternalId("external-id")
+                .build();
     }
 }

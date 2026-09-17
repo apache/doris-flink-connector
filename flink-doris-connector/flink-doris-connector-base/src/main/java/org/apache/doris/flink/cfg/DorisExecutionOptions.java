@@ -221,6 +221,12 @@ public class DorisExecutionOptions implements Serializable {
         return streamLoadProp;
     }
 
+    public boolean isGzipCompressionEnabled() {
+        return streamLoadProp == null
+                || COMPRESS_TYPE_GZ.equalsIgnoreCase(
+                        streamLoadProp.getProperty(COMPRESS_TYPE, COMPRESS_TYPE_GZ).trim());
+    }
+
     public Boolean getDeletable() {
         return enableDelete;
     }
@@ -601,10 +607,15 @@ public class DorisExecutionOptions implements Serializable {
             }
 
             // Enable gz compression by default
-            if (writeMode != WriteMode.TVF
-                    && streamLoadProp != null
-                    && !streamLoadProp.containsKey(COMPRESS_TYPE)) {
+            if (streamLoadProp != null && !streamLoadProp.containsKey(COMPRESS_TYPE)) {
                 streamLoadProp.put(COMPRESS_TYPE, COMPRESS_TYPE_GZ);
+            }
+
+            if (writeMode == WriteMode.TVF && streamLoadProp != null) {
+                String compressType = streamLoadProp.getProperty(COMPRESS_TYPE).trim();
+                Preconditions.checkArgument(
+                        compressType.isEmpty() || COMPRESS_TYPE_GZ.equalsIgnoreCase(compressType),
+                        "TVF write mode only supports 'gz' or an empty compress_type.");
             }
 
             Preconditions.checkArgument(

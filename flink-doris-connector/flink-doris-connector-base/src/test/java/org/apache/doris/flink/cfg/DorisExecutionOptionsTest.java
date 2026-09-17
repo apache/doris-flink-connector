@@ -192,7 +192,7 @@ public class DorisExecutionOptionsTest {
     }
 
     @Test
-    public void testTvfPropertiesAreSessionVariablesWithoutStreamLoadDefaults() {
+    public void testTvfPropertiesIncludeDefaultCompression() {
         Properties sessionVariables = new Properties();
         sessionVariables.setProperty("enable_unique_key_partial_update", "true");
 
@@ -205,7 +205,39 @@ public class DorisExecutionOptionsTest {
                         .build();
 
         Assert.assertEquals(sessionVariables, executionOptions.getStreamLoadProp());
-        Assert.assertEquals(1, executionOptions.getStreamLoadProp().size());
+        Assert.assertEquals(
+                "gz", executionOptions.getStreamLoadProp().getProperty("compress_type"));
+        Assert.assertTrue(executionOptions.isGzipCompressionEnabled());
+        Assert.assertEquals(2, executionOptions.getStreamLoadProp().size());
+    }
+
+    @Test
+    public void testTvfAllowsDisablingCompression() {
+        Properties properties = new Properties();
+        properties.setProperty("compress_type", "");
+
+        DorisExecutionOptions executionOptions =
+                DorisExecutionOptions.builder()
+                        .setWriteMode(WriteMode.TVF)
+                        .setLabelPrefix("label")
+                        .setStreamLoadProp(properties)
+                        .setS3TvfOptions(s3TvfOptions())
+                        .build();
+
+        Assert.assertFalse(executionOptions.isGzipCompressionEnabled());
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testTvfRejectsUnsupportedCompression() {
+        Properties properties = new Properties();
+        properties.setProperty("compress_type", "zstd");
+
+        DorisExecutionOptions.builder()
+                .setWriteMode(WriteMode.TVF)
+                .setLabelPrefix("label")
+                .setStreamLoadProp(properties)
+                .setS3TvfOptions(s3TvfOptions())
+                .build();
     }
 
     @Test(expected = IllegalArgumentException.class)

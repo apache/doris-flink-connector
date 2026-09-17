@@ -293,8 +293,8 @@ public class DorisDynamicTableFactoryTest {
         properties.put("sink.s3.region", "us-east-1");
         properties.put("sink.s3.bucket", "bucket");
         properties.put("sink.s3.prefix", "prefix");
-        properties.put("sink.s3.access-key", "ak");
-        properties.put("sink.s3.secret-key", "sk");
+        properties.put("sink.s3.role-arn", "arn:aws:iam::123456789012:role/doris");
+        properties.put("sink.s3.external-id", "external-id");
         properties.put("sink.s3.path-style-access", "true");
         properties.put("sink.properties.columns", "a,c");
 
@@ -318,8 +318,8 @@ public class DorisDynamicTableFactoryTest {
                         .setRegion("us-east-1")
                         .setBucket("bucket")
                         .setPrefix("prefix")
-                        .setAccessKey("ak")
-                        .setSecretKey("sk")
+                        .setRoleArn("arn:aws:iam::123456789012:role/doris")
+                        .setExternalId("external-id")
                         .setPathStyleAccess(true)
                         .build();
         DorisExecutionOptions executionOptions =
@@ -337,6 +337,44 @@ public class DorisDynamicTableFactoryTest {
                         .build();
 
         DorisDynamicTableSink expected =
+                new DorisDynamicTableSink(
+                        options,
+                        DorisReadOptions.builder().build(),
+                        executionOptions,
+                        TableSchema.fromResolvedSchema(SCHEMA),
+                        null);
+        assertEquals(expected, actual);
+
+        properties.remove("sink.s3.role-arn");
+        properties.remove("sink.s3.external-id");
+        properties.put("sink.s3.access-key", "ak");
+        properties.put("sink.s3.secret-key", "sk");
+        actual = (DorisDynamicTableSink) FactoryMocks.createTableSink(SCHEMA, properties);
+
+        s3TvfOptions =
+                S3TvfOptions.builder()
+                        .setEndpoint("https://s3.example.com")
+                        .setRegion("us-east-1")
+                        .setBucket("bucket")
+                        .setPrefix("prefix")
+                        .setAccessKey("ak")
+                        .setSecretKey("sk")
+                        .setPathStyleAccess(true)
+                        .build();
+        executionOptions =
+                DorisExecutionOptions.builder()
+                        .setWriteMode(WriteMode.TVF)
+                        .setLabelPrefix("flink")
+                        .setBufferFlushMaxBytes(10 * 1024 * 1024)
+                        .setStreamLoadProp(
+                                new Properties() {
+                                    {
+                                        setProperty("columns", "a,c");
+                                    }
+                                })
+                        .setS3TvfOptions(s3TvfOptions)
+                        .build();
+        expected =
                 new DorisDynamicTableSink(
                         options,
                         DorisReadOptions.builder().build(),

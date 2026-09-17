@@ -89,9 +89,11 @@ import static org.apache.doris.flink.table.DorisConfigOptions.SINK_PARALLELISM;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_S3_ACCESS_KEY;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_S3_BUCKET;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_S3_ENDPOINT;
+import static org.apache.doris.flink.table.DorisConfigOptions.SINK_S3_EXTERNAL_ID;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_S3_PATH_STYLE_ACCESS;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_S3_PREFIX;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_S3_REGION;
+import static org.apache.doris.flink.table.DorisConfigOptions.SINK_S3_ROLE_ARN;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_S3_SECRET_KEY;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_USE_CACHE;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_WRITE_MODE;
@@ -204,6 +206,8 @@ public final class DorisDynamicTableFactory
         options.add(SINK_S3_PREFIX);
         options.add(SINK_S3_ACCESS_KEY);
         options.add(SINK_S3_SECRET_KEY);
+        options.add(SINK_S3_ROLE_ARN);
+        options.add(SINK_S3_EXTERNAL_ID);
         options.add(SINK_S3_PATH_STYLE_ACCESS);
         return options;
     }

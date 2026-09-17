@@ -31,6 +31,8 @@ public class S3TvfOptions implements Serializable {
     private final String prefix;
     private final String accessKey;
     private final String secretKey;
+    private final String roleArn;
+    private final String externalId;
     private final boolean pathStyleAccess;
 
     private S3TvfOptions(Builder builder) {
@@ -40,6 +42,8 @@ public class S3TvfOptions implements Serializable {
         this.prefix = builder.prefix;
         this.accessKey = builder.accessKey;
         this.secretKey = builder.secretKey;
+        this.roleArn = builder.roleArn;
+        this.externalId = builder.externalId;
         this.pathStyleAccess = builder.pathStyleAccess;
     }
 
@@ -71,6 +75,22 @@ public class S3TvfOptions implements Serializable {
         return secretKey;
     }
 
+    public String getRoleArn() {
+        return roleArn;
+    }
+
+    public String getExternalId() {
+        return externalId;
+    }
+
+    public boolean hasRoleArn() {
+        return hasText(roleArn);
+    }
+
+    public boolean hasStaticCredentials() {
+        return hasText(accessKey);
+    }
+
     public boolean isPathStyleAccess() {
         return pathStyleAccess;
     }
@@ -90,13 +110,23 @@ public class S3TvfOptions implements Serializable {
                 && Objects.equals(bucket, that.bucket)
                 && Objects.equals(prefix, that.prefix)
                 && Objects.equals(accessKey, that.accessKey)
-                && Objects.equals(secretKey, that.secretKey);
+                && Objects.equals(secretKey, that.secretKey)
+                && Objects.equals(roleArn, that.roleArn)
+                && Objects.equals(externalId, that.externalId);
     }
 
     @Override
     public int hashCode() {
         return Objects.hash(
-                endpoint, region, bucket, prefix, accessKey, secretKey, pathStyleAccess);
+                endpoint,
+                region,
+                bucket,
+                prefix,
+                accessKey,
+                secretKey,
+                roleArn,
+                externalId,
+                pathStyleAccess);
     }
 
     @Override
@@ -127,6 +157,8 @@ public class S3TvfOptions implements Serializable {
         private String prefix;
         private String accessKey;
         private String secretKey;
+        private String roleArn;
+        private String externalId;
         private boolean pathStyleAccess;
 
         public Builder setEndpoint(String endpoint) {
@@ -159,6 +191,16 @@ public class S3TvfOptions implements Serializable {
             return this;
         }
 
+        public Builder setRoleArn(String roleArn) {
+            this.roleArn = roleArn;
+            return this;
+        }
+
+        public Builder setExternalId(String externalId) {
+            this.externalId = externalId;
+            return this;
+        }
+
         public Builder setPathStyleAccess(boolean pathStyleAccess) {
             this.pathStyleAccess = pathStyleAccess;
             return this;
@@ -173,7 +215,26 @@ public class S3TvfOptions implements Serializable {
                     }
                 }
             }
+            boolean hasAccessKey = hasText(accessKey);
+            boolean hasSecretKey = hasText(secretKey);
+            boolean hasRoleArn = hasText(roleArn);
+            if (hasAccessKey != hasSecretKey) {
+                throw new IllegalArgumentException(
+                        "sink.s3.access-key and sink.s3.secret-key must be configured together.");
+            }
+            if (!hasAccessKey && !hasRoleArn) {
+                throw new IllegalArgumentException(
+                        "S3 TVF options require either access/secret keys or sink.s3.role-arn.");
+            }
+            if (hasText(externalId) && !hasRoleArn) {
+                throw new IllegalArgumentException(
+                        "sink.s3.external-id requires sink.s3.role-arn.");
+            }
             return new S3TvfOptions(this);
         }
+    }
+
+    private static boolean hasText(String value) {
+        return value != null && !value.trim().isEmpty();
     }
 }
