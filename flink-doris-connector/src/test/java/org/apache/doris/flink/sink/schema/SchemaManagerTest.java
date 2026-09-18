@@ -20,6 +20,7 @@ package org.apache.doris.flink.sink.schema;
 import org.apache.doris.flink.catalog.doris.FieldSchema;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.exception.IllegalArgumentException;
+import org.apache.doris.flink.sink.BackendUtil;
 import org.apache.doris.flink.sink.HttpEntityMock;
 import org.apache.doris.flink.sink.OptionUtils;
 import org.apache.http.ProtocolVersion;
@@ -28,6 +29,7 @@ import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.message.BasicStatusLine;
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -70,7 +72,8 @@ public class SchemaManagerTest {
 
     HttpEntityMock entityMock;
     SchemaChangeManager schemaChangeManager;
-    static MockedStatic<HttpClients> httpClientMockedStatic = mockStatic(HttpClients.class);
+    static MockedStatic<HttpClients> httpClientMockedStatic;
+    static MockedStatic<BackendUtil> backendUtilMockedStatic;
 
     @Before
     public void setUp() throws IOException {
@@ -89,7 +92,11 @@ public class SchemaManagerTest {
         when(httpResponse.getStatusLine()).thenReturn(normalLine);
         when(httpResponse.getEntity()).thenReturn(entityMock);
 
+        httpClientMockedStatic = mockStatic(HttpClients.class);
         httpClientMockedStatic.when(() -> HttpClients.createDefault()).thenReturn(httpClient);
+
+        backendUtilMockedStatic = mockStatic(BackendUtil.class);
+        backendUtilMockedStatic.when(() -> BackendUtil.tryHttpConnection(any())).thenReturn(true);
     }
 
     @Test
@@ -139,5 +146,11 @@ public class SchemaManagerTest {
                 SchemaChangeHelper.buildRenameColumnDDL("test.test_flink", "col", "col_new");
         Assert.assertEquals(
                 "ALTER TABLE `test`.`test_flink` RENAME COLUMN `col` `col_new`", renameColumnDDL);
+    }
+
+    @After
+    public void after() {
+        httpClientMockedStatic.close();
+        backendUtilMockedStatic.close();
     }
 }

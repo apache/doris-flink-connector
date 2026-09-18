@@ -21,11 +21,9 @@ import org.apache.flink.api.connector.sink2.Committer;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.exception.DorisRuntimeException;
-import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.sink.BackendUtil;
 import org.apache.doris.flink.sink.DorisCommittable;
 import org.apache.doris.flink.sink.HttpPutBuilder;
@@ -73,11 +71,7 @@ public class DorisCommitter implements Committer<DorisCommittable>, Closeable {
         this.dorisReadOptions = dorisReadOptions;
         this.maxRetry = maxRetry;
         this.httpClient = client;
-        this.backendUtil =
-                StringUtils.isNotEmpty(dorisOptions.getBenodes())
-                        ? new BackendUtil(dorisOptions.getBenodes())
-                        : new BackendUtil(
-                                RestService.getBackendsV2(dorisOptions, dorisReadOptions, LOG));
+        this.backendUtil = BackendUtil.getInstance(dorisOptions, dorisReadOptions, LOG);
     }
 
     @Override

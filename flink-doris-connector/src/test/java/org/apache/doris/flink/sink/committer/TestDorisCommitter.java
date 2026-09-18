@@ -66,6 +66,9 @@ public class TestDorisCommitter {
         StatusLine normalLine = new BasicStatusLine(new ProtocolVersion("http", 1, 0), 200, "");
         restServiceMockedStatic = mockStatic(RestService.class);
         backendUtilMockedStatic = mockStatic(BackendUtil.class);
+        backendUtilMockedStatic
+                .when(() -> BackendUtil.getInstance(any(), any(), any()))
+                .thenCallRealMethod();
 
         when(httpClient.execute(any())).thenReturn(httpResponse);
         when(httpResponse.getStatusLine()).thenReturn(normalLine);

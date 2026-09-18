@@ -32,18 +32,34 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class BackendUtil {
     private static final Logger LOG = LoggerFactory.getLogger(BackendUtil.class);
     private final List<BackendV2.BackendRowV2> backends;
+    private final boolean isFe;
     private long pos;
 
     public BackendUtil(List<BackendV2.BackendRowV2> backends) {
-        this.backends = backends;
+        this(backends, false);
+    }
+
+    private BackendUtil(List<BackendV2.BackendRowV2> backends, boolean isFe) {
+        this.isFe = isFe;
+        this.backends =
+                isFe
+                        ? backends.stream()
+                                .filter(node -> tryHttpConnection(node.toBackendString()))
+                                .collect(Collectors.toList())
+                        : backends;
+        if (isFe && this.backends.isEmpty()) {
+            throw new DorisRuntimeException("no available FE.");
+        }
         this.pos = 0;
     }
 
     public BackendUtil(String beNodes) {
+        this.isFe = false;
         this.backends = initBackends(beNodes);
         this.pos = 0;
     }
@@ -71,7 +87,9 @@ public class BackendUtil {
         if (StringUtils.isNotEmpty(dorisOptions.getBenodes())) {
             return new BackendUtil(dorisOptions.getBenodes());
         } else {
-            return new BackendUtil(RestService.getBackendsV2(dorisOptions, readOptions, logger));
+            return new BackendUtil(
+                    RestService.getBackendsV2(dorisOptions, readOptions, logger),
+                    dorisOptions.isAutoRedirect());
         }
     }
 
@@ -80,24 +98,25 @@ public class BackendUtil {
         while (pos < tmp) {
             BackendV2.BackendRowV2 backend = backends.get((int) (pos++ % backends.size()));
             String res = backend.toBackendString();
-            if (tryHttpConnection(res)) {
+            if (isFe || tryHttpConnection(res)) {
                 return res;
             }
         }
         throw new DorisRuntimeException("no available backend.");
     }
 
-    public static boolean tryHttpConnection(String backend) {
+    public static boolean tryHttpConnection(String host) {
         try {
-            backend = "http://" + backend;
-            URL url = new URL(backend);
+            LOG.info("try to connect host {}", host);
+            host = "http://" + host;
+            URL url = new URL(host);
             HttpURLConnection co = (HttpURLConnection) url.openConnection();
             co.setConnectTimeout(60000);
             co.connect();
             co.disconnect();
             return true;
         } catch (Exception ex) {
-            LOG.warn("Failed to connect to backend:{}", backend, ex);
+            LOG.warn("Failed to connect to host:{}", host, ex);
             return false;
         }
     }
