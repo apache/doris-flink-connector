@@ -59,6 +59,9 @@ public class DorisSinkTest {
     public void setUp() throws Exception {
         backendUtilMockedStatic = mockStatic(BackendUtil.class);
         backendUtilMockedStatic
+                .when(() -> BackendUtil.getInstance(any(), any(), any()))
+                .thenCallRealMethod();
+        backendUtilMockedStatic
                 .when(() -> BackendUtil.tryHttpConnection(any(), any()))
                 .thenReturn(true);
     }

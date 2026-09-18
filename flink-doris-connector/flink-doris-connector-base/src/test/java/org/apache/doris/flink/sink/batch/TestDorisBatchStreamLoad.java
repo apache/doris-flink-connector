@@ -70,6 +70,9 @@ public class TestDorisBatchStreamLoad {
     @Before
     public void setUp() throws Exception {
         backendUtilMockedStatic = mockStatic(BackendUtil.class);
+        backendUtilMockedStatic
+                .when(() -> BackendUtil.getInstance(any(), any(), any()))
+                .thenCallRealMethod();
         backendUtilMockedStatic.when(() -> BackendUtil.tryHttpConnection(any())).thenReturn(true);
         backendUtilMockedStatic
                 .when(() -> BackendUtil.tryHttpConnection(any(), any()))
