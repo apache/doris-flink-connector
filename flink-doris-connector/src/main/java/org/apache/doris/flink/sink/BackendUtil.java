@@ -32,18 +32,34 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class BackendUtil {
     private static final Logger LOG = LoggerFactory.getLogger(BackendUtil.class);
     private final List<BackendV2.BackendRowV2> backends;
+    private final boolean isFe;
     private long pos;
 
     public BackendUtil(List<BackendV2.BackendRowV2> backends) {
-        this.backends = backends;
+        this(backends, false);
+    }
+
+    private BackendUtil(List<BackendV2.BackendRowV2> backends, boolean isFe) {
+        this.isFe = isFe;
+        this.backends =
+                isFe
+                        ? backends.stream()
+                                .filter(node -> tryHttpConnection(node.toBackendString()))
+                                .collect(Collectors.toList())
+                        : backends;
+        if (isFe && this.backends.isEmpty()) {
+            throw new DorisRuntimeException("no available FE.");
+        }
         this.pos = 0;
     }
 
     public BackendUtil(String beNodes) {
+        this.isFe = false;
         this.backends = initBackends(beNodes);
         this.pos = 0;
     }
@@ -71,7 +87,9 @@ public class BackendUtil {
         if (StringUtils.isNotEmpty(dorisOptions.getBenodes())) {
             return new BackendUtil(dorisOptions.getBenodes());
         } else {
-            return new BackendUtil(RestService.getBackendsV2(dorisOptions, readOptions, logger));
+            return new BackendUtil(
+                    RestService.getBackendsV2(dorisOptions, readOptions, logger),
+                    dorisOptions.isAutoRedirect());
         }
     }
 
@@ -80,7 +98,7 @@ public class BackendUtil {
         while (pos < tmp) {
             BackendV2.BackendRowV2 backend = backends.get((int) (pos++ % backends.size()));
             String res = backend.toBackendString();
-            if (tryHttpConnection(res)) {
+            if (isFe || tryHttpConnection(res)) {
                 return res;
             }
         }
