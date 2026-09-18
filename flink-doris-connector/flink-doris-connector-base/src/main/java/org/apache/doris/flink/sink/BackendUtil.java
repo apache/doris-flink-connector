@@ -37,11 +37,13 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class BackendUtil {
     private static final Logger LOG = LoggerFactory.getLogger(BackendUtil.class);
     private final List<BackendV2.BackendRowV2> backends;
     private final DorisTlsOptions tlsOptions;
+    private final boolean isFe;
     private long pos;
 
     public BackendUtil(List<BackendV2.BackendRowV2> backends) {
@@ -49,8 +51,26 @@ public class BackendUtil {
     }
 
     public BackendUtil(List<BackendV2.BackendRowV2> backends, DorisTlsOptions tlsOptions) {
-        this.backends = backends;
+        this(backends, tlsOptions, false);
+    }
+
+    private BackendUtil(
+            List<BackendV2.BackendRowV2> backends, DorisTlsOptions tlsOptions, boolean isFe) {
         this.tlsOptions = tlsOptions;
+        this.isFe = isFe;
+        // Filter FE candidates once; runtime failures use the existing retry or recovery path.
+        this.backends =
+                isFe
+                        ? backends.stream()
+                                .filter(
+                                        node ->
+                                                tryHttpConnection(
+                                                        node.toBackendString(), tlsOptions))
+                                .collect(Collectors.toList())
+                        : backends;
+        if (isFe && this.backends.isEmpty()) {
+            throw new DorisRuntimeException("no available FE.");
+        }
         this.pos = 0;
     }
 
@@ -60,6 +80,7 @@ public class BackendUtil {
 
     public BackendUtil(String beNodes, DorisTlsOptions tlsOptions) {
         this.tlsOptions = tlsOptions;
+        this.isFe = false;
         this.backends = initBackends(beNodes);
         this.pos = 0;
     }
@@ -90,7 +111,8 @@ public class BackendUtil {
         } else {
             return new BackendUtil(
                     RestService.getBackendsV2(dorisOptions, readOptions, logger),
-                    dorisOptions.getTlsOptions());
+                    dorisOptions.getTlsOptions(),
+                    dorisOptions.isAutoRedirect());
         }
     }
 
@@ -105,7 +127,7 @@ public class BackendUtil {
                     backends.get((int) ((pos + subtaskId) % backends.size()));
             pos++;
             String res = backend.toBackendString();
-            if (tryHttpConnection(res, tlsOptions)) {
+            if (isFe || tryHttpConnection(res, tlsOptions)) {
                 return res;
             }
         }
