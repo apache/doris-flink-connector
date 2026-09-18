@@ -20,6 +20,7 @@ package org.apache.doris.flink.sink.batch;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.Preconditions;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
@@ -36,8 +37,11 @@ import org.apache.doris.flink.sink.EscapeHandler;
 import org.apache.doris.flink.sink.HttpPutBuilder;
 import org.apache.doris.flink.sink.HttpUtil;
 import org.apache.doris.flink.sink.writer.LabelGenerator;
+import org.apache.http.HttpHeaders;
 import org.apache.http.client.entity.GzipCompressingEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.conn.ConnectTimeoutException;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.util.EntityUtils;
@@ -46,8 +50,14 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.net.ConnectException;
+import java.net.NoRouteToHostException;
+import java.net.URLEncoder;
+import java.net.UnknownHostException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -69,8 +79,10 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+import static org.apache.doris.flink.sink.LoadStatus.LABEL_ALREADY_EXIST;
 import static org.apache.doris.flink.sink.LoadStatus.PUBLISH_TIMEOUT;
 import static org.apache.doris.flink.sink.LoadStatus.SUCCESS;
+import static org.apache.doris.flink.sink.writer.DorisStreamLoad.JOB_EXIST_FINISHED;
 import static org.apache.doris.flink.sink.writer.LoadConstants.ARROW;
 import static org.apache.doris.flink.sink.writer.LoadConstants.COMPRESS_TYPE;
 import static org.apache.doris.flink.sink.writer.LoadConstants.COMPRESS_TYPE_GZ;
@@ -93,11 +105,24 @@ public class DorisBatchStreamLoad implements Serializable {
     private final LabelGenerator labelGenerator;
     private final byte[] lineDelimiter;
     private static final String LOAD_URL_PATTERN = "/api/%s/%s/_stream_load";
+    private static final String GET_LOAD_STATE_URL_PATTERN = "/api/%s/get_load_state?label=%s";
+    // Transaction states reported by /api/{db}/get_load_state.
+    private static final String LABEL_STATE_VISIBLE = "VISIBLE";
+    private static final String LABEL_STATE_COMMITTED = "COMMITTED";
+    private static final String LABEL_STATE_ABORTED = "ABORTED";
+    private static final String LABEL_STATE_UNKNOWN = "UNKNOWN";
+    // How long to wait for a label whose load outcome is unknown to reach a final state.
+    private static final long DEFAULT_LABEL_STATE_POLL_TIMEOUT_MS = 5 * 60 * 1000L;
+    private static final long DEFAULT_LABEL_STATE_POLL_INTERVAL_MS = 1000L;
+    private static final long LABEL_STATE_POLL_MAX_INTERVAL_MS = 5000L;
     private String loadUrl;
     private String hostPort;
     private final String username;
     private final String password;
+    private final String feNodes;
     private final DorisTlsOptions tlsOptions;
+    private long labelStatePollTimeoutMs = DEFAULT_LABEL_STATE_POLL_TIMEOUT_MS;
+    private long labelStatePollIntervalMs = DEFAULT_LABEL_STATE_POLL_INTERVAL_MS;
     private final Properties loadProps;
     private Map<String, BatchRecordBuffer> bufferMap = new ConcurrentHashMap<>();
     private DorisExecutionOptions executionOptions;
@@ -134,6 +159,7 @@ public class DorisBatchStreamLoad implements Serializable {
         this.hostPort = backendUtil.getAvailableBackend();
         this.username = dorisOptions.getUsername();
         this.password = dorisOptions.getPassword();
+        this.feNodes = dorisOptions.getFenodes();
         this.loadProps = executionOptions.getStreamLoadProp();
         this.labelGenerator = labelGenerator;
         if (loadProps.getProperty(FORMAT_KEY, CSV).equals(ARROW)) {
@@ -458,7 +484,17 @@ public class DorisBatchStreamLoad implements Serializable {
             loadThreadAlive = false;
         }
 
-        /** execute stream load. */
+        /**
+         * Execute stream load.
+         *
+         * <p>Every failed load is retried up to {@code sink.max-retries} times with a fresh label
+         * ({@code label_N}). Before re-sending, an attempt whose outcome is <em>unknown</em> is
+         * resolved through {@code /api/{db}/get_load_state}: if Doris already committed the
+         * transaction the data must not be sent again, otherwise the batch would be loaded twice.
+         * An outcome is unknown when the response was lost after the request may have reached Doris
+         * (socket timeout, connection reset, unparseable body, ...) or when Doris reports {@code
+         * Label Already Exists} for a label that is still running.
+         */
         public void load(String label, BatchRecordBuffer buffer) throws IOException {
             if (enableGroupCommit) {
                 label = null;
@@ -482,15 +518,15 @@ public class DorisBatchStreamLoad implements Serializable {
             Throwable resEx = new Throwable();
             int retry = 0;
             while (retry <= executionOptions.getMaxRetries()) {
+                String currentLabel = putBuilder.getLabel();
                 if (enableGroupCommit) {
                     LOG.info("stream load started with group commit on host {}", hostPort);
                 } else {
-                    LOG.info(
-                            "stream load started for {} on host {}",
-                            putBuilder.getLabel(),
-                            hostPort);
+                    LOG.info("stream load started for {} on host {}", currentLabel, hostPort);
                 }
 
+                // true when we cannot tell whether Doris loaded the data of this attempt
+                boolean outcomeUnknown = false;
                 try (CloseableHttpClient httpClient = httpClientBuilder.build()) {
                     try (CloseableHttpResponse response = httpClient.execute(putBuilder.build())) {
                         int statusCode = response.getStatusLine().getStatusCode();
@@ -501,19 +537,32 @@ public class DorisBatchStreamLoad implements Serializable {
                             RespContent respContent =
                                     OBJECT_MAPPER.readValue(loadResult, RespContent.class);
                             if (DORIS_SUCCESS_STATUS.contains(respContent.getStatus())) {
-                                long cacheByteBeforeFlush =
-                                        currentCacheBytes.getAndAdd(-buffer.getBufferSizeBytes());
-                                LOG.info(
-                                        "load success, cacheBeforeFlushBytes: {}, currentCacheBytes : {}",
-                                        cacheByteBeforeFlush,
-                                        currentCacheBytes.get());
-                                lock.lock();
-                                try {
-                                    block.signal();
-                                } finally {
-                                    lock.unlock();
-                                }
+                                onLoadSuccess(buffer);
                                 return;
+                            } else if (currentLabel != null
+                                    && LABEL_ALREADY_EXIST.equals(respContent.getStatus())) {
+                                if (JOB_EXIST_FINISHED.equals(respContent.getExistingJobStatus())) {
+                                    // A previous attempt with this label was committed even
+                                    // though we never saw its response. Re-sending the data
+                                    // would load it twice.
+                                    LOG.warn(
+                                            "label {} already exists and its load is finished, "
+                                                    + "the data was loaded by a previous attempt, skip. {}",
+                                            currentLabel,
+                                            loadResult);
+                                    onLoadSuccess(buffer);
+                                    return;
+                                }
+                                // The previous attempt is still running; wait for its outcome.
+                                LOG.warn(
+                                        "label {} already exists with status {}, "
+                                                + "checking the load state before retrying",
+                                        currentLabel,
+                                        respContent.getExistingJobStatus());
+                                resEx =
+                                        new DorisBatchLoadException(
+                                                "stream load error: " + respContent.getMessage());
+                                outcomeUnknown = true;
                             } else {
                                 String errMsg = null;
                                 if (StringUtils.isBlank(respContent.getMessage())
@@ -533,19 +582,53 @@ public class DorisBatchStreamLoad implements Serializable {
                                 }
                                 throw new DorisBatchLoadException(errMsg);
                             }
+                        } else {
+                            LOG.error(
+                                    "stream load failed with {}, reason {}, to retry",
+                                    hostPort,
+                                    reason);
+                            if (retry == executionOptions.getMaxRetries()) {
+                                resEx =
+                                        new DorisRuntimeException(
+                                                "stream load failed with: " + reason);
+                            }
                         }
-                        LOG.error(
-                                "stream load failed with {}, reason {}, to retry",
-                                hostPort,
-                                reason);
-                        if (retry == executionOptions.getMaxRetries()) {
-                            resEx = new DorisRuntimeException("stream load failed with: " + reason);
-                        }
-                    } catch (Exception ex) {
+                    } catch (DorisBatchLoadException ex) {
+                        // Doris answered with a definitive failure: nothing was loaded,
+                        // safe to retry with a fresh label.
                         resEx = ex;
                         LOG.error("stream load error with {}, to retry, cause by", hostPort, ex);
+                    } catch (Exception ex) {
+                        resEx = ex;
+                        outcomeUnknown = currentLabel != null && isOutcomeUnknown(ex);
+                        LOG.error(
+                                "stream load error with {}, outcome unknown: {}, cause by",
+                                hostPort,
+                                outcomeUnknown,
+                                ex);
                     }
                 }
+
+                if (outcomeUnknown) {
+                    LabelLoadState state = resolveLabelState(buffer.getDatabase(), currentLabel);
+                    if (state == LabelLoadState.LOADED) {
+                        LOG.warn(
+                                "label {} was loaded by Doris although the response was lost, skip re-sending",
+                                currentLabel);
+                        onLoadSuccess(buffer);
+                        return;
+                    } else if (state == LabelLoadState.UNRESOLVED) {
+                        buffer.clear();
+                        throw new DorisBatchLoadException(
+                                String.format(
+                                        "stream load error: the state of label %s could not be determined within %d ms, "
+                                                + "not retrying to avoid loading the data twice: %s",
+                                        currentLabel, labelStatePollTimeoutMs, resEx.getMessage()),
+                                resEx);
+                    }
+                    LOG.info("label {} was not loaded, retry with a new label", currentLabel);
+                }
+
                 retry++;
                 // get available backend retry
                 refreshLoadUrl(buffer.getDatabase(), buffer.getTable());
@@ -568,6 +651,143 @@ public class DorisBatchStreamLoad implements Serializable {
                 throw new DorisBatchLoadException(
                         "stream load error: " + resEx.getMessage(), resEx);
             }
+        }
+
+        private void onLoadSuccess(BatchRecordBuffer buffer) {
+            long cacheByteBeforeFlush = currentCacheBytes.getAndAdd(-buffer.getBufferSizeBytes());
+            LOG.info(
+                    "load success, cacheBeforeFlushBytes: {}, currentCacheBytes : {}",
+                    cacheByteBeforeFlush,
+                    currentCacheBytes.get());
+            lock.lock();
+            try {
+                block.signal();
+            } finally {
+                lock.unlock();
+            }
+        }
+
+        /**
+         * Whether an exception thrown while executing the stream load leaves the outcome unknown.
+         * Failures to establish the connection mean the request never reached Doris, so they can be
+         * retried right away; anything else (socket timeout, connection reset, truncated or
+         * unparseable response, ...) may have happened after Doris received the data.
+         */
+        private boolean isOutcomeUnknown(Throwable ex) {
+            Throwable t = ex;
+            while (t != null) {
+                if (t instanceof ConnectException
+                        || t instanceof ConnectTimeoutException
+                        || t instanceof NoRouteToHostException
+                        || t instanceof UnknownHostException) {
+                    return false;
+                }
+                t = t.getCause() == t ? null : t.getCause();
+            }
+            return true;
+        }
+
+        /**
+         * Poll {@code /api/{db}/get_load_state} until the label reaches a final state or the poll
+         * timeout elapses.
+         */
+        private LabelLoadState resolveLabelState(String database, String label) {
+            if (StringUtils.isBlank(feNodes)) {
+                LOG.warn(
+                        "fenodes is not configured, cannot check the state of label {}, retry directly",
+                        label);
+                return LabelLoadState.NOT_LOADED;
+            }
+            long deadline = System.currentTimeMillis() + labelStatePollTimeoutMs;
+            long interval = labelStatePollIntervalMs;
+            String lastState = null;
+            while (true) {
+                try {
+                    lastState = queryLabelState(database, label);
+                    LOG.info("state of label {} is {}", label, lastState);
+                    switch (lastState.toUpperCase()) {
+                        case LABEL_STATE_VISIBLE:
+                        case LABEL_STATE_COMMITTED:
+                            return LabelLoadState.LOADED;
+                        case LABEL_STATE_ABORTED:
+                        case LABEL_STATE_UNKNOWN:
+                            // aborted by Doris, or the transaction was never begun
+                            return LabelLoadState.NOT_LOADED;
+                        default:
+                            // PREPARE / PRECOMMITTED: still in progress
+                            break;
+                    }
+                } catch (Exception e) {
+                    LOG.warn(
+                            "failed to query the state of label {}, will retry: {}",
+                            label,
+                            e.getMessage());
+                }
+                if (System.currentTimeMillis() >= deadline) {
+                    LOG.error(
+                            "label {} did not reach a final state within {} ms, last state {}",
+                            label,
+                            labelStatePollTimeoutMs,
+                            lastState);
+                    return LabelLoadState.UNRESOLVED;
+                }
+                try {
+                    Thread.sleep(interval);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new RuntimeException(e);
+                }
+                interval = Math.min(interval * 2, LABEL_STATE_POLL_MAX_INTERVAL_MS);
+            }
+        }
+
+        private String queryLabelState(String database, String label) throws Exception {
+            String path =
+                    String.format(
+                            GET_LOAD_STATE_URL_PATTERN,
+                            database,
+                            URLEncoder.encode(label, StandardCharsets.UTF_8.name()));
+            String auth =
+                    "Basic "
+                            + Base64.getEncoder()
+                                    .encodeToString(
+                                            (username + ":" + password)
+                                                    .getBytes(StandardCharsets.UTF_8));
+            Exception lastException = null;
+            for (String feNode : feNodes.split(",")) {
+                feNode = feNode.trim();
+                if (feNode.isEmpty()) {
+                    continue;
+                }
+                HttpGet httpGet =
+                        new HttpGet(DorisUrlBuilder.buildHttpUrl(tlsOptions, feNode, path));
+                httpGet.setHeader(HttpHeaders.AUTHORIZATION, auth);
+                try (CloseableHttpClient httpClient = httpClientBuilder.build();
+                        CloseableHttpResponse response = httpClient.execute(httpGet)) {
+                    int statusCode = response.getStatusLine().getStatusCode();
+                    if (statusCode != 200 || response.getEntity() == null) {
+                        throw new DorisRuntimeException(
+                                "get_load_state failed with " + response.getStatusLine());
+                    }
+                    String body = EntityUtils.toString(response.getEntity());
+                    JsonNode data = OBJECT_MAPPER.readTree(body).get("data");
+                    if (data == null || data.isNull() || StringUtils.isBlank(data.asText())) {
+                        throw new DorisRuntimeException(
+                                "get_load_state response has no data: " + body);
+                    }
+                    return data.asText().trim();
+                } catch (Exception e) {
+                    LOG.warn(
+                            "failed to query the state of label {} from FE {}: {}",
+                            label,
+                            feNode,
+                            e.getMessage());
+                    lastException = e;
+                }
+            }
+            throw lastException != null
+                    ? lastException
+                    : new DorisRuntimeException("no FE node configured to query load state");
         }
 
         private void refreshLoadUrl(String database, String table) {
@@ -595,6 +815,23 @@ public class DorisBatchStreamLoad implements Serializable {
             t.setDaemon(false);
             return t;
         }
+    }
+
+    /** Outcome of a stream load attempt as resolved through get_load_state. */
+    enum LabelLoadState {
+        LOADED,
+        NOT_LOADED,
+        UNRESOLVED
+    }
+
+    @VisibleForTesting
+    public void setLabelStatePollTimeoutMs(long labelStatePollTimeoutMs) {
+        this.labelStatePollTimeoutMs = labelStatePollTimeoutMs;
+    }
+
+    @VisibleForTesting
+    public void setLabelStatePollIntervalMs(long labelStatePollIntervalMs) {
+        this.labelStatePollIntervalMs = labelStatePollIntervalMs;
     }
 
     @VisibleForTesting
