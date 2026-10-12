@@ -41,8 +41,6 @@ Flink Doris Connector supports the following Flink versions:
 
 Flink 2.x artifacts are compiled with Java 17 (`--release 17`, classfile major version 61) and can be built with JDK 17 or JDK 21. JDK 21 runtime compatibility is experimental for the Flink versions listed above; JDK 17 remains the recommended runtime.
 
-Incremental source jobs can resume from a saved external offset when no Flink Source state is restored. See [External offset recovery](docs/external-offset-recovery.md) for startup precedence and limitations.
-
 If you wish to contribute or use a connector from flink 1.13 (and earlier), please use the [branch-for-flink-before-1.13](https://github.com/apache/doris-flink-connector/tree/branch-for-flink-before-1.13)
 
 More information about compilation and usage is available in the [Flink Doris Connector documentation](https://doris.apache.org/docs/dev/ecosystem/flink-doris-connector). The website documentation is maintained outside this repository and requires a separate change to keep its compatibility guidance in sync.
