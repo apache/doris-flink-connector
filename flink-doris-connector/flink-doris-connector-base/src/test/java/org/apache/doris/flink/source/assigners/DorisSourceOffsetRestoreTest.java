@@ -145,9 +145,19 @@ class DorisSourceOffsetRestoreTest {
     }
 
     @Test
-    void latestWithoutRecordRequiresExplicitFirstStart() throws Exception {
+    void latestWithoutRecordStartsFromCurrentTime() throws Exception {
         when(result.next()).thenReturn(false);
-        assertStartupFails(DorisSourceScanMode.LATEST, "No saved offset");
+        DorisReadOptions readOptions = readOptions(DorisSourceScanMode.LATEST);
+        try (MockedConstruction<SimpleJdbcConnectionProvider> ignored = providers();
+                MockedStatic<RestService> rest = rest(readOptions)) {
+            DorisSourceSplitAssigner assigner =
+                    DorisSourceSplitAssigner.create(options, readOptions, 2);
+            assertThat(assigner.getPhase()).isEqualTo(DorisSourceCheckpoint.Phase.STREAM);
+            assertThat(assigner.hasPendingSnapshotSplits()).isFalse();
+            assertThat(assigner.snapshotState(0L).getNextStreamStartTimestamp()).isEqualTo(NOW);
+            rest.verify(
+                    () -> RestService.findPartitions(eq(options), eq(readOptions), any()), never());
+        }
     }
 
     @Test

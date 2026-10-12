@@ -82,12 +82,6 @@ public class DorisSourceSplitAssigner {
                         readOptions.getBinlogOffsetTable(),
                         readOptions.getBinlogConsumerId())) {
             Optional<String> offset = publisher.readOffset();
-            if (!offset.isPresent() && readOptions.getScanMode() == DorisSourceScanMode.LATEST) {
-                throw new DorisRuntimeException(
-                        "No saved offset for consumer "
-                                + readOptions.getBinlogConsumerId()
-                                + "; use initial or from-timestamp for the first start");
-            }
             LOG.info(
                     "Read external offset {} from {} for consumer {}.",
                     offset.orElse("<not found>"),
@@ -164,9 +158,10 @@ public class DorisSourceSplitAssigner {
                 new DorisSourceSplitAssigner(
                         scanMode, sourceParallelism, phase, snapshotSplitAssigner, streamAssigner);
         LOG.info(
-                "Initialized Doris source assigner in {} mode at phase {} with {} pending snapshot splits.",
+                "Initialized Doris source assigner in {} mode at phase {} with stream start timestamp {} and {} pending snapshot splits.",
                 scanMode,
                 phase,
+                assigner.nextStreamStartTimestamp(),
                 snapshotSplitAssigner.remainingSplits().size());
         return assigner;
     }
