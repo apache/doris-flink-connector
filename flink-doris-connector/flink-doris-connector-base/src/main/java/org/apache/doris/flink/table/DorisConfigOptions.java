@@ -419,7 +419,8 @@ public class DorisConfigOptions {
             ConfigOptions.key("source.scan.timestamp")
                     .stringType()
                     .noDefaultValue()
-                    .withDescription("Inclusive start timestamp for from-timestamp mode");
+                    .withDescription(
+                            "Inclusive first-start timestamp for from-timestamp mode; a saved external offset takes precedence");
     public static final ConfigOption<String> SOURCE_BINLOG_INCREMENT_TYPE =
             ConfigOptions.key("source.binlog.increment-type")
                     .stringType()
@@ -443,7 +444,8 @@ public class DorisConfigOptions {
             ConfigOptions.key("source.binlog.offset-table")
                     .stringType()
                     .noDefaultValue()
-                    .withDescription("Doris table used to persist completed checkpoint offsets");
+                    .withDescription(
+                            "Doris table used to persist completed checkpoint offsets and resume new jobs without restored Source state");
     public static final ConfigOption<String> SOURCE_BINLOG_CONSUMER_ID =
             ConfigOptions.key("source.binlog.consumer-id")
                     .stringType()

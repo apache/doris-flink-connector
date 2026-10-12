@@ -167,6 +167,65 @@ public class DorisIncrementalSourceITCase extends AbstractDorisIncrementalITCase
         }
     }
 
+    @Test
+    public void testFromTimestampRestartsFromExternalOffsetWithoutFlinkState() throws Exception {
+        restartFromExternalOffset("from-timestamp");
+    }
+
+    @Test
+    public void testInitialRestartsWithoutRepeatingSnapshot() throws Exception {
+        restartFromExternalOffset("initial");
+    }
+
+    private void restartFromExternalOffset(String scanMode) throws Exception {
+        String table = "tbl_external_offset_restart_" + scanMode.replace('-', '_');
+        initializeIncrementalTable(table, "(0,'historical','ignored')");
+        initializeOffsetTable();
+        String configuredStart = resolveCurrentDorisTimestamp(table);
+        waitForDorisTimestampAfter(table, configuredStart);
+        String savedOffset;
+        try (IncrementalResultCollector first =
+                startSourceWithOffsetPersistence(
+                        table,
+                        scanMode,
+                        "from-timestamp".equals(scanMode) ? configuredStart : null,
+                        OFFSET_TABLE,
+                        CONSUMER_ID)) {
+            executeDorisSql(
+                    String.format(
+                            "INSERT INTO %s.%s VALUES (1,'before-stop','ignored')",
+                            DATABASE, table));
+            checkpointUntilContains(
+                    first, Arrays.asList(ObservedRow.of(RowKind.INSERT, 1, "before-stop")));
+            String writtenAt = resolveCurrentDorisTimestamp(table);
+            waitForDorisTimestampAfter(table, writtenAt);
+            savedOffset = checkpointUntilOffsetAfter(first, writtenAt);
+        }
+
+        // These writes must be recovered by a new job with no checkpoint/savepoint restore path.
+        executeDorisSql(
+                String.format(
+                        "INSERT INTO %s.%s VALUES (2,'while-stopped-a','ignored'),(3,'while-stopped-b','ignored')",
+                        DATABASE, table));
+        waitForDorisTimestampAfter(table, savedOffset);
+        try (IncrementalResultCollector restarted =
+                startSourceWithOffsetPersistence(
+                        table,
+                        scanMode,
+                        "from-timestamp".equals(scanMode) ? configuredStart : null,
+                        OFFSET_TABLE,
+                        CONSUMER_ID)) {
+            checkpointUntilContains(
+                    restarted,
+                    Arrays.asList(
+                            ObservedRow.of(RowKind.INSERT, 2, "while-stopped-a"),
+                            ObservedRow.of(RowKind.INSERT, 3, "while-stopped-b")));
+            Assert.assertFalse(
+                    "Restart replayed rows before the saved boundary: " + restarted.getRows(),
+                    restarted.getRows().stream().anyMatch(row -> row.getInt(0) < 2));
+        }
+    }
+
     private void initializeOffsetTable() {
         executeDorisSql(
                 String.format("DROP TABLE IF EXISTS %s.%s", DATABASE, OFFSET_TABLE),
