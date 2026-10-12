@@ -90,7 +90,7 @@ public class DorisSourceSplitAssigner {
             }
             LOG.info(
                     "Read external offset {} from {} for consumer {}.",
-                    offset.orElse("<absent>"),
+                    offset.orElse("<not found>"),
                     readOptions.getBinlogOffsetTable(),
                     readOptions.getBinlogConsumerId());
             return offset;

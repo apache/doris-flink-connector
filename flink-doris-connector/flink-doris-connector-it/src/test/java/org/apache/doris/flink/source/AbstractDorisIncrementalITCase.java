@@ -238,7 +238,7 @@ public abstract class AbstractDorisIncrementalITCase extends AbstractITCaseServi
                     return collector.containsAll(expected);
                 },
                 Deadline.fromNow(DEFAULT_TIMEOUT),
-                100L,
+                1000L,
                 "Missing source rows " + expected + "; observed=" + collector.getRows());
     }
 
