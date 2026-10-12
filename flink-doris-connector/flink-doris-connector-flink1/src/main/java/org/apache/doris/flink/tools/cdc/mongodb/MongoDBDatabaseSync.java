@@ -109,7 +109,7 @@ public class MongoDBDatabaseSync extends DatabaseSync {
                                 config.get(MongoDBSourceOptions.PASSWORD),
                                 config.get(MongoDBSourceOptions.SCHEME),
                                 config.get(MongoDBSourceOptions.HOSTS),
-                                config.get(MongoDBSourceOptions.CONNECTION_OPTIONS))));
+                                getConnectionOptions())));
 
         MongoClientSettings settings = settingsBuilder.build();
         Double samplePercent = config.get(MONGO_CDC_CREATE_SAMPLE_PERCENT);
@@ -119,6 +119,9 @@ public class MongoDBDatabaseSync extends DatabaseSync {
             MongoDatabase mongoDatabase = mongoClient.getDatabase(databaseName);
             MongoIterable<String> collectionNames = mongoDatabase.listCollectionNames();
             for (String collectionName : collectionNames) {
+                if (collectionName.startsWith("system.")) {
+                    continue;
+                }
                 if (!isSyncNeeded(collectionName)) {
                     continue;
                 }
@@ -181,6 +184,14 @@ public class MongoDBDatabaseSync extends DatabaseSync {
         return sb.toString();
     }
 
+    private String getConnectionOptions() {
+        String options = config.getString("connection-options", null);
+        if (StringUtils.isEmpty(options)) {
+            options = config.get(MongoDBSourceOptions.CONNECTION_OPTIONS);
+        }
+        return options;
+    }
+
     @Override
     public DataStreamSource<String> buildCdcSource(StreamExecutionEnvironment env) {
         String hosts = config.get(MongoDBSourceOptions.HOSTS);
@@ -203,6 +214,8 @@ public class MongoDBDatabaseSync extends DatabaseSync {
                 .hosts(hosts)
                 .username(username)
                 .password(password)
+                .scheme(config.get(MongoDBSourceOptions.SCHEME))
+                .connectionOptions(getConnectionOptions())
                 .databaseList(database)
                 .collectionList(collection);
 
