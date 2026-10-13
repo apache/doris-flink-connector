@@ -18,6 +18,7 @@
 package org.apache.doris.flink.tools.cdc;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 import org.apache.doris.flink.catalog.doris.TableSchema;
 import org.apache.doris.flink.cfg.DorisConnectionOptions;
@@ -277,9 +278,14 @@ public class DatabaseSyncTest {
         String sqlServerJdbcUrlTemplate =
                 sqlServerDatabaseSync.getJdbcUrlTemplate(
                         sqlServerJdbcTemplate, sqlServerJdbcProperties);
-        Assert.assertEquals(
-                sqlServerJdbcTemplate + "encrypt=false;integratedSecurity=false;",
-                sqlServerJdbcUrlTemplate);
+        // Properties iteration order is unspecified, so assert the url shape (base template
+        // separator, trailing ';') and the exact set of parameters instead of their order.
+        assertJdbcUrlParameters(
+                sqlServerJdbcTemplate,
+                "",
+                sqlServerJdbcUrlTemplate,
+                "encrypt=false",
+                "integratedSecurity=false");
 
         Properties db2JdbcProperties = db2DatabaseSync.getJdbcProperties();
         Assert.assertEquals(3, db2JdbcProperties.size());
@@ -288,9 +294,115 @@ public class DatabaseSyncTest {
         Assert.assertEquals("1", db2JdbcProperties.getProperty("resultSetHoldability"));
         String db2JdbcUrlTemplate =
                 db2DatabaseSync.getJdbcUrlTemplate(db2JdbcTemplate, db2JdbcProperties);
-        Assert.assertEquals(
-                db2JdbcTemplate
-                        + ":allowNextOnExhaustedResultSet=1;ssl=false;resultSetHoldability=1;",
-                db2JdbcUrlTemplate);
+        assertJdbcUrlParameters(
+                db2JdbcTemplate,
+                ":",
+                db2JdbcUrlTemplate,
+                "ssl=false",
+                "allowNextOnExhaustedResultSet=1",
+                "resultSetHoldability=1");
+    }
+
+    @Test
+    public void validateStartupModeAcceptsSupportedValuesCaseInsensitively() throws Exception {
+        DatabaseSync databaseSync = new MysqlDatabaseSync();
+        String[] mysqlModes = {
+            DatabaseSyncConfig.SCAN_STARTUP_MODE_VALUE_INITIAL,
+            DatabaseSyncConfig.SCAN_STARTUP_MODE_VALUE_EARLIEST_OFFSET,
+            DatabaseSyncConfig.SCAN_STARTUP_MODE_VALUE_LATEST_OFFSET,
+            DatabaseSyncConfig.SCAN_STARTUP_MODE_VALUE_SPECIFIC_OFFSET,
+            DatabaseSyncConfig.SCAN_STARTUP_MODE_VALUE_TIMESTAMP
+        };
+        for (String mode : mysqlModes) {
+            databaseSync.validateStartupMode(mode, mysqlModes);
+            databaseSync.validateStartupMode(toMixedCase(mode), mysqlModes);
+        }
+
+        String[] initialAndLatest = {
+            DatabaseSyncConfig.SCAN_STARTUP_MODE_VALUE_INITIAL,
+            DatabaseSyncConfig.SCAN_STARTUP_MODE_VALUE_LATEST_OFFSET
+        };
+        for (String mode : initialAndLatest) {
+            databaseSync.validateStartupMode(toMixedCase(mode), initialAndLatest);
+        }
+    }
+
+    @Test
+    public void validateStartupModeRejectsUnsupportedValue() throws Exception {
+        DatabaseSync databaseSync = new MysqlDatabaseSync();
+        try {
+            databaseSync.validateStartupMode(
+                    "initial-offset",
+                    DatabaseSyncConfig.SCAN_STARTUP_MODE_VALUE_INITIAL,
+                    DatabaseSyncConfig.SCAN_STARTUP_MODE_VALUE_LATEST_OFFSET);
+            Assert.fail("Expected IllegalArgumentException for unsupported scan.startup.mode");
+        } catch (IllegalArgumentException e) {
+            Assert.assertTrue(e.getMessage().contains("scan.startup.mode"));
+            Assert.assertTrue(e.getMessage().contains("initial-offset"));
+            Assert.assertTrue(e.getMessage().contains("latest-offset"));
+        }
+    }
+
+    @Test
+    public void postgresBuildCdcSourceRejectsInvalidStartupMode() throws Exception {
+        DatabaseSync databaseSync = new PostgresDatabaseSync();
+        Configuration config = new Configuration();
+        config.setString("database-name", "test_db");
+        config.setString("schema-name", "public");
+        config.setString("slot.name", "test_slot");
+        config.setString("scan.startup.mode", "initial-offset");
+        databaseSync.setConfig(config);
+        try {
+            databaseSync.buildCdcSource(StreamExecutionEnvironment.getExecutionEnvironment());
+            Assert.fail("Expected IllegalArgumentException for unsupported scan.startup.mode");
+        } catch (IllegalArgumentException e) {
+            Assert.assertTrue(e.getMessage().contains("scan.startup.mode"));
+            Assert.assertTrue(e.getMessage().contains("initial-offset"));
+        }
+    }
+
+    @Test
+    public void sqlServerBuildCdcSourceRejectsInvalidStartupMode() throws Exception {
+        DatabaseSync databaseSync = new SqlServerDatabaseSync();
+        Configuration config = new Configuration();
+        config.setString("database-name", "test_db");
+        config.setString("schema-name", "dbo");
+        config.setString("scan.startup.mode", "initial-offset");
+        databaseSync.setConfig(config);
+        try {
+            databaseSync.buildCdcSource(StreamExecutionEnvironment.getExecutionEnvironment());
+            Assert.fail("Expected IllegalArgumentException for unsupported scan.startup.mode");
+        } catch (IllegalArgumentException e) {
+            Assert.assertTrue(e.getMessage().contains("scan.startup.mode"));
+            Assert.assertTrue(e.getMessage().contains("initial-offset"));
+        }
+    }
+
+    /**
+     * Asserts a JDBC url built from {@code baseUrl} plus {@code parameterSeparator} and the exact
+     * {@code key=value} parameters terminated by a single trailing {@code ;}. The parameter order
+     * is intentionally ignored because it follows {@link Properties} iteration order.
+     */
+    private static void assertJdbcUrlParameters(
+            String baseUrl, String parameterSeparator, String actualUrl, String... parameters) {
+        String prefix = baseUrl + parameterSeparator;
+        assertTrue(
+                "JDBC url should start with '" + prefix + "' but was: " + actualUrl,
+                actualUrl.startsWith(prefix));
+        assertTrue("JDBC url should end with ';' but was: " + actualUrl, actualUrl.endsWith(";"));
+        String parameterPart = actualUrl.substring(prefix.length(), actualUrl.length() - 1);
+        List<String> actualParameters = Arrays.asList(parameterPart.split(";"));
+        assertEquals(
+                "Unexpected number of JDBC parameters in: " + actualUrl,
+                parameters.length,
+                actualParameters.size());
+        assertEquals(
+                "Unexpected JDBC parameters in: " + actualUrl,
+                new HashSet<>(Arrays.asList(parameters)),
+                new HashSet<>(actualParameters));
+    }
+
+    private static String toMixedCase(String mode) {
+        return Character.toUpperCase(mode.charAt(0)) + mode.substring(1);
     }
 }
