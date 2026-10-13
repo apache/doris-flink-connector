@@ -19,6 +19,7 @@ package org.apache.doris.flink.sink.writer.serializer.jsondebezium;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -205,7 +206,17 @@ public abstract class JsonDebeziumSchemaChange extends CdcSchemaChange {
         } else {
             createTblName = targetTablePrefix + table + targetTableSuffix;
         }
-        return targetDatabase + "." + createTblName;
+        // Fall back to the upstream source database (source.db) when no target database is
+        // configured; the schema (e.g. oracle/sqlserver) must not replace the database.
+        String database = targetDatabase;
+        if (StringUtils.isNullOrWhitespaceOnly(database)) {
+            database = extractJsonNode(record.get("source"), "db");
+        }
+        Preconditions.checkArgument(
+                !StringUtils.isNullOrWhitespaceOnly(database),
+                "Failed to extract target database, both the configured target database and the source database (source.db) are missing. record=%s",
+                record);
+        return database + "." + createTblName;
     }
 
     public Map<String, String> getTableMapping() {
