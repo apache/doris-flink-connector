@@ -21,10 +21,12 @@ import org.apache.flink.annotation.VisibleForTesting;
 
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
+import org.apache.doris.flink.connection.SimpleJdbcConnectionProvider;
 import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.source.DorisSourceScanMode;
 import org.apache.doris.flink.source.enumerator.DorisSourceCheckpoint;
+import org.apache.doris.flink.source.reader.DorisOffsetPublisher;
 import org.apache.doris.flink.source.split.DorisSnapshotSplit;
 import org.apache.doris.flink.source.split.DorisSourceSplit;
 import org.apache.doris.flink.source.split.DorisStreamSplit;
@@ -53,14 +55,40 @@ public class DorisSourceSplitAssigner {
 
     public static DorisSourceSplitAssigner create(
             DorisOptions options, DorisReadOptions readOptions, int sourceParallelism) {
+        String externalOffset = readExternalOffset(options, readOptions).orElse(null);
         Supplier<String> currentTimestampSupplier =
                 () -> RestService.resolveCurrentTimestamp(options, readOptions, LOG);
         DorisSnapshotSplitAssigner snapshotSplitAssigner =
-                readOptions.getScanMode().isSnapshotPhaseRequired()
+                externalOffset == null && readOptions.getScanMode().isSnapshotPhaseRequired()
                         ? new DorisSnapshotSplitAssigner(options, readOptions)
                         : new DorisSnapshotSplitAssigner(Collections.emptyList());
         return create(
-                readOptions, sourceParallelism, currentTimestampSupplier, snapshotSplitAssigner);
+                readOptions,
+                sourceParallelism,
+                currentTimestampSupplier,
+                snapshotSplitAssigner,
+                externalOffset);
+    }
+
+    private static Optional<String> readExternalOffset(
+            DorisOptions options, DorisReadOptions readOptions) {
+        if (!readOptions.getScanMode().hasIncrementalPhase()
+                || readOptions.getBinlogOffsetTable() == null) {
+            return Optional.empty();
+        }
+        try (DorisOffsetPublisher publisher =
+                new DorisOffsetPublisher(
+                        new SimpleJdbcConnectionProvider(options),
+                        readOptions.getBinlogOffsetTable(),
+                        readOptions.getBinlogConsumerId())) {
+            Optional<String> offset = publisher.readOffset();
+            LOG.info(
+                    "Read external offset {} from {} for consumer {}.",
+                    offset.orElse("<not found>"),
+                    readOptions.getBinlogOffsetTable(),
+                    readOptions.getBinlogConsumerId());
+            return offset;
+        }
     }
 
     public static DorisSourceSplitAssigner restore(
@@ -86,7 +114,11 @@ public class DorisSourceSplitAssigner {
                         ? new DorisSnapshotSplitAssigner(snapshotSplits)
                         : new DorisSnapshotSplitAssigner(Collections.emptyList());
         return create(
-                readOptions, sourceParallelism, currentTimestampSupplier, snapshotSplitAssigner);
+                readOptions,
+                sourceParallelism,
+                currentTimestampSupplier,
+                snapshotSplitAssigner,
+                null);
     }
 
     @VisibleForTesting
@@ -102,29 +134,34 @@ public class DorisSourceSplitAssigner {
             DorisReadOptions readOptions,
             int sourceParallelism,
             Supplier<String> currentTimestampSupplier,
-            DorisSnapshotSplitAssigner snapshotSplitAssigner) {
+            DorisSnapshotSplitAssigner snapshotSplitAssigner,
+            @Nullable String externalOffset) {
         DorisSourceScanMode scanMode = readOptions.getScanMode();
         DorisStreamSplitAssigner streamAssigner = null;
         if (scanMode.hasIncrementalPhase()) {
-            String startTimestamp =
-                    scanMode == DorisSourceScanMode.FROM_TIMESTAMP
-                            ? readOptions.getScanTimestamp()
-                            : currentTimestampSupplier.get();
+            String startTimestamp = externalOffset;
+            if (startTimestamp == null) {
+                startTimestamp =
+                        scanMode == DorisSourceScanMode.FROM_TIMESTAMP
+                                ? readOptions.getScanTimestamp()
+                                : currentTimestampSupplier.get();
+            }
             streamAssigner =
                     new DorisStreamSplitAssigner(
                             startTimestamp, Collections.emptyList(), currentTimestampSupplier);
         }
         DorisSourceCheckpoint.Phase phase =
-                scanMode.isSnapshotPhaseRequired()
+                externalOffset == null && scanMode.isSnapshotPhaseRequired()
                         ? DorisSourceCheckpoint.Phase.SNAPSHOT
                         : DorisSourceCheckpoint.Phase.STREAM;
         DorisSourceSplitAssigner assigner =
                 new DorisSourceSplitAssigner(
                         scanMode, sourceParallelism, phase, snapshotSplitAssigner, streamAssigner);
         LOG.info(
-                "Initialized Doris source assigner in {} mode at phase {} with {} pending snapshot splits.",
+                "Initialized Doris source assigner in {} mode at phase {} with stream start timestamp {} and {} pending snapshot splits.",
                 scanMode,
                 phase,
+                assigner.nextStreamStartTimestamp(),
                 snapshotSplitAssigner.remainingSplits().size());
         return assigner;
     }

@@ -18,14 +18,20 @@ package org.apache.doris.flink.source.reader;
 
 import org.apache.doris.flink.connection.JdbcConnectionProvider;
 import org.apache.doris.flink.exception.DorisRuntimeException;
+import org.apache.doris.flink.source.split.DorisStreamSplit;
 
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.time.format.ResolverStyle;
+import java.util.Optional;
 import java.util.function.Consumer;
 
-/** Publishes completed-checkpoint offsets through Doris JDBC. */
+/** Reads startup offsets and publishes completed-checkpoint offsets through Doris JDBC. */
 public class DorisOffsetPublisher implements AutoCloseable {
     private final JdbcConnectionProvider connectionProvider;
     private final String database;
@@ -68,6 +74,54 @@ public class DorisOffsetPublisher implements AutoCloseable {
                     "Failed to validate offset table: " + database + "." + table, error);
         }
         throw new DorisRuntimeException("Offset table does not exist: " + database + "." + table);
+    }
+
+    /** Returns empty only when this consumer has no saved offset. */
+    public Optional<String> readOffset() {
+        String selectSql =
+                "SELECT `offset_timestamp` FROM "
+                        + quoteIdentifier(database)
+                        + "."
+                        + quoteIdentifier(table)
+                        + " WHERE `consumer_id` = ?";
+        try (PreparedStatement statement =
+                connectionProvider.getOrEstablishConnection().prepareStatement(selectSql)) {
+            statement.setString(1, consumerId);
+            try (ResultSet result = statement.executeQuery()) {
+                if (!result.next()) {
+                    return Optional.empty();
+                }
+                String offset = result.getString("offset_timestamp");
+                if (result.next()) {
+                    throw new DorisRuntimeException("Multiple offsets for consumer " + consumerId);
+                }
+                String invalidOffset =
+                        "Invalid offset timestamp for consumer " + consumerId + ": " + offset;
+                if (!DorisStreamSplit.isValidTimestamp(offset)) {
+                    throw new DorisRuntimeException(invalidOffset);
+                }
+                try {
+                    LocalDateTime.parse(
+                            offset,
+                            DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm:ss")
+                                    .withResolverStyle(ResolverStyle.STRICT));
+                } catch (DateTimeParseException error) {
+                    throw new DorisRuntimeException(invalidOffset, error);
+                }
+                return Optional.of(offset);
+            }
+        } catch (DorisRuntimeException error) {
+            throw error;
+        } catch (Exception error) {
+            throw new DorisRuntimeException(
+                    "Failed to read offset from "
+                            + database
+                            + "."
+                            + table
+                            + " for consumer "
+                            + consumerId,
+                    error);
+        }
     }
 
     /** Invokes the callback with null on success or the publication error on failure. */
