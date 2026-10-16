@@ -240,6 +240,8 @@ class DorisSourceOffsetRestoreTest {
                 .thenReturn(new String[] {"db", "t"});
         rest.when(() -> RestService.findPartitions(eq(options), eq(readOptions), any()))
                 .thenReturn(Collections.emptyList());
+        rest.when(() -> RestService.findIncrementalTablets(eq(options), eq(readOptions), any()))
+                .thenReturn(Collections.singletonList(1L));
         return rest;
     }
 

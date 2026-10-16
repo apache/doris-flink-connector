@@ -19,6 +19,7 @@ package org.apache.doris.flink.source.enumerator;
 
 import org.apache.flink.api.connector.source.ReaderInfo;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
+import org.apache.flink.api.java.tuple.Tuple2;
 
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
@@ -31,11 +32,15 @@ import org.apache.doris.flink.source.split.DorisStreamSplit;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
+import java.util.ArrayDeque;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.Deque;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -59,8 +64,10 @@ class DorisHybridSourceEnumeratorTest {
 
     @Test
     void initialWaitsForAllReadersAndCompletedCheckpointBeforeStream() {
-        AtomicReference<Callable<String>> pollTask = new AtomicReference<>();
-        AtomicReference<BiConsumer<String, Throwable>> pollCallback = new AtomicReference<>();
+        AtomicReference<Callable<Tuple2<String, Collection<Long>>>> pollTask =
+                new AtomicReference<>();
+        AtomicReference<BiConsumer<Tuple2<String, Collection<Long>>, Throwable>> pollCallback =
+                new AtomicReference<>();
         SplitEnumeratorContext<DorisSourceSplit> context =
                 controlledPeriodicContext(pollTask, pollCallback, 0, 1);
         DorisSnapshotSplit snapshot = snapshot("snapshot-0");
@@ -108,8 +115,10 @@ class DorisHybridSourceEnumeratorTest {
 
     @Test
     void initialTransitionsWhenSnapshotIsEmpty() {
-        AtomicReference<Callable<String>> pollTask = new AtomicReference<>();
-        AtomicReference<BiConsumer<String, Throwable>> pollCallback = new AtomicReference<>();
+        AtomicReference<Callable<Tuple2<String, Collection<Long>>>> pollTask =
+                new AtomicReference<>();
+        AtomicReference<BiConsumer<Tuple2<String, Collection<Long>>, Throwable>> pollCallback =
+                new AtomicReference<>();
         SplitEnumeratorContext<DorisSourceSplit> context =
                 controlledPeriodicContext(pollTask, pollCallback, 0);
         AtomicInteger timestampCalls = new AtomicInteger();
@@ -142,8 +151,10 @@ class DorisHybridSourceEnumeratorTest {
 
     @Test
     void olderCheckpointCompletionDoesNotTriggerTransition() {
-        AtomicReference<Callable<String>> pollTask = new AtomicReference<>();
-        AtomicReference<BiConsumer<String, Throwable>> pollCallback = new AtomicReference<>();
+        AtomicReference<Callable<Tuple2<String, Collection<Long>>>> pollTask =
+                new AtomicReference<>();
+        AtomicReference<BiConsumer<Tuple2<String, Collection<Long>>, Throwable>> pollCallback =
+                new AtomicReference<>();
         SplitEnumeratorContext<DorisSourceSplit> context =
                 controlledPeriodicContext(pollTask, pollCallback, 0);
         DorisSnapshotSplit snapshot = snapshot("snapshot-older-checkpoint");
@@ -170,9 +181,11 @@ class DorisHybridSourceEnumeratorTest {
     }
 
     @Test
-    void latestAssignsStreamOnlyToSubtaskZero() {
-        AtomicReference<Callable<String>> pollTask = new AtomicReference<>();
-        AtomicReference<BiConsumer<String, Throwable>> pollCallback = new AtomicReference<>();
+    void skipsReadersWhoseTabletGroupIsEmpty() {
+        AtomicReference<Callable<Tuple2<String, Collection<Long>>>> pollTask =
+                new AtomicReference<>();
+        AtomicReference<BiConsumer<Tuple2<String, Collection<Long>>, Throwable>> pollCallback =
+                new AtomicReference<>();
         SplitEnumeratorContext<DorisSourceSplit> context =
                 controlledPeriodicContext(pollTask, pollCallback, 0, 1);
         AtomicInteger timestampCalls = new AtomicInteger();
@@ -202,8 +215,10 @@ class DorisHybridSourceEnumeratorTest {
 
     @Test
     void fromTimestampKeepsUserBoundaryAndSkipsEmptyWindow() {
-        AtomicReference<Callable<String>> pollTask = new AtomicReference<>();
-        AtomicReference<BiConsumer<String, Throwable>> pollCallback = new AtomicReference<>();
+        AtomicReference<Callable<Tuple2<String, Collection<Long>>>> pollTask =
+                new AtomicReference<>();
+        AtomicReference<BiConsumer<Tuple2<String, Collection<Long>>, Throwable>> pollCallback =
+                new AtomicReference<>();
         SplitEnumeratorContext<DorisSourceSplit> context =
                 controlledPeriodicContext(pollTask, pollCallback, 0);
         DorisSourceCheckpoint checkpoint =
@@ -260,8 +275,10 @@ class DorisHybridSourceEnumeratorTest {
 
     @Test
     void restoredPendingStreamSplitIsAssignedBeforeDiscovery() {
-        AtomicReference<Callable<String>> pollTask = new AtomicReference<>();
-        AtomicReference<BiConsumer<String, Throwable>> pollCallback = new AtomicReference<>();
+        AtomicReference<Callable<Tuple2<String, Collection<Long>>>> pollTask =
+                new AtomicReference<>();
+        AtomicReference<BiConsumer<Tuple2<String, Collection<Long>>, Throwable>> pollCallback =
+                new AtomicReference<>();
         SplitEnumeratorContext<DorisSourceSplit> context =
                 controlledPeriodicContext(pollTask, pollCallback, 0);
         DorisStreamSplit pending =
@@ -297,29 +314,61 @@ class DorisHybridSourceEnumeratorTest {
     }
 
     @Test
-    void rejectsStreamRestoreWithDifferentParallelism() {
-        SplitEnumeratorContext<DorisSourceSplit> context = synchronousContext(0);
+    void rescaledRestoreDrainsPendingAndReaderSplitsBeforeDiscovery() throws Exception {
+        AtomicReference<Callable<Tuple2<String, Collection<Long>>>> task = new AtomicReference<>();
+        AtomicReference<BiConsumer<Tuple2<String, Collection<Long>>, Throwable>> callback =
+                new AtomicReference<>();
+        SplitEnumeratorContext<DorisSourceSplit> context =
+                controlledPeriodicContext(task, callback, 0, 1);
+        DorisStreamSplit first =
+                DorisStreamSplit.of(
+                        "2026-07-20 10:00:00", "2026-07-20 10:00:10", Collections.singleton(100L));
+        DorisStreamSplit second =
+                DorisStreamSplit.of(
+                        "2026-07-20 10:00:00", "2026-07-20 10:00:10", Collections.singleton(102L));
         DorisSourceCheckpoint checkpoint =
                 new DorisSourceCheckpoint(
                         DorisSourceCheckpoint.Phase.STREAM,
-                        "2026-07-20 10:00:00",
+                        "2026-07-20 10:00:10",
+                        4,
+                        Arrays.asList(first, second));
+        AtomicInteger discoveries = new AtomicInteger();
+        DorisSourceSplitAssigner assigner =
+                DorisSourceSplitAssigner.restoreForTesting(
+                        readOptions(DorisSourceScanMode.LATEST, null),
+                        checkpoint,
                         2,
-                        Collections.emptyList());
-
-        assertThatThrownBy(
-                        () ->
-                                restoredEnumerator(
-                                        context,
-                                        DorisSourceScanMode.LATEST,
-                                        () -> "2026-07-20 10:00:10",
-                                        checkpoint))
-                .hasMessageContaining("does not support restoring with a different parallelism");
+                        () -> {
+                            discoveries.incrementAndGet();
+                            return "2026-07-20 10:00:20";
+                        },
+                        () -> Arrays.asList(100L, 102L, 103L));
+        DorisSourceEnumerator enumerator = new DorisSourceEnumerator(context, assigner, 1000L);
+        enumerator.start();
+        enumerator.handleSplitRequest(0, null);
+        verify(context).assignSplit(first, 0);
+        invoke(task.get(), callback.get());
+        assertThat(discoveries).hasValue(0);
+        enumerator.handleSplitRequest(0, null);
+        verify(context).assignSplit(second, 0);
+        enumerator.handleSplitRequest(0, null);
+        // Reader 1 still owns work restored by Flink, although the pending queue is empty.
+        invoke(task.get(), callback.get());
+        assertThat(discoveries).hasValue(0);
+        assertThat(enumerator.snapshotState(1L).getPendingSplits()).isEmpty();
+        enumerator.handleSplitRequest(1, null);
+        invoke(task.get(), callback.get());
+        assertThat(discoveries).hasValue(1);
+        assertThat(enumerator.snapshotState(2L).getNextStreamStartTimestamp())
+                .isEqualTo("2026-07-20 10:00:20");
     }
 
     @Test
     void advancesStreamCursorWhenSplitIsPlanned() {
-        AtomicReference<Callable<String>> pollTask = new AtomicReference<>();
-        AtomicReference<BiConsumer<String, Throwable>> pollCallback = new AtomicReference<>();
+        AtomicReference<Callable<Tuple2<String, Collection<Long>>>> pollTask =
+                new AtomicReference<>();
+        AtomicReference<BiConsumer<Tuple2<String, Collection<Long>>, Throwable>> pollCallback =
+                new AtomicReference<>();
         SplitEnumeratorContext<DorisSourceSplit> context =
                 controlledPeriodicContext(pollTask, pollCallback, 0);
         AtomicInteger timestampCalls = new AtomicInteger();
@@ -397,8 +446,10 @@ class DorisHybridSourceEnumeratorTest {
 
     @Test
     void failsWhenDorisTimestampMovesBackwards() {
-        AtomicReference<Callable<String>> pollTask = new AtomicReference<>();
-        AtomicReference<BiConsumer<String, Throwable>> pollCallback = new AtomicReference<>();
+        AtomicReference<Callable<Tuple2<String, Collection<Long>>>> pollTask =
+                new AtomicReference<>();
+        AtomicReference<BiConsumer<Tuple2<String, Collection<Long>>, Throwable>> pollCallback =
+                new AtomicReference<>();
         SplitEnumeratorContext<DorisSourceSplit> context =
                 controlledPeriodicContext(pollTask, pollCallback, 0);
         AtomicInteger calls = new AtomicInteger();
@@ -420,6 +471,269 @@ class DorisHybridSourceEnumeratorTest {
                         "Current Doris timestamp moved backwards from 2026-07-20 10:00:10 to 2026-07-20 10:00:00");
     }
 
+    @Test
+    void waitsForEveryReaderBeforeDiscoveringAnotherWindow() {
+        AtomicReference<Callable<Tuple2<String, Collection<Long>>>> task = new AtomicReference<>();
+        AtomicReference<BiConsumer<Tuple2<String, Collection<Long>>, Throwable>> callback =
+                new AtomicReference<>();
+        SplitEnumeratorContext<DorisSourceSplit> context =
+                controlledPeriodicContext(task, callback, 0, 1);
+        AtomicInteger discoveries = new AtomicInteger();
+        AtomicReference<String> end = new AtomicReference<>("2026-07-20 10:00:10");
+        DorisSourceCheckpoint checkpoint =
+                new DorisSourceCheckpoint(
+                        DorisSourceCheckpoint.Phase.STREAM,
+                        "2026-07-20 10:00:00",
+                        2,
+                        Collections.emptyList());
+        DorisSourceSplitAssigner assigner =
+                DorisSourceSplitAssigner.restoreForTesting(
+                        readOptions(DorisSourceScanMode.LATEST, null),
+                        checkpoint,
+                        2,
+                        end::get,
+                        () -> {
+                            discoveries.incrementAndGet();
+                            return Arrays.asList(100L, 103L);
+                        });
+        DorisSourceEnumerator enumerator = new DorisSourceEnumerator(context, assigner, 1000L);
+        enumerator.start();
+        enumerator.handleSplitRequest(0, null);
+        invoke(task.get(), callback.get());
+        assertThat(discoveries).hasValue(0);
+        enumerator.handleSplitRequest(1, null);
+        invoke(task.get(), callback.get());
+        assertThat(discoveries).hasValue(1);
+        ArgumentCaptor<DorisSourceSplit> splits = ArgumentCaptor.forClass(DorisSourceSplit.class);
+        verify(context).assignSplit(splits.capture(), eq(0));
+        assertThat(((DorisStreamSplit) splits.getValue()).getTabletIds()).containsExactly(100L);
+        verify(context).assignSplit(splits.capture(), eq(1));
+        assertThat(((DorisStreamSplit) splits.getValue()).getTabletIds()).containsExactly(103L);
+        end.set("2026-07-20 10:00:20");
+        enumerator.handleSplitRequest(0, null);
+        invoke(task.get(), callback.get());
+        assertThat(discoveries).hasValue(1);
+        enumerator.handleSplitRequest(1, null);
+        invoke(task.get(), callback.get());
+        assertThat(discoveries).hasValue(2);
+        verify(context, times(2)).assignSplit(splits.capture(), eq(0));
+        DorisStreamSplit next = (DorisStreamSplit) splits.getValue();
+        assertThat(next.getStartTimestamp()).isEqualTo("2026-07-20 10:00:10");
+        assertThat(next.getEndTimestamp()).isEqualTo("2026-07-20 10:00:20");
+        assertThat(next.getTabletIds()).containsExactly(100L);
+    }
+
+    @Test
+    void staleSkippedCallbackCannotStartADuplicateDiscovery() throws Exception {
+        AtomicReference<Callable<Tuple2<String, Collection<Long>>>> task = new AtomicReference<>();
+        AtomicReference<BiConsumer<Tuple2<String, Collection<Long>>, Throwable>> callback =
+                new AtomicReference<>();
+        SplitEnumeratorContext<DorisSourceSplit> context =
+                controlledPeriodicContext(task, callback, 0);
+        AtomicInteger calls = new AtomicInteger();
+        DorisSourceEnumerator enumerator =
+                enumerator(
+                        context,
+                        DorisSourceScanMode.LATEST,
+                        () ->
+                                calls.getAndIncrement() == 0
+                                        ? "2026-07-20 10:00:00"
+                                        : "2026-07-20 10:00:10",
+                        Collections.emptyList());
+        enumerator.start();
+        assertThat(task.get().call()).isNull();
+        enumerator.handleSplitRequest(0, null);
+        Tuple2<String, Collection<Long>> discovered = task.get().call();
+        // An earlier skipped poll's handler can arrive while this result is waiting in the
+        // coordinator queue.
+        callback.get().accept(null, null);
+        assertThat(task.get().call()).isNull();
+        assertThat(calls).hasValue(2);
+        callback.get().accept(discovered, null);
+        verify(context).assignSplit(isA(DorisStreamSplit.class), eq(0));
+    }
+
+    @Test
+    void publishesTheCompletedWindowCapturedByTheCheckpoint() throws Exception {
+        AtomicReference<Callable<Tuple2<String, Collection<Long>>>> task = new AtomicReference<>();
+        AtomicReference<BiConsumer<Tuple2<String, Collection<Long>>, Throwable>> callback =
+                new AtomicReference<>();
+        SplitEnumeratorContext<DorisSourceSplit> context =
+                controlledPeriodicContext(task, callback, 0, 1);
+        AtomicReference<String> end = new AtomicReference<>("2026-07-20 10:00:10");
+        DorisSourceCheckpoint checkpoint =
+                new DorisSourceCheckpoint(
+                        DorisSourceCheckpoint.Phase.STREAM,
+                        "2026-07-20 10:00:00",
+                        2,
+                        Collections.emptyList());
+        DorisSourceSplitAssigner assigner =
+                DorisSourceSplitAssigner.restoreForTesting(
+                        readOptions(DorisSourceScanMode.LATEST, null),
+                        checkpoint,
+                        2,
+                        end::get,
+                        () ->
+                                Arrays.asList(
+                                        100L, 101L, 102L, 103L, 104L, 105L, 106L, 107L, 108L,
+                                        109L));
+        DorisOffsetPublisher publisher = mock(DorisOffsetPublisher.class);
+        DorisSourceEnumerator enumerator =
+                new DorisSourceEnumerator(context, assigner, 1000L, publisher);
+        enumerator.start();
+        enumerator.handleSplitRequest(0, null);
+        enumerator.handleSplitRequest(1, null);
+        invoke(task.get(), callback.get());
+
+        enumerator.handleSplitRequest(0, null);
+        enumerator.snapshotState(6L);
+        enumerator.notifyCheckpointComplete(6L);
+        verify(publisher).publish("2026-07-20 10:00:00");
+
+        enumerator.handleSplitRequest(1, null);
+        enumerator.snapshotState(7L);
+        end.set("2026-07-20 10:00:20");
+        invoke(task.get(), callback.get());
+        enumerator.handleSplitRequest(0, null);
+        enumerator.handleSplitRequest(1, null);
+        enumerator.snapshotState(8L);
+        enumerator.notifyCheckpointAborted(8L);
+
+        enumerator.notifyCheckpointComplete(7L);
+        enumerator.notifyCheckpointComplete(6L);
+        enumerator.notifyCheckpointComplete(8L);
+        verify(publisher).publish("2026-07-20 10:00:10");
+        verify(publisher, times(2)).publish(any());
+
+        enumerator.snapshotState(9L);
+        enumerator.notifyCheckpointComplete(9L);
+        verify(publisher).publish("2026-07-20 10:00:20");
+        enumerator.close();
+        verify(publisher).close();
+    }
+
+    @Test
+    void reconfirmsCompletedWindowAfterReturnedSplitsAreReplayed() throws Exception {
+        SplitEnumeratorContext<DorisSourceSplit> context = synchronousContext(0);
+        DorisStreamSplit split = DorisStreamSplit.of("2026-07-20 10:00:00", "2026-07-20 10:00:10");
+        DorisSourceCheckpoint checkpoint =
+                new DorisSourceCheckpoint(
+                        DorisSourceCheckpoint.Phase.STREAM,
+                        "2026-07-20 10:00:10",
+                        1,
+                        Collections.singletonList(split));
+        DorisOffsetPublisher publisher = mock(DorisOffsetPublisher.class);
+        DorisSourceSplitAssigner assigner =
+                DorisSourceSplitAssigner.restoreForTesting(
+                        readOptions(DorisSourceScanMode.LATEST, null),
+                        checkpoint,
+                        1,
+                        () -> "2026-07-20 10:00:10",
+                        () -> Collections.singleton(100L));
+        DorisSourceEnumerator enumerator =
+                new DorisSourceEnumerator(context, assigner, 1000L, publisher);
+        enumerator.handleSplitRequest(0, null);
+        enumerator.handleSplitRequest(0, null);
+        enumerator.snapshotState(7L);
+
+        enumerator.addSplitsBack(Collections.singletonList(split), 0);
+        enumerator.snapshotState(8L);
+        enumerator.notifyCheckpointComplete(7L);
+        enumerator.notifyCheckpointComplete(8L);
+        verify(publisher, never()).publish(any());
+
+        enumerator.handleSplitRequest(0, null);
+        enumerator.handleSplitRequest(0, null);
+        enumerator.snapshotState(9L);
+        enumerator.notifyCheckpointComplete(9L);
+        verify(publisher).publish("2026-07-20 10:00:10");
+        enumerator.close();
+    }
+
+    @Test
+    void serializesOffsetWritesAndCoalescesNewerCompletedCheckpoints() throws Exception {
+        SplitEnumeratorContext<DorisSourceSplit> context = synchronousContext(0);
+        Deque<Runnable> writes = captureOffsetWrites(context);
+        DorisSourceSplitAssigner assigner = mock(DorisSourceSplitAssigner.class);
+        when(assigner.getPhase()).thenReturn(DorisSourceCheckpoint.Phase.STREAM);
+        when(assigner.getNext(0)).thenReturn(Optional.empty());
+        when(assigner.getNextStreamStartTimestamp())
+                .thenReturn("2026-07-20 10:00:10", "2026-07-20 10:00:20", "2026-07-20 10:00:30");
+        DorisOffsetPublisher publisher = mock(DorisOffsetPublisher.class);
+        DorisSourceEnumerator enumerator =
+                new DorisSourceEnumerator(context, assigner, 1000L, publisher);
+
+        for (long checkpointId = 1; checkpointId <= 3; checkpointId++) {
+            enumerator.handleSplitRequest(0, null);
+            enumerator.snapshotState(checkpointId);
+            enumerator.notifyCheckpointComplete(checkpointId);
+        }
+        assertThat(writes).hasSize(1);
+        verify(publisher, never()).publish(any());
+        writes.remove().run();
+        assertThat(writes).hasSize(1);
+        writes.remove().run();
+        assertThat(writes).isEmpty();
+        org.mockito.InOrder order = org.mockito.Mockito.inOrder(publisher);
+        order.verify(publisher).publish("2026-07-20 10:00:10");
+        order.verify(publisher).publish("2026-07-20 10:00:30");
+        verify(publisher, times(2)).publish(any());
+        enumerator.close();
+    }
+
+    @Test
+    void retriesFailedPublicationOnLaterCheckpointAndSkipsQueuedWritesAfterClose()
+            throws Exception {
+        SplitEnumeratorContext<DorisSourceSplit> context = synchronousContext(0);
+        Deque<Runnable> writes = captureOffsetWrites(context);
+        DorisSourceSplitAssigner assigner = mock(DorisSourceSplitAssigner.class);
+        when(assigner.getPhase()).thenReturn(DorisSourceCheckpoint.Phase.STREAM);
+        when(assigner.getNext(0)).thenReturn(Optional.empty());
+        when(assigner.getNextStreamStartTimestamp()).thenReturn("2026-07-20 10:00:10");
+        DorisOffsetPublisher publisher = mock(DorisOffsetPublisher.class);
+        org.mockito.Mockito.doThrow(new java.sql.SQLException("unavailable"))
+                .doNothing()
+                .when(publisher)
+                .publish("2026-07-20 10:00:10");
+        DorisSourceEnumerator enumerator =
+                new DorisSourceEnumerator(context, assigner, 1000L, publisher);
+        enumerator.handleSplitRequest(0, null);
+        enumerator.snapshotState(1L);
+        enumerator.notifyCheckpointComplete(1L);
+        writes.remove().run();
+        assertThat(writes).isEmpty();
+
+        enumerator.snapshotState(2L);
+        enumerator.notifyCheckpointComplete(2L);
+        writes.remove().run();
+        verify(publisher, times(2)).publish("2026-07-20 10:00:10");
+
+        enumerator.snapshotState(3L);
+        enumerator.notifyCheckpointComplete(3L);
+        assertThat(writes).hasSize(1);
+        enumerator.close();
+        writes.remove().run();
+        verify(publisher, times(2)).publish(any());
+        verify(publisher).close();
+        assertThat(writes).isEmpty();
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private static Deque<Runnable> captureOffsetWrites(
+            SplitEnumeratorContext<DorisSourceSplit> context) {
+        Deque<Runnable> writes = new ArrayDeque<>();
+        doAnswer(
+                        invocation -> {
+                            Callable callable = invocation.getArgument(0);
+                            BiConsumer callback = invocation.getArgument(1);
+                            writes.add(() -> invoke(callable, callback));
+                            return null;
+                        })
+                .when(context)
+                .callAsync(any(Callable.class), any(BiConsumer.class));
+        return writes;
+    }
+
     private static DorisSourceEnumerator enumerator(
             SplitEnumeratorContext<DorisSourceSplit> context,
             DorisSourceScanMode mode,
@@ -431,7 +745,8 @@ class DorisHybridSourceEnumeratorTest {
                         testReadOptions,
                         context.currentParallelism(),
                         timestampSupplier,
-                        snapshots);
+                        snapshots,
+                        () -> Collections.singleton(0L));
         return new DorisSourceEnumerator(
                 context, splitAssigner, testReadOptions.getBinlogPollIntervalMs());
     }
@@ -448,7 +763,8 @@ class DorisHybridSourceEnumeratorTest {
                         testReadOptions,
                         checkpoint,
                         context.currentParallelism(),
-                        timestampSupplier);
+                        timestampSupplier,
+                        () -> Collections.singleton(0L));
         return new DorisSourceEnumerator(
                 context, splitAssigner, testReadOptions.getBinlogPollIntervalMs());
     }
@@ -478,6 +794,13 @@ class DorisHybridSourceEnumeratorTest {
         when(context.currentParallelism()).thenReturn(readerIds.length);
         doAnswer(
                         invocation -> {
+                            invoke(invocation.getArgument(0), invocation.getArgument(1));
+                            return null;
+                        })
+                .when(context)
+                .callAsync(any(Callable.class), any(BiConsumer.class));
+        doAnswer(
+                        invocation -> {
                             Callable callable = invocation.getArgument(0);
                             BiConsumer callback = invocation.getArgument(1);
                             invoke(callable, callback);
@@ -490,13 +813,20 @@ class DorisHybridSourceEnumeratorTest {
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     private static SplitEnumeratorContext<DorisSourceSplit> controlledPeriodicContext(
-            AtomicReference<Callable<String>> pollTask,
-            AtomicReference<BiConsumer<String, Throwable>> pollCallback,
+            AtomicReference<Callable<Tuple2<String, Collection<Long>>>> pollTask,
+            AtomicReference<BiConsumer<Tuple2<String, Collection<Long>>, Throwable>> pollCallback,
             int... readerIds) {
         SplitEnumeratorContext<DorisSourceSplit> context = mock(SplitEnumeratorContext.class);
         Map<Integer, ReaderInfo> readers = registeredReaders(readerIds);
         when(context.registeredReaders()).thenReturn(readers);
         when(context.currentParallelism()).thenReturn(readerIds.length);
+        doAnswer(
+                        invocation -> {
+                            invoke(invocation.getArgument(0), invocation.getArgument(1));
+                            return null;
+                        })
+                .when(context)
+                .callAsync(any(Callable.class), any(BiConsumer.class));
         doAnswer(
                         invocation -> {
                             pollTask.set(invocation.getArgument(0));

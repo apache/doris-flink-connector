@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package org.apache.doris.flink.source.reader;
+package org.apache.doris.flink.source.enumerator;
 
 import org.apache.doris.flink.connection.JdbcConnectionProvider;
 import org.apache.doris.flink.exception.DorisRuntimeException;
@@ -29,7 +29,6 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.time.format.ResolverStyle;
 import java.util.Optional;
-import java.util.function.Consumer;
 
 /** Reads startup offsets and publishes completed-checkpoint offsets through Doris JDBC. */
 public class DorisOffsetPublisher implements AutoCloseable {
@@ -124,22 +123,16 @@ public class DorisOffsetPublisher implements AutoCloseable {
         }
     }
 
-    /** Invokes the callback with null on success or the publication error on failure. */
-    public void publish(String offset, Consumer<Exception> callback) {
-        Exception failure = null;
-        try {
-            Connection connection = connectionProvider.getOrEstablishConnection();
-            try (PreparedStatement statement = connection.prepareStatement(insertSql)) {
-                statement.setString(1, consumerId);
-                statement.setString(2, offset);
-                if (statement.executeUpdate() <= 0) {
-                    throw new DorisRuntimeException("Doris offset INSERT did not update a row");
-                }
+    /** Writes a completed-checkpoint offset; the caller owns asynchronous execution and retries. */
+    public void publish(String offset) throws Exception {
+        Connection connection = connectionProvider.getOrEstablishConnection();
+        try (PreparedStatement statement = connection.prepareStatement(insertSql)) {
+            statement.setString(1, consumerId);
+            statement.setString(2, offset);
+            if (statement.executeUpdate() <= 0) {
+                throw new DorisRuntimeException("Doris offset INSERT did not update a row");
             }
-        } catch (Exception error) {
-            failure = error;
         }
-        callback.accept(failure);
     }
 
     private static String quoteIdentifier(String identifier) {

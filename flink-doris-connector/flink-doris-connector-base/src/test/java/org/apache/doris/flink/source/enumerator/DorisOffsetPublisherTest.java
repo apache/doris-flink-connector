@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package org.apache.doris.flink.source.reader;
+package org.apache.doris.flink.source.enumerator;
 
 import org.apache.doris.flink.connection.JdbcConnectionProvider;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,9 +24,7 @@ import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -93,7 +91,7 @@ class DorisOffsetPublisherTest {
                 new DorisOffsetPublisher(
                         connectionProvider, "ops.flink_source_offsets", "prod.sales.orders");
 
-        publisher.publish("2026-07-20 10:00:10", error -> assertThat(error).isNull());
+        publisher.publish("2026-07-20 10:00:10");
 
         verify(connection)
                 .prepareStatement(
@@ -106,30 +104,17 @@ class DorisOffsetPublisherTest {
     }
 
     @Test
-    void reportsEachFailureWithoutThrowing() throws Exception {
-        when(statement.executeUpdate()).thenThrow(new java.sql.SQLException("unavailable"));
+    void propagatesWriteFailureSoTheEnumeratorCanRetry() throws Exception {
+        when(statement.executeUpdate())
+                .thenThrow(new java.sql.SQLException("unavailable"))
+                .thenReturn(1);
         DorisOffsetPublisher publisher =
                 new DorisOffsetPublisher(
                         connectionProvider, "ops.flink_source_offsets", "prod.sales.orders");
 
-        assertThatCode(
-                        () -> {
-                            AtomicInteger failures = new AtomicInteger();
-                            publisher.publish(
-                                    "2026-07-20 10:00:10",
-                                    error -> {
-                                        assertThat(error).isInstanceOf(java.sql.SQLException.class);
-                                        failures.incrementAndGet();
-                                    });
-                            publisher.publish(
-                                    "2026-07-20 10:00:10",
-                                    error -> {
-                                        assertThat(error).isInstanceOf(java.sql.SQLException.class);
-                                        failures.incrementAndGet();
-                                    });
-                            assertThat(failures.get()).isEqualTo(2);
-                        })
-                .doesNotThrowAnyException();
+        assertThatThrownBy(() -> publisher.publish("2026-07-20 10:00:10"))
+                .isInstanceOf(java.sql.SQLException.class);
+        publisher.publish("2026-07-20 10:00:10");
         verify(statement, times(2)).executeUpdate();
     }
 }

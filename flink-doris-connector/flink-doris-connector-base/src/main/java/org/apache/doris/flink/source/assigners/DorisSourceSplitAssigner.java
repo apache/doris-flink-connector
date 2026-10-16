@@ -18,15 +18,17 @@
 package org.apache.doris.flink.source.assigners;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.java.tuple.Tuple2;
 
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.connection.SimpleJdbcConnectionProvider;
+import org.apache.doris.flink.exception.DorisException;
 import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.source.DorisSourceScanMode;
+import org.apache.doris.flink.source.enumerator.DorisOffsetPublisher;
 import org.apache.doris.flink.source.enumerator.DorisSourceCheckpoint;
-import org.apache.doris.flink.source.reader.DorisOffsetPublisher;
 import org.apache.doris.flink.source.split.DorisSnapshotSplit;
 import org.apache.doris.flink.source.split.DorisSourceSplit;
 import org.apache.doris.flink.source.split.DorisStreamSplit;
@@ -67,7 +69,8 @@ public class DorisSourceSplitAssigner {
                 sourceParallelism,
                 currentTimestampSupplier,
                 snapshotSplitAssigner,
-                externalOffset);
+                externalOffset,
+                tabletSupplier(options, readOptions));
     }
 
     private static Optional<String> readExternalOffset(
@@ -100,7 +103,8 @@ public class DorisSourceSplitAssigner {
                 readOptions,
                 checkpoint,
                 sourceParallelism,
-                () -> RestService.resolveCurrentTimestamp(options, readOptions, LOG));
+                () -> RestService.resolveCurrentTimestamp(options, readOptions, LOG),
+                tabletSupplier(options, readOptions));
     }
 
     @VisibleForTesting
@@ -108,7 +112,8 @@ public class DorisSourceSplitAssigner {
             DorisReadOptions readOptions,
             int sourceParallelism,
             Supplier<String> currentTimestampSupplier,
-            Collection<DorisSnapshotSplit> snapshotSplits) {
+            Collection<DorisSnapshotSplit> snapshotSplits,
+            Supplier<Collection<Long>> tabletSupplier) {
         DorisSnapshotSplitAssigner snapshotSplitAssigner =
                 readOptions.getScanMode().isSnapshotPhaseRequired()
                         ? new DorisSnapshotSplitAssigner(snapshotSplits)
@@ -118,7 +123,8 @@ public class DorisSourceSplitAssigner {
                 sourceParallelism,
                 currentTimestampSupplier,
                 snapshotSplitAssigner,
-                null);
+                null,
+                tabletSupplier);
     }
 
     @VisibleForTesting
@@ -126,8 +132,14 @@ public class DorisSourceSplitAssigner {
             DorisReadOptions readOptions,
             DorisSourceCheckpoint checkpoint,
             int sourceParallelism,
-            Supplier<String> currentTimestampSupplier) {
-        return restore(readOptions, checkpoint, sourceParallelism, currentTimestampSupplier);
+            Supplier<String> currentTimestampSupplier,
+            Supplier<Collection<Long>> tabletSupplier) {
+        return restore(
+                readOptions,
+                checkpoint,
+                sourceParallelism,
+                currentTimestampSupplier,
+                tabletSupplier);
     }
 
     private static DorisSourceSplitAssigner create(
@@ -135,7 +147,8 @@ public class DorisSourceSplitAssigner {
             int sourceParallelism,
             Supplier<String> currentTimestampSupplier,
             DorisSnapshotSplitAssigner snapshotSplitAssigner,
-            @Nullable String externalOffset) {
+            @Nullable String externalOffset,
+            Supplier<Collection<Long>> tabletSupplier) {
         DorisSourceScanMode scanMode = readOptions.getScanMode();
         DorisStreamSplitAssigner streamAssigner = null;
         if (scanMode.hasIncrementalPhase()) {
@@ -148,7 +161,11 @@ public class DorisSourceSplitAssigner {
             }
             streamAssigner =
                     new DorisStreamSplitAssigner(
-                            startTimestamp, Collections.emptyList(), currentTimestampSupplier);
+                            startTimestamp,
+                            Collections.emptyList(),
+                            currentTimestampSupplier,
+                            tabletSupplier,
+                            sourceParallelism);
         }
         DorisSourceCheckpoint.Phase phase =
                 externalOffset == null && scanMode.isSnapshotPhaseRequired()
@@ -170,18 +187,10 @@ public class DorisSourceSplitAssigner {
             DorisReadOptions readOptions,
             DorisSourceCheckpoint checkpoint,
             int sourceParallelism,
-            Supplier<String> currentTimestampSupplier) {
+            Supplier<String> currentTimestampSupplier,
+            Supplier<Collection<Long>> tabletSupplier) {
         DorisSourceScanMode scanMode = readOptions.getScanMode();
         DorisSourceCheckpoint.Phase phase = checkpoint.getPhase();
-        if (phase == DorisSourceCheckpoint.Phase.STREAM
-                && checkpoint.getSourceParallelism() != sourceParallelism) {
-            throw new DorisRuntimeException(
-                    "Doris stream source does not support restoring with a different parallelism: "
-                            + checkpoint.getSourceParallelism()
-                            + " -> "
-                            + sourceParallelism);
-        }
-
         List<DorisSnapshotSplit> snapshotSplits = new ArrayList<>();
         List<DorisStreamSplit> streamSplits = new ArrayList<>();
         for (DorisSourceSplit split : checkpoint.getPendingSplits()) {
@@ -203,7 +212,9 @@ public class DorisSourceSplitAssigner {
                     new DorisStreamSplitAssigner(
                             checkpoint.getNextStreamStartTimestamp(),
                             streamSplits,
-                            currentTimestampSupplier);
+                            currentTimestampSupplier,
+                            tabletSupplier,
+                            sourceParallelism);
         }
         DorisSourceSplitAssigner assigner =
                 new DorisSourceSplitAssigner(
@@ -234,6 +245,20 @@ public class DorisSourceSplitAssigner {
             return snapshotSplitAssigner.getNext().map(split -> split);
         }
         return getStreamAssigner().getNext().map(split -> split);
+    }
+
+    public Optional<DorisSourceSplit> getNext(int readerId) {
+        return phase == DorisSourceCheckpoint.Phase.SNAPSHOT
+                ? getNext()
+                : getStreamAssigner().getNext(readerId).map(split -> split);
+    }
+
+    public boolean hasPendingStreamSplits() {
+        return getStreamAssigner().hasPendingSplits();
+    }
+
+    public String getNextStreamStartTimestamp() {
+        return getStreamAssigner().getNextStreamStartTimestamp();
     }
 
     public void addSplits(Collection<DorisSourceSplit> splits) {
@@ -282,14 +307,25 @@ public class DorisSourceSplitAssigner {
         return snapshotSplitAssigner.hasPendingSplits();
     }
 
-    public String discoverNextStreamEndTimestamp() {
+    public Tuple2<String, Collection<Long>> discoverNextStreamEndTimestamp() {
         return getStreamAssigner().discoverNextStreamEndTimestamp();
     }
 
-    public void onDiscoveredEndTimestamp(String endTimestamp) {
+    public void onDiscoveredEndTimestamp(Tuple2<String, Collection<Long>> discovery) {
         if (phase == DorisSourceCheckpoint.Phase.STREAM) {
-            getStreamAssigner().onDiscoveredEndTimestamp(endTimestamp);
+            getStreamAssigner().onDiscoveredEndTimestamp(discovery);
         }
+    }
+
+    private static Supplier<Collection<Long>> tabletSupplier(
+            DorisOptions options, DorisReadOptions readOptions) {
+        return () -> {
+            try {
+                return RestService.findIncrementalTablets(options, readOptions, LOG);
+            } catch (DorisException e) {
+                throw new DorisRuntimeException("Failed to discover incremental tablets", e);
+            }
+        };
     }
 
     /** Switches the assigner to the Stream phase at the resolved start timestamp. */

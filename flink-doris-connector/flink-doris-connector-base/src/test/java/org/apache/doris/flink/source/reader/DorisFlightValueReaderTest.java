@@ -169,6 +169,23 @@ class DorisFlightValueReaderTest {
     }
 
     @Test
+    void restrictsIncrementalQueryToItsAssignedTablets() {
+        DorisOptions options =
+                DorisOptions.builder()
+                        .setFenodes("127.0.0.1:8030")
+                        .setTableIdentifier("sales.orders")
+                        .build();
+        DorisReadOptions readOptions = DorisReadOptions.builder().build();
+        DorisStreamSplit split =
+                DorisStreamSplit.of(
+                        "2026-07-20 10:00:00", "2026-07-20 10:00:10", Arrays.asList(103L, 101L));
+        assertThat(
+                        DorisFlightValueReader.buildIncrementalSql(
+                                options, readOptions, split, DorisBinlogIncrementType.DETAIL))
+                .contains("TABLET(101,103) ORDER BY");
+    }
+
+    @Test
     void buildsExplicitOrderedIncrementalSql() {
         DorisOptions options =
                 DorisOptions.builder()

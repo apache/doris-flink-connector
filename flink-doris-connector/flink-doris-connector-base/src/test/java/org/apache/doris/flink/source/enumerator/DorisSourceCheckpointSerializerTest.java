@@ -73,6 +73,54 @@ class DorisSourceCheckpointSerializerTest {
     }
 
     @Test
+    void roundTripsAllPendingTabletGroups() throws Exception {
+        DorisStreamSplit first =
+                DorisStreamSplit.of(
+                        "2026-07-20 10:00:00", "2026-07-20 10:00:10", Arrays.asList(100L, 102L));
+        DorisStreamSplit second =
+                DorisStreamSplit.of(
+                        "2026-07-20 10:00:00", "2026-07-20 10:00:10", Arrays.asList(101L));
+        DorisSourceCheckpoint checkpoint =
+                new DorisSourceCheckpoint(
+                        DorisSourceCheckpoint.Phase.STREAM,
+                        "2026-07-20 10:00:10",
+                        2,
+                        Arrays.asList(first, second));
+        assertThat(
+                        serializer.deserialize(
+                                serializer.getVersion(), serializer.serialize(checkpoint)))
+                .isEqualTo(checkpoint);
+    }
+
+    @Test
+    void restoresVersionThreeEnumeratorAndPendingStreamState() throws Exception {
+        java.io.ByteArrayOutputStream splitBytes = new java.io.ByteArrayOutputStream();
+        try (java.io.DataOutputStream out = new java.io.DataOutputStream(splitBytes)) {
+            out.writeByte(1);
+            out.writeUTF("old-stream");
+            out.writeUTF("2026-07-20 10:00:00");
+            out.writeUTF("2026-07-20 10:00:10");
+        }
+        java.io.ByteArrayOutputStream bytes = new java.io.ByteArrayOutputStream();
+        try (java.io.DataOutputStream out = new java.io.DataOutputStream(bytes)) {
+            out.writeByte(DorisSourceCheckpoint.Phase.STREAM.ordinal());
+            out.writeBoolean(true);
+            out.writeUTF("2026-07-20 10:00:10");
+            out.writeInt(2);
+            out.writeInt(3);
+            out.writeInt(1);
+            out.writeInt(splitBytes.size());
+            out.write(splitBytes.toByteArray());
+        }
+        DorisSourceCheckpoint restored = serializer.deserialize(3, bytes.toByteArray());
+        assertThat(restored.getNextStreamStartTimestamp()).isEqualTo("2026-07-20 10:00:10");
+        assertThat(restored.getSourceParallelism()).isEqualTo(2);
+        DorisStreamSplit pending = (DorisStreamSplit) restored.getPendingSplits().get(0);
+        assertThat(pending.getTabletIds()).isEmpty();
+        assertThat(pending.getStartTimestamp()).isEqualTo("2026-07-20 10:00:00");
+    }
+
+    @Test
     void rejectsUnknownVersion() {
         assertThatThrownBy(() -> serializer.deserialize(99, new byte[0]))
                 .isInstanceOf(IOException.class)

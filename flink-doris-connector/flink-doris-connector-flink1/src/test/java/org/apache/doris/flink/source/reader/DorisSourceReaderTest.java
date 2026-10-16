@@ -18,6 +18,7 @@
 package org.apache.doris.flink.source.reader;
 
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
+import org.apache.flink.connector.base.source.reader.fetcher.SingleThreadFetcherManager;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 
 import org.apache.doris.flink.cfg.DorisOptions;
@@ -45,8 +46,8 @@ public class DorisSourceReaderTest {
                 new FutureCompletingBlockingQueue<>();
         return new DorisSourceReader<>(
                 elementsQueue,
-                new DorisSourceFetcherManager(elementsQueue, options, readOptions),
-                readOptions,
+                new SingleThreadFetcherManager<>(
+                        elementsQueue, () -> new DorisSourceSplitReader(options, readOptions)),
                 new DorisRecordEmitter<>(new SimpleListDeserializationSchema()),
                 context,
                 context.getConfiguration());
