@@ -34,7 +34,7 @@ import java.util.Set;
 public class DorisSourceSplitSerializer implements SimpleVersionedSerializer<DorisSourceSplit> {
     public static final DorisSourceSplitSerializer INSTANCE = new DorisSourceSplitSerializer();
 
-    private static final int VERSION = 3;
+    private static final int VERSION = 5;
     private static final byte SNAPSHOT_KIND = 0;
     private static final byte STREAM_KIND = 1;
 
@@ -62,7 +62,7 @@ public class DorisSourceSplitSerializer implements SimpleVersionedSerializer<Dor
 
     @Override
     public DorisSourceSplit deserialize(int version, byte[] serialized) throws IOException {
-        if (version != VERSION) {
+        if (version != 3 && version != 4 && version != VERSION) {
             throw new IOException("Unknown version: " + version);
         }
         try (DataInputStream in = new DataInputStream(new ByteArrayInputStream(serialized))) {
@@ -71,7 +71,7 @@ public class DorisSourceSplitSerializer implements SimpleVersionedSerializer<Dor
                 return readSnapshot(in);
             }
             if (kind == STREAM_KIND) {
-                return readStream(in);
+                return readStream(in, version);
             }
             throw new IOException("Unknown Doris source split kind: " + kind);
         }
@@ -126,11 +126,32 @@ public class DorisSourceSplitSerializer implements SimpleVersionedSerializer<Dor
         out.writeUTF(split.splitId());
         out.writeUTF(split.getStartTimestamp());
         out.writeUTF(split.getEndTimestamp());
+        out.writeInt(split.getTabletIds().size());
+        for (Long tabletId : split.getTabletIds()) {
+            out.writeLong(tabletId);
+        }
     }
 
-    private static DorisStreamSplit readStream(DataInputStream in) throws IOException {
+    private static DorisStreamSplit readStream(DataInputStream in, int version) throws IOException {
         try {
-            return new DorisStreamSplit(in.readUTF(), in.readUTF(), in.readUTF());
+            String id = in.readUTF();
+            String start = in.readUTF();
+            String end = in.readUTF();
+            if (version == 3) {
+                return new DorisStreamSplit(id, start, end);
+            }
+            if (version == 4) {
+                in.readInt(); // Discard the former reader assignment.
+            }
+            int count = in.readInt();
+            if (count < 0) {
+                throw new IOException("Negative tablet count: " + count);
+            }
+            Set<Long> tablets = new LinkedHashSet<>();
+            for (int i = 0; i < count; i++) {
+                tablets.add(in.readLong());
+            }
+            return new DorisStreamSplit(id, start, end, tablets);
         } catch (IllegalArgumentException e) {
             throw new IOException("Invalid stream split", e);
         }

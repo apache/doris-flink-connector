@@ -216,24 +216,29 @@ public class DorisFlightValueReader extends ValueReader implements AutoCloseable
             DorisReadOptions readOptions,
             DorisStreamSplit split,
             DorisBinlogIncrementType incrementType) {
-        String[] tableIdentifiers = parseIdentifier(options);
         String readFields =
                 StringUtils.isBlank(readOptions.getReadFields())
                         ? "*"
                         : readOptions.getReadFields();
         String sql =
-                PREFIX
-                        + " SELECT "
-                        + readFields
-                        + ", __DORIS_BINLOG_TSO__, __DORIS_BINLOG_LSN__, __DORIS_BINLOG_OP__ FROM "
-                        + quoteTable(tableIdentifiers)
-                        + "@incr('startTimestamp' = "
-                        + quoteLiteral(split.getStartTimestamp())
-                        + ", 'endTimestamp' = "
-                        + quoteLiteral(split.getEndTimestamp())
-                        + ", 'incrementType' = "
-                        + quoteLiteral(incrementType.toSqlValue())
-                        + ") ORDER BY __DORIS_BINLOG_TSO__, __DORIS_BINLOG_LSN__, __DORIS_BINLOG_OP__";
+                String.format(
+                        "%s SELECT %s, __DORIS_BINLOG_TSO__, __DORIS_BINLOG_LSN__, __DORIS_BINLOG_OP__ "
+                                + "FROM %s@incr('startTimestamp' = %s, 'endTimestamp' = %s, 'incrementType' = %s)",
+                        PREFIX,
+                        readFields,
+                        quoteTable(parseIdentifier(options)),
+                        quoteLiteral(split.getStartTimestamp()),
+                        quoteLiteral(split.getEndTimestamp()),
+                        quoteLiteral(incrementType.toSqlValue()));
+        if (!split.getTabletIds().isEmpty()) {
+            sql +=
+                    " TABLET("
+                            + split.getTabletIds().stream()
+                                    .map(String::valueOf)
+                                    .collect(Collectors.joining(","))
+                            + ")";
+        }
+        sql += " ORDER BY __DORIS_BINLOG_TSO__, __DORIS_BINLOG_LSN__, __DORIS_BINLOG_OP__";
         LOG.debug("Query SQL Sending to Doris FE is: '{}'.", sql);
         return sql;
     }

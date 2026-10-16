@@ -67,10 +67,6 @@ public final class DorisSourceCheckpoint {
             throw new IllegalArgumentException(
                     "Stream checkpoint is missing next stream start timestamp");
         }
-        if (phase == Phase.STREAM && this.pendingSplits.size() > 1) {
-            throw new IllegalArgumentException(
-                    "Stream checkpoint supports at most one pending split");
-        }
     }
 
     public Phase getPhase() {

@@ -21,6 +21,8 @@ import org.apache.doris.flink.rest.PartitionDefinition;
 import org.apache.doris.flink.sink.OptionUtils;
 import org.junit.jupiter.api.Test;
 
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.Collections;
 
@@ -67,6 +69,53 @@ class DorisSourceSplitSerializerTest {
                 .isEqualTo(
                         "DorisStreamSplit{stream-20260720100000-20260720100010, [2026-07-20 10:00:00, 2026-07-20 10:00:10)}");
         assertThat(roundTrip(split)).isEqualTo(split);
+    }
+
+    @Test
+    void retainsTabletGroupAcrossRestore() throws Exception {
+        DorisStreamSplit split =
+                DorisStreamSplit.of(
+                        "2026-07-20 10:00:00",
+                        "2026-07-20 10:00:10",
+                        java.util.Arrays.asList(101L, 103L));
+        DorisStreamSplit restored = (DorisStreamSplit) roundTrip(split);
+        assertThat(restored.getTabletIds()).containsExactly(101L, 103L);
+        assertThat(restored).isEqualTo(split);
+    }
+
+    @Test
+    void restoresVersionFourTabletGroupWithoutReaderAssignment() throws Exception {
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        try (DataOutputStream out = new DataOutputStream(bytes)) {
+            out.writeByte(1);
+            out.writeUTF("stream-old-group");
+            out.writeUTF("2026-07-20 10:00:00");
+            out.writeUTF("2026-07-20 10:00:10");
+            out.writeInt(7);
+            out.writeInt(2);
+            out.writeLong(100L);
+            out.writeLong(102L);
+        }
+        DorisStreamSplit restored =
+                (DorisStreamSplit) serializer.deserialize(4, bytes.toByteArray());
+        assertThat(restored.splitId()).isEqualTo("stream-old-group");
+        assertThat(restored.getTabletIds()).containsExactly(100L, 102L);
+        assertThat(roundTrip(restored)).isEqualTo(restored);
+    }
+
+    @Test
+    void restoresVersionThreeUnrestrictedStreamSplit() throws Exception {
+        java.io.ByteArrayOutputStream bytes = new java.io.ByteArrayOutputStream();
+        try (java.io.DataOutputStream out = new java.io.DataOutputStream(bytes)) {
+            out.writeByte(1);
+            out.writeUTF("old-stream");
+            out.writeUTF("2026-07-20 10:00:00");
+            out.writeUTF("2026-07-20 10:00:10");
+        }
+        DorisStreamSplit restored =
+                (DorisStreamSplit) serializer.deserialize(3, bytes.toByteArray());
+        assertThat(restored.getTabletIds()).isEmpty();
+        assertThat(restored.getEndTimestamp()).isEqualTo("2026-07-20 10:00:10");
     }
 
     @Test
