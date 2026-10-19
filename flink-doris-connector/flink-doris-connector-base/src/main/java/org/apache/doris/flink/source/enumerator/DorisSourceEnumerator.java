@@ -32,7 +32,6 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 import java.util.NavigableMap;
 import java.util.Optional;
 import java.util.Set;
@@ -196,10 +195,14 @@ public class DorisSourceEnumerator
 
     @Override
     public void notifyCheckpointComplete(long checkpointId) {
-        Map.Entry<Long, String> offset = checkpointOffsets.floorEntry(checkpointId);
+        String offset = checkpointOffsets.get(checkpointId);
         if (offset != null) {
-            pendingOffset = offset.getValue();
+            pendingOffset = offset;
             checkpointOffsets.headMap(checkpointId, true).clear();
+            LOG.debug(
+                    "Checkpoint {} completed; Doris source offset {} is pending publication",
+                    checkpointId,
+                    offset);
         }
         publishPendingOffset();
         if (!shouldEnterStreamPhase(checkpointId)) {
