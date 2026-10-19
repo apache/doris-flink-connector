@@ -32,7 +32,7 @@ import java.util.List;
 /** Serializer for complete Doris source enumerator checkpoints. */
 public final class DorisSourceCheckpointSerializer
         implements SimpleVersionedSerializer<DorisSourceCheckpoint> {
-    private static final int VERSION = 3;
+    private static final int VERSION = 4;
 
     private final SimpleVersionedSerializer<DorisSourceSplit> splitSerializer;
 
@@ -52,7 +52,6 @@ public final class DorisSourceCheckpointSerializer
         try (DataOutputStream out = new DataOutputStream(bytes)) {
             out.writeByte(checkpoint.getPhase().ordinal());
             writeNullableString(out, checkpoint.getNextStreamStartTimestamp());
-            out.writeInt(checkpoint.getSourceParallelism());
             out.writeInt(splitSerializer.getVersion());
             out.writeInt(checkpoint.getPendingSplits().size());
             for (DorisSourceSplit split : checkpoint.getPendingSplits()) {
@@ -74,7 +73,6 @@ public final class DorisSourceCheckpointSerializer
                 throw new IOException("Unknown checkpoint phase: " + phaseOrdinal);
             }
             String nextStreamStartTimestamp = readNullableString(in);
-            int sourceParallelism = in.readInt();
             int splitVersion = in.readInt();
             int pendingCount = readCount(in, "pending split");
             List<DorisSourceSplit> pendingSplits = new ArrayList<>(pendingCount);
@@ -82,10 +80,7 @@ public final class DorisSourceCheckpointSerializer
                 pendingSplits.add(readSplit(in, splitVersion));
             }
             return new DorisSourceCheckpoint(
-                    phases[phaseOrdinal],
-                    nextStreamStartTimestamp,
-                    sourceParallelism,
-                    pendingSplits);
+                    phases[phaseOrdinal], nextStreamStartTimestamp, pendingSplits);
         } catch (IllegalArgumentException e) {
             throw new IOException("Invalid Doris source checkpoint", e);
         }

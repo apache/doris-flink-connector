@@ -178,7 +178,7 @@ class DorisFlightValueReaderTest {
         DorisReadOptions readOptions = DorisReadOptions.builder().build();
         DorisStreamSplit split =
                 DorisStreamSplit.of(
-                        "2026-07-20 10:00:00", "2026-07-20 10:00:10", Arrays.asList(103L, 101L));
+                        0, "2026-07-20 10:00:00", "2026-07-20 10:00:10", Arrays.asList(103L, 101L));
         assertThat(
                         DorisFlightValueReader.buildIncrementalSql(
                                 options, readOptions, split, DorisBinlogIncrementType.DETAIL))
@@ -193,7 +193,12 @@ class DorisFlightValueReaderTest {
                         .setTableIdentifier("sales.orders")
                         .build();
         DorisReadOptions readOptions = DorisReadOptions.builder().setReadFields("`id`").build();
-        DorisStreamSplit split = DorisStreamSplit.of("2026-07-20 10:00:00", "2026-07-20 10:00:10");
+        DorisStreamSplit split =
+                DorisStreamSplit.of(
+                        0,
+                        "2026-07-20 10:00:00",
+                        "2026-07-20 10:00:10",
+                        Collections.singleton(100L));
 
         String sql =
                 DorisFlightValueReader.buildIncrementalSql(

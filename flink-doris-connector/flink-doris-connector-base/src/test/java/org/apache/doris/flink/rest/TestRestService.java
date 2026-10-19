@@ -294,15 +294,23 @@ public class TestRestService {
             DorisReadOptions readOptions = DorisReadOptions.builder().setRequestRetries(2).build();
             Assert.assertEquals(
                     new java.util.TreeSet<>(Arrays.asList(100L, 101L)),
-                    RestService.findIncrementalTablets(options, readOptions, logger));
+                    RestService.findIncrementalTablets(
+                            options,
+                            readOptions,
+                            "2026-07-20 10:00:00",
+                            "2026-07-20 10:00:10",
+                            logger));
             Assert.assertEquals(2, planAttempts.get());
-            RestService.findIncrementalTablets(options, readOptions, logger);
+            RestService.findIncrementalTablets(
+                    options, readOptions, "2026-07-20 10:00:00", "2026-07-20 10:00:10", logger);
             Assert.assertEquals(0, masterLookups.get());
             Assert.assertEquals(
                     Arrays.asList("forward=true", "forward=true", "forward=true"), queryParameters);
             Assert.assertEquals(Arrays.asList("POST", "POST", "POST"), methods);
             Assert.assertEquals(
-                    "SELECT * FROM `db`.`orders`@incr('incrementType' = 'DETAIL')", query.get());
+                    "SELECT * FROM `db`.`orders`@incr('startTimestamp' = '2026-07-20 10:00:00', "
+                            + "'endTimestamp' = '2026-07-20 10:00:10', 'incrementType' = 'DETAIL')",
+                    query.get());
             readOptions.setFilterQuery("name = 'a\"b'");
             Assert.assertEquals(2, RestService.findPartitions(options, readOptions, logger).size());
             Assert.assertNull(queryParameters.get(3));

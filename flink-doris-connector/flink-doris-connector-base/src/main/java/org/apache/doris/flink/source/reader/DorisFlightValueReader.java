@@ -220,24 +220,25 @@ public class DorisFlightValueReader extends ValueReader implements AutoCloseable
                 StringUtils.isBlank(readOptions.getReadFields())
                         ? "*"
                         : readOptions.getReadFields();
+        // TODO: Remove the hint after Doris fixes partition pruning for row-binlog tablet IDs.
         String sql =
                 String.format(
-                        "%s SELECT %s, __DORIS_BINLOG_TSO__, __DORIS_BINLOG_LSN__, __DORIS_BINLOG_OP__ "
-                                + "FROM %s@incr('startTimestamp' = %s, 'endTimestamp' = %s, 'incrementType' = %s)",
+                        "%s SELECT /*+ SET_VAR(disable_nereids_rules='OLAP_SCAN_PARTITION_PRUNE') */ "
+                                + "%s, __DORIS_BINLOG_TSO__, __DORIS_BINLOG_LSN__, __DORIS_BINLOG_OP__ "
+                                + "FROM %s",
                         PREFIX,
                         readFields,
-                        quoteTable(parseIdentifier(options)),
-                        quoteLiteral(split.getStartTimestamp()),
-                        quoteLiteral(split.getEndTimestamp()),
-                        quoteLiteral(incrementType.toSqlValue()));
-        if (!split.getTabletIds().isEmpty()) {
-            sql +=
-                    " TABLET("
-                            + split.getTabletIds().stream()
-                                    .map(String::valueOf)
-                                    .collect(Collectors.joining(","))
-                            + ")";
-        }
+                        RestService.buildIncrementalScan(
+                                quoteTable(parseIdentifier(options)),
+                                split.getStartTimestamp(),
+                                split.getEndTimestamp(),
+                                incrementType));
+        sql +=
+                " TABLET("
+                        + split.getTabletIds().stream()
+                                .map(String::valueOf)
+                                .collect(Collectors.joining(","))
+                        + ")";
         sql += " ORDER BY __DORIS_BINLOG_TSO__, __DORIS_BINLOG_LSN__, __DORIS_BINLOG_OP__";
         LOG.debug("Query SQL Sending to Doris FE is: '{}'.", sql);
         return sql;
@@ -247,10 +248,6 @@ public class DorisFlightValueReader extends ValueReader implements AutoCloseable
         return Arrays.stream(identifiers)
                 .map(value -> "`" + value.replace("`", "``") + "`")
                 .collect(Collectors.joining("."));
-    }
-
-    private static String quoteLiteral(String value) {
-        return "'" + value.replace("'", "''") + "'";
     }
 
     private static String[] parseIdentifier(DorisOptions options) {

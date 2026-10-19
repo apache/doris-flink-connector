@@ -66,7 +66,7 @@ public class DorisSourceReader<T>
 
     @Override
     protected DorisSourceSplitState initializedState(DorisSourceSplit split) {
-        LOG.info("Initialized reader state for split: {}", split);
+        LOG.info("Initialized reader {} state for split: {}", context.getIndexOfSubtask(), split);
         return new DorisSourceSplitState(split);
     }
 

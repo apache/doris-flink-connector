@@ -30,6 +30,8 @@ import org.apache.doris.flink.source.split.DorisSnapshotSplit;
 import org.apache.doris.flink.source.split.DorisSourceSplit;
 import org.apache.doris.flink.source.split.DorisStreamSplit;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 
 import java.util.ArrayDeque;
@@ -225,7 +227,6 @@ class DorisHybridSourceEnumeratorTest {
                 new DorisSourceCheckpoint(
                         DorisSourceCheckpoint.Phase.STREAM,
                         "2026-07-20 10:00:00",
-                        1,
                         Collections.emptyList());
         DorisSourceEnumerator enumerator =
                 restoredEnumerator(
@@ -245,7 +246,7 @@ class DorisHybridSourceEnumeratorTest {
     }
 
     @Test
-    void restoresSnapshotCheckpointWithoutPlanningAndAllowsRescale() {
+    void restoresSnapshotCheckpointWithoutPlanning() {
         SplitEnumeratorContext<DorisSourceSplit> context = synchronousContext(0);
         DorisSnapshotSplit snapshot = snapshot("snapshot-restored");
         AtomicInteger timestampCalls = new AtomicInteger();
@@ -253,7 +254,6 @@ class DorisHybridSourceEnumeratorTest {
                 new DorisSourceCheckpoint(
                         DorisSourceCheckpoint.Phase.SNAPSHOT,
                         "2026-07-20 10:00:00",
-                        2,
                         Collections.singletonList(snapshot));
         DorisSourceEnumerator enumerator =
                 restoredEnumerator(
@@ -270,7 +270,6 @@ class DorisHybridSourceEnumeratorTest {
 
         verify(context).assignSplit(snapshot, 0);
         assertThat(timestampCalls).hasValue(0);
-        assertThat(enumerator.snapshotState(1L).getSourceParallelism()).isEqualTo(1);
     }
 
     @Test
@@ -282,12 +281,15 @@ class DorisHybridSourceEnumeratorTest {
         SplitEnumeratorContext<DorisSourceSplit> context =
                 controlledPeriodicContext(pollTask, pollCallback, 0);
         DorisStreamSplit pending =
-                DorisStreamSplit.of("2026-07-20 10:00:00", "2026-07-20 10:00:10");
+                DorisStreamSplit.of(
+                        0,
+                        "2026-07-20 10:00:00",
+                        "2026-07-20 10:00:10",
+                        Collections.singleton(100L));
         DorisSourceCheckpoint checkpoint =
                 new DorisSourceCheckpoint(
                         DorisSourceCheckpoint.Phase.STREAM,
                         "2026-07-20 10:00:10",
-                        1,
                         Collections.singletonList(pending));
         AtomicInteger timestampCalls = new AtomicInteger();
         DorisSourceEnumerator enumerator =
@@ -322,15 +324,20 @@ class DorisHybridSourceEnumeratorTest {
                 controlledPeriodicContext(task, callback, 0, 1);
         DorisStreamSplit first =
                 DorisStreamSplit.of(
-                        "2026-07-20 10:00:00", "2026-07-20 10:00:10", Collections.singleton(100L));
+                        0,
+                        "2026-07-20 10:00:00",
+                        "2026-07-20 10:00:10",
+                        Collections.singleton(100L));
         DorisStreamSplit second =
                 DorisStreamSplit.of(
-                        "2026-07-20 10:00:00", "2026-07-20 10:00:10", Collections.singleton(102L));
+                        1,
+                        "2026-07-20 10:00:00",
+                        "2026-07-20 10:00:10",
+                        Collections.singleton(102L));
         DorisSourceCheckpoint checkpoint =
                 new DorisSourceCheckpoint(
                         DorisSourceCheckpoint.Phase.STREAM,
                         "2026-07-20 10:00:10",
-                        4,
                         Arrays.asList(first, second));
         AtomicInteger discoveries = new AtomicInteger();
         DorisSourceSplitAssigner assigner =
@@ -342,7 +349,7 @@ class DorisHybridSourceEnumeratorTest {
                             discoveries.incrementAndGet();
                             return "2026-07-20 10:00:20";
                         },
-                        () -> Arrays.asList(100L, 102L, 103L));
+                        (startTimestamp, endTimestamp) -> Arrays.asList(100L, 102L, 103L));
         DorisSourceEnumerator enumerator = new DorisSourceEnumerator(context, assigner, 1000L);
         enumerator.start();
         enumerator.handleSplitRequest(0, null);
@@ -398,12 +405,16 @@ class DorisHybridSourceEnumeratorTest {
 
     @Test
     void returnedStreamSplitDoesNotMoveCursorBack() {
-        DorisStreamSplit first = DorisStreamSplit.of("2026-07-20 10:00:00", "2026-07-20 10:00:10");
+        DorisStreamSplit first =
+                DorisStreamSplit.of(
+                        0,
+                        "2026-07-20 10:00:00",
+                        "2026-07-20 10:00:10",
+                        Collections.singleton(100L));
         DorisSourceCheckpoint checkpoint =
                 new DorisSourceCheckpoint(
                         DorisSourceCheckpoint.Phase.STREAM,
                         "2026-07-20 10:00:10",
-                        1,
                         Collections.singletonList(first));
         DorisSourceSplitAssigner assigner =
                 DorisSourceSplitAssigner.restore(
@@ -484,7 +495,6 @@ class DorisHybridSourceEnumeratorTest {
                 new DorisSourceCheckpoint(
                         DorisSourceCheckpoint.Phase.STREAM,
                         "2026-07-20 10:00:00",
-                        2,
                         Collections.emptyList());
         DorisSourceSplitAssigner assigner =
                 DorisSourceSplitAssigner.restoreForTesting(
@@ -492,7 +502,7 @@ class DorisHybridSourceEnumeratorTest {
                         checkpoint,
                         2,
                         end::get,
-                        () -> {
+                        (startTimestamp, endTimestamp) -> {
                             discoveries.incrementAndGet();
                             return Arrays.asList(100L, 103L);
                         });
@@ -554,6 +564,82 @@ class DorisHybridSourceEnumeratorTest {
     }
 
     @Test
+    void replaysOlderWindowsBeforeApplyingDiscoveryOrPublishingOffsets() throws Exception {
+        AtomicReference<Callable<Tuple2<String, Collection<Long>>>> task = new AtomicReference<>();
+        AtomicReference<BiConsumer<Tuple2<String, Collection<Long>>, Throwable>> callback =
+                new AtomicReference<>();
+        SplitEnumeratorContext<DorisSourceSplit> context =
+                controlledPeriodicContext(task, callback, 0);
+        DorisSourceCheckpoint checkpoint =
+                new DorisSourceCheckpoint(
+                        DorisSourceCheckpoint.Phase.STREAM,
+                        "2026-07-20 10:00:30",
+                        Collections.emptyList());
+        DorisSourceSplitAssigner assigner =
+                DorisSourceSplitAssigner.restoreForTesting(
+                        readOptions(DorisSourceScanMode.LATEST, null),
+                        checkpoint,
+                        1,
+                        () -> "2026-07-20 10:00:40",
+                        (start, end) -> Collections.singleton(100L));
+        DorisOffsetPublisher publisher = mock(DorisOffsetPublisher.class);
+        DorisSourceEnumerator enumerator =
+                new DorisSourceEnumerator(context, assigner, 1000L, publisher);
+        enumerator.start();
+        enumerator.handleSplitRequest(0, null);
+        enumerator.snapshotState(7L);
+        Tuple2<String, Collection<Long>> discovered = task.get().call();
+
+        DorisStreamSplit first =
+                DorisStreamSplit.of(
+                        0,
+                        "2026-07-20 10:00:00",
+                        "2026-07-20 10:00:10",
+                        Collections.singleton(100L));
+        DorisStreamSplit second =
+                DorisStreamSplit.of(
+                        1,
+                        "2026-07-20 10:00:10",
+                        "2026-07-20 10:00:20",
+                        Collections.singleton(100L));
+        DorisStreamSplit third =
+                DorisStreamSplit.of(
+                        0,
+                        "2026-07-20 10:00:20",
+                        "2026-07-20 10:00:30",
+                        Collections.singleton(100L));
+        enumerator.addSplitsBack(Arrays.asList(second, first, third), 0);
+        enumerator.handleSplitRequest(0, null);
+        assertThat(assigner.getNextStreamStartTimestamp()).isEqualTo("2026-07-20 10:00:30");
+        assertThat(assigner.snapshotState(8L).getPendingSplits()).containsExactly(second, third);
+        enumerator.notifyCheckpointComplete(7L);
+
+        enumerator.handleSplitRequest(0, null);
+        enumerator.handleSplitRequest(0, null);
+        enumerator.snapshotState(9L);
+        enumerator.notifyCheckpointComplete(9L);
+        verify(publisher, never()).publish(any());
+        // All queued work is assigned, but the last replayed split is still being read.
+        assertThat(task.get().call()).isNull();
+        callback.get().accept(discovered, null);
+        assertThat(assigner.getNextStreamStartTimestamp()).isEqualTo("2026-07-20 10:00:30");
+
+        enumerator.handleSplitRequest(0, null);
+        enumerator.snapshotState(10L);
+        enumerator.notifyCheckpointComplete(10L);
+        verify(publisher).publish("2026-07-20 10:00:30");
+        invoke(task.get(), callback.get());
+        ArgumentCaptor<DorisSourceSplit> assigned = ArgumentCaptor.forClass(DorisSourceSplit.class);
+        verify(context, times(4)).assignSplit(assigned.capture(), eq(0));
+        assertThat(assigned.getAllValues()).hasSize(4).startsWith(first, second, third);
+        DorisStreamSplit next = (DorisStreamSplit) assigned.getAllValues().get(3);
+        assertThat(next.getStartTimestamp()).isEqualTo("2026-07-20 10:00:30");
+        assertThat(next.getEndTimestamp()).isEqualTo("2026-07-20 10:00:40");
+        assertThat(next.getTabletIds()).containsExactly(100L);
+        enumerator.close();
+    }
+
+    @Test
     void publishesTheCompletedWindowCapturedByTheCheckpoint() throws Exception {
         AtomicReference<Callable<Tuple2<String, Collection<Long>>>> task = new AtomicReference<>();
         AtomicReference<BiConsumer<Tuple2<String, Collection<Long>>, Throwable>> callback =
@@ -565,7 +651,6 @@ class DorisHybridSourceEnumeratorTest {
                 new DorisSourceCheckpoint(
                         DorisSourceCheckpoint.Phase.STREAM,
                         "2026-07-20 10:00:00",
-                        2,
                         Collections.emptyList());
         DorisSourceSplitAssigner assigner =
                 DorisSourceSplitAssigner.restoreForTesting(
@@ -573,7 +658,7 @@ class DorisHybridSourceEnumeratorTest {
                         checkpoint,
                         2,
                         end::get,
-                        () ->
+                        (startTimestamp, endTimestamp) ->
                                 Arrays.asList(
                                         100L, 101L, 102L, 103L, 104L, 105L, 106L, 107L, 108L,
                                         109L));
@@ -615,12 +700,16 @@ class DorisHybridSourceEnumeratorTest {
     @Test
     void reconfirmsCompletedWindowAfterReturnedSplitsAreReplayed() throws Exception {
         SplitEnumeratorContext<DorisSourceSplit> context = synchronousContext(0);
-        DorisStreamSplit split = DorisStreamSplit.of("2026-07-20 10:00:00", "2026-07-20 10:00:10");
+        DorisStreamSplit split =
+                DorisStreamSplit.of(
+                        0,
+                        "2026-07-20 10:00:00",
+                        "2026-07-20 10:00:10",
+                        Collections.singleton(100L));
         DorisSourceCheckpoint checkpoint =
                 new DorisSourceCheckpoint(
                         DorisSourceCheckpoint.Phase.STREAM,
                         "2026-07-20 10:00:10",
-                        1,
                         Collections.singletonList(split));
         DorisOffsetPublisher publisher = mock(DorisOffsetPublisher.class);
         DorisSourceSplitAssigner assigner =
@@ -629,7 +718,7 @@ class DorisHybridSourceEnumeratorTest {
                         checkpoint,
                         1,
                         () -> "2026-07-20 10:00:10",
-                        () -> Collections.singleton(100L));
+                        (startTimestamp, endTimestamp) -> Collections.singleton(100L));
         DorisSourceEnumerator enumerator =
                 new DorisSourceEnumerator(context, assigner, 1000L, publisher);
         enumerator.handleSplitRequest(0, null);
@@ -650,8 +739,10 @@ class DorisHybridSourceEnumeratorTest {
         enumerator.close();
     }
 
-    @Test
-    void serializesOffsetWritesAndCoalescesNewerCompletedCheckpoints() throws Exception {
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void serializesOffsetWritesAndCoalescesNewerCompletedCheckpoints(boolean failFirstWrite)
+            throws Exception {
         SplitEnumeratorContext<DorisSourceSplit> context = synchronousContext(0);
         Deque<Runnable> writes = captureOffsetWrites(context);
         DorisSourceSplitAssigner assigner = mock(DorisSourceSplitAssigner.class);
@@ -660,6 +751,11 @@ class DorisHybridSourceEnumeratorTest {
         when(assigner.getNextStreamStartTimestamp())
                 .thenReturn("2026-07-20 10:00:10", "2026-07-20 10:00:20", "2026-07-20 10:00:30");
         DorisOffsetPublisher publisher = mock(DorisOffsetPublisher.class);
+        if (failFirstWrite) {
+            org.mockito.Mockito.doThrow(new java.sql.SQLException("unavailable"))
+                    .when(publisher)
+                    .publish("2026-07-20 10:00:10");
+        }
         DorisSourceEnumerator enumerator =
                 new DorisSourceEnumerator(context, assigner, 1000L, publisher);
 
@@ -746,7 +842,7 @@ class DorisHybridSourceEnumeratorTest {
                         context.currentParallelism(),
                         timestampSupplier,
                         snapshots,
-                        () -> Collections.singleton(0L));
+                        (startTimestamp, endTimestamp) -> Collections.singleton(0L));
         return new DorisSourceEnumerator(
                 context, splitAssigner, testReadOptions.getBinlogPollIntervalMs());
     }
@@ -764,7 +860,7 @@ class DorisHybridSourceEnumeratorTest {
                         checkpoint,
                         context.currentParallelism(),
                         timestampSupplier,
-                        () -> Collections.singleton(0L));
+                        (startTimestamp, endTimestamp) -> Collections.singleton(0L));
         return new DorisSourceEnumerator(
                 context, splitAssigner, testReadOptions.getBinlogPollIntervalMs());
     }

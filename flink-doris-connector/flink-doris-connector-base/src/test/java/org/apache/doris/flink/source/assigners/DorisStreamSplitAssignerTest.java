@@ -17,6 +17,7 @@
 
 package org.apache.doris.flink.source.assigners;
 
+import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.apache.doris.flink.source.split.DorisStreamSplit;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -48,7 +49,7 @@ class DorisStreamSplitAssignerTest {
                         "2026-07-20 10:00:00",
                         Collections.emptyList(),
                         () -> "2026-07-20 10:00:10",
-                        () -> tablets,
+                        (startTimestamp, endTimestamp) -> tablets,
                         4);
         assigner.onDiscoveredEndTimestamp(assigner.discoverNextStreamEndTimestamp());
 
@@ -61,6 +62,7 @@ class DorisStreamSplitAssignerTest {
     @Test
     void discoversAddedTabletsWithoutMovingExistingTablets() {
         AtomicReference<String> end = new AtomicReference<>("2026-07-20 10:00:10");
+        List<List<String>> windows = new ArrayList<>();
         AtomicReference<Collection<Long>> tablets =
                 new AtomicReference<>(Arrays.asList(100L, 103L));
         DorisStreamSplitAssigner assigner =
@@ -68,7 +70,10 @@ class DorisStreamSplitAssignerTest {
                         "2026-07-20 10:00:00",
                         Collections.emptyList(),
                         end::get,
-                        () -> tablets.get(),
+                        (startTimestamp, endTimestamp) -> {
+                            windows.add(Arrays.asList(startTimestamp, endTimestamp));
+                            return tablets.get();
+                        },
                         2);
         assigner.onDiscoveredEndTimestamp(assigner.discoverNextStreamEndTimestamp());
         assertThat(assigner.getNext(0).get().getTabletIds()).containsExactly(100L);
@@ -79,6 +84,11 @@ class DorisStreamSplitAssignerTest {
         DorisStreamSplit second = assigner.getNext(0).get();
         assertThat(second.getTabletIds()).containsExactly(100L, 102L);
         assertThat(second.getStartTimestamp()).isEqualTo("2026-07-20 10:00:10");
+        assertThat(second.getEndTimestamp()).isEqualTo("2026-07-20 10:00:20");
+        assertThat(windows)
+                .containsExactly(
+                        Arrays.asList("2026-07-20 10:00:00", "2026-07-20 10:00:10"),
+                        Arrays.asList("2026-07-20 10:00:10", "2026-07-20 10:00:20"));
         assertThat(assigner.getNext(1).get().getTabletIds()).containsExactly(103L);
     }
 
@@ -89,7 +99,7 @@ class DorisStreamSplitAssignerTest {
                         "2026-07-20 10:00:00",
                         Collections.emptyList(),
                         () -> "2026-07-20 10:00:10",
-                        () -> Collections.emptyList(),
+                        (startTimestamp, endTimestamp) -> Collections.emptyList(),
                         2);
         assigner.onDiscoveredEndTimestamp(assigner.discoverNextStreamEndTimestamp());
         assertThat(assigner.remainingSplits()).isEmpty();
@@ -100,16 +110,22 @@ class DorisStreamSplitAssignerTest {
     void restoresAndReturnsGroupsToTheirOriginalReaders() {
         DorisStreamSplit first =
                 DorisStreamSplit.of(
-                        "2026-07-20 10:00:00", "2026-07-20 10:00:10", Collections.singleton(100L));
+                        0,
+                        "2026-07-20 10:00:00",
+                        "2026-07-20 10:00:10",
+                        Collections.singleton(100L));
         DorisStreamSplit second =
                 DorisStreamSplit.of(
-                        "2026-07-20 10:00:00", "2026-07-20 10:00:10", Collections.singleton(103L));
+                        1,
+                        "2026-07-20 10:00:00",
+                        "2026-07-20 10:00:10",
+                        Collections.singleton(103L));
         DorisStreamSplitAssigner assigner =
                 new DorisStreamSplitAssigner(
                         "2026-07-20 10:00:10",
                         Arrays.asList(first, second),
                         () -> "2026-07-20 10:00:20",
-                        () -> {
+                        (startTimestamp, endTimestamp) -> {
                             throw new AssertionError("Restore must not rediscover pending tablets");
                         },
                         2);
@@ -130,26 +146,40 @@ class DorisStreamSplitAssignerTest {
                         "2026-07-20 10:00:00",
                         Collections.emptyList(),
                         () -> "2026-07-20 10:00:10",
-                        () -> tablets,
+                        (startTimestamp, endTimestamp) -> tablets,
                         4);
         original.onDiscoveredEndTimestamp(original.discoverNextStreamEndTimestamp());
+        List<DorisStreamSplit> originalSplits = original.remainingSplits();
         DorisStreamSplitAssigner restored =
                 new DorisStreamSplitAssigner(
                         "2026-07-20 10:00:10",
-                        original.remainingSplits(),
+                        originalSplits,
                         () -> "2026-07-20 10:00:20",
-                        () -> {
+                        (startTimestamp, endTimestamp) -> {
                             throw new AssertionError("Restore must not rediscover pending tablets");
                         },
                         parallelism);
+        List<DorisStreamSplit> reassigned = restored.remainingSplits();
+        if (parallelism == 1) {
+            assertThat(reassigned).containsExactlyInAnyOrderElementsOf(originalSplits);
+        }
+        for (DorisStreamSplit split : reassigned) {
+            for (DorisStreamSplit parent : originalSplits) {
+                if (parent.getTabletIds().containsAll(split.getTabletIds())
+                        && !parent.getTabletIds().equals(split.getTabletIds())) {
+                    assertThat(split.splitId()).isNotEqualTo(parent.splitId());
+                }
+            }
+        }
         // Checkpoint again before consuming any of the reassigned work.
         restored =
                 new DorisStreamSplitAssigner(
                         "2026-07-20 10:00:10",
                         restored.remainingSplits(),
                         () -> "2026-07-20 10:00:20",
-                        () -> tablets,
+                        (startTimestamp, endTimestamp) -> tablets,
                         parallelism);
+        assertThat(restored.remainingSplits()).containsExactlyElementsOf(reassigned);
         List<DorisStreamSplit> assigned = new ArrayList<>();
         for (int reader = 0; reader < parallelism; reader++) {
             java.util.Optional<DorisStreamSplit> next;
@@ -171,16 +201,85 @@ class DorisStreamSplitAssignerTest {
     }
 
     @Test
+    void replaysOlderWindowsBeforePendingWorkAfterRescaling() {
+        DorisStreamSplit first =
+                DorisStreamSplit.of(
+                        0,
+                        "2026-07-20 10:00:00",
+                        "2026-07-20 10:00:10",
+                        Collections.singleton(100L));
+        DorisStreamSplit second =
+                DorisStreamSplit.of(
+                        1,
+                        "2026-07-20 10:00:10",
+                        "2026-07-20 10:00:20",
+                        Collections.singleton(103L));
+        DorisStreamSplit third =
+                DorisStreamSplit.of(
+                        0,
+                        "2026-07-20 10:00:20",
+                        "2026-07-20 10:00:30",
+                        Collections.singleton(100L));
+        DorisStreamSplitAssigner assigner =
+                new DorisStreamSplitAssigner(
+                        "2026-07-20 10:00:30",
+                        Collections.singleton(third),
+                        () -> "2026-07-20 10:00:40",
+                        (start, end) -> Collections.singleton(100L),
+                        2);
+        assigner.addSplits(Arrays.asList(second, first));
+        assertThat(assigner.remainingSplits()).containsExactly(first, second, third);
+        assertThat(assigner.getNext(0)).contains(first);
+        assigner.addSplits(Collections.singleton(first));
+
+        DorisStreamSplitAssigner restored =
+                new DorisStreamSplitAssigner(
+                        assigner.getNextStreamStartTimestamp(),
+                        assigner.remainingSplits(),
+                        () -> "2026-07-20 10:00:40",
+                        (start, end) -> Collections.singleton(100L),
+                        1);
+        assertThat(restored.getNext(0)).contains(first);
+        assertThat(restored.getNext(0)).contains(second);
+        assertThat(restored.getNext(0)).contains(third);
+        assertThat(restored.getNext(0)).isEmpty();
+        assertThat(restored.getNextStreamStartTimestamp()).isEqualTo("2026-07-20 10:00:30");
+    }
+
+    @Test
+    void rejectsReturnedWorkBeyondTheDiscoveryCursor() {
+        DorisStreamSplitAssigner assigner =
+                new DorisStreamSplitAssigner(
+                        "2026-07-20 10:00:10",
+                        Collections.emptyList(),
+                        () -> "2026-07-20 10:00:20",
+                        (start, end) -> Collections.singleton(100L),
+                        1);
+        DorisStreamSplit future =
+                DorisStreamSplit.of(
+                        0,
+                        "2026-07-20 10:00:10",
+                        "2026-07-20 10:00:20",
+                        Collections.singleton(100L));
+        assertThatThrownBy(() -> assigner.addSplits(Collections.singleton(future)))
+                .isInstanceOf(DorisRuntimeException.class);
+        assertThat(assigner.remainingSplits()).isEmpty();
+    }
+
+    @Test
     void rejectsAWindowThatWouldOverwritePendingGroups() {
         DorisStreamSplit pending =
                 DorisStreamSplit.of(
-                        "2026-07-20 10:00:00", "2026-07-20 10:00:10", Collections.singleton(103L));
+                        0,
+                        "2026-07-20 10:00:00",
+                        "2026-07-20 10:00:10",
+                        Collections.singleton(103L));
         DorisStreamSplitAssigner assigner =
                 new DorisStreamSplitAssigner(
                         "2026-07-20 10:00:10",
                         Collections.singleton(pending),
                         () -> "2026-07-20 10:00:20",
-                        () -> Collections.singleton(100L),
+                        (startTimestamp, endTimestamp) -> Collections.singleton(100L),
                         2);
         assertThatThrownBy(
                         () ->

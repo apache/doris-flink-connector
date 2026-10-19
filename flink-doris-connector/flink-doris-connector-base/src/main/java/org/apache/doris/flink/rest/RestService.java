@@ -45,6 +45,7 @@ import org.apache.doris.flink.rest.models.Schema;
 import org.apache.doris.flink.rest.models.Tablet;
 import org.apache.doris.flink.sink.BackendUtil;
 import org.apache.doris.flink.sink.HttpGetWithEntity;
+import org.apache.doris.flink.source.DorisBinlogIncrementType;
 import org.apache.doris.flink.source.split.DorisStreamSplit;
 import org.apache.http.HttpHeaders;
 import org.apache.http.HttpStatus;
@@ -735,19 +736,39 @@ public class RestService implements Serializable {
 
     /** Discovers row-binlog tablets using Doris's default visibility checks. */
     public static Collection<Long> findIncrementalTablets(
-            DorisOptions options, DorisReadOptions readOptions, Logger logger)
+            DorisOptions options,
+            DorisReadOptions readOptions,
+            String startTimestamp,
+            String endTimestamp,
+            Logger logger)
             throws DorisException {
         String[] table = parseIdentifier(options.getTableIdentifier(), logger);
         String sql =
-                String.format(
-                        "SELECT * FROM `%s`.`%s`@incr('incrementType' = 'DETAIL')",
-                        table[0], table[1]);
+                "SELECT * FROM "
+                        + buildIncrementalScan(
+                                String.format("`%s`.`%s`", table[0], table[1]),
+                                startTimestamp,
+                                endTimestamp,
+                                DorisBinlogIncrementType.DETAIL);
         QueryPlan plan = queryPlan(options, readOptions, sql, logger, true);
         Set<Long> tablets = new java.util.TreeSet<>();
         for (String tablet : plan.getPartitions().keySet()) {
             tablets.add(Long.parseLong(tablet));
         }
         return tablets;
+    }
+
+    public static String buildIncrementalScan(
+            String quotedTable,
+            String startTimestamp,
+            String endTimestamp,
+            DorisBinlogIncrementType incrementType) {
+        return String.format(
+                "%s@incr('startTimestamp' = '%s', 'endTimestamp' = '%s', 'incrementType' = '%s')",
+                quotedTable,
+                startTimestamp.replace("'", "''"),
+                endTimestamp.replace("'", "''"),
+                incrementType.toSqlValue());
     }
 
     private static QueryPlan queryPlan(

@@ -83,7 +83,12 @@ public class DorisSourceReaderTest {
     public void testRequestsMoreWorkAfterCompletedStreamSplit() throws Exception {
         final TestingReaderContext context = new TestingReaderContext();
         final DorisSourceReader reader = createReader(context);
-        DorisStreamSplit split = DorisStreamSplit.of("2026-07-20 10:00:00", "2026-07-20 10:00:10");
+        DorisStreamSplit split =
+                DorisStreamSplit.of(
+                        0,
+                        "2026-07-20 10:00:00",
+                        "2026-07-20 10:00:10",
+                        Collections.singleton(100L));
 
         reader.onSplitFinished(
                 Collections.singletonMap(split.splitId(), new DorisSourceSplitState(split)));

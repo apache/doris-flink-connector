@@ -78,7 +78,7 @@ public abstract class AbstractDorisIncrementalITCase extends AbstractITCaseServi
             new MiniClusterWithClientResource(
                     new MiniClusterResourceConfiguration.Builder()
                             .setNumberTaskManagers(1)
-                            .setNumberSlotsPerTaskManager(2)
+                            .setNumberSlotsPerTaskManager(3)
                             .setRpcServiceSharing(RpcServiceSharing.DEDICATED)
                             .withHaLeadershipControl()
                             .build());

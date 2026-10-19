@@ -52,7 +52,7 @@ public class DorisSourceEnumerator
     // A reader enters this set only when it owns no unfinished split and asks for more work.
     private final TreeSet<Integer> readersAwaitingSplit = new TreeSet<>();
     // Transfers Stream discovery demand from the coordinator thread to the async worker.
-    private final AtomicBoolean streamDiscoveryRequired = new AtomicBoolean();
+    private volatile boolean streamDiscoveryRequired;
     // Remains set until the coordinator applies the result, including empty-window polls.
     private final AtomicBoolean streamDiscoveryInFlight = new AtomicBoolean();
 
@@ -61,7 +61,7 @@ public class DorisSourceEnumerator
     private boolean streamDiscoveryStarted;
     @Nullable private String lastCompletedWindow;
     private final NavigableMap<Long, String> checkpointOffsets = new TreeMap<>();
-    @Nullable private Map.Entry<Long, String> pendingOffset;
+    @Nullable private String pendingOffset;
     private boolean offsetPublishInFlight;
     private volatile boolean closed;
 
@@ -100,49 +100,26 @@ public class DorisSourceEnumerator
     /** Assigns available work according to the current Snapshot or Stream phase. */
     private void assignRequestedSplits() {
         removeUnregisteredReaders();
-        if (splitAssigner.getPhase() == DorisSourceCheckpoint.Phase.SNAPSHOT) {
-            assignRequestedSnapshotSplits();
-        } else {
-            assignRequestedStreamSplit();
-        }
-    }
-
-    /** Assigns pending Snapshot splits to waiting readers in deterministic order. */
-    private void assignRequestedSnapshotSplits() {
-        List<Integer> readers = new ArrayList<>(readersAwaitingSplit);
-        for (Integer reader : readers) {
-            Optional<DorisSourceSplit> nextSplit = splitAssigner.getNext();
+        for (Integer reader : new ArrayList<>(readersAwaitingSplit)) {
+            Optional<DorisSourceSplit> nextSplit = splitAssigner.getNext(reader);
             if (nextSplit.isPresent()) {
                 DorisSourceSplit split = nextSplit.get();
                 context.assignSplit(split, reader);
                 readersAwaitingSplit.remove(reader);
-                LOG.info("Assigned snapshot split {} to subtask {}", split.splitId(), reader);
-            } else if (splitAssigner.getScanMode().isSnapshotOnly()) {
+                LOG.info("Assigned split {} to subtask {}", split, reader);
+            } else if (splitAssigner.getPhase() == DorisSourceCheckpoint.Phase.SNAPSHOT
+                    && splitAssigner.getScanMode().isSnapshotOnly()) {
                 context.signalNoMoreSplits(reader);
                 readersAwaitingSplit.remove(reader);
                 LOG.info(
                         "No more snapshot splits are available; signaling subtask {} to finish",
                         reader);
-            } else {
-                LOG.info(
-                        "No snapshot split is currently available for subtask {}; waiting for the Snapshot phase to complete",
-                        reader);
             }
         }
-    }
-
-    /**
-     * Keeps each tablet on the same reader and starts a new window only after all readers finish.
-     */
-    private void assignRequestedStreamSplit() {
-        for (Integer reader : new ArrayList<>(readersAwaitingSplit)) {
-            Optional<DorisSourceSplit> split = splitAssigner.getNext(reader);
-            if (split.isPresent()) {
-                context.assignSplit(split.get(), reader);
-                readersAwaitingSplit.remove(reader);
-                LOG.info("Assigned stream split {} to subtask {}", split.get().splitId(), reader);
-            }
+        if (splitAssigner.getPhase() != DorisSourceCheckpoint.Phase.STREAM) {
+            return;
         }
+        // Advance the completed boundary only after all readers finish the window.
         boolean allIdle =
                 !splitAssigner.hasPendingStreamSplits()
                         && context.registeredReaders().size() == context.currentParallelism()
@@ -150,7 +127,7 @@ public class DorisSourceEnumerator
         if (allIdle) {
             lastCompletedWindow = splitAssigner.getNextStreamStartTimestamp();
         }
-        streamDiscoveryRequired.set(allIdle);
+        streamDiscoveryRequired = allIdle;
     }
 
     /** Starts one periodic loop for discovering finite Stream splits. */
@@ -175,7 +152,7 @@ public class DorisSourceEnumerator
      */
     @Nullable
     private Tuple2<String, Collection<Long>> tryDiscoverNextStreamEndTimestamp() {
-        if (!streamDiscoveryRequired.get() || !streamDiscoveryInFlight.compareAndSet(false, true)) {
+        if (!streamDiscoveryRequired || !streamDiscoveryInFlight.compareAndSet(false, true)) {
             return null;
         }
         return splitAssigner.discoverNextStreamEndTimestamp();
@@ -187,6 +164,11 @@ public class DorisSourceEnumerator
         failOnError(error);
         if (result == null) {
             // A skipped poll does not own the in-flight discovery and must not rearm it.
+            return;
+        }
+        if (!streamDiscoveryRequired) {
+            // A reader failed while discovery was running; finish replay before advancing.
+            streamDiscoveryInFlight.set(false);
             return;
         }
         splitAssigner.onDiscoveredEndTimestamp(result);
@@ -216,7 +198,7 @@ public class DorisSourceEnumerator
     public void notifyCheckpointComplete(long checkpointId) {
         Map.Entry<Long, String> offset = checkpointOffsets.floorEntry(checkpointId);
         if (offset != null) {
-            pendingOffset = offset;
+            pendingOffset = offset.getValue();
             checkpointOffsets.headMap(checkpointId, true).clear();
         }
         publishPendingOffset();
@@ -236,14 +218,15 @@ public class DorisSourceEnumerator
         if (closed || offsetPublisher == null || offsetPublishInFlight || pendingOffset == null) {
             return;
         }
-        Map.Entry<Long, String> offset = pendingOffset;
+        String offset = pendingOffset;
+        pendingOffset = null;
         offsetPublishInFlight = true;
         context.callAsync(
                 () -> {
                     // Queued writes must not reopen the connection after close.
                     synchronized (offsetPublisher) {
                         if (!closed) {
-                            offsetPublisher.publish(offset.getValue());
+                            offsetPublisher.publish(offset);
                         }
                     }
                     return null;
@@ -254,18 +237,14 @@ public class DorisSourceEnumerator
                     }
                     offsetPublishInFlight = false;
                     if (error != null) {
-                        LOG.warn(
-                                "Failed to publish Doris source offset {} for checkpoint {}",
-                                offset.getValue(),
-                                offset.getKey(),
-                                error);
-                    } else if (pendingOffset == offset) {
-                        pendingOffset = null;
+                        LOG.warn("Failed to publish Doris source offset {}", offset, error);
+                        if (pendingOffset == null) {
+                            // Retry on a later checkpoint unless a newer offset is already pending.
+                            pendingOffset = offset;
+                            return;
+                        }
                     }
-                    // Retry a failed offset on a later checkpoint, or publish a newer pending one.
-                    if (pendingOffset != offset) {
-                        publishPendingOffset();
-                    }
+                    publishPendingOffset();
                 });
     }
 
@@ -281,7 +260,7 @@ public class DorisSourceEnumerator
         }
         if (splitAssigner.getPhase() == DorisSourceCheckpoint.Phase.STREAM) {
             readersAwaitingSplit.remove(subtaskId);
-            streamDiscoveryRequired.set(false);
+            streamDiscoveryRequired = false;
             // Reconfirm completion after returned work has been replayed.
             lastCompletedWindow = null;
             checkpointOffsets.clear();

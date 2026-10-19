@@ -42,6 +42,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.BiFunction;
 import java.util.function.Supplier;
 
 /** Coordinates phase-specific split assigners and checkpointed Doris source state. */
@@ -49,7 +50,6 @@ public class DorisSourceSplitAssigner {
     private static final Logger LOG = LoggerFactory.getLogger(DorisSourceSplitAssigner.class);
 
     private final DorisSourceScanMode scanMode;
-    private final int sourceParallelism;
     private final DorisSnapshotSplitAssigner snapshotSplitAssigner;
     @Nullable private final DorisStreamSplitAssigner streamSplitAssigner;
 
@@ -113,7 +113,7 @@ public class DorisSourceSplitAssigner {
             int sourceParallelism,
             Supplier<String> currentTimestampSupplier,
             Collection<DorisSnapshotSplit> snapshotSplits,
-            Supplier<Collection<Long>> tabletSupplier) {
+            BiFunction<String, String, Collection<Long>> tabletSupplier) {
         DorisSnapshotSplitAssigner snapshotSplitAssigner =
                 readOptions.getScanMode().isSnapshotPhaseRequired()
                         ? new DorisSnapshotSplitAssigner(snapshotSplits)
@@ -133,7 +133,7 @@ public class DorisSourceSplitAssigner {
             DorisSourceCheckpoint checkpoint,
             int sourceParallelism,
             Supplier<String> currentTimestampSupplier,
-            Supplier<Collection<Long>> tabletSupplier) {
+            BiFunction<String, String, Collection<Long>> tabletSupplier) {
         return restore(
                 readOptions,
                 checkpoint,
@@ -148,7 +148,7 @@ public class DorisSourceSplitAssigner {
             Supplier<String> currentTimestampSupplier,
             DorisSnapshotSplitAssigner snapshotSplitAssigner,
             @Nullable String externalOffset,
-            Supplier<Collection<Long>> tabletSupplier) {
+            BiFunction<String, String, Collection<Long>> tabletSupplier) {
         DorisSourceScanMode scanMode = readOptions.getScanMode();
         DorisStreamSplitAssigner streamAssigner = null;
         if (scanMode.hasIncrementalPhase()) {
@@ -173,7 +173,7 @@ public class DorisSourceSplitAssigner {
                         : DorisSourceCheckpoint.Phase.STREAM;
         DorisSourceSplitAssigner assigner =
                 new DorisSourceSplitAssigner(
-                        scanMode, sourceParallelism, phase, snapshotSplitAssigner, streamAssigner);
+                        scanMode, phase, snapshotSplitAssigner, streamAssigner);
         LOG.info(
                 "Initialized Doris source assigner in {} mode at phase {} with stream start timestamp {} and {} pending snapshot splits.",
                 scanMode,
@@ -188,7 +188,7 @@ public class DorisSourceSplitAssigner {
             DorisSourceCheckpoint checkpoint,
             int sourceParallelism,
             Supplier<String> currentTimestampSupplier,
-            Supplier<Collection<Long>> tabletSupplier) {
+            BiFunction<String, String, Collection<Long>> tabletSupplier) {
         DorisSourceScanMode scanMode = readOptions.getScanMode();
         DorisSourceCheckpoint.Phase phase = checkpoint.getPhase();
         List<DorisSnapshotSplit> snapshotSplits = new ArrayList<>();
@@ -218,7 +218,7 @@ public class DorisSourceSplitAssigner {
         }
         DorisSourceSplitAssigner assigner =
                 new DorisSourceSplitAssigner(
-                        scanMode, sourceParallelism, phase, snapshotSplitAssigner, streamAssigner);
+                        scanMode, phase, snapshotSplitAssigner, streamAssigner);
         LOG.info(
                 "Restored Doris source assigner in phase {} with {} pending splits and next stream start timestamp {}.",
                 phase,
@@ -229,12 +229,10 @@ public class DorisSourceSplitAssigner {
 
     private DorisSourceSplitAssigner(
             DorisSourceScanMode scanMode,
-            int sourceParallelism,
             DorisSourceCheckpoint.Phase phase,
             DorisSnapshotSplitAssigner snapshotSplitAssigner,
             @Nullable DorisStreamSplitAssigner streamSplitAssigner) {
         this.scanMode = scanMode;
-        this.sourceParallelism = sourceParallelism;
         this.phase = phase;
         this.snapshotSplitAssigner = snapshotSplitAssigner;
         this.streamSplitAssigner = streamSplitAssigner;
@@ -291,8 +289,7 @@ public class DorisSourceSplitAssigner {
                 phase == DorisSourceCheckpoint.Phase.SNAPSHOT
                         ? snapshotSplitAssigner.remainingSplits()
                         : getStreamAssigner().remainingSplits();
-        return new DorisSourceCheckpoint(
-                phase, nextStreamStartTimestamp(), sourceParallelism, pendingSplits);
+        return new DorisSourceCheckpoint(phase, nextStreamStartTimestamp(), pendingSplits);
     }
 
     public DorisSourceCheckpoint.Phase getPhase() {
@@ -317,11 +314,12 @@ public class DorisSourceSplitAssigner {
         }
     }
 
-    private static Supplier<Collection<Long>> tabletSupplier(
+    private static BiFunction<String, String, Collection<Long>> tabletSupplier(
             DorisOptions options, DorisReadOptions readOptions) {
-        return () -> {
+        return (startTimestamp, endTimestamp) -> {
             try {
-                return RestService.findIncrementalTablets(options, readOptions, LOG);
+                return RestService.findIncrementalTablets(
+                        options, readOptions, startTimestamp, endTimestamp, LOG);
             } catch (DorisException e) {
                 throw new DorisRuntimeException("Failed to discover incremental tablets", e);
             }

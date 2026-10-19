@@ -108,11 +108,7 @@ public class DorisSourceEnumeratorTest {
         }
         return createEnumerator(
                 context,
-                new DorisSourceCheckpoint(
-                        DorisSourceCheckpoint.Phase.SNAPSHOT,
-                        null,
-                        context.currentParallelism(),
-                        snapshots));
+                new DorisSourceCheckpoint(DorisSourceCheckpoint.Phase.SNAPSHOT, null, snapshots));
     }
 
     private static DorisSourceEnumerator createEnumerator(

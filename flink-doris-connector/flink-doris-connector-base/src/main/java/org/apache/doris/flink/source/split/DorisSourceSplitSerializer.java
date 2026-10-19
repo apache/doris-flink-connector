@@ -62,7 +62,7 @@ public class DorisSourceSplitSerializer implements SimpleVersionedSerializer<Dor
 
     @Override
     public DorisSourceSplit deserialize(int version, byte[] serialized) throws IOException {
-        if (version != 3 && version != 4 && version != VERSION) {
+        if (version != VERSION) {
             throw new IOException("Unknown version: " + version);
         }
         try (DataInputStream in = new DataInputStream(new ByteArrayInputStream(serialized))) {
@@ -71,7 +71,7 @@ public class DorisSourceSplitSerializer implements SimpleVersionedSerializer<Dor
                 return readSnapshot(in);
             }
             if (kind == STREAM_KIND) {
-                return readStream(in, version);
+                return readStream(in);
             }
             throw new IOException("Unknown Doris source split kind: " + kind);
         }
@@ -132,17 +132,11 @@ public class DorisSourceSplitSerializer implements SimpleVersionedSerializer<Dor
         }
     }
 
-    private static DorisStreamSplit readStream(DataInputStream in, int version) throws IOException {
+    private static DorisStreamSplit readStream(DataInputStream in) throws IOException {
         try {
             String id = in.readUTF();
             String start = in.readUTF();
             String end = in.readUTF();
-            if (version == 3) {
-                return new DorisStreamSplit(id, start, end);
-            }
-            if (version == 4) {
-                in.readInt(); // Discard the former reader assignment.
-            }
             int count = in.readInt();
             if (count < 0) {
                 throw new IOException("Negative tablet count: " + count);

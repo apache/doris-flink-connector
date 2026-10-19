@@ -23,30 +23,36 @@ import org.apache.flink.util.MathUtils;
 import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.apache.doris.flink.source.split.DorisStreamSplit;
 
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.TreeMap;
+import java.util.function.BiFunction;
 import java.util.function.Supplier;
 
 /** Discovers finite windows and groups their tablets by a stable reader assignment. */
 final class DorisStreamSplitAssigner implements DorisSplitAssigner<DorisStreamSplit> {
+    private static final Comparator<DorisStreamSplit> SPLIT_ORDER =
+            Comparator.comparing(DorisStreamSplit::splitId);
+
     private final Supplier<String> currentTimestampSupplier;
-    private final Supplier<Collection<Long>> tabletSupplier;
+    private final BiFunction<String, String, Collection<Long>> tabletSupplier;
     private final int parallelism;
     private String nextStreamStartTimestamp;
+    // Replay older windows first, including when rescaling merges several readers' queues.
     private final Map<Integer, Queue<DorisStreamSplit>> pendingSplits = new TreeMap<>();
 
     DorisStreamSplitAssigner(
             String nextStreamStartTimestamp,
             Collection<DorisStreamSplit> pendingSplits,
             Supplier<String> currentTimestampSupplier,
-            Supplier<Collection<Long>> tabletSupplier,
+            BiFunction<String, String, Collection<Long>> tabletSupplier,
             int parallelism) {
         if (nextStreamStartTimestamp == null) {
             throw new DorisRuntimeException("Missing stream start timestamp");
@@ -80,30 +86,24 @@ final class DorisStreamSplitAssigner implements DorisSplitAssigner<DorisStreamSp
     @Override
     public void addSplits(Collection<DorisStreamSplit> splits) {
         for (DorisStreamSplit split : splits) {
-            if (!split.getEndTimestamp().equals(nextStreamStartTimestamp)) {
+            if (split.getEndTimestamp().compareTo(nextStreamStartTimestamp) > 0) {
                 throw new DorisRuntimeException(
-                        "Pending Doris Stream split end timestamp does not match the next start timestamp");
-            }
-            if (split.getTabletIds().isEmpty()) {
-                pendingSplits.computeIfAbsent(0, ignored -> new ArrayDeque<>()).add(split);
-                continue;
+                        "Pending Doris Stream split ends after the discovery cursor");
             }
             // A restored group can span several readers after rescaling.
-            for (Map.Entry<Integer, List<Long>> group :
-                    groupTablets(split.getTabletIds()).entrySet()) {
-                DorisStreamSplit reassigned =
-                        group.getValue().size() == split.getTabletIds().size()
-                                ? split
-                                : new DorisStreamSplit(
-                                        split.splitId()
-                                                + "-tablet-"
-                                                + Collections.min(group.getValue()),
-                                        split.getStartTimestamp(),
-                                        split.getEndTimestamp(),
-                                        group.getValue());
+            Map<Integer, List<Long>> groups = groupTablets(split.getTabletIds());
+            for (Map.Entry<Integer, List<Long>> group : groups.entrySet()) {
                 pendingSplits
-                        .computeIfAbsent(group.getKey(), ignored -> new ArrayDeque<>())
-                        .add(reassigned);
+                        .computeIfAbsent(
+                                group.getKey(), ignored -> new PriorityQueue<>(SPLIT_ORDER))
+                        .add(
+                                groups.size() == 1
+                                        ? split
+                                        : DorisStreamSplit.of(
+                                                group.getKey(),
+                                                split.getStartTimestamp(),
+                                                split.getEndTimestamp(),
+                                                group.getValue()));
             }
         }
     }
@@ -112,6 +112,7 @@ final class DorisStreamSplitAssigner implements DorisSplitAssigner<DorisStreamSp
     public List<DorisStreamSplit> remainingSplits() {
         List<DorisStreamSplit> remaining = new ArrayList<>();
         pendingSplits.values().forEach(remaining::addAll);
+        remaining.sort(SPLIT_ORDER);
         return remaining;
     }
 
@@ -129,7 +130,7 @@ final class DorisStreamSplitAssigner implements DorisSplitAssigner<DorisStreamSp
                 endTimestamp,
                 endTimestamp.equals(nextStreamStartTimestamp)
                         ? Collections.emptyList()
-                        : tabletSupplier.get());
+                        : tabletSupplier.apply(nextStreamStartTimestamp, endTimestamp));
     }
 
     void onDiscoveredEndTimestamp(Tuple2<String, Collection<Long>> discovery) {
@@ -150,10 +151,13 @@ final class DorisStreamSplitAssigner implements DorisSplitAssigner<DorisStreamSp
         }
         for (Map.Entry<Integer, List<Long>> group : groupTablets(discovery.f1).entrySet()) {
             pendingSplits
-                    .computeIfAbsent(group.getKey(), ignored -> new ArrayDeque<>())
+                    .computeIfAbsent(group.getKey(), ignored -> new PriorityQueue<>(SPLIT_ORDER))
                     .add(
                             DorisStreamSplit.of(
-                                    nextStreamStartTimestamp, endTimestamp, group.getValue()));
+                                    group.getKey(),
+                                    nextStreamStartTimestamp,
+                                    endTimestamp,
+                                    group.getValue()));
         }
         nextStreamStartTimestamp = endTimestamp;
     }
