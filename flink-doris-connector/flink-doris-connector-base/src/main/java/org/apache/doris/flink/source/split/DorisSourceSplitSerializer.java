@@ -34,7 +34,7 @@ import java.util.Set;
 public class DorisSourceSplitSerializer implements SimpleVersionedSerializer<DorisSourceSplit> {
     public static final DorisSourceSplitSerializer INSTANCE = new DorisSourceSplitSerializer();
 
-    private static final int VERSION = 5;
+    private static final int VERSION = 4;
     private static final byte SNAPSHOT_KIND = 0;
     private static final byte STREAM_KIND = 1;
 

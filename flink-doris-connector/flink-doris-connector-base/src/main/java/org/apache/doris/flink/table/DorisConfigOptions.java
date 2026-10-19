@@ -115,6 +115,14 @@ public class DorisConfigOptions {
                     .withDescription("Comma-separated Doris protocols excluded from TLS.");
 
     // source config options
+    public static final ConfigOption<Integer> SCAN_PARALLELISM =
+            ConfigOptions.key("scan.parallelism")
+                    .intType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Parallelism of the scan source. Must be greater than 0. "
+                                    + "If unset, Flink determines the parallelism.");
+
     // This is compatible with the previous writing method.
     // Some expressions may not be pushed down by FlinkSQL.
     @Deprecated

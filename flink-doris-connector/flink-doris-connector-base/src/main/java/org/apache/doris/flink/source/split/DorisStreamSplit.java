@@ -64,7 +64,7 @@ public final class DorisStreamSplit implements DorisSourceSplit {
                         + "-"
                         + readerId
                         + "-"
-                        + UUID.randomUUID(),
+                        + UUID.randomUUID().toString().replace("-", ""),
                 startTimestamp,
                 endTimestamp,
                 tabletIds);

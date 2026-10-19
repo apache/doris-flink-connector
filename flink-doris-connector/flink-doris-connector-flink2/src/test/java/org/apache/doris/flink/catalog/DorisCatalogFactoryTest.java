@@ -46,6 +46,7 @@ public class DorisCatalogFactoryTest {
         options.put("doris.tls.excluded-protocols", "arrowflight");
         options.put("doris.request.query.timeout", "3600s");
         options.put("sink.enable-2pc", "false");
+        options.put("scan.parallelism", "4");
         options.put("sink.properties.format", "json");
         options.put("sink.properties.read_json_by_line", "true");
         options.put("table.properties.replication_num", "1");
@@ -71,7 +72,8 @@ public class DorisCatalogFactoryTest {
                 dorisCatalog.getConnectionOptions().getTlsOptions().getCaCertificatePath());
 
         Map<String, String> properties = dorisCatalog.getProperties();
-        assertEquals(14, properties.size());
+        assertEquals(15, properties.size());
+        assertEquals("4", properties.get("scan.parallelism"));
         assertEquals("3600s", properties.get("doris.request.query.timeout"));
         assertEquals("false", properties.get("sink.enable-2pc"));
         assertEquals("json", properties.get("sink.properties.format"));

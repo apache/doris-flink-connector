@@ -92,11 +92,8 @@ class DorisSourceSplitSerializerTest {
     }
 
     @Test
-    void rejectsLegacySerializerVersions() {
+    void rejectsLegacySerializerVersion() {
         assertThatThrownBy(() -> serializer.deserialize(3, new byte[0]))
-                .isInstanceOf(IOException.class)
-                .hasMessageContaining("Unknown version");
-        assertThatThrownBy(() -> serializer.deserialize(4, new byte[0]))
                 .isInstanceOf(IOException.class)
                 .hasMessageContaining("Unknown version");
     }

@@ -48,6 +48,7 @@ import static org.apache.doris.flink.table.DorisConfigOptions.FENODES;
 import static org.apache.doris.flink.table.DorisConfigOptions.IDENTIFIER;
 import static org.apache.doris.flink.table.DorisConfigOptions.JDBC_URL;
 import static org.apache.doris.flink.table.DorisConfigOptions.PASSWORD;
+import static org.apache.doris.flink.table.DorisConfigOptions.SCAN_PARALLELISM;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_BUFFER_COUNT;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_BUFFER_SIZE;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_CHECK_INTERVAL;
@@ -115,6 +116,7 @@ public class DorisCatalogFactory implements CatalogFactory {
         options.add(SINK_USE_CACHE);
 
         options.add(SOURCE_USE_OLD_API);
+        options.add(SCAN_PARALLELISM);
         return options;
     }
 
