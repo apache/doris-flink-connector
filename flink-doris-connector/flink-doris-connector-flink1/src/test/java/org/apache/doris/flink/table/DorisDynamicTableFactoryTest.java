@@ -30,6 +30,7 @@ import org.apache.flink.table.api.TableDescriptor;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+import org.apache.flink.table.connector.ParallelismProvider;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DataStreamScanProvider;
 import org.apache.flink.table.connector.source.DynamicTableSource;
@@ -77,6 +78,7 @@ import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_THRIFT_MAX_M
 import static org.apache.doris.flink.cfg.ConfigurationOptions.FLIGHT_SQL_PORT_DEFAULT;
 import static org.apache.doris.flink.cfg.ConfigurationOptions.USE_FLIGHT_SQL_DEFAULT;
 import static org.apache.doris.flink.utils.FactoryMocks.SCHEMA;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
@@ -108,6 +110,9 @@ public class DorisDynamicTableFactoryTest {
                 if (parallelism == null) {
                     assertTrue(provider instanceof SourceProvider);
                 } else {
+                    assertEquals(
+                            Optional.of(parallelism),
+                            ((ParallelismProvider) provider).getParallelism());
                     StreamExecutionEnvironment env =
                             StreamExecutionEnvironment.getExecutionEnvironment();
                     env.setParallelism(2);
@@ -136,6 +141,7 @@ public class DorisDynamicTableFactoryTest {
             DataStreamScanProvider provider =
                     (DataStreamScanProvider)
                             source.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
+            assertEquals(Optional.of(3), ((ParallelismProvider) provider).getParallelism());
             StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(2);
             assertEquals(
@@ -171,7 +177,7 @@ public class DorisDynamicTableFactoryTest {
                         descriptor.option("scan.parallelism", parallelism.toString());
                     }
                     tableEnv.createTemporaryTable("doris_source", descriptor.build());
-                    tableEnv.toDataStream(tableEnv.sqlQuery("SELECT c, a FROM doris_source"))
+                    tableEnv.toDataStream(tableEnv.sqlQuery("SELECT c, UPPER(a) FROM doris_source"))
                             .sinkTo(new DiscardingSink<>());
 
                     StreamGraph graph = env.getStreamGraph();
@@ -180,6 +186,18 @@ public class DorisDynamicTableFactoryTest {
                             parallelism == null ? 2 : parallelism.intValue(),
                             graph.getStreamNode(graph.getSourceIDs().iterator().next())
                                     .getParallelism());
+                    // Only Flink 1.19+ isolates configured source parallelism from downstream.
+                    int calcParallelism =
+                            parallelism != null
+                                            && !ParallelismProvider.class.isAssignableFrom(
+                                                    DataStreamScanProvider.class)
+                                    ? parallelism
+                                    : 2;
+                    assertThat(graph.getStreamNodes())
+                            .filteredOn(node -> node.getOperatorName().startsWith("Calc"))
+                            .singleElement()
+                            .satisfies(
+                                    node -> assertEquals(calcParallelism, node.getParallelism()));
                 }
             }
         }

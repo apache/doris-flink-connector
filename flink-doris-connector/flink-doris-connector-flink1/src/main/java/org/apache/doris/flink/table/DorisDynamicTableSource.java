@@ -26,6 +26,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.ParallelismProvider;
 import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.connector.ProviderContext;
 import org.apache.flink.table.connector.source.AsyncTableFunctionProvider;
@@ -63,6 +64,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /** The {@link DorisDynamicTableSource} is used during planning. */
@@ -172,8 +174,8 @@ public final class DorisDynamicTableSource
         }
         final TypeInformation<RowData> typeInfo =
                 runtimeProviderContext.createTypeInformation(physicalRowDataType);
-        // Older Flink 1.x SourceProvider and InputFormatProvider cannot specify parallelism.
-        return new DataStreamScanProvider() {
+        // Older Flink 1.x DataStreamScanProvider does not extend ParallelismProvider.
+        class DorisScanProvider implements DataStreamScanProvider, ParallelismProvider {
             @Override
             public DataStream<RowData> produceDataStream(
                     ProviderContext providerContext, StreamExecutionEnvironment env) {
@@ -196,7 +198,13 @@ public final class DorisDynamicTableSource
             public boolean isBounded() {
                 return provider.isBounded();
             }
-        };
+
+            @Override
+            public Optional<Integer> getParallelism() {
+                return Optional.of(scanParallelism);
+            }
+        }
+        return new DorisScanProvider();
     }
 
     @Override
