@@ -60,6 +60,8 @@ import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
+import static org.junit.Assert.assertEquals;
+
 /** DorisSource ITCase. */
 @RunWith(Parameterized.class)
 public class DorisSourceITCase extends AbstractITCaseService {
@@ -96,7 +98,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
             new Object[] {
                 false, -1,
             },
-            new Object[] {true, 9611}
+            new Object[] {true, Integer.getInteger("doris_flight_sql_port", 9611)}
         };
     }
 

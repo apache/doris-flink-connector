@@ -22,7 +22,7 @@ import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
@@ -178,7 +178,7 @@ public class DorisDynamicTableFactoryTest {
                     }
                     tableEnv.createTemporaryTable("doris_source", descriptor.build());
                     tableEnv.toDataStream(tableEnv.sqlQuery("SELECT c, UPPER(a) FROM doris_source"))
-                            .sinkTo(new DiscardingSink<>());
+                            .addSink(new DiscardingSink<>());
 
                     StreamGraph graph = env.getStreamGraph();
                     assertEquals(1, graph.getSourceIDs().size());
