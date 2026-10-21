@@ -84,9 +84,9 @@ public class RowBatch {
 
     public static class Row {
         private final List<Object> cols;
-        private Long binlogTso;
-        private Long binlogLsn;
-        private Long binlogOp;
+        private Long changelogTso;
+        private Long changelogLsn;
+        private Long changelogOp;
 
         Row(int colCount) {
             this.cols = new ArrayList<>(colCount);
@@ -102,7 +102,7 @@ public class RowBatch {
 
         private DorisSourceRecord toSourceRecord(boolean incremental) {
             return incremental
-                    ? DorisSourceRecord.incremental(cols, binlogTso, binlogLsn, binlogOp)
+                    ? DorisSourceRecord.incremental(cols, changelogTso, changelogLsn, changelogOp)
                     : DorisSourceRecord.snapshot(cols);
         }
     }
@@ -119,9 +119,9 @@ public class RowBatch {
     private RootAllocator rootAllocator;
     private Schema schema;
     private final boolean incremental;
-    private static final String BINLOG_TSO = "__DORIS_BINLOG_TSO__";
-    private static final String BINLOG_LSN = "__DORIS_BINLOG_LSN__";
-    private static final String BINLOG_OP = "__DORIS_BINLOG_OP__";
+    private static final String CHANGELOG_TSO = "__DORIS_CHANGELOG_TSO__";
+    private static final String CHANGELOG_LSN = "__DORIS_CHANGELOG_LSN__";
+    private static final String CHANGELOG_OP = "__DORIS_CHANGELOG_OP__";
     private static final String DATETIME_PATTERN = "yyyy-MM-dd HH:mm:ss";
     private static final String DATETIMEV2_PATTERN = "yyyy-MM-dd HH:mm:ss.SSSSSS";
     private static final String DATE_PATTERN = "yyyy-MM-dd";
@@ -270,9 +270,9 @@ public class RowBatch {
             for (int col = 0; col < fieldVectors.size(); col++) {
                 FieldVector fieldVector = fieldVectors.get(col);
                 String vectorName = fieldVector.getName();
-                if (incremental && isBinlogField(vectorName)) {
+                if (incremental && isChangelogField(vectorName)) {
                     for (int rowIndex = 0; rowIndex < rowCountInOneBatch; rowIndex++) {
-                        setBinlogValue(rowIndex, vectorName, fieldVector.getObject(rowIndex));
+                        setChangelogValue(rowIndex, vectorName, fieldVector.getObject(rowIndex));
                     }
                     continue;
                 }
@@ -304,10 +304,10 @@ public class RowBatch {
         }
     }
 
-    private static boolean isBinlogField(String name) {
-        return BINLOG_TSO.equalsIgnoreCase(name)
-                || BINLOG_LSN.equalsIgnoreCase(name)
-                || BINLOG_OP.equalsIgnoreCase(name);
+    private static boolean isChangelogField(String name) {
+        return CHANGELOG_TSO.equalsIgnoreCase(name)
+                || CHANGELOG_LSN.equalsIgnoreCase(name)
+                || CHANGELOG_OP.equalsIgnoreCase(name);
     }
 
     private void validateIncrementalFields() throws DorisException {
@@ -316,9 +316,9 @@ public class RowBatch {
         int opFields = 0;
         for (FieldVector fieldVector : fieldVectors) {
             String name = fieldVector.getName();
-            tsoFields += BINLOG_TSO.equalsIgnoreCase(name) ? 1 : 0;
-            lsnFields += BINLOG_LSN.equalsIgnoreCase(name) ? 1 : 0;
-            opFields += BINLOG_OP.equalsIgnoreCase(name) ? 1 : 0;
+            tsoFields += CHANGELOG_TSO.equalsIgnoreCase(name) ? 1 : 0;
+            lsnFields += CHANGELOG_LSN.equalsIgnoreCase(name) ? 1 : 0;
+            opFields += CHANGELOG_OP.equalsIgnoreCase(name) ? 1 : 0;
         }
         if (tsoFields != 1 || lsnFields != 1 || opFields != 1) {
             throw new DorisException(
@@ -326,9 +326,9 @@ public class RowBatch {
         }
     }
 
-    private void setBinlogValue(int rowIndex, String name, Object value) {
+    private void setChangelogValue(int rowIndex, String name, Object value) {
         if (value == null) {
-            throw new DorisRuntimeException("Doris row-binlog field " + name + " cannot be null");
+            throw new DorisRuntimeException("Doris changelog field " + name + " cannot be null");
         }
         final long parsed;
         try {
@@ -338,15 +338,15 @@ public class RowBatch {
                             : Long.parseLong(value.toString());
         } catch (NumberFormatException e) {
             throw new DorisRuntimeException(
-                    "Invalid Doris row-binlog field " + name + ": " + value, e);
+                    "Invalid Doris changelog field " + name + ": " + value, e);
         }
         Row row = rowBatch.get(readRowCount + rowIndex);
-        if (BINLOG_TSO.equalsIgnoreCase(name)) {
-            row.binlogTso = parsed;
-        } else if (BINLOG_LSN.equalsIgnoreCase(name)) {
-            row.binlogLsn = parsed;
-        } else if (BINLOG_OP.equalsIgnoreCase(name)) {
-            row.binlogOp = parsed;
+        if (CHANGELOG_TSO.equalsIgnoreCase(name)) {
+            row.changelogTso = parsed;
+        } else if (CHANGELOG_LSN.equalsIgnoreCase(name)) {
+            row.changelogLsn = parsed;
+        } else if (CHANGELOG_OP.equalsIgnoreCase(name)) {
+            row.changelogOp = parsed;
         }
     }
 

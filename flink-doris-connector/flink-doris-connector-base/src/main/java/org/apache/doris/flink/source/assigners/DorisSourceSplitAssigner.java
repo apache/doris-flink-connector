@@ -73,20 +73,20 @@ public class DorisSourceSplitAssigner {
     private static Optional<String> readExternalOffset(
             DorisOptions options, DorisReadOptions readOptions) {
         if (!readOptions.getScanMode().hasIncrementalPhase()
-                || readOptions.getBinlogOffsetTable() == null) {
+                || readOptions.getChangelogOffsetTable() == null) {
             return Optional.empty();
         }
         try (DorisOffsetPublisher publisher =
                 new DorisOffsetPublisher(
                         new SimpleJdbcConnectionProvider(options),
-                        readOptions.getBinlogOffsetTable(),
-                        readOptions.getBinlogConsumerId())) {
+                        readOptions.getChangelogOffsetTable(),
+                        readOptions.getChangelogConsumerId())) {
             Optional<String> offset = publisher.readOffset();
             LOG.info(
                     "Read external offset {} from {} for consumer {}.",
                     offset.orElse("<not found>"),
-                    readOptions.getBinlogOffsetTable(),
-                    readOptions.getBinlogConsumerId());
+                    readOptions.getChangelogOffsetTable(),
+                    readOptions.getChangelogConsumerId());
             return offset;
         }
     }

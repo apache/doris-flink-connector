@@ -46,13 +46,13 @@ import org.apache.doris.flink.source.split.DorisSourceSplitSerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** FLIP-27 source for bounded snapshots and continuous Doris row-binlog increments. */
+/** FLIP-27 source for bounded snapshots and continuous Doris changelog increments. */
 @PublicEvolving
 public class DorisSource<OUT>
         implements Source<OUT, DorisSourceSplit, DorisSourceCheckpoint>, ResultTypeQueryable<OUT> {
 
     private static final Logger LOG = LoggerFactory.getLogger(DorisSource.class);
-    private static final long MIN_BINLOG_POLL_INTERVAL_MS = 1_000L;
+    private static final long MIN_CHANGELOG_POLL_INTERVAL_MS = 1_000L;
 
     private final DorisOptions options;
     private final DorisReadOptions readOptions;
@@ -97,7 +97,7 @@ public class DorisSource<OUT>
         return new DorisSourceEnumerator(
                 context,
                 DorisSourceSplitAssigner.create(options, readOptions, context.currentParallelism()),
-                readOptions.getBinlogPollIntervalMs());
+                readOptions.getChangelogPollIntervalMs());
     }
 
     @Override
@@ -109,7 +109,7 @@ public class DorisSource<OUT>
                 context,
                 DorisSourceSplitAssigner.restore(
                         options, readOptions, checkpoint, context.currentParallelism()),
-                readOptions.getBinlogPollIntervalMs());
+                readOptions.getChangelogPollIntervalMs());
     }
 
     @Override
@@ -223,23 +223,23 @@ public class DorisSource<OUT>
                         "incremental source modes require source.use-flight-sql=true");
             }
             Preconditions.checkArgument(
-                    readOptions.getBinlogPollIntervalMs() >= MIN_BINLOG_POLL_INTERVAL_MS,
-                    "source.binlog.poll-interval must be at least 1 second");
+                    readOptions.getChangelogPollIntervalMs() >= MIN_CHANGELOG_POLL_INTERVAL_MS,
+                    "source.changelog.poll-interval must be at least 1 second");
             Preconditions.checkArgument(
-                    readOptions.getBinlogVisibleWaitTimeoutMs() >= 0,
-                    "source.binlog.visible-wait-timeout must not be negative");
-            String offsetTable = readOptions.getBinlogOffsetTable();
-            String consumerId = readOptions.getBinlogConsumerId();
+                    readOptions.getChangelogVisibleWaitTimeoutMs() >= 0,
+                    "source.changelog.visible-wait-timeout must not be negative");
+            String offsetTable = readOptions.getChangelogOffsetTable();
+            String consumerId = readOptions.getChangelogConsumerId();
             Preconditions.checkArgument(
                     (offsetTable == null) == (consumerId == null),
-                    "source.binlog.offset-table and source.binlog.consumer-id must be configured together");
+                    "source.changelog.offset-table and source.changelog.consumer-id must be configured together");
             if (offsetTable != null) {
                 Preconditions.checkArgument(
                         readOptions.getScanMode().hasIncrementalPhase(),
-                        "source.binlog offset persistence is only valid in incremental source modes");
+                        "source.changelog offset persistence is only valid in incremental source modes");
                 Preconditions.checkNotNull(
                         options.getJdbcUrl(),
-                        "jdbc-url is required when source.binlog.offset-table is configured");
+                        "jdbc-url is required when source.changelog.offset-table is configured");
                 try (DorisOffsetPublisher publisher =
                         new DorisOffsetPublisher(
                                 new SimpleJdbcConnectionProvider(options),

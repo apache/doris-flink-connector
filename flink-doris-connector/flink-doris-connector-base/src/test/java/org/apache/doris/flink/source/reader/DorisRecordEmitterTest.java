@@ -78,7 +78,7 @@ class DorisRecordEmitterTest {
     }
 
     @Test
-    void mapsAllBinlogOperationsAndRejectsUnknownValues() {
+    void mapsAllChangelogOperationsAndRejectsUnknownValues() {
         assertThat(record(0L).getRowKind()).isEqualTo(RowKind.INSERT);
         assertThat(record(1L).getRowKind()).isEqualTo(RowKind.DELETE);
         assertThat(record(2L).getRowKind()).isEqualTo(RowKind.UPDATE_BEFORE);

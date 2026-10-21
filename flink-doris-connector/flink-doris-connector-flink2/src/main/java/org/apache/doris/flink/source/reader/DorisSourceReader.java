@@ -60,7 +60,7 @@ public class DorisSourceReader<T>
             Configuration config) {
         super(fetcherManager, recordEmitter, config, context);
         offsetPublishingEnabled =
-                readOptions.getBinlogOffsetTable() != null && context.getIndexOfSubtask() == 0;
+                readOptions.getChangelogOffsetTable() != null && context.getIndexOfSubtask() == 0;
     }
 
     @Override

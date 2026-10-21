@@ -19,21 +19,21 @@ package org.apache.doris.flink.source;
 
 import java.util.Locale;
 
-/** Increment semantics requested from the Doris row-binlog query. */
-public enum DorisBinlogIncrementType {
+/** Increment semantics requested from the Doris changelog query. */
+public enum DorisChangelogIncrementType {
     DETAIL,
     MIN_DELTA,
     APPEND_ONLY;
 
-    public static DorisBinlogIncrementType fromOption(String value) {
+    public static DorisChangelogIncrementType fromOption(String value) {
         if (value == null) {
-            throw new IllegalArgumentException("source.binlog.increment-type must not be null");
+            throw new IllegalArgumentException("source.changelog.increment-type must not be null");
         }
         try {
             return valueOf(value.trim().toUpperCase(Locale.ROOT));
         } catch (java.lang.IllegalArgumentException e) {
             throw new IllegalArgumentException(
-                    "Unsupported source.binlog.increment-type: " + value, e);
+                    "Unsupported source.changelog.increment-type: " + value, e);
         }
     }
 

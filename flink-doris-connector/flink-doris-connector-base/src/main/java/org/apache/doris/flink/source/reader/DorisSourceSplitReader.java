@@ -53,12 +53,12 @@ public class DorisSourceSplitReader implements SplitReader<DorisSourceRecord, Do
         this.readOptions = readOptions;
         this.splits = new ArrayDeque<>();
         this.offsetPublisher =
-                readOptions.getBinlogOffsetTable() == null
+                readOptions.getChangelogOffsetTable() == null
                         ? null
                         : new DorisOffsetPublisher(
                                 new SimpleJdbcConnectionProvider(options),
-                                readOptions.getBinlogOffsetTable(),
-                                readOptions.getBinlogConsumerId());
+                                readOptions.getChangelogOffsetTable(),
+                                readOptions.getChangelogConsumerId());
     }
 
     @Override

@@ -17,7 +17,7 @@
 
 package org.apache.doris.flink.cfg;
 
-import org.apache.doris.flink.source.DorisBinlogIncrementType;
+import org.apache.doris.flink.source.DorisChangelogIncrementType;
 import org.apache.doris.flink.source.DorisSourceScanMode;
 
 import java.io.Serializable;
@@ -47,11 +47,11 @@ public class DorisReadOptions implements Serializable {
     private Integer thriftMaxMessageSize;
     private DorisSourceScanMode scanMode;
     private String scanTimestamp;
-    private DorisBinlogIncrementType binlogIncrementType;
-    private Long binlogPollIntervalMs;
-    private Long binlogVisibleWaitTimeoutMs;
-    private String binlogOffsetTable;
-    private String binlogConsumerId;
+    private DorisChangelogIncrementType changelogIncrementType;
+    private Long changelogPollIntervalMs;
+    private Long changelogVisibleWaitTimeoutMs;
+    private String changelogOffsetTable;
+    private String changelogConsumerId;
 
     public DorisReadOptions(
             String readFields,
@@ -72,9 +72,9 @@ public class DorisReadOptions implements Serializable {
             Integer thriftMaxMessageSize,
             DorisSourceScanMode scanMode,
             String scanTimestamp,
-            DorisBinlogIncrementType binlogIncrementType,
-            Long binlogPollIntervalMs,
-            Long binlogVisibleWaitTimeoutMs) {
+            DorisChangelogIncrementType changelogIncrementType,
+            Long changelogPollIntervalMs,
+            Long changelogVisibleWaitTimeoutMs) {
         this(
                 readFields,
                 filterQuery,
@@ -94,9 +94,9 @@ public class DorisReadOptions implements Serializable {
                 thriftMaxMessageSize,
                 scanMode,
                 scanTimestamp,
-                binlogIncrementType,
-                binlogPollIntervalMs,
-                binlogVisibleWaitTimeoutMs,
+                changelogIncrementType,
+                changelogPollIntervalMs,
+                changelogVisibleWaitTimeoutMs,
                 null,
                 null);
     }
@@ -120,11 +120,11 @@ public class DorisReadOptions implements Serializable {
             Integer thriftMaxMessageSize,
             DorisSourceScanMode scanMode,
             String scanTimestamp,
-            DorisBinlogIncrementType binlogIncrementType,
-            Long binlogPollIntervalMs,
-            Long binlogVisibleWaitTimeoutMs,
-            String binlogOffsetTable,
-            String binlogConsumerId) {
+            DorisChangelogIncrementType changelogIncrementType,
+            Long changelogPollIntervalMs,
+            Long changelogVisibleWaitTimeoutMs,
+            String changelogOffsetTable,
+            String changelogConsumerId) {
         this.readFields = readFields;
         this.filterQuery = filterQuery;
         this.requestTabletSize = requestTabletSize;
@@ -143,11 +143,11 @@ public class DorisReadOptions implements Serializable {
         this.thriftMaxMessageSize = thriftMaxMessageSize;
         this.scanMode = scanMode;
         this.scanTimestamp = scanTimestamp;
-        this.binlogIncrementType = binlogIncrementType;
-        this.binlogPollIntervalMs = binlogPollIntervalMs;
-        this.binlogVisibleWaitTimeoutMs = binlogVisibleWaitTimeoutMs;
-        this.binlogOffsetTable = binlogOffsetTable;
-        this.binlogConsumerId = binlogConsumerId;
+        this.changelogIncrementType = changelogIncrementType;
+        this.changelogPollIntervalMs = changelogPollIntervalMs;
+        this.changelogVisibleWaitTimeoutMs = changelogVisibleWaitTimeoutMs;
+        this.changelogOffsetTable = changelogOffsetTable;
+        this.changelogConsumerId = changelogConsumerId;
     }
 
     public String getReadFields() {
@@ -238,24 +238,24 @@ public class DorisReadOptions implements Serializable {
         return scanTimestamp;
     }
 
-    public DorisBinlogIncrementType getBinlogIncrementType() {
-        return binlogIncrementType;
+    public DorisChangelogIncrementType getChangelogIncrementType() {
+        return changelogIncrementType;
     }
 
-    public Long getBinlogPollIntervalMs() {
-        return binlogPollIntervalMs;
+    public Long getChangelogPollIntervalMs() {
+        return changelogPollIntervalMs;
     }
 
-    public Long getBinlogVisibleWaitTimeoutMs() {
-        return binlogVisibleWaitTimeoutMs;
+    public Long getChangelogVisibleWaitTimeoutMs() {
+        return changelogVisibleWaitTimeoutMs;
     }
 
-    public String getBinlogOffsetTable() {
-        return binlogOffsetTable;
+    public String getChangelogOffsetTable() {
+        return changelogOffsetTable;
     }
 
-    public String getBinlogConsumerId() {
-        return binlogConsumerId;
+    public String getChangelogConsumerId() {
+        return changelogConsumerId;
     }
 
     public static Builder builder() {
@@ -293,11 +293,11 @@ public class DorisReadOptions implements Serializable {
                 && Objects.equals(thriftMaxMessageSize, that.thriftMaxMessageSize)
                 && scanMode == that.scanMode
                 && Objects.equals(scanTimestamp, that.scanTimestamp)
-                && binlogIncrementType == that.binlogIncrementType
-                && Objects.equals(binlogPollIntervalMs, that.binlogPollIntervalMs)
-                && Objects.equals(binlogVisibleWaitTimeoutMs, that.binlogVisibleWaitTimeoutMs)
-                && Objects.equals(binlogOffsetTable, that.binlogOffsetTable)
-                && Objects.equals(binlogConsumerId, that.binlogConsumerId);
+                && changelogIncrementType == that.changelogIncrementType
+                && Objects.equals(changelogPollIntervalMs, that.changelogPollIntervalMs)
+                && Objects.equals(changelogVisibleWaitTimeoutMs, that.changelogVisibleWaitTimeoutMs)
+                && Objects.equals(changelogOffsetTable, that.changelogOffsetTable)
+                && Objects.equals(changelogConsumerId, that.changelogConsumerId);
     }
 
     @Override
@@ -321,11 +321,11 @@ public class DorisReadOptions implements Serializable {
                 thriftMaxMessageSize,
                 scanMode,
                 scanTimestamp,
-                binlogIncrementType,
-                binlogPollIntervalMs,
-                binlogVisibleWaitTimeoutMs,
-                binlogOffsetTable,
-                binlogConsumerId);
+                changelogIncrementType,
+                changelogPollIntervalMs,
+                changelogVisibleWaitTimeoutMs,
+                changelogOffsetTable,
+                changelogConsumerId);
     }
 
     public DorisReadOptions copy() {
@@ -348,11 +348,11 @@ public class DorisReadOptions implements Serializable {
                 thriftMaxMessageSize,
                 scanMode,
                 scanTimestamp,
-                binlogIncrementType,
-                binlogPollIntervalMs,
-                binlogVisibleWaitTimeoutMs,
-                binlogOffsetTable,
-                binlogConsumerId);
+                changelogIncrementType,
+                changelogPollIntervalMs,
+                changelogVisibleWaitTimeoutMs,
+                changelogOffsetTable,
+                changelogConsumerId);
     }
 
     /** Builder of {@link DorisReadOptions}. */
@@ -382,12 +382,13 @@ public class DorisReadOptions implements Serializable {
                 ConfigurationOptions.DORIS_THRIFT_MAX_MESSAGE_SIZE_DEFAULT;
         private DorisSourceScanMode scanMode = DorisSourceScanMode.SNAPSHOT;
         private String scanTimestamp;
-        private DorisBinlogIncrementType binlogIncrementType = DorisBinlogIncrementType.DETAIL;
-        private Long binlogPollIntervalMs = 10_000L;
-        private Long binlogVisibleWaitTimeoutMs =
-                ConfigurationOptions.SOURCE_BINLOG_VISIBLE_WAIT_TIMEOUT_MS_DEFAULT;
-        private String binlogOffsetTable;
-        private String binlogConsumerId;
+        private DorisChangelogIncrementType changelogIncrementType =
+                DorisChangelogIncrementType.DETAIL;
+        private Long changelogPollIntervalMs = 10_000L;
+        private Long changelogVisibleWaitTimeoutMs =
+                ConfigurationOptions.SOURCE_CHANGELOG_VISIBLE_WAIT_TIMEOUT_MS_DEFAULT;
+        private String changelogOffsetTable;
+        private String changelogConsumerId;
 
         /**
          * Sets the readFields for doris table to push down projection, such as name,age.
@@ -568,28 +569,29 @@ public class DorisReadOptions implements Serializable {
             return this;
         }
 
-        public Builder setBinlogIncrementType(DorisBinlogIncrementType binlogIncrementType) {
-            this.binlogIncrementType = binlogIncrementType;
+        public Builder setChangelogIncrementType(
+                DorisChangelogIncrementType changelogIncrementType) {
+            this.changelogIncrementType = changelogIncrementType;
             return this;
         }
 
-        public Builder setBinlogPollIntervalMs(Long binlogPollIntervalMs) {
-            this.binlogPollIntervalMs = binlogPollIntervalMs;
+        public Builder setChangelogPollIntervalMs(Long changelogPollIntervalMs) {
+            this.changelogPollIntervalMs = changelogPollIntervalMs;
             return this;
         }
 
-        public Builder setBinlogVisibleWaitTimeoutMs(Long binlogVisibleWaitTimeoutMs) {
-            this.binlogVisibleWaitTimeoutMs = binlogVisibleWaitTimeoutMs;
+        public Builder setChangelogVisibleWaitTimeoutMs(Long changelogVisibleWaitTimeoutMs) {
+            this.changelogVisibleWaitTimeoutMs = changelogVisibleWaitTimeoutMs;
             return this;
         }
 
-        public Builder setBinlogOffsetTable(String binlogOffsetTable) {
-            this.binlogOffsetTable = binlogOffsetTable;
+        public Builder setChangelogOffsetTable(String changelogOffsetTable) {
+            this.changelogOffsetTable = changelogOffsetTable;
             return this;
         }
 
-        public Builder setBinlogConsumerId(String binlogConsumerId) {
-            this.binlogConsumerId = binlogConsumerId;
+        public Builder setChangelogConsumerId(String changelogConsumerId) {
+            this.changelogConsumerId = changelogConsumerId;
             return this;
         }
 
@@ -618,11 +620,11 @@ public class DorisReadOptions implements Serializable {
                     thriftMaxMessageSize,
                     scanMode,
                     scanTimestamp,
-                    binlogIncrementType,
-                    binlogPollIntervalMs,
-                    binlogVisibleWaitTimeoutMs,
-                    binlogOffsetTable,
-                    binlogConsumerId);
+                    changelogIncrementType,
+                    changelogPollIntervalMs,
+                    changelogVisibleWaitTimeoutMs,
+                    changelogOffsetTable,
+                    changelogConsumerId);
         }
     }
 }

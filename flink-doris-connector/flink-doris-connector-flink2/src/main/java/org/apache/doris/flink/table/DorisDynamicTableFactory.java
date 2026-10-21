@@ -33,7 +33,7 @@ import org.apache.doris.flink.cfg.DorisLookupOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.sink.writer.WriteMode;
-import org.apache.doris.flink.source.DorisBinlogIncrementType;
+import org.apache.doris.flink.source.DorisChangelogIncrementType;
 import org.apache.doris.flink.source.DorisSourceScanMode;
 
 import java.util.HashSet;
@@ -97,11 +97,11 @@ import static org.apache.doris.flink.table.DorisConfigOptions.SINK_S3_ROLE_ARN;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_S3_SECRET_KEY;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_USE_CACHE;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_WRITE_MODE;
-import static org.apache.doris.flink.table.DorisConfigOptions.SOURCE_BINLOG_CONSUMER_ID;
-import static org.apache.doris.flink.table.DorisConfigOptions.SOURCE_BINLOG_INCREMENT_TYPE;
-import static org.apache.doris.flink.table.DorisConfigOptions.SOURCE_BINLOG_OFFSET_TABLE;
-import static org.apache.doris.flink.table.DorisConfigOptions.SOURCE_BINLOG_POLL_INTERVAL;
-import static org.apache.doris.flink.table.DorisConfigOptions.SOURCE_BINLOG_VISIBLE_WAIT_TIMEOUT;
+import static org.apache.doris.flink.table.DorisConfigOptions.SOURCE_CHANGELOG_CONSUMER_ID;
+import static org.apache.doris.flink.table.DorisConfigOptions.SOURCE_CHANGELOG_INCREMENT_TYPE;
+import static org.apache.doris.flink.table.DorisConfigOptions.SOURCE_CHANGELOG_OFFSET_TABLE;
+import static org.apache.doris.flink.table.DorisConfigOptions.SOURCE_CHANGELOG_POLL_INTERVAL;
+import static org.apache.doris.flink.table.DorisConfigOptions.SOURCE_CHANGELOG_VISIBLE_WAIT_TIMEOUT;
 import static org.apache.doris.flink.table.DorisConfigOptions.SOURCE_SCAN_MODE;
 import static org.apache.doris.flink.table.DorisConfigOptions.SOURCE_SCAN_TIMESTAMP;
 import static org.apache.doris.flink.table.DorisConfigOptions.SOURCE_USE_OLD_API;
@@ -189,11 +189,11 @@ public final class DorisDynamicTableFactory
         options.add(SOURCE_USE_OLD_API);
         options.add(SOURCE_SCAN_MODE);
         options.add(SOURCE_SCAN_TIMESTAMP);
-        options.add(SOURCE_BINLOG_INCREMENT_TYPE);
-        options.add(SOURCE_BINLOG_POLL_INTERVAL);
-        options.add(SOURCE_BINLOG_VISIBLE_WAIT_TIMEOUT);
-        options.add(SOURCE_BINLOG_OFFSET_TABLE);
-        options.add(SOURCE_BINLOG_CONSUMER_ID);
+        options.add(SOURCE_CHANGELOG_INCREMENT_TYPE);
+        options.add(SOURCE_CHANGELOG_POLL_INTERVAL);
+        options.add(SOURCE_CHANGELOG_VISIBLE_WAIT_TIMEOUT);
+        options.add(SOURCE_CHANGELOG_OFFSET_TABLE);
+        options.add(SOURCE_CHANGELOG_CONSUMER_ID);
         options.add(SINK_WRITE_MODE);
         options.add(SINK_IGNORE_COMMIT_ERROR);
 
@@ -276,16 +276,17 @@ public final class DorisDynamicTableFactory
                 .setUseOldApi(readableConfig.get(SOURCE_USE_OLD_API))
                 .setScanMode(DorisSourceScanMode.fromOption(readableConfig.get(SOURCE_SCAN_MODE)))
                 .setScanTimestamp(readableConfig.getOptional(SOURCE_SCAN_TIMESTAMP).orElse(null))
-                .setBinlogIncrementType(
-                        DorisBinlogIncrementType.fromOption(
-                                readableConfig.get(SOURCE_BINLOG_INCREMENT_TYPE)))
-                .setBinlogPollIntervalMs(readableConfig.get(SOURCE_BINLOG_POLL_INTERVAL).toMillis())
-                .setBinlogVisibleWaitTimeoutMs(
-                        readableConfig.get(SOURCE_BINLOG_VISIBLE_WAIT_TIMEOUT).toMillis())
-                .setBinlogOffsetTable(
-                        readableConfig.getOptional(SOURCE_BINLOG_OFFSET_TABLE).orElse(null))
-                .setBinlogConsumerId(
-                        readableConfig.getOptional(SOURCE_BINLOG_CONSUMER_ID).orElse(null))
+                .setChangelogIncrementType(
+                        DorisChangelogIncrementType.fromOption(
+                                readableConfig.get(SOURCE_CHANGELOG_INCREMENT_TYPE)))
+                .setChangelogPollIntervalMs(
+                        readableConfig.get(SOURCE_CHANGELOG_POLL_INTERVAL).toMillis())
+                .setChangelogVisibleWaitTimeoutMs(
+                        readableConfig.get(SOURCE_CHANGELOG_VISIBLE_WAIT_TIMEOUT).toMillis())
+                .setChangelogOffsetTable(
+                        readableConfig.getOptional(SOURCE_CHANGELOG_OFFSET_TABLE).orElse(null))
+                .setChangelogConsumerId(
+                        readableConfig.getOptional(SOURCE_CHANGELOG_CONSUMER_ID).orElse(null))
                 .setUseFlightSql(readableConfig.get(USE_FLIGHT_SQL))
                 .setFlightSqlPort(readableConfig.get(FLIGHT_SQL_PORT));
         return builder.build();

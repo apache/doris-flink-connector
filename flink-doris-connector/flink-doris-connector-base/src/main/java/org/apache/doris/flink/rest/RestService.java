@@ -104,7 +104,9 @@ public class RestService implements Serializable {
             "SELECT FROM_UNIXTIME(CURRENT_TSO_PHYSICAL_TIME / 1000, "
                     + "'%Y-%m-%d %H:%i:%s') FROM information_schema.tso_status";
 
-    /** Resolves the current Doris TSO to the timestamp format accepted by row-binlog queries. */
+    /**
+     * Resolves the current Doris TSO to the timestamp format accepted by Doris changelog queries.
+     */
     public static String resolveCurrentTimestamp(
             DorisOptions options, DorisReadOptions readOptions, Logger logger) {
         List<String> endpoints = allEndpoints(options.getFenodes(), logger);
