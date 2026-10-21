@@ -232,8 +232,8 @@ public class DorisParallelIncrementalSourceITCase extends AbstractDorisIncrement
                                 + "(PARTITION p0 VALUES LESS THAN (10000)) "
                                 + "DISTRIBUTED BY HASH(id) BUCKETS 16 "
                                 + "PROPERTIES ('replication_num'='1', "
-                                + "'enable_unique_key_merge_on_write'='true', 'binlog.enable'='true', "
-                                + "'binlog.format'='ROW', 'binlog.need_historical_value'='true')",
+                                + "'enable_unique_key_merge_on_write'='true', 'changelog.enable'='true', "
+                                + "'changelog.need_historical_value'='true')",
                         DATABASE, table),
                 String.format("DROP TABLE IF EXISTS %s.%s", DATABASE, OFFSET_TABLE),
                 String.format(
@@ -273,10 +273,10 @@ public class DorisParallelIncrementalSourceITCase extends AbstractDorisIncrement
                             .setReadFields("id,name")
                             .setScanMode(DorisSourceScanMode.FROM_TIMESTAMP)
                             .setScanTimestamp(start)
-                            .setBinlogIncrementType(DorisBinlogIncrementType.DETAIL)
-                            .setBinlogPollIntervalMs(1000L)
-                            .setBinlogOffsetTable(DATABASE + "." + OFFSET_TABLE)
-                            .setBinlogConsumerId(probe.id)
+                            .setChangelogIncrementType(DorisChangelogIncrementType.DETAIL)
+                            .setChangelogPollIntervalMs(1000L)
+                            .setChangelogOffsetTable(DATABASE + "." + OFFSET_TABLE)
+                            .setChangelogConsumerId(probe.id)
                             .build();
             Configuration configuration = new Configuration();
             if (savepoint != null) {
@@ -291,11 +291,11 @@ public class DorisParallelIncrementalSourceITCase extends AbstractDorisIncrement
             env.fromSource(
                             new ControlledSource(options, readOptions, probe.id),
                             WatermarkStrategy.noWatermarks(),
-                            "parallel-binlog-source")
-                    .uid("parallel-binlog-source")
+                            "parallel-changelog-source")
+                    .uid("parallel-changelog-source")
                     .sinkTo(new DiscardingSink<>())
-                    .uid("discard-binlog-output");
-            probe.job = env.executeAsync("parallel-binlog-it");
+                    .uid("discard-changelog-output");
+            probe.job = env.executeAsync("parallel-changelog-it");
             waitForJobStatus(
                     probe.job,
                     Collections.singletonList(JobStatus.RUNNING),
@@ -414,13 +414,13 @@ public class DorisParallelIncrementalSourceITCase extends AbstractDorisIncrement
 
         @Override
         public void deserialize(List<?> record, Collector<String> out) {
-            throw new AssertionError("Incremental records must retain their binlog metadata");
+            throw new AssertionError("Incremental records must retain their changelog metadata");
         }
 
         @Override
         public void deserialize(DorisSourceRecord record, Collector<String> out) {
             Assert.assertEquals(
-                    "Projection must exclude hidden binlog fields",
+                    "Projection must exclude hidden changelog fields",
                     2,
                     record.getFieldValues().size());
             String value =

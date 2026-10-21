@@ -17,6 +17,8 @@
 
 package org.apache.doris.flink.sink;
 
+import org.apache.doris.flink.cfg.DorisOptions;
+import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.cfg.DorisTlsOptions;
 import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.apache.doris.flink.rest.models.BackendV2;
@@ -26,6 +28,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.MockedStatic;
+import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 import java.util.List;
@@ -41,6 +44,63 @@ public class TestBackendUtil {
     @Before
     public void setUp() throws Exception {
         backendUtilMockedStatic = mockStatic(BackendUtil.class);
+        backendUtilMockedStatic
+                .when(() -> BackendUtil.getInstance(any(), any(), any()))
+                .thenCallRealMethod();
+    }
+
+    @Test
+    public void testFeNodesAreFilteredOnlyDuringInitialization() throws Exception {
+        DorisTlsOptions tlsOptions = tlsOptions();
+        DorisOptions options =
+                DorisOptions.builder()
+                        .setFenodes("127.0.0.1:8030,127.0.0.2:8030,127.0.0.3:8030")
+                        .setAutoRedirect(true)
+                        .setTlsOptions(tlsOptions)
+                        .build();
+        backendUtilMockedStatic
+                .when(() -> BackendUtil.tryHttpConnection("127.0.0.2:8030", tlsOptions))
+                .thenReturn(true);
+        backendUtilMockedStatic
+                .when(() -> BackendUtil.tryHttpConnection("127.0.0.3:8030", tlsOptions))
+                .thenReturn(true);
+
+        BackendUtil backendUtil =
+                BackendUtil.getInstance(
+                        options, DorisReadOptions.defaults(), LoggerFactory.getLogger(getClass()));
+        Assert.assertEquals(2, backendUtil.getBackends().size());
+
+        backendUtilMockedStatic
+                .when(() -> BackendUtil.tryHttpConnection(anyString(), any(DorisTlsOptions.class)))
+                .thenReturn(false);
+        List<String> selected =
+                Arrays.asList(
+                        backendUtil.getAvailableBackend(1), backendUtil.getAvailableBackend(1));
+        Assert.assertTrue(selected.contains("127.0.0.2:8030"));
+        Assert.assertTrue(selected.contains("127.0.0.3:8030"));
+        Assert.assertEquals(selected.get(0), backendUtil.getAvailableBackend(1));
+
+        // Reinitialization discovers the current availability instead of reusing the old list.
+        backendUtilMockedStatic
+                .when(() -> BackendUtil.tryHttpConnection("127.0.0.3:8030", tlsOptions))
+                .thenReturn(true);
+        BackendUtil recovered =
+                BackendUtil.getInstance(
+                        options, DorisReadOptions.defaults(), LoggerFactory.getLogger(getClass()));
+        Assert.assertEquals(1, recovered.getBackends().size());
+        Assert.assertEquals("127.0.0.3:8030", recovered.getAvailableBackend());
+    }
+
+    @Test(expected = DorisRuntimeException.class)
+    public void testNoAvailableFeFailsDuringInitialization() {
+        DorisOptions options =
+                DorisOptions.builder()
+                        .setFenodes("127.0.0.1:8030,127.0.0.2:8030")
+                        .setAutoRedirect(true)
+                        .build();
+
+        BackendUtil.getInstance(
+                options, DorisReadOptions.defaults(), LoggerFactory.getLogger(getClass()));
     }
 
     @Test

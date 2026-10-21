@@ -54,10 +54,11 @@ class DorisSourceOptionsTest {
 
     @Test
     void parsesIncrementTypes() {
-        assertThat(DorisBinlogIncrementType.fromOption("detail").toSqlValue()).isEqualTo("DETAIL");
-        assertThat(DorisBinlogIncrementType.fromOption("min_delta").toSqlValue())
+        assertThat(DorisChangelogIncrementType.fromOption("detail").toSqlValue())
+                .isEqualTo("DETAIL");
+        assertThat(DorisChangelogIncrementType.fromOption("min_delta").toSqlValue())
                 .isEqualTo("MIN_DELTA");
-        assertThat(DorisBinlogIncrementType.fromOption("append_only").toSqlValue())
+        assertThat(DorisChangelogIncrementType.fromOption("append_only").toSqlValue())
                 .isEqualTo("APPEND_ONLY");
     }
 
@@ -69,9 +70,9 @@ class DorisSourceOptionsTest {
         assertThatThrownBy(() -> DorisSourceScanMode.fromOption("from_timestamp"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("source.scan.mode");
-        assertThatThrownBy(() -> DorisBinlogIncrementType.fromOption("invalid"))
+        assertThatThrownBy(() -> DorisChangelogIncrementType.fromOption("invalid"))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("source.binlog.increment-type");
+                .hasMessageContaining("source.changelog.increment-type");
     }
 
     @Test
@@ -80,11 +81,12 @@ class DorisSourceOptionsTest {
 
         assertThat(options.getScanMode()).isEqualTo(DorisSourceScanMode.SNAPSHOT);
         assertThat(options.getScanTimestamp()).isNull();
-        assertThat(options.getBinlogIncrementType()).isEqualTo(DorisBinlogIncrementType.DETAIL);
-        assertThat(options.getBinlogPollIntervalMs()).isEqualTo(10_000L);
-        assertThat(options.getBinlogVisibleWaitTimeoutMs()).isEqualTo(5 * 60 * 1000L);
-        assertThat(options.getBinlogOffsetTable()).isNull();
-        assertThat(options.getBinlogConsumerId()).isNull();
+        assertThat(options.getChangelogIncrementType())
+                .isEqualTo(DorisChangelogIncrementType.DETAIL);
+        assertThat(options.getChangelogPollIntervalMs()).isEqualTo(10_000L);
+        assertThat(options.getChangelogVisibleWaitTimeoutMs()).isEqualTo(5 * 60 * 1000L);
+        assertThat(options.getChangelogOffsetTable()).isNull();
+        assertThat(options.getChangelogConsumerId()).isNull();
     }
 
     @Test
@@ -93,11 +95,11 @@ class DorisSourceOptionsTest {
                 DorisReadOptions.builder()
                         .setScanMode(DorisSourceScanMode.FROM_TIMESTAMP)
                         .setScanTimestamp("2026-07-20 10:00:00")
-                        .setBinlogIncrementType(DorisBinlogIncrementType.MIN_DELTA)
-                        .setBinlogPollIntervalMs(3_000L)
-                        .setBinlogVisibleWaitTimeoutMs(60_000L)
-                        .setBinlogOffsetTable("ops.flink_source_offsets")
-                        .setBinlogConsumerId("prod.sales.orders")
+                        .setChangelogIncrementType(DorisChangelogIncrementType.MIN_DELTA)
+                        .setChangelogPollIntervalMs(3_000L)
+                        .setChangelogVisibleWaitTimeoutMs(60_000L)
+                        .setChangelogOffsetTable("ops.flink_source_offsets")
+                        .setChangelogConsumerId("prod.sales.orders")
                         .build();
 
         DorisReadOptions copy = options.copy();
@@ -105,11 +107,12 @@ class DorisSourceOptionsTest {
         assertThat(copy).isEqualTo(options).isNotSameAs(options);
         assertThat(copy.getScanMode()).isEqualTo(DorisSourceScanMode.FROM_TIMESTAMP);
         assertThat(copy.getScanTimestamp()).isEqualTo("2026-07-20 10:00:00");
-        assertThat(copy.getBinlogIncrementType()).isEqualTo(DorisBinlogIncrementType.MIN_DELTA);
-        assertThat(copy.getBinlogPollIntervalMs()).isEqualTo(3_000L);
-        assertThat(copy.getBinlogVisibleWaitTimeoutMs()).isEqualTo(60_000L);
-        assertThat(copy.getBinlogOffsetTable()).isEqualTo("ops.flink_source_offsets");
-        assertThat(copy.getBinlogConsumerId()).isEqualTo("prod.sales.orders");
+        assertThat(copy.getChangelogIncrementType())
+                .isEqualTo(DorisChangelogIncrementType.MIN_DELTA);
+        assertThat(copy.getChangelogPollIntervalMs()).isEqualTo(3_000L);
+        assertThat(copy.getChangelogVisibleWaitTimeoutMs()).isEqualTo(60_000L);
+        assertThat(copy.getChangelogOffsetTable()).isEqualTo("ops.flink_source_offsets");
+        assertThat(copy.getChangelogConsumerId()).isEqualTo("prod.sales.orders");
     }
 
     @Test
@@ -158,16 +161,20 @@ class DorisSourceOptionsTest {
                         () ->
                                 buildSource(
                                         DorisReadOptions.builder()
-                                                .setBinlogPollIntervalMs(999L)
+                                                .setChangelogPollIntervalMs(999L)
                                                 .build()))
                 .hasMessageContaining("at least 1 second");
-        assertThat(buildSource(DorisReadOptions.builder().setBinlogPollIntervalMs(1_000L).build()))
+        assertThat(
+                        buildSource(
+                                DorisReadOptions.builder()
+                                        .setChangelogPollIntervalMs(1_000L)
+                                        .build()))
                 .isNotNull();
         assertThatThrownBy(
                         () ->
                                 buildSource(
                                         DorisReadOptions.builder()
-                                                .setBinlogVisibleWaitTimeoutMs(-1L)
+                                                .setChangelogVisibleWaitTimeoutMs(-1L)
                                                 .build()))
                 .hasMessageContaining("visible-wait-timeout must not be negative");
         assertThat(
@@ -186,7 +193,7 @@ class DorisSourceOptionsTest {
                                 buildSource(
                                         DorisReadOptions.builder()
                                                 .setScanMode(DorisSourceScanMode.LATEST)
-                                                .setBinlogOffsetTable("ops.flink_source_offsets")
+                                                .setChangelogOffsetTable("ops.flink_source_offsets")
                                                 .build()))
                 .hasMessageContaining("must be configured together");
         assertThatThrownBy(
@@ -194,8 +201,8 @@ class DorisSourceOptionsTest {
                                 buildSource(
                                         DorisReadOptions.builder()
                                                 .setScanMode(DorisSourceScanMode.SNAPSHOT)
-                                                .setBinlogOffsetTable("ops.flink_source_offsets")
-                                                .setBinlogConsumerId("prod.sales.orders")
+                                                .setChangelogOffsetTable("ops.flink_source_offsets")
+                                                .setChangelogConsumerId("prod.sales.orders")
                                                 .build()))
                 .hasMessageContaining("only valid in incremental source modes");
         assertThatThrownBy(
@@ -203,8 +210,8 @@ class DorisSourceOptionsTest {
                                 buildSource(
                                         DorisReadOptions.builder()
                                                 .setScanMode(DorisSourceScanMode.LATEST)
-                                                .setBinlogOffsetTable("ops.flink_source_offsets")
-                                                .setBinlogConsumerId("prod.sales.orders")
+                                                .setChangelogOffsetTable("ops.flink_source_offsets")
+                                                .setChangelogConsumerId("prod.sales.orders")
                                                 .build()))
                 .hasMessageContaining("jdbc-url");
     }
@@ -222,9 +229,9 @@ class DorisSourceOptionsTest {
                                     buildSource(
                                             DorisReadOptions.builder()
                                                     .setScanMode(DorisSourceScanMode.LATEST)
-                                                    .setBinlogOffsetTable(
+                                                    .setChangelogOffsetTable(
                                                             "ops.flink_source_offsets")
-                                                    .setBinlogConsumerId("prod.sales.orders")
+                                                    .setChangelogConsumerId("prod.sales.orders")
                                                     .build(),
                                             "db.table",
                                             "jdbc:mysql://127.0.0.1:9030"))

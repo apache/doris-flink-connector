@@ -26,7 +26,7 @@ import java.util.TreeSet;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
-/** A finite Doris row-binlog query range with an inclusive start and exclusive end. */
+/** A finite Doris changelog query range with an inclusive start and exclusive end. */
 public final class DorisStreamSplit implements DorisSourceSplit {
     private static final Pattern TIMESTAMP_PATTERN =
             Pattern.compile("\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}");

@@ -110,8 +110,8 @@ public final class DorisDynamicTableSource
     @Override
     public ChangelogMode getChangelogMode() {
         if (!readOptions.getScanMode().hasIncrementalPhase()
-                || readOptions.getBinlogIncrementType()
-                        == org.apache.doris.flink.source.DorisBinlogIncrementType.APPEND_ONLY) {
+                || readOptions.getChangelogIncrementType()
+                        == org.apache.doris.flink.source.DorisChangelogIncrementType.APPEND_ONLY) {
             return ChangelogMode.insertOnly();
         }
         return ChangelogMode.newBuilder()

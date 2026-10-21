@@ -844,7 +844,7 @@ class DorisHybridSourceEnumeratorTest {
                         snapshots,
                         (startTimestamp, endTimestamp) -> Collections.singleton(0L));
         return new DorisSourceEnumerator(
-                context, splitAssigner, testReadOptions.getBinlogPollIntervalMs());
+                context, splitAssigner, testReadOptions.getChangelogPollIntervalMs());
     }
 
     private static DorisSourceEnumerator restoredEnumerator(
@@ -862,7 +862,7 @@ class DorisHybridSourceEnumeratorTest {
                         timestampSupplier,
                         (startTimestamp, endTimestamp) -> Collections.singleton(0L));
         return new DorisSourceEnumerator(
-                context, splitAssigner, testReadOptions.getBinlogPollIntervalMs());
+                context, splitAssigner, testReadOptions.getChangelogPollIntervalMs());
     }
 
     private static DorisOptions dorisOptions() {
@@ -875,7 +875,7 @@ class DorisHybridSourceEnumeratorTest {
     private static DorisReadOptions readOptions(
             DorisSourceScanMode mode, String configuredStartTimestamp) {
         DorisReadOptions.Builder builder =
-                DorisReadOptions.builder().setScanMode(mode).setBinlogPollIntervalMs(10_000L);
+                DorisReadOptions.builder().setScanMode(mode).setChangelogPollIntervalMs(10_000L);
         if (mode == DorisSourceScanMode.FROM_TIMESTAMP) {
             builder.setScanTimestamp(configuredStartTimestamp);
         }

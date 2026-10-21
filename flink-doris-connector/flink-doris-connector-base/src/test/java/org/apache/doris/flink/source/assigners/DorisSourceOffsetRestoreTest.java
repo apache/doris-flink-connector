@@ -252,8 +252,8 @@ class DorisSourceOffsetRestoreTest {
         return DorisReadOptions.builder()
                 .setScanMode(mode)
                 .setScanTimestamp(mode == DorisSourceScanMode.FROM_TIMESTAMP ? CONFIGURED : null)
-                .setBinlogOffsetTable("ops.offsets")
-                .setBinlogConsumerId("orders-consumer")
+                .setChangelogOffsetTable("ops.offsets")
+                .setChangelogConsumerId("orders-consumer")
                 .build();
     }
 }

@@ -43,7 +43,7 @@ import org.apache.doris.flink.cfg.DorisTlsOptions;
 import org.apache.doris.flink.rest.PartitionDefinition;
 import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.sink.OptionUtils;
-import org.apache.doris.flink.source.DorisBinlogIncrementType;
+import org.apache.doris.flink.source.DorisChangelogIncrementType;
 import org.apache.doris.flink.source.DorisSource;
 import org.apache.doris.flink.source.DorisSourceScanMode;
 import org.apache.doris.flink.source.enumerator.DorisSourceCheckpoint;
@@ -162,7 +162,7 @@ public class DorisDynamicTableSourceTest {
         DorisReadOptions appendOnly =
                 OptionUtils.dorisReadOptionsBuilder()
                         .setScanMode(DorisSourceScanMode.LATEST)
-                        .setBinlogIncrementType(DorisBinlogIncrementType.APPEND_ONLY)
+                        .setChangelogIncrementType(DorisChangelogIncrementType.APPEND_ONLY)
                         .build();
         DorisDynamicTableSource appendOnlySource =
                 new DorisDynamicTableSource(
@@ -236,8 +236,8 @@ public class DorisDynamicTableSourceTest {
                 OptionUtils.dorisReadOptionsBuilder()
                         .setScanMode(DorisSourceScanMode.FROM_TIMESTAMP)
                         .setScanTimestamp("2026-07-20 10:00:00")
-                        .setBinlogIncrementType(DorisBinlogIncrementType.MIN_DELTA)
-                        .setBinlogPollIntervalMs(3_000L)
+                        .setChangelogIncrementType(DorisChangelogIncrementType.MIN_DELTA)
+                        .setChangelogPollIntervalMs(3_000L)
                         .build();
         DorisDynamicTableSource tableSource =
                 new DorisDynamicTableSource(
@@ -260,8 +260,8 @@ public class DorisDynamicTableSourceTest {
                         .setReadFields("`a`, `c`")
                         .setScanMode(DorisSourceScanMode.FROM_TIMESTAMP)
                         .setScanTimestamp("2026-07-20 10:00:00")
-                        .setBinlogIncrementType(DorisBinlogIncrementType.MIN_DELTA)
-                        .setBinlogPollIntervalMs(3_000L)
+                        .setChangelogIncrementType(DorisChangelogIncrementType.MIN_DELTA)
+                        .setChangelogPollIntervalMs(3_000L)
                         .build();
         DorisDynamicTableSource expected =
                 new DorisDynamicTableSource(

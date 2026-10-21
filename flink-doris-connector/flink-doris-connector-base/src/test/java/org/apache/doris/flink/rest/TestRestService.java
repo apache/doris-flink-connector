@@ -240,7 +240,7 @@ public class TestRestService {
     }
 
     @Test
-    public void discoversBinlogTabletsWithDefaultPlannerSettings() throws Exception {
+    public void discoversChangelogTabletsWithDefaultPlannerSettings() throws Exception {
         com.sun.net.httpserver.HttpServer server =
                 com.sun.net.httpserver.HttpServer.create(
                         new java.net.InetSocketAddress("127.0.0.1", 0), 0);

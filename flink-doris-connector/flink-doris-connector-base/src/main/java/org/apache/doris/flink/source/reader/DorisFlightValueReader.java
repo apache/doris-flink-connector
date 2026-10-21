@@ -43,7 +43,7 @@ import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.rest.SchemaUtils;
 import org.apache.doris.flink.rest.models.Schema;
 import org.apache.doris.flink.serialization.RowBatch;
-import org.apache.doris.flink.source.DorisBinlogIncrementType;
+import org.apache.doris.flink.source.DorisChangelogIncrementType;
 import org.apache.doris.flink.source.split.DorisSnapshotSplit;
 import org.apache.doris.flink.source.split.DorisSourceSplit;
 import org.apache.doris.flink.source.split.DorisStreamSplit;
@@ -119,14 +119,14 @@ public class DorisFlightValueReader extends ValueReader implements AutoCloseable
                                 options,
                                 readOptions,
                                 (DorisStreamSplit) split,
-                                readOptions.getBinlogIncrementType()));
+                                readOptions.getChangelogIncrementType()));
             } else {
                 throw new DorisRuntimeException("Unknown Doris split type: " + split);
             }
             this.queryResult =
                     split instanceof DorisStreamSplit
                             ? executeQueryWithRetry(
-                                    statement, readOptions.getBinlogVisibleWaitTimeoutMs())
+                                    statement, readOptions.getChangelogVisibleWaitTimeoutMs())
                             : statement.executeQuery();
             this.arrowReader = queryResult.getReader();
         } catch (InterruptedException e) {
@@ -215,16 +215,16 @@ public class DorisFlightValueReader extends ValueReader implements AutoCloseable
             DorisOptions options,
             DorisReadOptions readOptions,
             DorisStreamSplit split,
-            DorisBinlogIncrementType incrementType) {
+            DorisChangelogIncrementType incrementType) {
         String readFields =
                 StringUtils.isBlank(readOptions.getReadFields())
                         ? "*"
                         : readOptions.getReadFields();
-        // TODO: Remove the hint after Doris fixes partition pruning for row-binlog tablet IDs.
+        // TODO: Remove the hint after Doris fixes partition pruning for changelog tablet IDs.
         String sql =
                 String.format(
                         "%s SELECT /*+ SET_VAR(disable_nereids_rules='OLAP_SCAN_PARTITION_PRUNE') */ "
-                                + "%s, __DORIS_BINLOG_TSO__, __DORIS_BINLOG_LSN__, __DORIS_BINLOG_OP__ "
+                                + "%s, __DORIS_CHANGELOG_TSO__, __DORIS_CHANGELOG_LSN__, __DORIS_CHANGELOG_OP__ "
                                 + "FROM %s",
                         PREFIX,
                         readFields,
@@ -239,7 +239,7 @@ public class DorisFlightValueReader extends ValueReader implements AutoCloseable
                                 .map(String::valueOf)
                                 .collect(Collectors.joining(","))
                         + ")";
-        sql += " ORDER BY __DORIS_BINLOG_TSO__, __DORIS_BINLOG_LSN__, __DORIS_BINLOG_OP__";
+        sql += " ORDER BY __DORIS_CHANGELOG_TSO__, __DORIS_CHANGELOG_LSN__, __DORIS_CHANGELOG_OP__";
         LOG.debug("Query SQL Sending to Doris FE is: '{}'.", sql);
         return sql;
     }

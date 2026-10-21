@@ -106,9 +106,8 @@ public abstract class AbstractDorisIncrementalITCase extends AbstractITCaseServi
                                 + "PROPERTIES (\n"
                                 + "  \"replication_num\" = \"1\",\n"
                                 + "  \"enable_unique_key_merge_on_write\" = \"true\",\n"
-                                + "  \"binlog.enable\" = \"true\",\n"
-                                + "  \"binlog.format\" = \"ROW\",\n"
-                                + "  \"binlog.need_historical_value\" = \"true\"\n"
+                                + "  \"changelog.enable\" = \"true\",\n"
+                                + "  \"changelog.need_historical_value\" = \"true\"\n"
                                 + ")",
                         DATABASE, table));
         if (values.length > 0) {
@@ -274,8 +273,8 @@ public abstract class AbstractDorisIncrementalITCase extends AbstractITCaseServi
                         : String.format(
                                 ",\n"
                                         + "  'jdbc-url' = '%s',\n"
-                                        + "  'source.binlog.offset-table' = '%s.%s',\n"
-                                        + "  'source.binlog.consumer-id' = '%s'",
+                                        + "  'source.changelog.offset-table' = '%s.%s',\n"
+                                        + "  'source.changelog.consumer-id' = '%s'",
                                 escapeSqlLiteral(getDorisQueryUrl()),
                                 DATABASE,
                                 offsetTable,
@@ -296,8 +295,8 @@ public abstract class AbstractDorisIncrementalITCase extends AbstractITCaseServi
                             + "  'source.scan.mode' = '%s',\n"
                             + "  'source.use-flight-sql' = 'true',\n"
                             + "  'source.flight-sql-port' = '%d',\n"
-                            + "  'source.binlog.increment-type' = 'detail',\n"
-                            + "  'source.binlog.poll-interval' = '1s'%s\n"
+                            + "  'source.changelog.increment-type' = 'detail',\n"
+                            + "  'source.changelog.poll-interval' = '1s'%s\n"
                             + ")",
                     DorisConfigOptions.IDENTIFIER,
                     escapeSqlLiteral(getFenodes()),
@@ -326,8 +325,8 @@ public abstract class AbstractDorisIncrementalITCase extends AbstractITCaseServi
                         + "  'source.scan.timestamp' = '%s',\n"
                         + "  'source.use-flight-sql' = 'true',\n"
                         + "  'source.flight-sql-port' = '%d',\n"
-                        + "  'source.binlog.increment-type' = 'detail',\n"
-                        + "  'source.binlog.poll-interval' = '1s'%s\n"
+                        + "  'source.changelog.increment-type' = 'detail',\n"
+                        + "  'source.changelog.poll-interval' = '1s'%s\n"
                         + ")",
                 DorisConfigOptions.IDENTIFIER,
                 escapeSqlLiteral(getFenodes()),

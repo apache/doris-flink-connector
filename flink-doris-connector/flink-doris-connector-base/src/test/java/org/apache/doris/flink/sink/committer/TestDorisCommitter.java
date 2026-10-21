@@ -76,6 +76,9 @@ public class TestDorisCommitter {
         httpResponse = mock(CloseableHttpResponse.class);
         restServiceMockedStatic = mockStatic(RestService.class);
         backendUtilMockedStatic = mockStatic(BackendUtil.class);
+        backendUtilMockedStatic
+                .when(() -> BackendUtil.getInstance(any(), any(), any()))
+                .thenCallRealMethod();
 
         when(httpClient.execute(any())).thenReturn(httpResponse);
 

@@ -122,7 +122,7 @@ public class DorisSourceEnumeratorTest {
                                 .build(),
                         DorisReadOptions.builder()
                                 .setScanMode(DorisSourceScanMode.SNAPSHOT)
-                                .setBinlogPollIntervalMs(10_000L)
+                                .setChangelogPollIntervalMs(10_000L)
                                 .build(),
                         checkpoint,
                         context.currentParallelism());

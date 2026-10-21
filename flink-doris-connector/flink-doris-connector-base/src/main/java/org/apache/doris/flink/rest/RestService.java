@@ -45,7 +45,7 @@ import org.apache.doris.flink.rest.models.Schema;
 import org.apache.doris.flink.rest.models.Tablet;
 import org.apache.doris.flink.sink.BackendUtil;
 import org.apache.doris.flink.sink.HttpGetWithEntity;
-import org.apache.doris.flink.source.DorisBinlogIncrementType;
+import org.apache.doris.flink.source.DorisChangelogIncrementType;
 import org.apache.doris.flink.source.split.DorisStreamSplit;
 import org.apache.http.HttpHeaders;
 import org.apache.http.HttpStatus;
@@ -106,7 +106,9 @@ public class RestService implements Serializable {
             "SELECT FROM_UNIXTIME(CURRENT_TSO_PHYSICAL_TIME / 1000, "
                     + "'%Y-%m-%d %H:%i:%s') FROM information_schema.tso_status";
 
-    /** Resolves the current Doris TSO to the timestamp format accepted by row-binlog queries. */
+    /**
+     * Resolves the current Doris TSO to the timestamp format accepted by Doris changelog queries.
+     */
     public static String resolveCurrentTimestamp(
             DorisOptions options, DorisReadOptions readOptions, Logger logger) {
         List<String> endpoints = allEndpoints(options.getFenodes(), logger);
@@ -734,7 +736,7 @@ public class RestService implements Serializable {
         return schema;
     }
 
-    /** Discovers row-binlog tablets using Doris's default visibility checks. */
+    /** Discovers changelog tablets using Doris's default visibility checks. */
     public static Collection<Long> findIncrementalTablets(
             DorisOptions options,
             DorisReadOptions readOptions,
@@ -749,7 +751,7 @@ public class RestService implements Serializable {
                                 String.format("`%s`.`%s`", table[0], table[1]),
                                 startTimestamp,
                                 endTimestamp,
-                                DorisBinlogIncrementType.DETAIL);
+                                DorisChangelogIncrementType.DETAIL);
         QueryPlan plan = queryPlan(options, readOptions, sql, logger, true);
         Set<Long> tablets = new java.util.TreeSet<>();
         for (String tablet : plan.getPartitions().keySet()) {
@@ -762,7 +764,7 @@ public class RestService implements Serializable {
             String quotedTable,
             String startTimestamp,
             String endTimestamp,
-            DorisBinlogIncrementType incrementType) {
+            DorisChangelogIncrementType incrementType) {
         return String.format(
                 "%s@incr('startTimestamp' = '%s', 'endTimestamp' = '%s', 'incrementType' = '%s')",
                 quotedTable,
