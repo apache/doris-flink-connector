@@ -26,22 +26,26 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-/** A single Doris row and its row-binlog metadata. */
+/** A single Doris row and its Doris changelog metadata. */
 @PublicEvolving
 public final class DorisSourceRecord {
     private final List<?> fieldValues;
     private final RowKind rowKind;
-    private final Long binlogTso;
-    private final Long binlogLsn;
-    private final Long binlogOp;
+    private final Long changelogTso;
+    private final Long changelogLsn;
+    private final Long changelogOp;
 
     public DorisSourceRecord(
-            List<?> fieldValues, RowKind rowKind, Long binlogTso, Long binlogLsn, Long binlogOp) {
+            List<?> fieldValues,
+            RowKind rowKind,
+            Long changelogTso,
+            Long changelogLsn,
+            Long changelogOp) {
         this.fieldValues = new ArrayList<>(fieldValues);
         this.rowKind = Objects.requireNonNull(rowKind, "rowKind");
-        this.binlogTso = binlogTso;
-        this.binlogLsn = binlogLsn;
-        this.binlogOp = binlogOp;
+        this.changelogTso = changelogTso;
+        this.changelogLsn = changelogLsn;
+        this.changelogOp = changelogOp;
     }
 
     public static DorisSourceRecord snapshot(List<?> fieldValues) {
@@ -50,7 +54,7 @@ public final class DorisSourceRecord {
 
     public static DorisSourceRecord incremental(List<?> fieldValues, Long tso, Long lsn, Long op) {
         if (tso == null || lsn == null || op == null) {
-            throw new DorisRuntimeException("Doris row-binlog metadata cannot be null");
+            throw new DorisRuntimeException("Doris changelog metadata cannot be null");
         }
         return new DorisSourceRecord(fieldValues, toRowKind(op), tso, lsn, op);
     }
@@ -68,7 +72,7 @@ public final class DorisSourceRecord {
         if (op == 3L) {
             return RowKind.UPDATE_AFTER;
         }
-        throw new DorisRuntimeException("Unsupported Doris binlog operation: " + op);
+        throw new DorisRuntimeException("Unsupported Doris changelog operation: " + op);
     }
 
     public List<?> getFieldValues() {
@@ -79,15 +83,15 @@ public final class DorisSourceRecord {
         return rowKind;
     }
 
-    public Long getBinlogTso() {
-        return binlogTso;
+    public Long getChangelogTso() {
+        return changelogTso;
     }
 
-    public Long getBinlogLsn() {
-        return binlogLsn;
+    public Long getChangelogLsn() {
+        return changelogLsn;
     }
 
-    public Long getBinlogOp() {
-        return binlogOp;
+    public Long getChangelogOp() {
+        return changelogOp;
     }
 }

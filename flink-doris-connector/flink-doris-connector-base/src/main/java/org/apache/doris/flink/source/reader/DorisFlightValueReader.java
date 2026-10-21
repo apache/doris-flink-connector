@@ -43,7 +43,7 @@ import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.rest.SchemaUtils;
 import org.apache.doris.flink.rest.models.Schema;
 import org.apache.doris.flink.serialization.RowBatch;
-import org.apache.doris.flink.source.DorisBinlogIncrementType;
+import org.apache.doris.flink.source.DorisChangelogIncrementType;
 import org.apache.doris.flink.source.split.DorisSnapshotSplit;
 import org.apache.doris.flink.source.split.DorisSourceSplit;
 import org.apache.doris.flink.source.split.DorisStreamSplit;
@@ -119,14 +119,14 @@ public class DorisFlightValueReader extends ValueReader implements AutoCloseable
                                 options,
                                 readOptions,
                                 (DorisStreamSplit) split,
-                                readOptions.getBinlogIncrementType()));
+                                readOptions.getChangelogIncrementType()));
             } else {
                 throw new DorisRuntimeException("Unknown Doris split type: " + split);
             }
             this.queryResult =
                     split instanceof DorisStreamSplit
                             ? executeQueryWithRetry(
-                                    statement, readOptions.getBinlogVisibleWaitTimeoutMs())
+                                    statement, readOptions.getChangelogVisibleWaitTimeoutMs())
                             : statement.executeQuery();
             this.arrowReader = queryResult.getReader();
         } catch (InterruptedException e) {
@@ -215,7 +215,7 @@ public class DorisFlightValueReader extends ValueReader implements AutoCloseable
             DorisOptions options,
             DorisReadOptions readOptions,
             DorisStreamSplit split,
-            DorisBinlogIncrementType incrementType) {
+            DorisChangelogIncrementType incrementType) {
         String[] tableIdentifiers = parseIdentifier(options);
         String readFields =
                 StringUtils.isBlank(readOptions.getReadFields())
@@ -225,7 +225,7 @@ public class DorisFlightValueReader extends ValueReader implements AutoCloseable
                 PREFIX
                         + " SELECT "
                         + readFields
-                        + ", __DORIS_BINLOG_TSO__, __DORIS_BINLOG_LSN__, __DORIS_BINLOG_OP__ FROM "
+                        + ", __DORIS_CHANGELOG_TSO__, __DORIS_CHANGELOG_LSN__, __DORIS_CHANGELOG_OP__ FROM "
                         + quoteTable(tableIdentifiers)
                         + "@incr('startTimestamp' = "
                         + quoteLiteral(split.getStartTimestamp())
@@ -233,7 +233,7 @@ public class DorisFlightValueReader extends ValueReader implements AutoCloseable
                         + quoteLiteral(split.getEndTimestamp())
                         + ", 'incrementType' = "
                         + quoteLiteral(incrementType.toSqlValue())
-                        + ") ORDER BY __DORIS_BINLOG_TSO__, __DORIS_BINLOG_LSN__, __DORIS_BINLOG_OP__";
+                        + ") ORDER BY __DORIS_CHANGELOG_TSO__, __DORIS_CHANGELOG_LSN__, __DORIS_CHANGELOG_OP__";
         LOG.debug("Query SQL Sending to Doris FE is: '{}'.", sql);
         return sql;
     }

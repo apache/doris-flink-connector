@@ -42,9 +42,9 @@ class DorisIncrementalRowBatchTest {
     @Test
     void rejectsIncrementalBatchWithMissingNamedHiddenField() throws Exception {
         try (RootAllocator allocator = new RootAllocator(Long.MAX_VALUE);
-                BigIntVector lsn = new BigIntVector("__DORIS_BINLOG_LSN__", allocator);
+                BigIntVector lsn = new BigIntVector("__DORIS_CHANGELOG_LSN__", allocator);
                 IntVector id = new IntVector("id", allocator);
-                BigIntVector op = new BigIntVector("__DORIS_BINLOG_OP__", allocator);
+                BigIntVector op = new BigIntVector("__DORIS_CHANGELOG_OP__", allocator);
                 VarCharVector name = new VarCharVector("name", allocator);
                 BigIntVector wrongTso = new BigIntVector("not_the_tso", allocator);
                 VectorSchemaRoot root = VectorSchemaRoot.of(lsn, id, op, name, wrongTso)) {
@@ -73,11 +73,11 @@ class DorisIncrementalRowBatchTest {
     @Test
     void extractsHiddenColumnsByNameInsteadOfPosition() throws Exception {
         try (RootAllocator allocator = new RootAllocator(Long.MAX_VALUE);
-                BigIntVector lsn = new BigIntVector("__DORIS_BINLOG_LSN__", allocator);
+                BigIntVector lsn = new BigIntVector("__DORIS_CHANGELOG_LSN__", allocator);
                 IntVector id = new IntVector("id", allocator);
-                BigIntVector op = new BigIntVector("__DORIS_BINLOG_OP__", allocator);
+                BigIntVector op = new BigIntVector("__DORIS_CHANGELOG_OP__", allocator);
                 VarCharVector name = new VarCharVector("name", allocator);
-                BigIntVector tso = new BigIntVector("__DORIS_BINLOG_TSO__", allocator);
+                BigIntVector tso = new BigIntVector("__DORIS_CHANGELOG_TSO__", allocator);
                 VectorSchemaRoot root = VectorSchemaRoot.of(lsn, id, op, name, tso)) {
             lsn.setSafe(0, 1001L);
             id.setSafe(0, 7);
@@ -97,9 +97,9 @@ class DorisIncrementalRowBatchTest {
 
             assertThat(record.getFieldValues()).isEqualTo(Arrays.asList(7, "before"));
             assertThat(record.getRowKind()).isEqualTo(RowKind.UPDATE_BEFORE);
-            assertThat(record.getBinlogTso()).isEqualTo(101L);
-            assertThat(record.getBinlogLsn()).isEqualTo(1001L);
-            assertThat(record.getBinlogOp()).isEqualTo(2L);
+            assertThat(record.getChangelogTso()).isEqualTo(101L);
+            assertThat(record.getChangelogLsn()).isEqualTo(1001L);
+            assertThat(record.getChangelogOp()).isEqualTo(2L);
         }
     }
 }

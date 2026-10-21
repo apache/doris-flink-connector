@@ -30,7 +30,7 @@ import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.cfg.DorisTlsOptions;
 import org.apache.doris.flink.cfg.S3TvfOptions;
 import org.apache.doris.flink.sink.writer.WriteMode;
-import org.apache.doris.flink.source.DorisBinlogIncrementType;
+import org.apache.doris.flink.source.DorisChangelogIncrementType;
 import org.apache.doris.flink.source.DorisSourceScanMode;
 import org.junit.Test;
 
@@ -98,9 +98,9 @@ public class DorisDynamicTableFactoryTest {
         properties.put("source.flight-sql-port", "-1");
         properties.put("source.scan.mode", "from-timestamp");
         properties.put("source.scan.timestamp", "2026-07-20 10:00:00");
-        properties.put("source.binlog.increment-type", "min_delta");
-        properties.put("source.binlog.poll-interval", "3s");
-        properties.put("source.binlog.visible-wait-timeout", "7m");
+        properties.put("source.changelog.increment-type", "min_delta");
+        properties.put("source.changelog.poll-interval", "3s");
+        properties.put("source.changelog.visible-wait-timeout", "7m");
         DynamicTableSource actual = FactoryMocks.createTableSource(SCHEMA, properties);
         DorisOptions options =
                 DorisOptions.builder()
@@ -140,9 +140,9 @@ public class DorisDynamicTableFactoryTest {
                 .setThriftMaxMessageSize(DORIS_THRIFT_MAX_MESSAGE_SIZE_DEFAULT)
                 .setScanMode(DorisSourceScanMode.FROM_TIMESTAMP)
                 .setScanTimestamp("2026-07-20 10:00:00")
-                .setBinlogIncrementType(DorisBinlogIncrementType.MIN_DELTA)
-                .setBinlogPollIntervalMs(3_000L)
-                .setBinlogVisibleWaitTimeoutMs(7 * 60_000L);
+                .setChangelogIncrementType(DorisChangelogIncrementType.MIN_DELTA)
+                .setChangelogPollIntervalMs(3_000L)
+                .setChangelogVisibleWaitTimeoutMs(7 * 60_000L);
         DorisDynamicTableSource expected =
                 new DorisDynamicTableSource(
                         options,

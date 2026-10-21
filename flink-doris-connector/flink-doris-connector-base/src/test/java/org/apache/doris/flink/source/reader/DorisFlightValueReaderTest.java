@@ -35,7 +35,7 @@ import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.apache.doris.flink.rest.PartitionDefinition;
 import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.rest.models.Schema;
-import org.apache.doris.flink.source.DorisBinlogIncrementType;
+import org.apache.doris.flink.source.DorisChangelogIncrementType;
 import org.apache.doris.flink.source.split.DorisSnapshotSplit;
 import org.apache.doris.flink.source.split.DorisStreamSplit;
 import org.junit.jupiter.api.Test;
@@ -180,7 +180,7 @@ class DorisFlightValueReaderTest {
 
         String sql =
                 DorisFlightValueReader.buildIncrementalSql(
-                        options, readOptions, split, DorisBinlogIncrementType.DETAIL);
+                        options, readOptions, split, DorisChangelogIncrementType.DETAIL);
 
         assertThat(sql)
                 .contains("`sales`.`orders`@incr")
@@ -188,7 +188,7 @@ class DorisFlightValueReaderTest {
                 .contains("'endTimestamp' = '2026-07-20 10:00:10'")
                 .contains("'incrementType' = 'DETAIL'")
                 .endsWith(
-                        "ORDER BY __DORIS_BINLOG_TSO__, __DORIS_BINLOG_LSN__, __DORIS_BINLOG_OP__");
+                        "ORDER BY __DORIS_CHANGELOG_TSO__, __DORIS_CHANGELOG_LSN__, __DORIS_CHANGELOG_OP__");
     }
 
     @Test

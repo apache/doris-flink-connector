@@ -43,7 +43,7 @@ import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_REQUEST_READ
 import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_REQUEST_RETRIES_DEFAULT;
 import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_TABLET_SIZE_DEFAULT;
 import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_THRIFT_MAX_MESSAGE_SIZE_DEFAULT;
-import static org.apache.doris.flink.cfg.ConfigurationOptions.SOURCE_BINLOG_VISIBLE_WAIT_TIMEOUT_MS_DEFAULT;
+import static org.apache.doris.flink.cfg.ConfigurationOptions.SOURCE_CHANGELOG_VISIBLE_WAIT_TIMEOUT_MS_DEFAULT;
 import static org.apache.doris.flink.sink.writer.LoadConstants.COMPRESS_TYPE;
 import static org.apache.doris.flink.sink.writer.LoadConstants.COMPRESS_TYPE_GZ;
 import static org.apache.doris.flink.sink.writer.LoadConstants.FORMAT_KEY;
@@ -421,36 +421,37 @@ public class DorisConfigOptions {
                     .noDefaultValue()
                     .withDescription(
                             "Inclusive first-start timestamp for from-timestamp mode; a saved external offset takes precedence");
-    public static final ConfigOption<String> SOURCE_BINLOG_INCREMENT_TYPE =
-            ConfigOptions.key("source.binlog.increment-type")
+    public static final ConfigOption<String> SOURCE_CHANGELOG_INCREMENT_TYPE =
+            ConfigOptions.key("source.changelog.increment-type")
                     .stringType()
                     .defaultValue("detail")
-                    .withDescription("Doris row-binlog increment type");
-    public static final ConfigOption<Duration> SOURCE_BINLOG_POLL_INTERVAL =
-            ConfigOptions.key("source.binlog.poll-interval")
+                    .withDescription("Doris changelog increment type");
+    public static final ConfigOption<Duration> SOURCE_CHANGELOG_POLL_INTERVAL =
+            ConfigOptions.key("source.changelog.poll-interval")
                     .durationType()
                     .defaultValue(Duration.ofSeconds(10))
                     .withDescription(
                             "Interval between attempts to discover the next Stream split; must be "
                                     + "at least 1 second");
-    public static final ConfigOption<Duration> SOURCE_BINLOG_VISIBLE_WAIT_TIMEOUT =
-            ConfigOptions.key("source.binlog.visible-wait-timeout")
+    public static final ConfigOption<Duration> SOURCE_CHANGELOG_VISIBLE_WAIT_TIMEOUT =
+            ConfigOptions.key("source.changelog.visible-wait-timeout")
                     .durationType()
-                    .defaultValue(Duration.ofMillis(SOURCE_BINLOG_VISIBLE_WAIT_TIMEOUT_MS_DEFAULT))
+                    .defaultValue(
+                            Duration.ofMillis(SOURCE_CHANGELOG_VISIBLE_WAIT_TIMEOUT_MS_DEFAULT))
                     .withDescription(
                             "Maximum time to retry an incremental query after Doris reports a "
                                     + "visible wait timeout; 0s disables retries");
-    public static final ConfigOption<String> SOURCE_BINLOG_OFFSET_TABLE =
-            ConfigOptions.key("source.binlog.offset-table")
+    public static final ConfigOption<String> SOURCE_CHANGELOG_OFFSET_TABLE =
+            ConfigOptions.key("source.changelog.offset-table")
                     .stringType()
                     .noDefaultValue()
                     .withDescription(
                             "Doris table used to persist completed checkpoint offsets and resume new jobs without restored Source state");
-    public static final ConfigOption<String> SOURCE_BINLOG_CONSUMER_ID =
-            ConfigOptions.key("source.binlog.consumer-id")
+    public static final ConfigOption<String> SOURCE_CHANGELOG_CONSUMER_ID =
+            ConfigOptions.key("source.changelog.consumer-id")
                     .stringType()
                     .noDefaultValue()
-                    .withDescription("Stable consumer identifier in the binlog offset table");
+                    .withDescription("Stable consumer identifier in the changelog offset table");
     public static final ConfigOption<Integer> FLIGHT_SQL_PORT =
             ConfigOptions.key("source.flight-sql-port")
                     .intType()

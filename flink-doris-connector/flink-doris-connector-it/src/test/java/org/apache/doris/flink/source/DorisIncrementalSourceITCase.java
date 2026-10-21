@@ -87,7 +87,7 @@ public class DorisIncrementalSourceITCase extends AbstractDorisIncrementalITCase
             List<ObservedRow> observedRows = collector.getRows();
             for (ObservedRow row : observedRows) {
                 Assert.assertEquals(
-                        "Hidden binlog fields escaped the projection", 2, row.getArity());
+                        "Hidden Doris changelog fields escaped the projection", 2, row.getArity());
             }
             Assert.assertTrue(
                     "UPDATE_BEFORE must precede UPDATE_AFTER",

@@ -151,8 +151,8 @@ public class DorisIncrementalSourceE2ECase extends AbstractITCaseService {
                                     + "  'source.scan.timestamp' = '%s',\n"
                                     + "  'source.use-flight-sql' = 'true',\n"
                                     + "  'source.flight-sql-port' = '%d',\n"
-                                    + "  'source.binlog.increment-type' = 'detail',\n"
-                                    + "  'source.binlog.poll-interval' = '1s'\n"
+                                    + "  'source.changelog.increment-type' = 'detail',\n"
+                                    + "  'source.changelog.poll-interval' = '1s'\n"
                                     + ")",
                             DorisConfigOptions.IDENTIFIER,
                             escapeSqlLiteral(getFenodes()),
