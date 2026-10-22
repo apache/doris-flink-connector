@@ -480,6 +480,67 @@ public class TestJsonDebeziumSchemaChangeImplV2 extends TestJsonDebeziumChangeBa
     }
 
     @Test
+    public void testGetCreateTableIdentifierFallbackToSourceDatabase() throws IOException {
+        // realistic CREATE TABLE event without the historyRecord wrapper
+        String record =
+                "{\"source\":{\"version\":\"1.9.7.Final\",\"connector\":\"mysql\",\"name\":\"mysql_binlog_source\",\"ts_ms\":1696945825065,\"snapshot\":\"false\",\"db\":\"test\",\"sequence\":null,\"table\":\"t1\",\"server_id\":1,\"gtid\":null,\"file\":\"binlog.000046\",\"pos\":5197,\"row\":0,\"thread\":null,\"query\":null},\"databaseName\":\"test\",\"ddl\":\"CREATE TABLE `t1` (`id` INT NOT NULL, `name` VARCHAR(128), PRIMARY KEY (`id`))\",\"tableChanges\":[{\"type\":\"CREATE\",\"id\":\"\\\"test\\\".\\\"t1\\\"\",\"table\":{\"defaultCharsetName\":\"utf8mb4\",\"primaryKeyColumnNames\":[\"id\"],\"columns\":[{\"name\":\"id\",\"jdbcType\":4,\"typeName\":\"INT\",\"typeExpression\":\"INT\",\"charsetName\":null,\"length\":11,\"position\":1,\"optional\":false,\"autoIncremented\":false,\"generated\":false,\"comment\":null},{\"name\":\"name\",\"jdbcType\":12,\"typeName\":\"VARCHAR\",\"typeExpression\":\"VARCHAR\",\"charsetName\":\"utf8mb4\",\"length\":128,\"position\":2,\"optional\":true,\"autoIncremented\":false,\"generated\":false,\"comment\":null}],\"comment\":null}}]}";
+        JsonNode recordRoot = objectMapper.readTree(record);
+        // targetDatabase is omitted -> fall back to the source database instead of routing the
+        // table to a literal "null" database.
+        schemaChange.targetDatabase = null;
+        Assert.assertEquals("test.t1", schemaChange.getCreateTableIdentifier(recordRoot));
+        // a whitespace-only target database falls back to the source database as well
+        schemaChange.targetDatabase = "  ";
+        Assert.assertEquals("test.t1", schemaChange.getCreateTableIdentifier(recordRoot));
+        // the fallback database reaches the DDL schema builder
+        TableSchema tableSchema = schemaChange.extractCreateTableSchema(recordRoot);
+        Assert.assertEquals("test", tableSchema.getDatabase());
+        Assert.assertEquals("t1", tableSchema.getTable());
+    }
+
+    @Test
+    public void testGetCreateTableIdentifierFallbackToSourceDatabaseWithHistoryRecord()
+            throws IOException {
+        // same realistic CREATE TABLE event, wrapped into historyRecord
+        String record =
+                "{\"source\":{\"version\":\"1.9.7.Final\",\"connector\":\"mysql\",\"name\":\"mysql_binlog_source\",\"ts_ms\":1696945825065,\"snapshot\":\"false\",\"db\":\"test\",\"sequence\":null,\"table\":\"t1\",\"server_id\":1,\"gtid\":null,\"file\":\"binlog.000046\",\"pos\":5197,\"row\":0,\"thread\":null,\"query\":null},\"historyRecord\":\"{\\\"source\\\":{\\\"file\\\":\\\"binlog.000046\\\",\\\"pos\\\":5197,\\\"server_id\\\":1},\\\"databaseName\\\":\\\"test\\\",\\\"ddl\\\":\\\"CREATE TABLE t1 (id int)\\\",\\\"tableChanges\\\":[{\\\"type\\\":\\\"CREATE\\\",\\\"id\\\":\\\"\\\\\\\"test\\\\\\\".\\\\\\\"t1\\\\\\\"\\\",\\\"table\\\":{\\\"primaryKeyColumnNames\\\":[\\\"id\\\"],\\\"columns\\\":[{\\\"name\\\":\\\"id\\\",\\\"jdbcType\\\":4,\\\"typeName\\\":\\\"INT\\\",\\\"typeExpression\\\":\\\"INT\\\",\\\"charsetName\\\":null,\\\"position\\\":1,\\\"optional\\\":false,\\\"autoIncremented\\\":false,\\\"generated\\\":false,\\\"comment\\\":null}]}}]}\"}";
+        JsonNode recordRoot = objectMapper.readTree(record);
+        schemaChange.targetDatabase = null;
+        Assert.assertEquals("test.t1", schemaChange.getCreateTableIdentifier(recordRoot));
+    }
+
+    @Test
+    public void testGetCreateTableIdentifierPreservesExplicitTargetDatabase() throws IOException {
+        String record =
+                "{\"source\":{\"version\":\"1.9.7.Final\",\"connector\":\"mysql\",\"name\":\"mysql_binlog_source\",\"ts_ms\":1696945825065,\"snapshot\":\"false\",\"db\":\"test\",\"sequence\":null,\"table\":\"t1\",\"server_id\":1,\"gtid\":null,\"file\":\"binlog.000046\",\"pos\":5197,\"row\":0,\"thread\":null,\"query\":null},\"databaseName\":\"test\",\"ddl\":\"CREATE TABLE `t1` (`id` INT NOT NULL)\",\"tableChanges\":[{\"type\":\"CREATE\",\"id\":\"\\\"test\\\".\\\"t1\\\"\",\"table\":{\"primaryKeyColumnNames\":[\"id\"],\"columns\":[{\"name\":\"id\",\"jdbcType\":4,\"typeName\":\"INT\",\"typeExpression\":\"INT\",\"charsetName\":null,\"position\":1,\"optional\":false,\"autoIncremented\":false,\"generated\":false,\"comment\":null}]}}]}";
+        JsonNode recordRoot = objectMapper.readTree(record);
+        // an explicitly configured target database wins over the source database
+        Assert.assertEquals("TESTDB.t1", schemaChange.getCreateTableIdentifier(recordRoot));
+        // explicit target database is preserved together with prefix/suffix and table converter
+        Assert.assertEquals(
+                "TESTDB.ods_t1_dt", schemaChangeWithConvert.getCreateTableIdentifier(recordRoot));
+    }
+
+    @Test
+    public void testGetCreateTableIdentifierMissingSourceDatabase() throws IOException {
+        // the source reports a schema but no database: the schema must not replace the database,
+        // so resolving the identifier must fail loudly instead of returning null
+        String record =
+                "{\"source\":{\"version\":\"1.9.7.Final\",\"connector\":\"oracle\",\"name\":\"oracle_logminer\",\"ts_ms\":1696945825065,\"snapshot\":\"true\",\"sequence\":null,\"schema\":\"ADMIN\",\"table\":\"PERSONS\"},\"databaseName\":\"TESTDB\",\"schemaName\":\"ADMIN\",\"ddl\":\"CREATE TABLE \\\"ADMIN\\\".\\\"PERSONS\\\" (\\\"ID\\\" NUMBER(10,0))\",\"tableChanges\":[{\"type\":\"CREATE\",\"id\":\"\\\"ADMIN\\\".\\\"PERSONS\\\"\",\"table\":{\"primaryKeyColumnNames\":[\"ID\"],\"columns\":[{\"name\":\"ID\",\"jdbcType\":2,\"typeName\":\"NUMBER\",\"typeExpression\":\"NUMBER\",\"charsetName\":null,\"length\":10,\"position\":1,\"optional\":false,\"autoIncremented\":false,\"generated\":false,\"comment\":null}]}}]}";
+        JsonNode recordRoot = objectMapper.readTree(record);
+        schemaChange.targetDatabase = null;
+        try {
+            schemaChange.getCreateTableIdentifier(recordRoot);
+            Assert.fail("Expected IllegalArgumentException when no database can be resolved");
+        } catch (java.lang.IllegalArgumentException e) {
+            Assert.assertTrue(
+                    e.getMessage(),
+                    e.getMessage().contains("target database")
+                            && e.getMessage().contains("source database"));
+        }
+    }
+
+    @Test
     public void testGetDorisTableIdentifier() throws Exception {
         String identifier =
                 JsonDebeziumChangeUtils.getDorisTableIdentifier(
