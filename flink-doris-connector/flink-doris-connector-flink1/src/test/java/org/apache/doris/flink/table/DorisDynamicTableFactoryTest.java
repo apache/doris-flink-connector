@@ -17,11 +17,33 @@
 
 package org.apache.doris.flink.table;
 
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.memory.DataInputDeserializer;
+import org.apache.flink.core.memory.DataOutputSerializer;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.api.TableDescriptor;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+import org.apache.flink.table.connector.ParallelismProvider;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
+import org.apache.flink.table.connector.source.DataStreamScanProvider;
 import org.apache.flink.table.connector.source.DynamicTableSource;
+import org.apache.flink.table.connector.source.ScanTableSource;
+import org.apache.flink.table.connector.source.SourceProvider;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.factories.utils.FactoryMocks;
+import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.types.RowKind;
 
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisLookupOptions;
@@ -29,13 +51,18 @@ import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.cfg.DorisTlsOptions;
 import org.apache.doris.flink.cfg.S3TvfOptions;
+import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.sink.writer.WriteMode;
 import org.apache.doris.flink.source.DorisChangelogIncrementType;
 import org.apache.doris.flink.source.DorisSourceScanMode;
 import org.junit.Test;
+import org.mockito.MockedStatic;
 
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 
 import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_BATCH_SIZE_DEFAULT;
@@ -51,10 +78,186 @@ import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_THRIFT_MAX_M
 import static org.apache.doris.flink.cfg.ConfigurationOptions.FLIGHT_SQL_PORT_DEFAULT;
 import static org.apache.doris.flink.cfg.ConfigurationOptions.USE_FLIGHT_SQL_DEFAULT;
 import static org.apache.doris.flink.utils.FactoryMocks.SCHEMA;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mockStatic;
 
 public class DorisDynamicTableFactoryTest {
+
+    @Test
+    public void testScanParallelism() {
+        for (Integer parallelism : new Integer[] {null, 4}) {
+            for (String mode : Arrays.asList("snapshot", "initial", "latest", "from-timestamp")) {
+                Map<String, String> properties = getAllOptions();
+                properties.put("source.scan.mode", mode);
+                properties.put("source.use-flight-sql", "true");
+                if ("from-timestamp".equals(mode)) {
+                    properties.put("source.scan.timestamp", "2026-07-20 10:00:00");
+                }
+                if (parallelism != null) {
+                    properties.put("scan.parallelism", parallelism.toString());
+                }
+                DorisDynamicTableSource source =
+                        (DorisDynamicTableSource)
+                                FactoryMocks.createTableSource(SCHEMA, properties);
+                DorisDynamicTableSource copy = (DorisDynamicTableSource) source.copy();
+                ScanTableSource.ScanRuntimeProvider provider =
+                        copy.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
+                if (parallelism == null) {
+                    assertTrue(provider instanceof SourceProvider);
+                } else {
+                    assertEquals(
+                            Optional.of(parallelism),
+                            ((ParallelismProvider) provider).getParallelism());
+                    StreamExecutionEnvironment env =
+                            StreamExecutionEnvironment.getExecutionEnvironment();
+                    env.setParallelism(2);
+                    assertEquals(
+                            4,
+                            ((DataStreamScanProvider) provider)
+                                    .produceDataStream(ignored -> Optional.empty(), env)
+                                    .getParallelism());
+                    assertEquals("snapshot".equals(mode), provider.isBounded());
+                }
+            }
+        }
+    }
+
+    @Test
+    public void testOldApiScanParallelism() {
+        try (MockedStatic<RestService> restService = mockStatic(RestService.class)) {
+            restService
+                    .when(() -> RestService.findPartitions(any(), any(), any()))
+                    .thenReturn(Collections.emptyList());
+            Map<String, String> properties = getAllOptions();
+            properties.put("source.use-old-api", "true");
+            properties.put("scan.parallelism", "3");
+            DorisDynamicTableSource source =
+                    (DorisDynamicTableSource) FactoryMocks.createTableSource(SCHEMA, properties);
+            DataStreamScanProvider provider =
+                    (DataStreamScanProvider)
+                            source.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
+            assertEquals(Optional.of(3), ((ParallelismProvider) provider).getParallelism());
+            StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+            env.setParallelism(2);
+            assertEquals(
+                    3,
+                    provider.produceDataStream(ignored -> Optional.empty(), env).getParallelism());
+        }
+    }
+
+    @Test
+    public void testScanParallelismInSqlPlan() {
+        try (MockedStatic<RestService> restService = mockStatic(RestService.class)) {
+            restService
+                    .when(() -> RestService.findPartitions(any(), any(), any()))
+                    .thenReturn(Collections.emptyList());
+            for (boolean useOldApi : new boolean[] {false, true}) {
+                for (Integer parallelism : new Integer[] {null, 3}) {
+                    StreamExecutionEnvironment env =
+                            StreamExecutionEnvironment.getExecutionEnvironment();
+                    env.setParallelism(2);
+                    StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
+                    TableDescriptor.Builder descriptor =
+                            TableDescriptor.forConnector(DorisConfigOptions.IDENTIFIER)
+                                    .schema(
+                                            Schema.newBuilder()
+                                                    .column("a", DataTypes.STRING())
+                                                    .column("b", DataTypes.INT())
+                                                    .column("c", DataTypes.BOOLEAN())
+                                                    .build())
+                                    .option("fenodes", "127.0.0.1:8030")
+                                    .option("table.identifier", "db.tbl")
+                                    .option("source.use-old-api", Boolean.toString(useOldApi));
+                    if (parallelism != null) {
+                        descriptor.option("scan.parallelism", parallelism.toString());
+                    }
+                    tableEnv.createTemporaryTable("doris_source", descriptor.build());
+                    tableEnv.toDataStream(tableEnv.sqlQuery("SELECT c, UPPER(a) FROM doris_source"))
+                            .addSink(new DiscardingSink<>());
+
+                    StreamGraph graph = env.getStreamGraph();
+                    assertEquals(1, graph.getSourceIDs().size());
+                    assertEquals(
+                            parallelism == null ? 2 : parallelism.intValue(),
+                            graph.getStreamNode(graph.getSourceIDs().iterator().next())
+                                    .getParallelism());
+                    // Only Flink 1.19+ isolates configured source parallelism from downstream.
+                    int calcParallelism =
+                            parallelism != null
+                                            && !ParallelismProvider.class.isAssignableFrom(
+                                                    DataStreamScanProvider.class)
+                                    ? parallelism
+                                    : 2;
+                    assertThat(graph.getStreamNodes())
+                            .filteredOn(node -> node.getOperatorName().startsWith("Calc"))
+                            .singleElement()
+                            .satisfies(
+                                    node -> assertEquals(calcParallelism, node.getParallelism()));
+                }
+            }
+        }
+    }
+
+    @Test
+    public void testScanParallelismPreservesProjectedType() throws Exception {
+        DataType projectedType =
+                DataTypes.ROW(
+                        DataTypes.FIELD("c", DataTypes.BOOLEAN()),
+                        DataTypes.FIELD("a", DataTypes.STRING()));
+        try (MockedStatic<RestService> restService = mockStatic(RestService.class)) {
+            restService
+                    .when(() -> RestService.findPartitions(any(), any(), any()))
+                    .thenReturn(Collections.emptyList());
+            for (boolean useOldApi : new boolean[] {false, true}) {
+                Map<String, String> properties = getAllOptions();
+                properties.put("source.use-old-api", Boolean.toString(useOldApi));
+                properties.put("scan.parallelism", "3");
+                DorisDynamicTableSource source =
+                        (DorisDynamicTableSource)
+                                FactoryMocks.createTableSource(SCHEMA, properties);
+                source.applyProjection(new int[][] {{2}, {0}}, projectedType);
+                DorisDynamicTableSource copy = (DorisDynamicTableSource) source.copy();
+                DataStreamScanProvider provider =
+                        (DataStreamScanProvider)
+                                copy.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
+                StreamExecutionEnvironment env =
+                        StreamExecutionEnvironment.getExecutionEnvironment();
+                DataStream<RowData> stream =
+                        provider.produceDataStream(ignored -> Optional.empty(), env);
+                assertEquals(InternalTypeInfo.of(projectedType.getLogicalType()), stream.getType());
+
+                TypeSerializer<RowData> serializer =
+                        stream.getType().createSerializer(env.getConfig());
+                RowData row =
+                        GenericRowData.ofKind(
+                                RowKind.UPDATE_AFTER, null, StringData.fromString("projected"));
+                DataOutputSerializer output = new DataOutputSerializer(64);
+                serializer.serialize(row, output);
+                RowData restored =
+                        serializer.deserialize(new DataInputDeserializer(output.getCopyOfBuffer()));
+                assertEquals(2, restored.getArity());
+                assertEquals(RowKind.UPDATE_AFTER, restored.getRowKind());
+                assertTrue(restored.isNullAt(0));
+                assertEquals("projected", restored.getString(1).toString());
+            }
+        }
+    }
+
+    @Test
+    public void testRejectNonPositiveScanParallelism() {
+        for (String parallelism : Arrays.asList("0", "-1")) {
+            Map<String, String> properties = getAllOptions();
+            properties.put("scan.parallelism", parallelism);
+            assertThatThrownBy(() -> FactoryMocks.createTableSource(SCHEMA, properties))
+                    .hasRootCauseInstanceOf(ValidationException.class)
+                    .hasRootCauseMessage("scan.parallelism must be greater than 0");
+        }
+    }
 
     @Test
     public void testIncrementalSourceRejectsOldApi() {
@@ -149,7 +352,8 @@ public class DorisDynamicTableFactoryTest {
                         readOptionBuilder.build(),
                         lookupOptions,
                         TableSchema.fromResolvedSchema(SCHEMA),
-                        SCHEMA.toPhysicalRowDataType());
+                        SCHEMA.toPhysicalRowDataType(),
+                        null);
 
         assertEquals(actual, expected);
     }

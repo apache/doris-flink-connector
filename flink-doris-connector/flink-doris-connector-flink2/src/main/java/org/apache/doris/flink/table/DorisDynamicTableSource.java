@@ -69,6 +69,7 @@ public final class DorisDynamicTableSource
     private static final Logger LOG = LoggerFactory.getLogger(DorisDynamicTableSource.class);
     private final DorisOptions options;
     private final DorisReadOptions readOptions;
+    private final Integer scanParallelism;
     private DorisLookupOptions lookupOptions;
     private TableSchema physicalSchema;
     private List<String> resolvedFilterQuery = new ArrayList<>();
@@ -79,7 +80,11 @@ public final class DorisDynamicTableSource
             DorisReadOptions readOptions,
             DorisLookupOptions lookupOptions,
             TableSchema physicalSchema,
-            DataType physicalRowDataType) {
+            DataType physicalRowDataType,
+            Integer scanParallelism) {
+        if (scanParallelism != null && scanParallelism <= 0) {
+            throw new ValidationException("scan.parallelism must be greater than 0");
+        }
         if (readOptions.getUseOldApi()
                 && readOptions.getScanMode() != DorisSourceScanMode.SNAPSHOT) {
             throw new ValidationException(
@@ -88,6 +93,7 @@ public final class DorisDynamicTableSource
         this.options = options;
         this.lookupOptions = lookupOptions;
         this.readOptions = readOptions;
+        this.scanParallelism = scanParallelism;
         this.physicalSchema = physicalSchema;
         this.physicalRowDataType = physicalRowDataType;
     }
@@ -139,7 +145,8 @@ public final class DorisDynamicTableSource
                             options,
                             dorisPartitions,
                             readOptions,
-                            (RowType) physicalRowDataType.getLogicalType()));
+                            (RowType) physicalRowDataType.getLogicalType()),
+                    scanParallelism);
         } else {
             // Read data using the interface of the FLIP-27 specification
             DorisSource<RowData> build =
@@ -150,7 +157,7 @@ public final class DorisDynamicTableSource
                                     new RowDataDeserializationSchema(
                                             (RowType) physicalRowDataType.getLogicalType()))
                             .build();
-            return SourceProvider.of(build);
+            return SourceProvider.of(build, scanParallelism);
         }
     }
 
@@ -186,7 +193,8 @@ public final class DorisDynamicTableSource
                         readOptions.copy(),
                         lookupOptions,
                         physicalSchema,
-                        physicalRowDataType);
+                        physicalRowDataType,
+                        scanParallelism);
         newSource.resolvedFilterQuery = new ArrayList<>(this.resolvedFilterQuery);
         return newSource;
     }
@@ -252,7 +260,8 @@ public final class DorisDynamicTableSource
                 && Objects.equals(lookupOptions, that.lookupOptions)
                 && Objects.equals(physicalSchema, that.physicalSchema)
                 && Objects.equals(resolvedFilterQuery, that.resolvedFilterQuery)
-                && Objects.equals(physicalRowDataType, that.physicalRowDataType);
+                && Objects.equals(physicalRowDataType, that.physicalRowDataType)
+                && Objects.equals(scanParallelism, that.scanParallelism);
     }
 
     @Override
@@ -263,7 +272,8 @@ public final class DorisDynamicTableSource
                 lookupOptions,
                 physicalSchema,
                 resolvedFilterQuery,
-                physicalRowDataType);
+                physicalRowDataType,
+                scanParallelism);
     }
 
     @Override

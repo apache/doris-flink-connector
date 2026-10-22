@@ -216,24 +216,30 @@ public class DorisFlightValueReader extends ValueReader implements AutoCloseable
             DorisReadOptions readOptions,
             DorisStreamSplit split,
             DorisChangelogIncrementType incrementType) {
-        String[] tableIdentifiers = parseIdentifier(options);
         String readFields =
                 StringUtils.isBlank(readOptions.getReadFields())
                         ? "*"
                         : readOptions.getReadFields();
+        // TODO: Remove the hint after Doris fixes partition pruning for changelog tablet IDs.
         String sql =
-                PREFIX
-                        + " SELECT "
-                        + readFields
-                        + ", __DORIS_CHANGELOG_TSO__, __DORIS_CHANGELOG_LSN__, __DORIS_CHANGELOG_OP__ FROM "
-                        + quoteTable(tableIdentifiers)
-                        + "@incr('startTimestamp' = "
-                        + quoteLiteral(split.getStartTimestamp())
-                        + ", 'endTimestamp' = "
-                        + quoteLiteral(split.getEndTimestamp())
-                        + ", 'incrementType' = "
-                        + quoteLiteral(incrementType.toSqlValue())
-                        + ") ORDER BY __DORIS_CHANGELOG_TSO__, __DORIS_CHANGELOG_LSN__, __DORIS_CHANGELOG_OP__";
+                String.format(
+                        "%s SELECT /*+ SET_VAR(disable_nereids_rules='OLAP_SCAN_PARTITION_PRUNE') */ "
+                                + "%s, __DORIS_CHANGELOG_TSO__, __DORIS_CHANGELOG_LSN__, __DORIS_CHANGELOG_OP__ "
+                                + "FROM %s",
+                        PREFIX,
+                        readFields,
+                        RestService.buildIncrementalScan(
+                                quoteTable(parseIdentifier(options)),
+                                split.getStartTimestamp(),
+                                split.getEndTimestamp(),
+                                incrementType));
+        sql +=
+                " TABLET("
+                        + split.getTabletIds().stream()
+                                .map(String::valueOf)
+                                .collect(Collectors.joining(","))
+                        + ")";
+        sql += " ORDER BY __DORIS_CHANGELOG_TSO__, __DORIS_CHANGELOG_LSN__, __DORIS_CHANGELOG_OP__";
         LOG.debug("Query SQL Sending to Doris FE is: '{}'.", sql);
         return sql;
     }
@@ -242,10 +248,6 @@ public class DorisFlightValueReader extends ValueReader implements AutoCloseable
         return Arrays.stream(identifiers)
                 .map(value -> "`" + value.replace("`", "``") + "`")
                 .collect(Collectors.joining("."));
-    }
-
-    private static String quoteLiteral(String value) {
-        return "'" + value.replace("'", "''") + "'";
     }
 
     private static String[] parseIdentifier(DorisOptions options) {

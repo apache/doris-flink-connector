@@ -80,7 +80,8 @@ public class DorisDynamicTableSourceTest {
                         builder.build(),
                         DorisLookupOptions.builder().build(),
                         TableSchema.fromResolvedSchema(SCHEMA),
-                        FactoryMocks.PHYSICAL_DATA_TYPE);
+                        FactoryMocks.PHYSICAL_DATA_TYPE,
+                        null);
         ScanTableSource.ScanRuntimeProvider provider =
                 actualDorisSource.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
         assertDorisSource(provider);
@@ -94,7 +95,8 @@ public class DorisDynamicTableSourceTest {
                         OptionUtils.buildDorisReadOptions(),
                         DorisLookupOptions.builder().build(),
                         TableSchema.fromResolvedSchema(SCHEMA),
-                        FactoryMocks.PHYSICAL_DATA_TYPE);
+                        FactoryMocks.PHYSICAL_DATA_TYPE,
+                        null);
         ScanTableSource.ScanRuntimeProvider provider =
                 actualDorisSource.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
         assertDorisSource(provider);
@@ -130,7 +132,8 @@ public class DorisDynamicTableSourceTest {
                         builder.build(),
                         DorisLookupOptions.builder().build(),
                         TableSchema.fromResolvedSchema(SCHEMA),
-                        FactoryMocks.PHYSICAL_DATA_TYPE);
+                        FactoryMocks.PHYSICAL_DATA_TYPE,
+                        null);
         ScanTableSource.ScanRuntimeProvider provider =
                 actualDorisSource.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
         DorisRowDataInputFormat inputFormat = assertDorisInputFormat(provider);
@@ -150,7 +153,8 @@ public class DorisDynamicTableSourceTest {
                         readOptions,
                         DorisLookupOptions.builder().build(),
                         TableSchema.fromResolvedSchema(SCHEMA),
-                        FactoryMocks.PHYSICAL_DATA_TYPE);
+                        FactoryMocks.PHYSICAL_DATA_TYPE,
+                        null);
 
         assertDorisSource(tableSource.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE));
         assertTrue(tableSource.getChangelogMode().contains(RowKind.UPDATE_BEFORE));
@@ -166,7 +170,8 @@ public class DorisDynamicTableSourceTest {
                         appendOnly,
                         DorisLookupOptions.builder().build(),
                         TableSchema.fromResolvedSchema(SCHEMA),
-                        FactoryMocks.PHYSICAL_DATA_TYPE);
+                        FactoryMocks.PHYSICAL_DATA_TYPE,
+                        null);
         assertTrue(appendOnlySource.getChangelogMode().containsOnly(RowKind.INSERT));
     }
 
@@ -182,7 +187,8 @@ public class DorisDynamicTableSourceTest {
                         readOptions,
                         DorisLookupOptions.builder().build(),
                         TableSchema.fromResolvedSchema(SCHEMA),
-                        FactoryMocks.PHYSICAL_DATA_TYPE);
+                        FactoryMocks.PHYSICAL_DATA_TYPE,
+                        null);
         ResolvedExpression field = new FieldReferenceExpression("a", DataTypes.STRING(), 0, 2);
         ResolvedExpression filter =
                 new CallExpression(
@@ -210,7 +216,8 @@ public class DorisDynamicTableSourceTest {
                         readOptions,
                         DorisLookupOptions.builder().build(),
                         TableSchema.fromResolvedSchema(SCHEMA),
-                        FactoryMocks.PHYSICAL_DATA_TYPE);
+                        FactoryMocks.PHYSICAL_DATA_TYPE,
+                        null);
 
         tableSource.applyLimit(10L);
 
@@ -238,7 +245,8 @@ public class DorisDynamicTableSourceTest {
                         readOptions,
                         DorisLookupOptions.builder().build(),
                         TableSchema.fromResolvedSchema(SCHEMA),
-                        FactoryMocks.PHYSICAL_DATA_TYPE);
+                        FactoryMocks.PHYSICAL_DATA_TYPE,
+                        null);
         tableSource.applyProjection(projectedFields, projectedDataType);
 
         DorisDynamicTableSource copy = (DorisDynamicTableSource) tableSource.copy();
@@ -261,7 +269,8 @@ public class DorisDynamicTableSourceTest {
                         expectedReadOptions,
                         DorisLookupOptions.builder().build(),
                         TableSchema.fromResolvedSchema(SCHEMA),
-                        projectedDataType);
+                        projectedDataType,
+                        null);
         assertEquals(expected, copy);
 
         readOptions.setReadFields("`b`");
@@ -308,7 +317,8 @@ public class DorisDynamicTableSourceTest {
                         readOptions,
                         DorisLookupOptions.builder().build(),
                         TableSchema.fromResolvedSchema(SCHEMA),
-                        FactoryMocks.PHYSICAL_DATA_TYPE);
+                        FactoryMocks.PHYSICAL_DATA_TYPE,
+                        null);
         actualDorisSource.applyProjection(projectionArray, projectionDataType);
         Assert.assertEquals(readOptions.getReadFields(), "`a`, `c`");
     }
@@ -322,7 +332,8 @@ public class DorisDynamicTableSourceTest {
                         readOptions,
                         DorisLookupOptions.builder().build(),
                         TableSchema.fromResolvedSchema(SCHEMA),
-                        FactoryMocks.PHYSICAL_DATA_TYPE);
+                        FactoryMocks.PHYSICAL_DATA_TYPE,
+                        null);
         ResolvedExpression aRef = new FieldReferenceExpression("a", DataTypes.STRING(), 0, 2);
         ResolvedExpression aRefCharLength =
                 new CallExpression(
@@ -452,7 +463,8 @@ public class DorisDynamicTableSourceTest {
                         readOptions,
                         DorisLookupOptions.builder().build(),
                         TableSchema.fromResolvedSchema(FactoryMocks.SCHEMA_DT),
-                        FactoryMocks.SCHEMA_DT.toPhysicalRowDataType());
+                        FactoryMocks.SCHEMA_DT.toPhysicalRowDataType(),
+                        null);
         ResolvedExpression dRef = new FieldReferenceExpression("d", DataTypes.DATE(), 0, 2);
         ResolvedExpression dExp =
                 new CallExpression(

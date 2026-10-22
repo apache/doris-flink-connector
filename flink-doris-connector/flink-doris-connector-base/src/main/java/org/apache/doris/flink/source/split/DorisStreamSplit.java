@@ -17,7 +17,13 @@
 
 package org.apache.doris.flink.source.split;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
+import java.util.TreeSet;
+import java.util.UUID;
 import java.util.regex.Pattern;
 
 /** A finite Doris changelog query range with an inclusive start and exclusive end. */
@@ -28,22 +34,44 @@ public final class DorisStreamSplit implements DorisSourceSplit {
     private final String splitId;
     private final String startTimestamp;
     private final String endTimestamp;
+    private final List<Long> tabletIds;
 
-    public DorisStreamSplit(String splitId, String startTimestamp, String endTimestamp) {
+    public DorisStreamSplit(
+            String splitId,
+            String startTimestamp,
+            String endTimestamp,
+            Collection<Long> tabletIds) {
         validateTimestamp(startTimestamp);
         validateTimestamp(endTimestamp);
         if (startTimestamp.compareTo(endTimestamp) >= 0) {
             throw new IllegalArgumentException(
                     "Stream split start timestamp must be before end timestamp");
         }
+        if (tabletIds.isEmpty()) {
+            throw new IllegalArgumentException("Stream split must contain at least one tablet");
+        }
         this.splitId = Objects.requireNonNull(splitId, "splitId");
         this.startTimestamp = startTimestamp;
         this.endTimestamp = endTimestamp;
+        this.tabletIds = Collections.unmodifiableList(new ArrayList<>(new TreeSet<>(tabletIds)));
     }
 
-    public static DorisStreamSplit of(String startTimestamp, String endTimestamp) {
+    public static DorisStreamSplit of(
+            int readerId, String startTimestamp, String endTimestamp, Collection<Long> tabletIds) {
+        // The reader ID identifies the creation group, not the owner after recovery.
         return new DorisStreamSplit(
-                createSplitId(startTimestamp, endTimestamp), startTimestamp, endTimestamp);
+                createSplitId(startTimestamp, endTimestamp)
+                        + "-"
+                        + readerId
+                        + "-"
+                        + UUID.randomUUID().toString().replace("-", ""),
+                startTimestamp,
+                endTimestamp,
+                tabletIds);
+    }
+
+    public List<Long> getTabletIds() {
+        return tabletIds;
     }
 
     public static boolean isValidTimestamp(String value) {
@@ -92,16 +120,25 @@ public final class DorisStreamSplit implements DorisSourceSplit {
         DorisStreamSplit that = (DorisStreamSplit) object;
         return splitId.equals(that.splitId)
                 && startTimestamp.equals(that.startTimestamp)
-                && endTimestamp.equals(that.endTimestamp);
+                && endTimestamp.equals(that.endTimestamp)
+                && tabletIds.equals(that.tabletIds);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(splitId, startTimestamp, endTimestamp);
+        return Objects.hash(splitId, startTimestamp, endTimestamp, tabletIds);
     }
 
     @Override
     public String toString() {
-        return "DorisStreamSplit{" + splitId + ", [" + startTimestamp + ", " + endTimestamp + ")}";
+        return "DorisStreamSplit{"
+                + splitId
+                + ", ["
+                + startTimestamp
+                + ", "
+                + endTimestamp
+                + "), tablets="
+                + tabletIds
+                + "}";
     }
 }

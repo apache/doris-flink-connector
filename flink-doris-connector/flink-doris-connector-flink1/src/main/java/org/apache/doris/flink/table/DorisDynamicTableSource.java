@@ -18,11 +18,19 @@
 package org.apache.doris.flink.table;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStreamSource;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.ParallelismProvider;
 import org.apache.flink.table.connector.Projection;
+import org.apache.flink.table.connector.ProviderContext;
 import org.apache.flink.table.connector.source.AsyncTableFunctionProvider;
+import org.apache.flink.table.connector.source.DataStreamScanProvider;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.InputFormatProvider;
 import org.apache.flink.table.connector.source.LookupTableSource;
@@ -56,6 +64,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /** The {@link DorisDynamicTableSource} is used during planning. */
@@ -69,6 +78,7 @@ public final class DorisDynamicTableSource
     private static final Logger LOG = LoggerFactory.getLogger(DorisDynamicTableSource.class);
     private final DorisOptions options;
     private final DorisReadOptions readOptions;
+    private final Integer scanParallelism;
     private DorisLookupOptions lookupOptions;
     private TableSchema physicalSchema;
     private List<String> resolvedFilterQuery = new ArrayList<>();
@@ -79,7 +89,11 @@ public final class DorisDynamicTableSource
             DorisReadOptions readOptions,
             DorisLookupOptions lookupOptions,
             TableSchema physicalSchema,
-            DataType physicalRowDataType) {
+            DataType physicalRowDataType,
+            Integer scanParallelism) {
+        if (scanParallelism != null && scanParallelism <= 0) {
+            throw new ValidationException("scan.parallelism must be greater than 0");
+        }
         if (readOptions.getUseOldApi()
                 && readOptions.getScanMode() != DorisSourceScanMode.SNAPSHOT) {
             throw new ValidationException(
@@ -88,6 +102,7 @@ public final class DorisDynamicTableSource
         this.options = options;
         this.lookupOptions = lookupOptions;
         this.readOptions = readOptions;
+        this.scanParallelism = scanParallelism;
         this.physicalSchema = physicalSchema;
         this.physicalRowDataType = physicalRowDataType;
     }
@@ -127,6 +142,7 @@ public final class DorisDynamicTableSource
                             .collect(Collectors.joining(", ")));
         }
 
+        final ScanRuntimeProvider provider;
         if (readOptions.getUseOldApi()) {
             List<PartitionDefinition> dorisPartitions;
             try {
@@ -134,12 +150,13 @@ public final class DorisDynamicTableSource
             } catch (DorisException e) {
                 throw new RuntimeException("Failed fetch doris partitions");
             }
-            return InputFormatProvider.of(
-                    new DorisRowDataInputFormat(
-                            options,
-                            dorisPartitions,
-                            readOptions,
-                            (RowType) physicalRowDataType.getLogicalType()));
+            provider =
+                    InputFormatProvider.of(
+                            new DorisRowDataInputFormat(
+                                    options,
+                                    dorisPartitions,
+                                    readOptions,
+                                    (RowType) physicalRowDataType.getLogicalType()));
         } else {
             // Read data using the interface of the FLIP-27 specification
             DorisSource<RowData> build =
@@ -150,8 +167,44 @@ public final class DorisDynamicTableSource
                                     new RowDataDeserializationSchema(
                                             (RowType) physicalRowDataType.getLogicalType()))
                             .build();
-            return SourceProvider.of(build);
+            provider = SourceProvider.of(build);
         }
+        if (scanParallelism == null) {
+            return provider;
+        }
+        final TypeInformation<RowData> typeInfo =
+                runtimeProviderContext.createTypeInformation(physicalRowDataType);
+        // Older Flink 1.x DataStreamScanProvider does not extend ParallelismProvider.
+        class DorisScanProvider implements DataStreamScanProvider, ParallelismProvider {
+            @Override
+            public DataStream<RowData> produceDataStream(
+                    ProviderContext providerContext, StreamExecutionEnvironment env) {
+                DataStreamSource<RowData> stream =
+                        provider instanceof SourceProvider
+                                ? env.fromSource(
+                                        ((SourceProvider) provider).createSource(),
+                                        WatermarkStrategy.noWatermarks(),
+                                        asSummaryString(),
+                                        typeInfo)
+                                : env.createInput(
+                                        ((InputFormatProvider) provider).createInputFormat(),
+                                        typeInfo);
+                stream.setParallelism(scanParallelism);
+                providerContext.generateUid("doris-source").ifPresent(stream::uid);
+                return stream;
+            }
+
+            @Override
+            public boolean isBounded() {
+                return provider.isBounded();
+            }
+
+            @Override
+            public Optional<Integer> getParallelism() {
+                return Optional.of(scanParallelism);
+            }
+        }
+        return new DorisScanProvider();
     }
 
     @Override
@@ -195,7 +248,8 @@ public final class DorisDynamicTableSource
                         readOptions.copy(),
                         lookupOptions,
                         physicalSchema,
-                        physicalRowDataType);
+                        physicalRowDataType,
+                        scanParallelism);
         newSource.resolvedFilterQuery = new ArrayList<>(this.resolvedFilterQuery);
         return newSource;
     }
@@ -261,7 +315,8 @@ public final class DorisDynamicTableSource
                 && Objects.equals(lookupOptions, that.lookupOptions)
                 && Objects.equals(physicalSchema, that.physicalSchema)
                 && Objects.equals(resolvedFilterQuery, that.resolvedFilterQuery)
-                && Objects.equals(physicalRowDataType, that.physicalRowDataType);
+                && Objects.equals(physicalRowDataType, that.physicalRowDataType)
+                && Objects.equals(scanParallelism, that.scanParallelism);
     }
 
     @Override
@@ -272,7 +327,8 @@ public final class DorisDynamicTableSource
                 lookupOptions,
                 physicalSchema,
                 resolvedFilterQuery,
-                physicalRowDataType);
+                physicalRowDataType,
+                scanParallelism);
     }
 
     @Override

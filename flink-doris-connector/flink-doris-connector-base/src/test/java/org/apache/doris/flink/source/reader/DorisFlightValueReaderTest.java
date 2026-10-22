@@ -169,6 +169,27 @@ class DorisFlightValueReaderTest {
     }
 
     @Test
+    void restrictsIncrementalQueryToItsAssignedTablets() {
+        DorisOptions options =
+                DorisOptions.builder()
+                        .setFenodes("127.0.0.1:8030")
+                        .setTableIdentifier("sales.orders")
+                        .build();
+        DorisReadOptions readOptions = DorisReadOptions.builder().build();
+        DorisStreamSplit split =
+                DorisStreamSplit.of(
+                        0, "2026-07-20 10:00:00", "2026-07-20 10:00:10", Arrays.asList(103L, 101L));
+        assertThat(
+                        DorisFlightValueReader.buildIncrementalSql(
+                                options, readOptions, split, DorisChangelogIncrementType.DETAIL))
+                .contains("SET_VAR(disable_nereids_rules='OLAP_SCAN_PARTITION_PRUNE')")
+                .contains(
+                        "*, __DORIS_CHANGELOG_TSO__, __DORIS_CHANGELOG_LSN__, __DORIS_CHANGELOG_OP__ FROM")
+                .endsWith(
+                        "TABLET(101,103) ORDER BY __DORIS_CHANGELOG_TSO__, __DORIS_CHANGELOG_LSN__, __DORIS_CHANGELOG_OP__");
+    }
+
+    @Test
     void buildsExplicitOrderedIncrementalSql() {
         DorisOptions options =
                 DorisOptions.builder()
@@ -176,7 +197,12 @@ class DorisFlightValueReaderTest {
                         .setTableIdentifier("sales.orders")
                         .build();
         DorisReadOptions readOptions = DorisReadOptions.builder().setReadFields("`id`").build();
-        DorisStreamSplit split = DorisStreamSplit.of("2026-07-20 10:00:00", "2026-07-20 10:00:10");
+        DorisStreamSplit split =
+                DorisStreamSplit.of(
+                        0,
+                        "2026-07-20 10:00:00",
+                        "2026-07-20 10:00:10",
+                        Collections.singleton(100L));
 
         String sql =
                 DorisFlightValueReader.buildIncrementalSql(

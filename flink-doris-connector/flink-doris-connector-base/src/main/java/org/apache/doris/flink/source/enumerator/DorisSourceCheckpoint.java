@@ -38,20 +38,14 @@ public final class DorisSourceCheckpoint {
 
     private final Phase phase;
     @Nullable private final String nextStreamStartTimestamp;
-    private final int sourceParallelism;
     private final List<DorisSourceSplit> pendingSplits;
 
     public DorisSourceCheckpoint(
             Phase phase,
             @Nullable String nextStreamStartTimestamp,
-            int sourceParallelism,
             Collection<? extends DorisSourceSplit> pendingSplits) {
         this.phase = Objects.requireNonNull(phase, "phase");
         this.nextStreamStartTimestamp = nextStreamStartTimestamp;
-        if (sourceParallelism <= 0) {
-            throw new IllegalArgumentException("Source parallelism must be greater than zero");
-        }
-        this.sourceParallelism = sourceParallelism;
         this.pendingSplits = Collections.unmodifiableList(new ArrayList<>(pendingSplits));
         for (DorisSourceSplit split : this.pendingSplits) {
             boolean validType =
@@ -67,10 +61,6 @@ public final class DorisSourceCheckpoint {
             throw new IllegalArgumentException(
                     "Stream checkpoint is missing next stream start timestamp");
         }
-        if (phase == Phase.STREAM && this.pendingSplits.size() > 1) {
-            throw new IllegalArgumentException(
-                    "Stream checkpoint supports at most one pending split");
-        }
     }
 
     public Phase getPhase() {
@@ -82,17 +72,12 @@ public final class DorisSourceCheckpoint {
         return nextStreamStartTimestamp;
     }
 
-    public int getSourceParallelism() {
-        return sourceParallelism;
-    }
-
     public List<DorisSourceSplit> getPendingSplits() {
         return pendingSplits;
     }
 
     public DorisSourceCheckpoint withPhase(Phase newPhase) {
-        return new DorisSourceCheckpoint(
-                newPhase, nextStreamStartTimestamp, sourceParallelism, pendingSplits);
+        return new DorisSourceCheckpoint(newPhase, nextStreamStartTimestamp, pendingSplits);
     }
 
     @Override
@@ -104,14 +89,13 @@ public final class DorisSourceCheckpoint {
             return false;
         }
         DorisSourceCheckpoint that = (DorisSourceCheckpoint) object;
-        return sourceParallelism == that.sourceParallelism
-                && phase == that.phase
+        return phase == that.phase
                 && Objects.equals(nextStreamStartTimestamp, that.nextStreamStartTimestamp)
                 && pendingSplits.equals(that.pendingSplits);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(phase, nextStreamStartTimestamp, sourceParallelism, pendingSplits);
+        return Objects.hash(phase, nextStreamStartTimestamp, pendingSplits);
     }
 }

@@ -60,21 +60,40 @@ class DorisSourceSplitSerializerTest {
 
     @Test
     void roundTripsStreamSplit() throws Exception {
-        DorisStreamSplit split = DorisStreamSplit.of("2026-07-20 10:00:00", "2026-07-20 10:00:10");
+        DorisStreamSplit split =
+                DorisStreamSplit.of(
+                        0,
+                        "2026-07-20 10:00:00",
+                        "2026-07-20 10:00:10",
+                        Collections.singleton(100L));
 
-        assertThat(split.splitId()).isEqualTo("stream-20260720100000-20260720100010");
-        assertThat(split.toString())
-                .isEqualTo(
-                        "DorisStreamSplit{stream-20260720100000-20260720100010, [2026-07-20 10:00:00, 2026-07-20 10:00:10)}");
+        assertThat(split.splitId()).startsWith("stream-20260720100000-20260720100010-0-");
         assertThat(roundTrip(split)).isEqualTo(split);
+        DorisStreamSplit another =
+                DorisStreamSplit.of(
+                        0,
+                        split.getStartTimestamp(),
+                        split.getEndTimestamp(),
+                        split.getTabletIds());
+        assertThat(another.splitId()).isNotEqualTo(split.splitId());
     }
 
     @Test
-    void rejectsLegacySerializerVersions() {
-        assertThatThrownBy(() -> serializer.deserialize(1, new byte[0]))
-                .isInstanceOf(IOException.class)
-                .hasMessageContaining("Unknown version");
-        assertThatThrownBy(() -> serializer.deserialize(2, new byte[0]))
+    void retainsTabletGroupAcrossRestore() throws Exception {
+        DorisStreamSplit split =
+                DorisStreamSplit.of(
+                        0,
+                        "2026-07-20 10:00:00",
+                        "2026-07-20 10:00:10",
+                        java.util.Arrays.asList(101L, 103L));
+        DorisStreamSplit restored = (DorisStreamSplit) roundTrip(split);
+        assertThat(restored.getTabletIds()).containsExactly(101L, 103L);
+        assertThat(restored).isEqualTo(split);
+    }
+
+    @Test
+    void rejectsLegacySerializerVersion() {
+        assertThatThrownBy(() -> serializer.deserialize(3, new byte[0]))
                 .isInstanceOf(IOException.class)
                 .hasMessageContaining("Unknown version");
     }
@@ -84,16 +103,47 @@ class DorisSourceSplitSerializerTest {
         assertThatThrownBy(
                         () ->
                                 new DorisStreamSplit(
-                                        "stream-invalid", "2026-07-20", "2026-07-20 10:00:10"))
+                                        "stream-invalid",
+                                        "2026-07-20",
+                                        "2026-07-20 10:00:10",
+                                        Collections.singleton(100L)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("yyyy-MM-dd HH:mm:ss");
     }
 
     @Test
     void rejectsNonIncreasingStreamRange() {
-        assertThatThrownBy(() -> DorisStreamSplit.of("2026-07-20 10:00:10", "2026-07-20 10:00:10"))
+        assertThatThrownBy(
+                        () ->
+                                DorisStreamSplit.of(
+                                        0,
+                                        "2026-07-20 10:00:10",
+                                        "2026-07-20 10:00:10",
+                                        Collections.singleton(100L)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("before");
+    }
+
+    @Test
+    void rejectsStreamSplitWithoutTablets() {
+        assertThatThrownBy(
+                        () ->
+                                DorisStreamSplit.of(
+                                        0,
+                                        "2026-07-20 10:00:00",
+                                        "2026-07-20 10:00:10",
+                                        Collections.emptyList()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("at least one tablet");
+        assertThatThrownBy(
+                        () ->
+                                new DorisStreamSplit(
+                                        "stream-empty",
+                                        "2026-07-20 10:00:00",
+                                        "2026-07-20 10:00:10",
+                                        Collections.emptyList()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("at least one tablet");
     }
 
     private DorisSourceSplit roundTrip(DorisSourceSplit split) throws Exception {

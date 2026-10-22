@@ -107,7 +107,7 @@ class DorisSourceOffsetRestoreTest {
         DorisReadOptions readOptions = readOptions(DorisSourceScanMode.INITIAL);
         DorisSourceCheckpoint checkpoint =
                 new DorisSourceCheckpoint(
-                        DorisSourceCheckpoint.Phase.STREAM, SAVED, 2, Collections.emptyList());
+                        DorisSourceCheckpoint.Phase.STREAM, SAVED, Collections.emptyList());
         try (MockedConstruction<SimpleJdbcConnectionProvider> providers = providers()) {
             DorisSourceSplitAssigner assigner =
                     DorisSourceSplitAssigner.restore(options, readOptions, checkpoint, 2);
@@ -240,6 +240,11 @@ class DorisSourceOffsetRestoreTest {
                 .thenReturn(new String[] {"db", "t"});
         rest.when(() -> RestService.findPartitions(eq(options), eq(readOptions), any()))
                 .thenReturn(Collections.emptyList());
+        rest.when(
+                        () ->
+                                RestService.findIncrementalTablets(
+                                        eq(options), eq(readOptions), any(), any(), any()))
+                .thenReturn(Collections.singletonList(1L));
         return rest;
     }
 

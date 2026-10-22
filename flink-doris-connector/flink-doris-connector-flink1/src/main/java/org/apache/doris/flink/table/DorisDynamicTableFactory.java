@@ -70,6 +70,7 @@ import static org.apache.doris.flink.table.DorisConfigOptions.LOOKUP_JDBC_READ_B
 import static org.apache.doris.flink.table.DorisConfigOptions.LOOKUP_JDBC_READ_THREAD_SIZE;
 import static org.apache.doris.flink.table.DorisConfigOptions.LOOKUP_MAX_RETRIES;
 import static org.apache.doris.flink.table.DorisConfigOptions.PASSWORD;
+import static org.apache.doris.flink.table.DorisConfigOptions.SCAN_PARALLELISM;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_BUFFER_COUNT;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_BUFFER_FLUSH_INTERVAL;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_BUFFER_FLUSH_MAX_BYTES;
@@ -187,6 +188,7 @@ public final class DorisDynamicTableFactory
         options.add(SINK_USE_CACHE);
 
         options.add(SOURCE_USE_OLD_API);
+        options.add(SCAN_PARALLELISM);
         options.add(SOURCE_SCAN_MODE);
         options.add(SOURCE_SCAN_TIMESTAMP);
         options.add(SOURCE_CHANGELOG_INCREMENT_TYPE);
@@ -236,7 +238,8 @@ public final class DorisDynamicTableFactory
                 readOptions,
                 lookupOptions,
                 physicalSchema,
-                context.getPhysicalRowDataType());
+                context.getPhysicalRowDataType(),
+                options.get(SCAN_PARALLELISM));
     }
 
     private DorisOptions getDorisOptions(ReadableConfig readableConfig) {

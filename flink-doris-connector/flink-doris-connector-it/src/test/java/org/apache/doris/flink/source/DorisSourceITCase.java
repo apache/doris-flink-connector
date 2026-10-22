@@ -22,6 +22,7 @@ import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestartStrategyOptions;
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.minicluster.RpcServiceSharing;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -57,6 +58,9 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
+
+import static org.junit.Assert.assertEquals;
 
 /** DorisSource ITCase. */
 @RunWith(Parameterized.class)
@@ -94,7 +98,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
             new Object[] {
                 false, -1,
             },
-            new Object[] {true, 9611}
+            new Object[] {true, Integer.getInteger("doris_flight_sql_port", 9611)}
         };
     }
 
@@ -191,6 +195,7 @@ public class DorisSourceITCase extends AbstractITCaseService {
                                 + " 'table.identifier' = '%s',"
                                 + " 'username' = '%s',"
                                 + " 'password' = '%s',"
+                                + " 'scan.parallelism' = '1',"
                                 + " 'source.use-flight-sql' = '%s',"
                                 + " 'source.flight-sql-port' = '%s'"
                                 + ")",
@@ -211,6 +216,13 @@ public class DorisSourceITCase extends AbstractITCaseService {
         }
         String[] expected = new String[] {"+I[doris, 18]", "+I[flink, 10]", "+I[apache, 12]"};
         assertEqualsInAnyOrder(Arrays.asList(expected), Arrays.asList(actual.toArray()));
+        AccessExecutionGraph graph =
+                miniClusterResource
+                        .getMiniCluster()
+                        .getExecutionGraph(tableResult.getJobClient().get().getJobID())
+                        .get(30, TimeUnit.SECONDS);
+        // The query reads one source, which is the first vertex in topological order.
+        assertEquals(1, graph.getVerticesTopologically().iterator().next().getParallelism());
 
         // fitler query
         List<String> actualFilter = new ArrayList<>();

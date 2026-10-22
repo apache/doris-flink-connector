@@ -17,89 +17,127 @@
 
 package org.apache.doris.flink.source.assigners;
 
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.util.MathUtils;
+
 import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.apache.doris.flink.source.split.DorisStreamSplit;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.PriorityQueue;
+import java.util.Queue;
+import java.util.TreeMap;
+import java.util.function.BiFunction;
 import java.util.function.Supplier;
 
-/** Discovers and assigns finite Doris Stream split intervals. */
+/** Discovers finite windows and groups their tablets by a stable reader assignment. */
 final class DorisStreamSplitAssigner implements DorisSplitAssigner<DorisStreamSplit> {
-    private static final Logger LOG = LoggerFactory.getLogger(DorisStreamSplitAssigner.class);
+    private static final Comparator<DorisStreamSplit> SPLIT_ORDER =
+            Comparator.comparing(DorisStreamSplit::splitId);
 
     private final Supplier<String> currentTimestampSupplier;
+    private final BiFunction<String, String, Collection<Long>> tabletSupplier;
+    private final int parallelism;
     private String nextStreamStartTimestamp;
-    @Nullable private DorisStreamSplit pendingSplit;
+    // Replay older windows first, including when rescaling merges several readers' queues.
+    private final Map<Integer, Queue<DorisStreamSplit>> pendingSplits = new TreeMap<>();
 
     DorisStreamSplitAssigner(
             String nextStreamStartTimestamp,
             Collection<DorisStreamSplit> pendingSplits,
-            Supplier<String> currentTimestampSupplier) {
+            Supplier<String> currentTimestampSupplier,
+            BiFunction<String, String, Collection<Long>> tabletSupplier,
+            int parallelism) {
         if (nextStreamStartTimestamp == null) {
             throw new DorisRuntimeException("Missing stream start timestamp");
         }
-        if (pendingSplits.size() > 1) {
-            throw new DorisRuntimeException(
-                    "Doris Stream assigner supports at most one pending split");
-        }
         this.nextStreamStartTimestamp = nextStreamStartTimestamp;
         this.currentTimestampSupplier = currentTimestampSupplier;
-        this.pendingSplit = pendingSplits.isEmpty() ? null : new ArrayList<>(pendingSplits).get(0);
-        validatePendingSplit();
+        this.tabletSupplier = tabletSupplier;
+        this.parallelism = parallelism;
+        addSplits(pendingSplits);
     }
 
     @Override
     public Optional<DorisStreamSplit> getNext() {
-        DorisStreamSplit next = pendingSplit;
-        pendingSplit = null;
-        return Optional.ofNullable(next);
+        return pendingSplits.isEmpty()
+                ? Optional.empty()
+                : getNext(pendingSplits.keySet().iterator().next());
+    }
+
+    Optional<DorisStreamSplit> getNext(int readerId) {
+        Queue<DorisStreamSplit> splits = pendingSplits.get(readerId);
+        if (splits == null) {
+            return Optional.empty();
+        }
+        DorisStreamSplit next = splits.remove();
+        if (splits.isEmpty()) {
+            pendingSplits.remove(readerId);
+        }
+        return Optional.of(next);
     }
 
     @Override
     public void addSplits(Collection<DorisStreamSplit> splits) {
-        if (splits.isEmpty()) {
-            return;
+        for (DorisStreamSplit split : splits) {
+            if (split.getEndTimestamp().compareTo(nextStreamStartTimestamp) > 0) {
+                throw new DorisRuntimeException(
+                        "Pending Doris Stream split ends after the discovery cursor");
+            }
+            // A restored group can span several readers after rescaling.
+            Map<Integer, List<Long>> groups = groupTablets(split.getTabletIds());
+            for (Map.Entry<Integer, List<Long>> group : groups.entrySet()) {
+                pendingSplits
+                        .computeIfAbsent(
+                                group.getKey(), ignored -> new PriorityQueue<>(SPLIT_ORDER))
+                        .add(
+                                groups.size() == 1
+                                        ? split
+                                        : DorisStreamSplit.of(
+                                                group.getKey(),
+                                                split.getStartTimestamp(),
+                                                split.getEndTimestamp(),
+                                                group.getValue()));
+            }
         }
-        if (pendingSplit != null || splits.size() > 1) {
-            throw new DorisRuntimeException(
-                    "Doris Stream assigner supports at most one pending split");
-        }
-        pendingSplit = new ArrayList<>(splits).get(0);
-        validatePendingSplit();
     }
 
     @Override
     public List<DorisStreamSplit> remainingSplits() {
-        return pendingSplit == null
-                ? Collections.emptyList()
-                : Collections.singletonList(pendingSplit);
+        List<DorisStreamSplit> remaining = new ArrayList<>();
+        pendingSplits.values().forEach(remaining::addAll);
+        remaining.sort(SPLIT_ORDER);
+        return remaining;
     }
 
     @Override
     public boolean hasPendingSplits() {
-        return pendingSplit != null;
+        return !pendingSplits.isEmpty();
     }
 
-    String discoverNextStreamEndTimestamp() {
+    Tuple2<String, Collection<Long>> discoverNextStreamEndTimestamp() {
         String endTimestamp = currentTimestampSupplier.get();
         if (endTimestamp == null) {
             throw new DorisRuntimeException("Missing stream end timestamp");
         }
-        return endTimestamp;
+        return Tuple2.of(
+                endTimestamp,
+                endTimestamp.equals(nextStreamStartTimestamp)
+                        ? Collections.emptyList()
+                        : tabletSupplier.apply(nextStreamStartTimestamp, endTimestamp));
     }
 
-    void onDiscoveredEndTimestamp(String endTimestamp) {
-        if (pendingSplit != null) {
-            return;
+    void onDiscoveredEndTimestamp(Tuple2<String, Collection<Long>> discovery) {
+        if (hasPendingSplits()) {
+            throw new DorisRuntimeException("Discovered Stream window overlaps unfinished work");
         }
+        String endTimestamp = discovery.f0;
         int comparison = endTimestamp.compareTo(nextStreamStartTimestamp);
         if (comparison < 0) {
             throw new DorisRuntimeException(
@@ -111,21 +149,29 @@ final class DorisStreamSplitAssigner implements DorisSplitAssigner<DorisStreamSp
         if (comparison == 0) {
             return;
         }
-        DorisStreamSplit split = DorisStreamSplit.of(nextStreamStartTimestamp, endTimestamp);
-        pendingSplit = split;
+        for (Map.Entry<Integer, List<Long>> group : groupTablets(discovery.f1).entrySet()) {
+            pendingSplits
+                    .computeIfAbsent(group.getKey(), ignored -> new PriorityQueue<>(SPLIT_ORDER))
+                    .add(
+                            DorisStreamSplit.of(
+                                    group.getKey(),
+                                    nextStreamStartTimestamp,
+                                    endTimestamp,
+                                    group.getValue()));
+        }
         nextStreamStartTimestamp = endTimestamp;
-        LOG.info("Discovered Doris stream split {} ending at {}.", split.splitId(), endTimestamp);
+    }
+
+    private Map<Integer, List<Long>> groupTablets(Collection<Long> tablets) {
+        Map<Integer, List<Long>> groups = new TreeMap<>();
+        for (Long tablet : tablets) {
+            int reader = MathUtils.murmurHash(Long.hashCode(tablet)) % parallelism;
+            groups.computeIfAbsent(reader, ignored -> new ArrayList<>()).add(tablet);
+        }
+        return groups;
     }
 
     String getNextStreamStartTimestamp() {
         return nextStreamStartTimestamp;
-    }
-
-    private void validatePendingSplit() {
-        if (pendingSplit != null
-                && !pendingSplit.getEndTimestamp().equals(nextStreamStartTimestamp)) {
-            throw new DorisRuntimeException(
-                    "Pending Doris Stream split end timestamp does not match the next start timestamp");
-        }
     }
 }

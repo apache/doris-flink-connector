@@ -25,6 +25,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collections;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -44,25 +45,27 @@ class DorisSourceCheckpointSerializerTest {
                 new DorisSourceCheckpoint(
                         DorisSourceCheckpoint.Phase.SNAPSHOT,
                         "2026-07-20 10:00:00",
-                        2,
                         Arrays.asList(first, second));
 
         DorisSourceCheckpoint restored =
                 serializer.deserialize(serializer.getVersion(), serializer.serialize(checkpoint));
 
         assertThat(restored).isEqualTo(checkpoint);
-        assertThat(restored.getSourceParallelism()).isEqualTo(2);
         assertThat(restored.getPendingSplits()).containsExactly(first, second);
     }
 
     @Test
     void roundTripsStreamCoordinatorState() throws Exception {
-        DorisStreamSplit first = DorisStreamSplit.of("2026-07-20 10:00:00", "2026-07-20 10:00:10");
+        DorisStreamSplit first =
+                DorisStreamSplit.of(
+                        0,
+                        "2026-07-20 10:00:00",
+                        "2026-07-20 10:00:10",
+                        Collections.singleton(100L));
         DorisSourceCheckpoint checkpoint =
                 new DorisSourceCheckpoint(
                         DorisSourceCheckpoint.Phase.STREAM,
                         "2026-07-20 10:00:10",
-                        1,
                         Arrays.asList(first));
 
         DorisSourceCheckpoint restored =
@@ -70,6 +73,25 @@ class DorisSourceCheckpointSerializerTest {
 
         assertThat(restored).isEqualTo(checkpoint);
         assertThat(restored.getPendingSplits()).containsExactly(first);
+    }
+
+    @Test
+    void roundTripsAllPendingTabletGroups() throws Exception {
+        DorisStreamSplit first =
+                DorisStreamSplit.of(
+                        0, "2026-07-20 10:00:00", "2026-07-20 10:00:10", Arrays.asList(100L, 102L));
+        DorisStreamSplit second =
+                DorisStreamSplit.of(
+                        1, "2026-07-20 10:00:00", "2026-07-20 10:00:10", Arrays.asList(101L));
+        DorisSourceCheckpoint checkpoint =
+                new DorisSourceCheckpoint(
+                        DorisSourceCheckpoint.Phase.STREAM,
+                        "2026-07-20 10:00:10",
+                        Arrays.asList(first, second));
+        assertThat(
+                        serializer.deserialize(
+                                serializer.getVersion(), serializer.serialize(checkpoint)))
+                .isEqualTo(checkpoint);
     }
 
     @Test

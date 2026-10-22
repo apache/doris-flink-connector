@@ -45,6 +45,7 @@ import org.apache.doris.flink.rest.models.Schema;
 import org.apache.doris.flink.rest.models.Tablet;
 import org.apache.doris.flink.sink.BackendUtil;
 import org.apache.doris.flink.sink.HttpGetWithEntity;
+import org.apache.doris.flink.source.DorisChangelogIncrementType;
 import org.apache.doris.flink.source.split.DorisStreamSplit;
 import org.apache.http.HttpHeaders;
 import org.apache.http.HttpStatus;
@@ -68,6 +69,7 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -734,6 +736,69 @@ public class RestService implements Serializable {
         return schema;
     }
 
+    /** Discovers changelog tablets using Doris's default visibility checks. */
+    public static Collection<Long> findIncrementalTablets(
+            DorisOptions options,
+            DorisReadOptions readOptions,
+            String startTimestamp,
+            String endTimestamp,
+            Logger logger)
+            throws DorisException {
+        String[] table = parseIdentifier(options.getTableIdentifier(), logger);
+        String sql =
+                "SELECT * FROM "
+                        + buildIncrementalScan(
+                                String.format("`%s`.`%s`", table[0], table[1]),
+                                startTimestamp,
+                                endTimestamp,
+                                DorisChangelogIncrementType.DETAIL);
+        QueryPlan plan = queryPlan(options, readOptions, sql, logger, true);
+        Set<Long> tablets = new java.util.TreeSet<>();
+        for (String tablet : plan.getPartitions().keySet()) {
+            tablets.add(Long.parseLong(tablet));
+        }
+        return tablets;
+    }
+
+    public static String buildIncrementalScan(
+            String quotedTable,
+            String startTimestamp,
+            String endTimestamp,
+            DorisChangelogIncrementType incrementType) {
+        return String.format(
+                "%s@incr('startTimestamp' = '%s', 'endTimestamp' = '%s', 'incrementType' = '%s')",
+                quotedTable,
+                startTimestamp.replace("'", "''"),
+                endTimestamp.replace("'", "''"),
+                incrementType.toSqlValue());
+    }
+
+    private static QueryPlan queryPlan(
+            DorisOptions options,
+            DorisReadOptions readOptions,
+            String sql,
+            Logger logger,
+            boolean forwardToMaster)
+            throws DorisException {
+        String[] tableIdentifier = parseIdentifier(options.getTableIdentifier(), logger);
+        String queryPlanUri =
+                DorisUrlBuilder.buildHttpUrl(
+                        options.getTlsOptions(),
+                        randomEndpoint(options, logger),
+                        String.format(QUERY_PLAN_API, tableIdentifier[0], tableIdentifier[1])
+                                + (forwardToMaster ? "?forward=true" : ""));
+        HttpPost httpPost = new HttpPost(queryPlanUri);
+        String entity = objectMapper.createObjectNode().put("sql", sql).toString();
+        logger.debug("Post body Sending to Doris FE is: '{}'", entity);
+        StringEntity stringEntity = new StringEntity(entity, StandardCharsets.UTF_8);
+        stringEntity.setContentEncoding("UTF-8");
+        stringEntity.setContentType("application/json");
+        httpPost.setEntity(stringEntity);
+        String resStr = send(options, readOptions, httpPost, logger);
+        logger.debug("Find partition response is '{}'", resStr);
+        return getQueryPlan(resStr, logger);
+    }
+
     /**
      * find Doris partitions from Doris FE.
      *
@@ -764,24 +829,7 @@ public class RestService implements Serializable {
             sql += " where " + readOptions.getFilterQuery();
         }
         logger.info("Query SQL Sending to Doris FE is: '{}'.", sql);
-        String[] tableIdentifier = parseIdentifier(options.getTableIdentifier(), logger);
-
-        String queryPlanUri =
-                DorisUrlBuilder.buildHttpUrl(
-                        options.getTlsOptions(),
-                        randomEndpoint(options, logger),
-                        String.format(QUERY_PLAN_API, tableIdentifier[0], tableIdentifier[1]));
-        HttpPost httpPost = new HttpPost(queryPlanUri);
-        String entity = "{\"sql\": \"" + sql + "\"}";
-        logger.debug("Post body Sending to Doris FE is: '{}'.", entity);
-        StringEntity stringEntity = new StringEntity(entity, StandardCharsets.UTF_8);
-        stringEntity.setContentEncoding("UTF-8");
-        stringEntity.setContentType("application/json");
-        httpPost.setEntity(stringEntity);
-
-        String resStr = send(options, readOptions, httpPost, logger);
-        logger.debug("Find partition response is '{}'.", resStr);
-        QueryPlan queryPlan = getQueryPlan(resStr, logger);
+        QueryPlan queryPlan = queryPlan(options, readOptions, sql, logger, false);
         Map<String, List<Long>> be2Tablets = selectBeForTablet(queryPlan, logger);
         return tabletsMapToPartition(
                 options,

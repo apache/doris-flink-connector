@@ -240,6 +240,89 @@ public class TestRestService {
     }
 
     @Test
+    public void discoversChangelogTabletsWithDefaultPlannerSettings() throws Exception {
+        com.sun.net.httpserver.HttpServer server =
+                com.sun.net.httpserver.HttpServer.create(
+                        new java.net.InetSocketAddress("127.0.0.1", 0), 0);
+        java.util.concurrent.atomic.AtomicInteger masterLookups =
+                new java.util.concurrent.atomic.AtomicInteger();
+        java.util.concurrent.atomic.AtomicInteger planAttempts =
+                new java.util.concurrent.atomic.AtomicInteger();
+        server.createContext(
+                "/api/query/default_cluster/information_schema",
+                exchange -> {
+                    masterLookups.incrementAndGet();
+                    exchange.sendResponseHeaders(403, -1);
+                    exchange.close();
+                });
+        java.util.concurrent.atomic.AtomicReference<String> query =
+                new java.util.concurrent.atomic.AtomicReference<>();
+        List<String> queryParameters = new java.util.concurrent.CopyOnWriteArrayList<>();
+        List<String> methods = new java.util.concurrent.CopyOnWriteArrayList<>();
+        server.createContext(
+                "/api/db/orders/_query_plan",
+                exchange -> {
+                    queryParameters.add(exchange.getRequestURI().getQuery());
+                    methods.add(exchange.getRequestMethod());
+                    JsonNode body = new ObjectMapper().readTree(exchange.getRequestBody());
+                    query.set(body.get("sql").asText());
+                    if (planAttempts.incrementAndGet() == 1) {
+                        exchange.sendResponseHeaders(503, -1);
+                        exchange.close();
+                        return;
+                    }
+                    byte[] response =
+                            ("{\"status\":200,\"partitions\":{"
+                                            + "\"101\":{\"routings\":[\"be:9060\"]},"
+                                            + "\"100\":{\"routings\":[\"be:9060\"]}},"
+                                            + "\"opaqued_query_plan\":\"unused\"}")
+                                    .getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                    exchange.sendResponseHeaders(200, response.length);
+                    try (java.io.OutputStream output = exchange.getResponseBody()) {
+                        output.write(response);
+                    }
+                });
+        server.start();
+        try {
+            DorisOptions options =
+                    DorisOptions.builder()
+                            .setFenodes("127.0.0.1:" + server.getAddress().getPort())
+                            .setTableIdentifier("db.orders")
+                            .setUsername("reader")
+                            .setPassword("password")
+                            .build();
+            DorisReadOptions readOptions = DorisReadOptions.builder().setRequestRetries(2).build();
+            Assert.assertEquals(
+                    new java.util.TreeSet<>(Arrays.asList(100L, 101L)),
+                    RestService.findIncrementalTablets(
+                            options,
+                            readOptions,
+                            "2026-07-20 10:00:00",
+                            "2026-07-20 10:00:10",
+                            logger));
+            Assert.assertEquals(2, planAttempts.get());
+            RestService.findIncrementalTablets(
+                    options, readOptions, "2026-07-20 10:00:00", "2026-07-20 10:00:10", logger);
+            Assert.assertEquals(0, masterLookups.get());
+            Assert.assertEquals(
+                    Arrays.asList("forward=true", "forward=true", "forward=true"), queryParameters);
+            Assert.assertEquals(Arrays.asList("POST", "POST", "POST"), methods);
+            Assert.assertEquals(
+                    "SELECT * FROM `db`.`orders`@incr('startTimestamp' = '2026-07-20 10:00:00', "
+                            + "'endTimestamp' = '2026-07-20 10:00:10', 'incrementType' = 'DETAIL')",
+                    query.get());
+            readOptions.setFilterQuery("name = 'a\"b'");
+            Assert.assertEquals(2, RestService.findPartitions(options, readOptions, logger).size());
+            Assert.assertNull(queryParameters.get(3));
+            Assert.assertFalse(query.get().contains("@incr("));
+            Assert.assertTrue(query.get().contains("where name = 'a\"b'"));
+            Assert.assertEquals(0, masterLookups.get());
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
     public void testFeResponseToQueryPlan() throws Exception {
         String res =
                 "{\"partitions\":{"

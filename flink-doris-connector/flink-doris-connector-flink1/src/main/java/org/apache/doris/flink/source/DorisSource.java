@@ -27,6 +27,7 @@ import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
+import org.apache.flink.connector.base.source.reader.fetcher.SingleThreadFetcherManager;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.util.Preconditions;
@@ -36,14 +37,14 @@ import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.connection.SimpleJdbcConnectionProvider;
 import org.apache.doris.flink.deserialization.DorisDeserializationSchema;
 import org.apache.doris.flink.source.assigners.DorisSourceSplitAssigner;
+import org.apache.doris.flink.source.enumerator.DorisOffsetPublisher;
 import org.apache.doris.flink.source.enumerator.DorisSourceCheckpoint;
 import org.apache.doris.flink.source.enumerator.DorisSourceCheckpointSerializer;
 import org.apache.doris.flink.source.enumerator.DorisSourceEnumerator;
-import org.apache.doris.flink.source.reader.DorisOffsetPublisher;
 import org.apache.doris.flink.source.reader.DorisRecordEmitter;
-import org.apache.doris.flink.source.reader.DorisSourceFetcherManager;
 import org.apache.doris.flink.source.reader.DorisSourceReader;
 import org.apache.doris.flink.source.reader.DorisSourceRecord;
+import org.apache.doris.flink.source.reader.DorisSourceSplitReader;
 import org.apache.doris.flink.source.split.DorisSourceSplit;
 import org.apache.doris.flink.source.split.DorisSourceSplitSerializer;
 import org.slf4j.Logger;
@@ -89,8 +90,8 @@ public class DorisSource<OUT>
                 new FutureCompletingBlockingQueue<>();
         return new DorisSourceReader<>(
                 elementsQueue,
-                new DorisSourceFetcherManager(elementsQueue, options, readOptions),
-                readOptions,
+                new SingleThreadFetcherManager<>(
+                        elementsQueue, () -> new DorisSourceSplitReader(options, readOptions)),
                 new DorisRecordEmitter<>(deserializer),
                 readerContext,
                 readerContext.getConfiguration());
@@ -102,7 +103,8 @@ public class DorisSource<OUT>
         return new DorisSourceEnumerator(
                 context,
                 DorisSourceSplitAssigner.create(options, readOptions, context.currentParallelism()),
-                readOptions.getChangelogPollIntervalMs());
+                readOptions.getChangelogPollIntervalMs(),
+                createOffsetPublisher());
     }
 
     @Override
@@ -114,7 +116,18 @@ public class DorisSource<OUT>
                 context,
                 DorisSourceSplitAssigner.restore(
                         options, readOptions, checkpoint, context.currentParallelism()),
-                readOptions.getChangelogPollIntervalMs());
+                readOptions.getChangelogPollIntervalMs(),
+                createOffsetPublisher());
+    }
+
+    private DorisOffsetPublisher createOffsetPublisher() {
+        return readOptions.getScanMode().hasIncrementalPhase()
+                        && readOptions.getChangelogOffsetTable() != null
+                ? new DorisOffsetPublisher(
+                        new SimpleJdbcConnectionProvider(options),
+                        readOptions.getChangelogOffsetTable(),
+                        readOptions.getChangelogConsumerId())
+                : null;
     }
 
     @Override

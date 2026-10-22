@@ -34,7 +34,7 @@ import java.util.Set;
 public class DorisSourceSplitSerializer implements SimpleVersionedSerializer<DorisSourceSplit> {
     public static final DorisSourceSplitSerializer INSTANCE = new DorisSourceSplitSerializer();
 
-    private static final int VERSION = 3;
+    private static final int VERSION = 4;
     private static final byte SNAPSHOT_KIND = 0;
     private static final byte STREAM_KIND = 1;
 
@@ -126,11 +126,26 @@ public class DorisSourceSplitSerializer implements SimpleVersionedSerializer<Dor
         out.writeUTF(split.splitId());
         out.writeUTF(split.getStartTimestamp());
         out.writeUTF(split.getEndTimestamp());
+        out.writeInt(split.getTabletIds().size());
+        for (Long tabletId : split.getTabletIds()) {
+            out.writeLong(tabletId);
+        }
     }
 
     private static DorisStreamSplit readStream(DataInputStream in) throws IOException {
         try {
-            return new DorisStreamSplit(in.readUTF(), in.readUTF(), in.readUTF());
+            String id = in.readUTF();
+            String start = in.readUTF();
+            String end = in.readUTF();
+            int count = in.readInt();
+            if (count < 0) {
+                throw new IOException("Negative tablet count: " + count);
+            }
+            Set<Long> tablets = new LinkedHashSet<>();
+            for (int i = 0; i < count; i++) {
+                tablets.add(in.readLong());
+            }
+            return new DorisStreamSplit(id, start, end, tablets);
         } catch (IllegalArgumentException e) {
             throw new IOException("Invalid stream split", e);
         }
