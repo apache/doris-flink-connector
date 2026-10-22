@@ -364,6 +364,28 @@ public abstract class DatabaseSync {
                 .build();
     }
 
+    /**
+     * Fail fast if the configured {@code scan.startup.mode} is not supported by the source.
+     *
+     * <p>This avoids silently falling back to a default startup mode when the supplied value is
+     * unknown or misspelled.
+     *
+     * @param mode the configured raw startup mode value
+     * @param supportedModes the startup modes supported by the source
+     */
+    protected void validateStartupMode(String mode, String... supportedModes) {
+        for (String supportedMode : supportedModes) {
+            if (supportedMode.equalsIgnoreCase(mode)) {
+                return;
+            }
+        }
+        throw new IllegalArgumentException(
+                "Unsupported value for scan.startup.mode: '"
+                        + mode
+                        + "'. Supported values are: "
+                        + String.join(", ", supportedModes));
+    }
+
     /** Filter table that need to be synchronized. */
     protected boolean isSyncNeeded(String tableName) {
         boolean sync = true;

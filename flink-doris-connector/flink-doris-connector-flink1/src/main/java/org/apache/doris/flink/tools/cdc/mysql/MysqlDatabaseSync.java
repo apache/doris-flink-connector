@@ -171,6 +171,13 @@ public class MysqlDatabaseSync extends DatabaseSync {
 
         setChunkColumns(sourceBuilder);
         String startupMode = config.get(MySqlSourceOptions.SCAN_STARTUP_MODE);
+        validateStartupMode(
+                startupMode,
+                DatabaseSyncConfig.SCAN_STARTUP_MODE_VALUE_INITIAL,
+                DatabaseSyncConfig.SCAN_STARTUP_MODE_VALUE_EARLIEST_OFFSET,
+                DatabaseSyncConfig.SCAN_STARTUP_MODE_VALUE_LATEST_OFFSET,
+                DatabaseSyncConfig.SCAN_STARTUP_MODE_VALUE_SPECIFIC_OFFSET,
+                DatabaseSyncConfig.SCAN_STARTUP_MODE_VALUE_TIMESTAMP);
         if (DatabaseSyncConfig.SCAN_STARTUP_MODE_VALUE_INITIAL.equalsIgnoreCase(startupMode)) {
             sourceBuilder.startupOptions(StartupOptions.initial());
         } else if (DatabaseSyncConfig.SCAN_STARTUP_MODE_VALUE_EARLIEST_OFFSET.equalsIgnoreCase(
