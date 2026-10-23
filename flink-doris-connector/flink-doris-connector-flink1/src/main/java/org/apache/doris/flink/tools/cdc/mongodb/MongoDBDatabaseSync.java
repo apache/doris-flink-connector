@@ -86,6 +86,12 @@ public class MongoDBDatabaseSync extends DatabaseSync {
                     .noDefaultValue()
                     .withDescription("Table name of the Mongo database to monitor.");
 
+    public static final ConfigOption<String> DATE_TIMEZONE =
+            ConfigOptions.key("date.timezone")
+                    .stringType()
+                    .defaultValue("UTC")
+                    .withDescription(
+                            "The time zone used to convert MongoDB date/timestamp fields. Defaults to UTC.");
     public MongoDBDatabaseSync() throws SQLException {}
 
     @Override
@@ -222,6 +228,9 @@ public class MongoDBDatabaseSync extends DatabaseSync {
             default:
                 throw new IllegalArgumentException("Unsupported startup mode: " + startupMode);
         }
+
+        MongoDateConverter.setTimeZone(config.get(DATE_TIMEZONE));
+
         MongoDBSource<String> mongoDBSource = mongoDBSourceBuilder.deserializer(schema).build();
         return env.fromSource(mongoDBSource, WatermarkStrategy.noWatermarks(), "MongoDB Source");
     }
@@ -243,6 +252,7 @@ public class MongoDBDatabaseSync extends DatabaseSync {
                 .setTargetTablePrefix(tablePrefix)
                 .setTargetTableSuffix(tableSuffix)
                 .setTableNameConverter(converter)
+                .setTimeZone(config.get(DATE_TIMEZONE))
                 .build();
     }
 
