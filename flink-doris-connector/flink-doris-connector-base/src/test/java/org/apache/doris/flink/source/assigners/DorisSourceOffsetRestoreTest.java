@@ -141,6 +141,9 @@ class DorisSourceOffsetRestoreTest {
             assertThat(assigner.getPhase()).isEqualTo(DorisSourceCheckpoint.Phase.SNAPSHOT);
             assertThat(assigner.snapshotState(0L).getNextStreamStartTimestamp()).isEqualTo(NOW);
             rest.verify(() -> RestService.findPartitions(eq(options), eq(readOptions), any()));
+            assigner.enterStreamPhase();
+            assertThat(assigner.discoverNextStreamEndTimestamp().f0)
+                    .isEqualTo("2026-10-09 13:00:10");
         }
     }
 
