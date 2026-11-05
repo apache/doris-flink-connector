@@ -71,6 +71,7 @@ public class DorisFlightValueReader extends ValueReader implements AutoCloseable
     protected AdbcConnection client;
     private RootAllocator allocator;
     private AdbcDatabase database;
+    private DorisFlightSession session;
     protected Lock clientLock = new ReentrantLock();
 
     private final DorisSourceSplit split;
@@ -274,7 +275,8 @@ public class DorisFlightValueReader extends ValueReader implements AutoCloseable
                     createConnectionParameters(
                             String.valueOf(split[0]), flightSqlPort, options, rootCertificates);
             database = driver.open(parameters);
-            return database.connect();
+            session = DorisFlightSession.open(database);
+            return session.getConnection();
         } catch (AdbcException | IOException e) {
             LOG.debug("Open Flight Connection error: {}", e.getMessage());
             throw new RuntimeException(e);
@@ -415,10 +417,11 @@ public class DorisFlightValueReader extends ValueReader implements AutoCloseable
 
     private void closeFlightResources() throws Exception {
         try {
-            closeAll(arrowReader, statement, client, database, allocator);
+            closeAll(arrowReader, statement, session, client, database, allocator);
         } finally {
             arrowReader = null;
             statement = null;
+            session = null;
             client = null;
             database = null;
             allocator = null;
