@@ -90,7 +90,7 @@ under the License.
         <slf4j.version>1.7.25</slf4j.version>
         <mockito.version>4.2.0</mockito.version>
         <byte-buddy.version>1.12.4</byte-buddy.version>
-        <testcontainers.version>1.17.6</testcontainers.version>
+        <testcontainers.version>1.21.4</testcontainers.version>
         <junit.version>4.12</junit.version>
         <hamcrest.version>1.3</hamcrest.version>
         <jsqlparser.version>4.9</jsqlparser.version>
