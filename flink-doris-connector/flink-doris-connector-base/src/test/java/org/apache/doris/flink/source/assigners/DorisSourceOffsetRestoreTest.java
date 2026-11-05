@@ -38,6 +38,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Collections;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -118,11 +119,23 @@ class DorisSourceOffsetRestoreTest {
     }
 
     @Test
-    void initialWithoutRecordPlansFirstSnapshot() throws Exception {
+    void initialWithoutRecordCapturesStartBeforePlanningSnapshot() throws Exception {
         when(result.next()).thenReturn(false);
         DorisReadOptions readOptions = readOptions(DorisSourceScanMode.INITIAL);
+        AtomicReference<String> currentTimestamp = new AtomicReference<>(NOW);
         try (MockedConstruction<SimpleJdbcConnectionProvider> ignored = providers();
                 MockedStatic<RestService> rest = rest(readOptions)) {
+            rest.when(
+                            () ->
+                                    RestService.resolveCurrentTimestamp(
+                                            eq(options), eq(readOptions), any()))
+                    .thenAnswer(invocation -> currentTimestamp.get());
+            rest.when(() -> RestService.findPartitions(eq(options), eq(readOptions), any()))
+                    .thenAnswer(
+                            invocation -> {
+                                currentTimestamp.set("2026-10-09 13:00:10");
+                                return Collections.emptyList();
+                            });
             DorisSourceSplitAssigner assigner =
                     DorisSourceSplitAssigner.create(options, readOptions, 2);
             assertThat(assigner.getPhase()).isEqualTo(DorisSourceCheckpoint.Phase.SNAPSHOT);

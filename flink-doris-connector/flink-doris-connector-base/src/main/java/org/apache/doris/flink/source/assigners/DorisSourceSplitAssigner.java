@@ -60,15 +60,17 @@ public class DorisSourceSplitAssigner {
         String externalOffset = readExternalOffset(options, readOptions).orElse(null);
         Supplier<String> currentTimestampSupplier =
                 () -> RestService.resolveCurrentTimestamp(options, readOptions, LOG);
-        DorisSnapshotSplitAssigner snapshotSplitAssigner =
-                externalOffset == null && readOptions.getScanMode().isSnapshotPhaseRequired()
-                        ? new DorisSnapshotSplitAssigner(options, readOptions)
-                        : new DorisSnapshotSplitAssigner(Collections.emptyList());
+        Supplier<DorisSnapshotSplitAssigner> snapshotSplitAssignerSupplier =
+                () ->
+                        externalOffset == null
+                                        && readOptions.getScanMode().isSnapshotPhaseRequired()
+                                ? new DorisSnapshotSplitAssigner(options, readOptions)
+                                : new DorisSnapshotSplitAssigner(Collections.emptyList());
         return create(
                 readOptions,
                 sourceParallelism,
                 currentTimestampSupplier,
-                snapshotSplitAssigner,
+                snapshotSplitAssignerSupplier,
                 externalOffset,
                 tabletSupplier(options, readOptions));
     }
@@ -122,7 +124,7 @@ public class DorisSourceSplitAssigner {
                 readOptions,
                 sourceParallelism,
                 currentTimestampSupplier,
-                snapshotSplitAssigner,
+                () -> snapshotSplitAssigner,
                 null,
                 tabletSupplier);
     }
@@ -146,7 +148,7 @@ public class DorisSourceSplitAssigner {
             DorisReadOptions readOptions,
             int sourceParallelism,
             Supplier<String> currentTimestampSupplier,
-            DorisSnapshotSplitAssigner snapshotSplitAssigner,
+            Supplier<DorisSnapshotSplitAssigner> snapshotSplitAssignerSupplier,
             @Nullable String externalOffset,
             BiFunction<String, String, Collection<Long>> tabletSupplier) {
         DorisSourceScanMode scanMode = readOptions.getScanMode();
@@ -167,6 +169,8 @@ public class DorisSourceSplitAssigner {
                             tabletSupplier,
                             sourceParallelism);
         }
+        // Capture the stream start before planning so newly created tablets remain in range.
+        DorisSnapshotSplitAssigner snapshotSplitAssigner = snapshotSplitAssignerSupplier.get();
         DorisSourceCheckpoint.Phase phase =
                 externalOffset == null && scanMode.isSnapshotPhaseRequired()
                         ? DorisSourceCheckpoint.Phase.SNAPSHOT
