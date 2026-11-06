@@ -60,6 +60,12 @@ public class DorisSourceSplitAssigner {
         String externalOffset = readExternalOffset(options, readOptions).orElse(null);
         Supplier<String> currentTimestampSupplier =
                 () -> RestService.resolveCurrentTimestamp(options, readOptions, LOG);
+        String streamStartTimestamp = externalOffset;
+        if (streamStartTimestamp == null
+                && readOptions.getScanMode() == DorisSourceScanMode.INITIAL) {
+            // Capture the start before planning so newly created tablets remain in range.
+            streamStartTimestamp = currentTimestampSupplier.get();
+        }
         DorisSnapshotSplitAssigner snapshotSplitAssigner =
                 externalOffset == null && readOptions.getScanMode().isSnapshotPhaseRequired()
                         ? new DorisSnapshotSplitAssigner(options, readOptions)
@@ -70,6 +76,7 @@ public class DorisSourceSplitAssigner {
                 currentTimestampSupplier,
                 snapshotSplitAssigner,
                 externalOffset,
+                streamStartTimestamp,
                 tabletSupplier(options, readOptions));
     }
 
@@ -124,6 +131,7 @@ public class DorisSourceSplitAssigner {
                 currentTimestampSupplier,
                 snapshotSplitAssigner,
                 null,
+                null,
                 tabletSupplier);
     }
 
@@ -148,20 +156,20 @@ public class DorisSourceSplitAssigner {
             Supplier<String> currentTimestampSupplier,
             DorisSnapshotSplitAssigner snapshotSplitAssigner,
             @Nullable String externalOffset,
+            @Nullable String streamStartTimestamp,
             BiFunction<String, String, Collection<Long>> tabletSupplier) {
         DorisSourceScanMode scanMode = readOptions.getScanMode();
         DorisStreamSplitAssigner streamAssigner = null;
         if (scanMode.hasIncrementalPhase()) {
-            String startTimestamp = externalOffset;
-            if (startTimestamp == null) {
-                startTimestamp =
+            if (streamStartTimestamp == null) {
+                streamStartTimestamp =
                         scanMode == DorisSourceScanMode.FROM_TIMESTAMP
                                 ? readOptions.getScanTimestamp()
                                 : currentTimestampSupplier.get();
             }
             streamAssigner =
                     new DorisStreamSplitAssigner(
-                            startTimestamp,
+                            streamStartTimestamp,
                             Collections.emptyList(),
                             currentTimestampSupplier,
                             tabletSupplier,
