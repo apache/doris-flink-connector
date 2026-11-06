@@ -36,6 +36,7 @@ import org.apache.flink.util.Preconditions;
 
 import org.apache.doris.flink.catalog.doris.DataModel;
 import org.apache.doris.flink.tools.cdc.DatabaseSync;
+import org.apache.doris.flink.tools.cdc.DatabaseSyncConfig;
 import org.apache.doris.flink.tools.cdc.SourceSchema;
 import org.apache.doris.flink.tools.cdc.deserialize.DorisJsonDebeziumDeserializationSchema;
 import org.slf4j.Logger;
@@ -148,6 +149,10 @@ public class Db2DatabaseSync extends DatabaseSync {
 
         StartupOptions startupOptions = StartupOptions.initial();
         String startupMode = config.get(SourceOptions.SCAN_STARTUP_MODE);
+        validateStartupMode(
+                startupMode,
+                DatabaseSyncConfig.SCAN_STARTUP_MODE_VALUE_INITIAL,
+                DatabaseSyncConfig.SCAN_STARTUP_MODE_VALUE_LATEST_OFFSET);
         if ("initial".equalsIgnoreCase(startupMode)) {
             startupOptions = StartupOptions.initial();
         } else if ("latest-offset".equalsIgnoreCase(startupMode)) {
