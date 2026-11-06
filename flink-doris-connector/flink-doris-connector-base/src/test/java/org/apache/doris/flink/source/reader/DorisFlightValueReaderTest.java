@@ -108,10 +108,14 @@ class DorisFlightValueReaderTest {
         DorisReadOptions readOptions = DorisReadOptions.builder().setFlightSqlPort(8815).build();
         AdbcDatabase database = mock(AdbcDatabase.class);
         AdbcConnection connection = mock(AdbcConnection.class);
-        when(database.connect()).thenReturn(connection);
+        DorisFlightSession session = mock(DorisFlightSession.class);
+        when(session.getConnection()).thenReturn(connection);
         when(connection.createStatement()).thenThrow(new RuntimeException("create failed"));
+        RuntimeException closeFailure = new RuntimeException("close connection failed");
+        doThrow(closeFailure).when(connection).close();
 
         try (MockedStatic<RestService> restService = mockStatic(RestService.class);
+                MockedStatic<DorisFlightSession> sessions = mockStatic(DorisFlightSession.class);
                 MockedConstruction<RootAllocator> allocators =
                         mockConstruction(RootAllocator.class);
                 MockedConstruction<FlightSqlDriver> drivers =
@@ -119,6 +123,7 @@ class DorisFlightValueReaderTest {
                                 FlightSqlDriver.class,
                                 (driver, context) ->
                                         when(driver.open(anyMap())).thenReturn(database))) {
+            sessions.when(() -> DorisFlightSession.open(database)).thenReturn(session);
             restService
                     .when(() -> RestService.getSchema(eq(options), eq(readOptions), any()))
                     .thenReturn(new Schema());
@@ -128,8 +133,10 @@ class DorisFlightValueReaderTest {
 
             assertThatThrownBy(() -> new DorisFlightValueReader(split, options, readOptions))
                     .isInstanceOf(RuntimeException.class)
-                    .hasMessage("create failed");
+                    .hasMessage("create failed")
+                    .hasSuppressedException(closeFailure);
 
+            verify(session).close();
             verify(connection).close();
             verify(database).close();
             verify(allocators.constructed().get(0)).close();

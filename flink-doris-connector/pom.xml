@@ -97,8 +97,9 @@ under the License.
         <mysql.driver.version>8.0.26</mysql.driver.version>
         <ojdbc.version>19.3.0.0</ojdbc.version>
         <log4j.version>2.17.1</log4j.version>
-        <arrow.version>15.0.2</arrow.version>
-        <adbc.version>0.12.0</adbc.version>
+        <arrow.version>17.0.0</arrow.version>
+        <adbc.version>0.14.0</adbc.version>
+        <protobuf.version>3.25.1</protobuf.version>
         <awssdk.version>2.29.52</awssdk.version>
     </properties>
 
@@ -176,13 +177,18 @@ under the License.
             </dependency>
             <dependency>
                 <groupId>org.apache.arrow</groupId>
-                <artifactId>arrow-vector</artifactId>
+                <artifactId>arrow-bom</artifactId>
                 <version>${arrow.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
             </dependency>
+            <!-- Align protobuf runtime and utilities used by ADBC and Flight. -->
             <dependency>
-                <groupId>org.apache.arrow</groupId>
-                <artifactId>arrow-memory-netty</artifactId>
-                <version>${arrow.version}</version>
+                <groupId>com.google.protobuf</groupId>
+                <artifactId>protobuf-bom</artifactId>
+                <version>${protobuf.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
             </dependency>
             <!--  jackson  -->
             <dependency>
