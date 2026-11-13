@@ -1,0 +1,278 @@
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
+
+package org.apache.doris.flink.source;
+
+import org.apache.flink.api.connector.source.Boundedness;
+
+import org.apache.doris.flink.cfg.DorisOptions;
+import org.apache.doris.flink.cfg.DorisReadOptions;
+import org.apache.doris.flink.deserialization.SimpleListDeserializationSchema;
+import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
+
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.util.List;
+import java.util.Properties;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mockStatic;
+
+class DorisSourceOptionsTest {
+
+    @Test
+    void parsesScanModes() {
+        assertThat(DorisSourceScanMode.fromOption("snapshot"))
+                .isEqualTo(DorisSourceScanMode.SNAPSHOT);
+        assertThat(DorisSourceScanMode.fromOption("INITIAL"))
+                .isEqualTo(DorisSourceScanMode.INITIAL);
+        assertThat(DorisSourceScanMode.fromOption("latest")).isEqualTo(DorisSourceScanMode.LATEST);
+        assertThat(DorisSourceScanMode.fromOption("from-timestamp"))
+                .isEqualTo(DorisSourceScanMode.FROM_TIMESTAMP);
+        assertThat(DorisSourceScanMode.INITIAL.hasIncrementalPhase()).isTrue();
+        assertThat(DorisSourceScanMode.INITIAL.isSnapshotPhaseRequired()).isTrue();
+        assertThat(DorisSourceScanMode.SNAPSHOT.hasIncrementalPhase()).isFalse();
+    }
+
+    @Test
+    void parsesIncrementTypes() {
+        assertThat(DorisChangelogIncrementType.fromOption("detail").toSqlValue())
+                .isEqualTo("DETAIL");
+        assertThat(DorisChangelogIncrementType.fromOption("min_delta").toSqlValue())
+                .isEqualTo("MIN_DELTA");
+        assertThat(DorisChangelogIncrementType.fromOption("append_only").toSqlValue())
+                .isEqualTo("APPEND_ONLY");
+    }
+
+    @Test
+    void rejectsUnknownOptions() {
+        assertThatThrownBy(() -> DorisSourceScanMode.fromOption("invalid"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("source.scan.mode");
+        assertThatThrownBy(() -> DorisSourceScanMode.fromOption("from_timestamp"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("source.scan.mode");
+        assertThatThrownBy(() -> DorisChangelogIncrementType.fromOption("invalid"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("source.changelog.increment-type");
+    }
+
+    @Test
+    void usesBackwardCompatibleDefaults() {
+        DorisReadOptions options = DorisReadOptions.defaults();
+
+        assertThat(options.getScanMode()).isEqualTo(DorisSourceScanMode.SNAPSHOT);
+        assertThat(options.getScanTimestamp()).isNull();
+        assertThat(options.getChangelogIncrementType())
+                .isEqualTo(DorisChangelogIncrementType.DETAIL);
+        assertThat(options.getChangelogPollIntervalMs()).isEqualTo(10_000L);
+        assertThat(options.getChangelogVisibleWaitTimeoutMs()).isEqualTo(5 * 60 * 1000L);
+        assertThat(options.getChangelogOffsetTable()).isNull();
+        assertThat(options.getChangelogConsumerId()).isNull();
+    }
+
+    @Test
+    void copyPreservesIncrementalOptions() {
+        DorisReadOptions options =
+                DorisReadOptions.builder()
+                        .setScanMode(DorisSourceScanMode.FROM_TIMESTAMP)
+                        .setScanTimestamp("2026-07-20 10:00:00")
+                        .setChangelogIncrementType(DorisChangelogIncrementType.MIN_DELTA)
+                        .setChangelogPollIntervalMs(3_000L)
+                        .setChangelogVisibleWaitTimeoutMs(60_000L)
+                        .setChangelogOffsetTable("ops.flink_source_offsets")
+                        .setChangelogConsumerId("prod.sales.orders")
+                        .build();
+
+        DorisReadOptions copy = options.copy();
+
+        assertThat(copy).isEqualTo(options).isNotSameAs(options);
+        assertThat(copy.getScanMode()).isEqualTo(DorisSourceScanMode.FROM_TIMESTAMP);
+        assertThat(copy.getScanTimestamp()).isEqualTo("2026-07-20 10:00:00");
+        assertThat(copy.getChangelogIncrementType())
+                .isEqualTo(DorisChangelogIncrementType.MIN_DELTA);
+        assertThat(copy.getChangelogPollIntervalMs()).isEqualTo(3_000L);
+        assertThat(copy.getChangelogVisibleWaitTimeoutMs()).isEqualTo(60_000L);
+        assertThat(copy.getChangelogOffsetTable()).isEqualTo("ops.flink_source_offsets");
+        assertThat(copy.getChangelogConsumerId()).isEqualTo("prod.sales.orders");
+    }
+
+    @Test
+    void validatesIncrementalSourceRequirements() {
+        assertThatThrownBy(
+                        () ->
+                                buildSource(
+                                        DorisReadOptions.builder()
+                                                .setScanMode(DorisSourceScanMode.LATEST)
+                                                .setUseFlightSql(false)
+                                                .build()))
+                .hasMessageContaining("source.use-flight-sql=true");
+        assertThatThrownBy(
+                        () ->
+                                buildSource(
+                                        DorisReadOptions.builder()
+                                                .setScanMode(DorisSourceScanMode.LATEST)
+                                                .setFilterQuery("id > 1")
+                                                .build()))
+                .hasMessageContaining("filter or limit");
+        assertThatThrownBy(
+                        () ->
+                                buildSource(
+                                        DorisReadOptions.builder()
+                                                .setScanMode(DorisSourceScanMode.SNAPSHOT)
+                                                .setScanTimestamp("2026-07-20 10:00:00")
+                                                .build()))
+                .hasMessageContaining("only valid in from-timestamp");
+        assertThatThrownBy(
+                        () ->
+                                buildSource(
+                                        DorisReadOptions.builder()
+                                                .setScanMode(DorisSourceScanMode.FROM_TIMESTAMP)
+                                                .setScanTimestamp("2026-07-20")
+                                                .build()))
+                .hasMessageContaining("yyyy-MM-dd HH:mm:ss");
+        assertThatThrownBy(
+                        () ->
+                                buildSource(
+                                        DorisReadOptions.builder()
+                                                .setScanMode(DorisSourceScanMode.LATEST)
+                                                .build(),
+                                        "catalog.db.table"))
+                .hasMessageContaining("only support table.identifier=db.table");
+        assertThatThrownBy(
+                        () ->
+                                buildSource(
+                                        DorisReadOptions.builder()
+                                                .setChangelogPollIntervalMs(999L)
+                                                .build()))
+                .hasMessageContaining("at least 1 second");
+        assertThat(
+                        buildSource(
+                                DorisReadOptions.builder()
+                                        .setChangelogPollIntervalMs(1_000L)
+                                        .build()))
+                .isNotNull();
+        assertThatThrownBy(
+                        () ->
+                                buildSource(
+                                        DorisReadOptions.builder()
+                                                .setChangelogVisibleWaitTimeoutMs(-1L)
+                                                .build()))
+                .hasMessageContaining("visible-wait-timeout must not be negative");
+        assertThat(
+                        buildSource(
+                                DorisReadOptions.builder()
+                                        .setScanMode(DorisSourceScanMode.SNAPSHOT)
+                                        .build(),
+                                "catalog.db.table"))
+                .isNotNull();
+    }
+
+    @Test
+    void validatesOffsetPersistenceOptions() {
+        assertThatThrownBy(
+                        () ->
+                                buildSource(
+                                        DorisReadOptions.builder()
+                                                .setScanMode(DorisSourceScanMode.LATEST)
+                                                .setChangelogOffsetTable("ops.flink_source_offsets")
+                                                .build()))
+                .hasMessageContaining("must be configured together");
+        assertThatThrownBy(
+                        () ->
+                                buildSource(
+                                        DorisReadOptions.builder()
+                                                .setScanMode(DorisSourceScanMode.SNAPSHOT)
+                                                .setChangelogOffsetTable("ops.flink_source_offsets")
+                                                .setChangelogConsumerId("prod.sales.orders")
+                                                .build()))
+                .hasMessageContaining("only valid in incremental source modes");
+        assertThatThrownBy(
+                        () ->
+                                buildSource(
+                                        DorisReadOptions.builder()
+                                                .setScanMode(DorisSourceScanMode.LATEST)
+                                                .setChangelogOffsetTable("ops.flink_source_offsets")
+                                                .setChangelogConsumerId("prod.sales.orders")
+                                                .build()))
+                .hasMessageContaining("jdbc-url");
+    }
+
+    @Test
+    void validatesOffsetTableBeforeCreatingSource() {
+        SQLException failure = new SQLException("unavailable");
+        try (MockedStatic<DriverManager> driverManager = mockStatic(DriverManager.class)) {
+            driverManager
+                    .when(() -> DriverManager.getConnection(anyString(), any(Properties.class)))
+                    .thenThrow(failure);
+
+            assertThatThrownBy(
+                            () ->
+                                    buildSource(
+                                            DorisReadOptions.builder()
+                                                    .setScanMode(DorisSourceScanMode.LATEST)
+                                                    .setChangelogOffsetTable(
+                                                            "ops.flink_source_offsets")
+                                                    .setChangelogConsumerId("prod.sales.orders")
+                                                    .build(),
+                                            "db.table",
+                                            "jdbc:mysql://127.0.0.1:9030"))
+                    .hasMessageContaining(
+                            "Failed to validate offset table: ops.flink_source_offsets")
+                    .hasCauseInstanceOf(SQLException.class);
+        }
+    }
+
+    @Test
+    void incrementalSourceIsUnbounded() {
+        DorisSource<?> source =
+                buildSource(
+                        DorisReadOptions.builder()
+                                .setScanMode(DorisSourceScanMode.FROM_TIMESTAMP)
+                                .setScanTimestamp("2026-07-20 10:00:00")
+                                .build());
+
+        assertThat(source.getBoundedness()).isEqualTo(Boundedness.CONTINUOUS_UNBOUNDED);
+    }
+
+    private static DorisSource<?> buildSource(DorisReadOptions readOptions) {
+        return buildSource(readOptions, "db.table");
+    }
+
+    private static DorisSource<?> buildSource(
+            DorisReadOptions readOptions, String tableIdentifier) {
+        return buildSource(readOptions, tableIdentifier, null);
+    }
+
+    private static DorisSource<?> buildSource(
+            DorisReadOptions readOptions, String tableIdentifier, String jdbcUrl) {
+        return DorisSource.<List<?>>builder()
+                .setDorisOptions(
+                        DorisOptions.builder()
+                                .setFenodes("127.0.0.1:8030")
+                                .setTableIdentifier(tableIdentifier)
+                                .setJdbcUrl(jdbcUrl)
+                                .build())
+                .setDorisReadOptions(readOptions)
+                .setDeserializer(new SimpleListDeserializationSchema())
+                .build();
+    }
+}

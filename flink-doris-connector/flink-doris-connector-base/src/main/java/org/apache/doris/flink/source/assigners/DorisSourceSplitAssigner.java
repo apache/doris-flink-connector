@@ -1,0 +1,361 @@
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
+
+package org.apache.doris.flink.source.assigners;
+
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.java.tuple.Tuple2;
+
+import org.apache.doris.flink.cfg.DorisOptions;
+import org.apache.doris.flink.cfg.DorisReadOptions;
+import org.apache.doris.flink.connection.SimpleJdbcConnectionProvider;
+import org.apache.doris.flink.exception.DorisException;
+import org.apache.doris.flink.exception.DorisRuntimeException;
+import org.apache.doris.flink.rest.RestService;
+import org.apache.doris.flink.source.DorisSourceScanMode;
+import org.apache.doris.flink.source.enumerator.DorisOffsetPublisher;
+import org.apache.doris.flink.source.enumerator.DorisSourceCheckpoint;
+import org.apache.doris.flink.source.split.DorisSnapshotSplit;
+import org.apache.doris.flink.source.split.DorisSourceSplit;
+import org.apache.doris.flink.source.split.DorisStreamSplit;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+import java.util.function.BiFunction;
+import java.util.function.Supplier;
+
+/** Coordinates phase-specific split assigners and checkpointed Doris source state. */
+public class DorisSourceSplitAssigner {
+    private static final Logger LOG = LoggerFactory.getLogger(DorisSourceSplitAssigner.class);
+
+    private final DorisSourceScanMode scanMode;
+    private final DorisSnapshotSplitAssigner snapshotSplitAssigner;
+    @Nullable private final DorisStreamSplitAssigner streamSplitAssigner;
+
+    private DorisSourceCheckpoint.Phase phase;
+
+    public static DorisSourceSplitAssigner create(
+            DorisOptions options, DorisReadOptions readOptions, int sourceParallelism) {
+        String externalOffset = readExternalOffset(options, readOptions).orElse(null);
+        Supplier<String> currentTimestampSupplier =
+                () -> RestService.resolveCurrentTimestamp(options, readOptions, LOG);
+        String streamStartTimestamp = externalOffset;
+        if (streamStartTimestamp == null
+                && readOptions.getScanMode() == DorisSourceScanMode.INITIAL) {
+            // Capture the start before planning so newly created tablets remain in range.
+            streamStartTimestamp = currentTimestampSupplier.get();
+        }
+        DorisSnapshotSplitAssigner snapshotSplitAssigner =
+                externalOffset == null && readOptions.getScanMode().isSnapshotPhaseRequired()
+                        ? new DorisSnapshotSplitAssigner(options, readOptions)
+                        : new DorisSnapshotSplitAssigner(Collections.emptyList());
+        return create(
+                readOptions,
+                sourceParallelism,
+                currentTimestampSupplier,
+                snapshotSplitAssigner,
+                externalOffset,
+                streamStartTimestamp,
+                tabletSupplier(options, readOptions));
+    }
+
+    private static Optional<String> readExternalOffset(
+            DorisOptions options, DorisReadOptions readOptions) {
+        if (!readOptions.getScanMode().hasIncrementalPhase()
+                || readOptions.getChangelogOffsetTable() == null) {
+            return Optional.empty();
+        }
+        try (DorisOffsetPublisher publisher =
+                new DorisOffsetPublisher(
+                        new SimpleJdbcConnectionProvider(options),
+                        readOptions.getChangelogOffsetTable(),
+                        readOptions.getChangelogConsumerId())) {
+            Optional<String> offset = publisher.readOffset();
+            LOG.info(
+                    "Read external offset {} from {} for consumer {}.",
+                    offset.orElse("<not found>"),
+                    readOptions.getChangelogOffsetTable(),
+                    readOptions.getChangelogConsumerId());
+            return offset;
+        }
+    }
+
+    public static DorisSourceSplitAssigner restore(
+            DorisOptions options,
+            DorisReadOptions readOptions,
+            DorisSourceCheckpoint checkpoint,
+            int sourceParallelism) {
+        return restore(
+                readOptions,
+                checkpoint,
+                sourceParallelism,
+                () -> RestService.resolveCurrentTimestamp(options, readOptions, LOG),
+                tabletSupplier(options, readOptions));
+    }
+
+    @VisibleForTesting
+    public static DorisSourceSplitAssigner createForTesting(
+            DorisReadOptions readOptions,
+            int sourceParallelism,
+            Supplier<String> currentTimestampSupplier,
+            Collection<DorisSnapshotSplit> snapshotSplits,
+            BiFunction<String, String, Collection<Long>> tabletSupplier) {
+        DorisSnapshotSplitAssigner snapshotSplitAssigner =
+                readOptions.getScanMode().isSnapshotPhaseRequired()
+                        ? new DorisSnapshotSplitAssigner(snapshotSplits)
+                        : new DorisSnapshotSplitAssigner(Collections.emptyList());
+        return create(
+                readOptions,
+                sourceParallelism,
+                currentTimestampSupplier,
+                snapshotSplitAssigner,
+                null,
+                null,
+                tabletSupplier);
+    }
+
+    @VisibleForTesting
+    public static DorisSourceSplitAssigner restoreForTesting(
+            DorisReadOptions readOptions,
+            DorisSourceCheckpoint checkpoint,
+            int sourceParallelism,
+            Supplier<String> currentTimestampSupplier,
+            BiFunction<String, String, Collection<Long>> tabletSupplier) {
+        return restore(
+                readOptions,
+                checkpoint,
+                sourceParallelism,
+                currentTimestampSupplier,
+                tabletSupplier);
+    }
+
+    private static DorisSourceSplitAssigner create(
+            DorisReadOptions readOptions,
+            int sourceParallelism,
+            Supplier<String> currentTimestampSupplier,
+            DorisSnapshotSplitAssigner snapshotSplitAssigner,
+            @Nullable String externalOffset,
+            @Nullable String streamStartTimestamp,
+            BiFunction<String, String, Collection<Long>> tabletSupplier) {
+        DorisSourceScanMode scanMode = readOptions.getScanMode();
+        DorisStreamSplitAssigner streamAssigner = null;
+        if (scanMode.hasIncrementalPhase()) {
+            if (streamStartTimestamp == null) {
+                streamStartTimestamp =
+                        scanMode == DorisSourceScanMode.FROM_TIMESTAMP
+                                ? readOptions.getScanTimestamp()
+                                : currentTimestampSupplier.get();
+            }
+            streamAssigner =
+                    new DorisStreamSplitAssigner(
+                            streamStartTimestamp,
+                            Collections.emptyList(),
+                            currentTimestampSupplier,
+                            tabletSupplier,
+                            sourceParallelism);
+        }
+        DorisSourceCheckpoint.Phase phase =
+                externalOffset == null && scanMode.isSnapshotPhaseRequired()
+                        ? DorisSourceCheckpoint.Phase.SNAPSHOT
+                        : DorisSourceCheckpoint.Phase.STREAM;
+        DorisSourceSplitAssigner assigner =
+                new DorisSourceSplitAssigner(
+                        scanMode, phase, snapshotSplitAssigner, streamAssigner);
+        LOG.info(
+                "Initialized Doris source assigner in {} mode at phase {} with stream start timestamp {} and {} pending snapshot splits.",
+                scanMode,
+                phase,
+                assigner.nextStreamStartTimestamp(),
+                snapshotSplitAssigner.remainingSplits().size());
+        return assigner;
+    }
+
+    private static DorisSourceSplitAssigner restore(
+            DorisReadOptions readOptions,
+            DorisSourceCheckpoint checkpoint,
+            int sourceParallelism,
+            Supplier<String> currentTimestampSupplier,
+            BiFunction<String, String, Collection<Long>> tabletSupplier) {
+        DorisSourceScanMode scanMode = readOptions.getScanMode();
+        DorisSourceCheckpoint.Phase phase = checkpoint.getPhase();
+        List<DorisSnapshotSplit> snapshotSplits = new ArrayList<>();
+        List<DorisStreamSplit> streamSplits = new ArrayList<>();
+        for (DorisSourceSplit split : checkpoint.getPendingSplits()) {
+            if (split instanceof DorisSnapshotSplit) {
+                snapshotSplits.add((DorisSnapshotSplit) split);
+            } else if (split instanceof DorisStreamSplit) {
+                streamSplits.add((DorisStreamSplit) split);
+            } else {
+                throw new DorisRuntimeException(
+                        "Unsupported Doris source split type: " + split.getClass().getName());
+            }
+        }
+
+        DorisSnapshotSplitAssigner snapshotSplitAssigner =
+                new DorisSnapshotSplitAssigner(snapshotSplits);
+        DorisStreamSplitAssigner streamAssigner = null;
+        if (scanMode.hasIncrementalPhase()) {
+            streamAssigner =
+                    new DorisStreamSplitAssigner(
+                            checkpoint.getNextStreamStartTimestamp(),
+                            streamSplits,
+                            currentTimestampSupplier,
+                            tabletSupplier,
+                            sourceParallelism);
+        }
+        DorisSourceSplitAssigner assigner =
+                new DorisSourceSplitAssigner(
+                        scanMode, phase, snapshotSplitAssigner, streamAssigner);
+        LOG.info(
+                "Restored Doris source assigner in phase {} with {} pending splits and next stream start timestamp {}.",
+                phase,
+                checkpoint.getPendingSplits().size(),
+                checkpoint.getNextStreamStartTimestamp());
+        return assigner;
+    }
+
+    private DorisSourceSplitAssigner(
+            DorisSourceScanMode scanMode,
+            DorisSourceCheckpoint.Phase phase,
+            DorisSnapshotSplitAssigner snapshotSplitAssigner,
+            @Nullable DorisStreamSplitAssigner streamSplitAssigner) {
+        this.scanMode = scanMode;
+        this.phase = phase;
+        this.snapshotSplitAssigner = snapshotSplitAssigner;
+        this.streamSplitAssigner = streamSplitAssigner;
+    }
+
+    public Optional<DorisSourceSplit> getNext() {
+        if (phase == DorisSourceCheckpoint.Phase.SNAPSHOT) {
+            return snapshotSplitAssigner.getNext().map(split -> split);
+        }
+        return getStreamAssigner().getNext().map(split -> split);
+    }
+
+    public Optional<DorisSourceSplit> getNext(int readerId) {
+        return phase == DorisSourceCheckpoint.Phase.SNAPSHOT
+                ? getNext()
+                : getStreamAssigner().getNext(readerId).map(split -> split);
+    }
+
+    public boolean hasPendingStreamSplits() {
+        return getStreamAssigner().hasPendingSplits();
+    }
+
+    public String getNextStreamStartTimestamp() {
+        return getStreamAssigner().getNextStreamStartTimestamp();
+    }
+
+    public void addSplits(Collection<DorisSourceSplit> splits) {
+        if (phase == DorisSourceCheckpoint.Phase.SNAPSHOT) {
+            List<DorisSnapshotSplit> snapshotSplits = new ArrayList<>(splits.size());
+            for (DorisSourceSplit split : splits) {
+                if (!(split instanceof DorisSnapshotSplit)) {
+                    throw new DorisRuntimeException(
+                            "Cannot add a Stream split during the Snapshot phase");
+                }
+                snapshotSplits.add((DorisSnapshotSplit) split);
+            }
+            snapshotSplitAssigner.addSplits(snapshotSplits);
+            return;
+        }
+
+        List<DorisStreamSplit> streamSplits = new ArrayList<>(splits.size());
+        for (DorisSourceSplit split : splits) {
+            if (!(split instanceof DorisStreamSplit)) {
+                throw new DorisRuntimeException(
+                        "Cannot add a Snapshot split during the Stream phase");
+            }
+            streamSplits.add((DorisStreamSplit) split);
+        }
+        getStreamAssigner().addSplits(streamSplits);
+    }
+
+    public DorisSourceCheckpoint snapshotState(long checkpointId) {
+        Collection<? extends DorisSourceSplit> pendingSplits =
+                phase == DorisSourceCheckpoint.Phase.SNAPSHOT
+                        ? snapshotSplitAssigner.remainingSplits()
+                        : getStreamAssigner().remainingSplits();
+        return new DorisSourceCheckpoint(phase, nextStreamStartTimestamp(), pendingSplits);
+    }
+
+    public DorisSourceCheckpoint.Phase getPhase() {
+        return phase;
+    }
+
+    public DorisSourceScanMode getScanMode() {
+        return scanMode;
+    }
+
+    public boolean hasPendingSnapshotSplits() {
+        return snapshotSplitAssigner.hasPendingSplits();
+    }
+
+    public Tuple2<String, Collection<Long>> discoverNextStreamEndTimestamp() {
+        return getStreamAssigner().discoverNextStreamEndTimestamp();
+    }
+
+    public void onDiscoveredEndTimestamp(Tuple2<String, Collection<Long>> discovery) {
+        if (phase == DorisSourceCheckpoint.Phase.STREAM) {
+            getStreamAssigner().onDiscoveredEndTimestamp(discovery);
+        }
+    }
+
+    private static BiFunction<String, String, Collection<Long>> tabletSupplier(
+            DorisOptions options, DorisReadOptions readOptions) {
+        return (startTimestamp, endTimestamp) -> {
+            try {
+                return RestService.findIncrementalTablets(
+                        options, readOptions, startTimestamp, endTimestamp, LOG);
+            } catch (DorisException e) {
+                throw new DorisRuntimeException("Failed to discover incremental tablets", e);
+            }
+        };
+    }
+
+    /** Switches the assigner to the Stream phase at the resolved start timestamp. */
+    public void enterStreamPhase() {
+        getStreamAssigner();
+        if (snapshotSplitAssigner.hasPendingSplits()) {
+            throw new DorisRuntimeException(
+                    "Cannot enter the Stream phase with pending Snapshot splits");
+        }
+        phase = DorisSourceCheckpoint.Phase.STREAM;
+        LOG.info("Entered Doris stream phase with start timestamp {}.", nextStreamStartTimestamp());
+    }
+
+    @Nullable
+    private String nextStreamStartTimestamp() {
+        return streamSplitAssigner == null
+                ? null
+                : streamSplitAssigner.getNextStreamStartTimestamp();
+    }
+
+    private DorisStreamSplitAssigner getStreamAssigner() {
+        if (streamSplitAssigner == null) {
+            throw new DorisRuntimeException("Doris source has no Stream phase");
+        }
+        return streamSplitAssigner;
+    }
+}

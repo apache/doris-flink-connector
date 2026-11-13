@@ -24,11 +24,45 @@ under the License.
 
 ## Flink Doris Connector
 
-Flink Doris Connector now support flink version from 1.11 to 1.20.
+Flink Doris Connector supports the following Flink versions:
+
+| Flink Version | Runtime JDK                    |
+|:--------------|:-------------------------------|
+| 1.15.x        | JDK 8                          |
+| 1.16.x        | JDK 8                          |
+| 1.17.x        | JDK 8                          |
+| 1.18.x        | JDK 8                          |
+| 1.19.x        | JDK 8                          |
+| 1.20.x        | JDK 8                          |
+| 2.0.x         | JDK 17                         |
+| 2.1.x         | JDK 17; JDK 21 (experimental) |
+| 2.2.x         | JDK 17; JDK 21 (experimental) |
+| 2.3.x         | JDK 17; JDK 21 (experimental) |
+
+Flink 2.x artifacts are compiled with Java 17 (`--release 17`, classfile major version 61) and can be built with JDK 17 or JDK 21. JDK 21 runtime compatibility is experimental for the Flink versions listed above; JDK 17 remains the recommended runtime.
 
 If you wish to contribute or use a connector from flink 1.13 (and earlier), please use the [branch-for-flink-before-1.13](https://github.com/apache/doris-flink-connector/tree/branch-for-flink-before-1.13)
 
-More information about compilation and usage, please visit [Flink Doris Connector](https://doris.apache.org/docs/dev/ecosystem/flink-doris-connector)
+More information about compilation and usage is available in the [Flink Doris Connector documentation](https://doris.apache.org/docs/dev/ecosystem/flink-doris-connector). The website documentation is maintained outside this repository and requires a separate change to keep its compatibility guidance in sync.
+
+### TLS Configuration
+
+The connector can apply one TLS policy to Doris HTTP, MySQL/JDBC, BE Thrift, and Arrow Flight SQL connections:
+
+```properties
+doris.enable.tls=true
+doris.tls.ca-certificate-path=/etc/doris-tls/ca-chain.pem
+doris.tls.skip-hostname-verification=false
+doris.tls.excluded-protocols=
+```
+
+`doris.enable.tls` is disabled by default. When TLS is enabled and the CA path is empty, the connector uses the JVM or protocol driver's default trust store. When a CA path is configured, it must point to a PEM CA certificate chain on the local filesystem of every process that connects to Doris. Hostname verification remains enabled by default.
+
+`doris.tls.excluded-protocols` accepts a comma-separated subset of `http`, `mysql`, `thrift`, and `arrowflight`. Use it only when the corresponding Doris server protocol is excluded from TLS. For example, add `thrift` when the BE Thrift service used by the non-Flight source remains plaintext. The connector does not probe protocols or fall back to plaintext after a TLS failure. When Connector-managed MySQL TLS is active, do not also put TLS properties such as `sslMode`, `useSSL`, or trust-store properties in `jdbc-url`. Arrow Flight TLS does not support the connector's hostname-only skip policy, so `doris.tls.skip-hostname-verification=true` fails fast unless `arrowflight` is excluded.
+
+This release supports one-way TLS only: the connector verifies the Doris server certificate but does not provide a client certificate or private key. It therefore cannot connect to a Doris endpoint configured to require client certificates.
+
+The CA path is a local file path, not an HDFS or HTTP URI. For standalone deployments, provision the file at the same path on all relevant JobManager, TaskManager, and SQL Gateway hosts. For YARN, localize the file with `yarn.ship-files` and configure its container-local relative path. For Kubernetes, mount a ConfigMap or Secret into the relevant pods at a consistent absolute path. A process that opens Catalog/JDBC connections must also be able to read the file.
 
 ## License
 
@@ -37,6 +71,9 @@ More information about compilation and usage, please visit [Flink Doris Connecto
 ## How to Build
 
 You need to copy customer_env.sh.tpl to customer_env.sh before build and you need to configure it before build.
+
+> **Build JDK requirement:** Use JDK 8 for Flink 1.x. Use JDK 17 or JDK 21 for Flink 2.x; the resulting Flink 2.x artifacts still target Java 17.
+
 ```shell
 git clone git@github.com:apache/doris-flink-connector.git
 cd doris-flink-connector/flink-doris-connector

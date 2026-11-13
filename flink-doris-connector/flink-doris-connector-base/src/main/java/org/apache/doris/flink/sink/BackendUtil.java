@@ -1,0 +1,177 @@
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
+
+package org.apache.doris.flink.sink;
+
+import org.apache.flink.annotation.VisibleForTesting;
+
+import org.apache.commons.lang3.StringUtils;
+import org.apache.doris.flink.cfg.DorisOptions;
+import org.apache.doris.flink.cfg.DorisReadOptions;
+import org.apache.doris.flink.cfg.DorisTlsOptions;
+import org.apache.doris.flink.connection.DorisHttpClientFactory;
+import org.apache.doris.flink.exception.DorisRuntimeException;
+import org.apache.doris.flink.rest.DorisUrlBuilder;
+import org.apache.doris.flink.rest.RestService;
+import org.apache.doris.flink.rest.models.BackendV2;
+import org.apache.doris.flink.rest.models.BackendV2.BackendRowV2;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
+
+public class BackendUtil {
+    private static final Logger LOG = LoggerFactory.getLogger(BackendUtil.class);
+    private final List<BackendV2.BackendRowV2> backends;
+    private final DorisTlsOptions tlsOptions;
+    private final boolean isFe;
+    private long pos;
+
+    public BackendUtil(List<BackendV2.BackendRowV2> backends) {
+        this(backends, DorisTlsOptions.disabled());
+    }
+
+    public BackendUtil(List<BackendV2.BackendRowV2> backends, DorisTlsOptions tlsOptions) {
+        this(backends, tlsOptions, false);
+    }
+
+    private BackendUtil(
+            List<BackendV2.BackendRowV2> backends, DorisTlsOptions tlsOptions, boolean isFe) {
+        this.tlsOptions = tlsOptions;
+        this.isFe = isFe;
+        // Filter FE candidates once; runtime failures use the existing retry or recovery path.
+        this.backends =
+                isFe
+                        ? backends.stream()
+                                .filter(
+                                        node ->
+                                                tryHttpConnection(
+                                                        node.toBackendString(), tlsOptions))
+                                .collect(Collectors.toList())
+                        : backends;
+        if (isFe && this.backends.isEmpty()) {
+            throw new DorisRuntimeException("no available FE.");
+        }
+        this.pos = 0;
+    }
+
+    public BackendUtil(String beNodes) {
+        this(beNodes, DorisTlsOptions.disabled());
+    }
+
+    public BackendUtil(String beNodes, DorisTlsOptions tlsOptions) {
+        this.tlsOptions = tlsOptions;
+        this.isFe = false;
+        this.backends = initBackends(beNodes);
+        this.pos = 0;
+    }
+
+    private List<BackendV2.BackendRowV2> initBackends(String beNodes) {
+        List<BackendV2.BackendRowV2> backends = new ArrayList<>();
+        List<String> nodes = Arrays.asList(beNodes.split(","));
+        nodes.forEach(
+                node -> {
+                    if (tryHttpConnection(node, tlsOptions)) {
+                        LOG.info("{} backend http connection success.", node);
+                        node = node.trim();
+                        String[] ipAndPort = node.split(":");
+                        BackendRowV2 backendRowV2 = new BackendRowV2();
+                        backendRowV2.setIp(ipAndPort[0]);
+                        backendRowV2.setHttpPort(Integer.parseInt(ipAndPort[1]));
+                        backendRowV2.setAlive(true);
+                        backends.add(backendRowV2);
+                    }
+                });
+        return backends;
+    }
+
+    public static BackendUtil getInstance(
+            DorisOptions dorisOptions, DorisReadOptions readOptions, Logger logger) {
+        if (StringUtils.isNotEmpty(dorisOptions.getBenodes())) {
+            return new BackendUtil(dorisOptions.getBenodes(), dorisOptions.getTlsOptions());
+        } else {
+            return new BackendUtil(
+                    RestService.getBackendsV2(dorisOptions, readOptions, logger),
+                    dorisOptions.getTlsOptions(),
+                    dorisOptions.isAutoRedirect());
+        }
+    }
+
+    public String getAvailableBackend() {
+        return getAvailableBackend(0);
+    }
+
+    public String getAvailableBackend(int subtaskId) {
+        long tmp = pos + backends.size();
+        while (pos < tmp) {
+            BackendV2.BackendRowV2 backend =
+                    backends.get((int) ((pos + subtaskId) % backends.size()));
+            pos++;
+            String res = backend.toBackendString();
+            if (isFe || tryHttpConnection(res, tlsOptions)) {
+                return res;
+            }
+        }
+        throw new DorisRuntimeException("no available backend.");
+    }
+
+    public static boolean tryHttpConnection(String host) {
+        return tryHttpConnection(host, DorisTlsOptions.disabled());
+    }
+
+    public static boolean tryHttpConnection(String host, DorisTlsOptions tlsOptions) {
+        HttpURLConnection connection = null;
+        try {
+            LOG.debug("try to connect host {}", host);
+            String requestUrl = DorisUrlBuilder.buildHttpUrl(tlsOptions, host, "/");
+            URL url = new URL(requestUrl);
+            connection = DorisHttpClientFactory.openConnection(url, tlsOptions);
+            connection.setRequestMethod("GET");
+            connection.setConnectTimeout(60000);
+            connection.setReadTimeout(60000);
+            int responseCode = connection.getResponseCode();
+            String responseMessage = connection.getResponseMessage();
+            if (responseCode < 500) {
+                // code greater than 500 means a server-side exception.
+                return true;
+            }
+            LOG.warn(
+                    "Failed to connect host {}, responseCode={}, msg={}",
+                    requestUrl,
+                    responseCode,
+                    responseMessage);
+            return false;
+        } catch (Exception ex) {
+            LOG.warn("Failed to connect to host:{}", host, ex);
+            return false;
+        } finally {
+            if (connection != null) {
+                connection.disconnect();
+            }
+        }
+    }
+
+    @VisibleForTesting
+    public List<BackendRowV2> getBackends() {
+        return backends;
+    }
+}

@@ -1,0 +1,822 @@
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
+
+package org.apache.doris.flink.serialization;
+
+import org.apache.flink.annotation.VisibleForTesting;
+
+import org.apache.arrow.memory.RootAllocator;
+import org.apache.arrow.vector.BaseIntVector;
+import org.apache.arrow.vector.BigIntVector;
+import org.apache.arrow.vector.BitVector;
+import org.apache.arrow.vector.DateDayVector;
+import org.apache.arrow.vector.Decimal256Vector;
+import org.apache.arrow.vector.DecimalVector;
+import org.apache.arrow.vector.FieldVector;
+import org.apache.arrow.vector.FixedSizeBinaryVector;
+import org.apache.arrow.vector.Float4Vector;
+import org.apache.arrow.vector.Float8Vector;
+import org.apache.arrow.vector.IntVector;
+import org.apache.arrow.vector.SmallIntVector;
+import org.apache.arrow.vector.TimeStampVector;
+import org.apache.arrow.vector.TinyIntVector;
+import org.apache.arrow.vector.UInt4Vector;
+import org.apache.arrow.vector.VarBinaryVector;
+import org.apache.arrow.vector.VarCharVector;
+import org.apache.arrow.vector.VectorSchemaRoot;
+import org.apache.arrow.vector.complex.ListVector;
+import org.apache.arrow.vector.complex.MapVector;
+import org.apache.arrow.vector.complex.StructVector;
+import org.apache.arrow.vector.complex.impl.DateDayReaderImpl;
+import org.apache.arrow.vector.complex.impl.UnionMapReader;
+import org.apache.arrow.vector.complex.reader.FieldReader;
+import org.apache.arrow.vector.ipc.ArrowReader;
+import org.apache.arrow.vector.ipc.ArrowStreamReader;
+import org.apache.arrow.vector.types.TimeUnit;
+import org.apache.arrow.vector.types.Types.MinorType;
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.doris.flink.exception.DorisException;
+import org.apache.doris.flink.exception.DorisRuntimeException;
+import org.apache.doris.flink.rest.SchemaUtils;
+import org.apache.doris.flink.rest.models.Schema;
+import org.apache.doris.flink.source.reader.DorisSourceRecord;
+import org.apache.doris.flink.util.FastDateUtil;
+import org.apache.doris.flink.util.IPUtils;
+import org.apache.doris.sdk.thrift.TScanBatchResult;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.NoSuchElementException;
+
+import static org.apache.doris.flink.util.IPUtils.convertLongToIPv4Address;
+
+/** row batch data container. */
+public class RowBatch {
+    private static final Logger logger = LoggerFactory.getLogger(RowBatch.class);
+
+    public static class Row {
+        private final List<Object> cols;
+        private Long changelogTso;
+        private Long changelogLsn;
+        private Long changelogOp;
+
+        Row(int colCount) {
+            this.cols = new ArrayList<>(colCount);
+        }
+
+        public List<Object> getCols() {
+            return cols;
+        }
+
+        public void put(Object o) {
+            cols.add(o);
+        }
+
+        private DorisSourceRecord toSourceRecord(boolean incremental) {
+            return incremental
+                    ? DorisSourceRecord.incremental(cols, changelogTso, changelogLsn, changelogOp)
+                    : DorisSourceRecord.snapshot(cols);
+        }
+    }
+
+    // offset for iterate the rowBatch
+    private int offsetInRowBatch;
+    private int rowCountInOneBatch = 0;
+    private int readRowCount = 0;
+    private final List<Row> rowBatch = new ArrayList<>();
+    private final ArrowReader arrowStreamReader;
+    private final boolean ownsArrowReader;
+    private VectorSchemaRoot root;
+    private List<FieldVector> fieldVectors;
+    private RootAllocator rootAllocator;
+    private Schema schema;
+    private final boolean incremental;
+    private static final String CHANGELOG_TSO = "__DORIS_CHANGELOG_TSO__";
+    private static final String CHANGELOG_LSN = "__DORIS_CHANGELOG_LSN__";
+    private static final String CHANGELOG_OP = "__DORIS_CHANGELOG_OP__";
+    private static final String DATETIME_PATTERN = "yyyy-MM-dd HH:mm:ss";
+    private static final String DATETIMEV2_PATTERN = "yyyy-MM-dd HH:mm:ss.SSSSSS";
+    private static final String DATE_PATTERN = "yyyy-MM-dd";
+    private final DateTimeFormatter dateTimeFormatter =
+            DateTimeFormatter.ofPattern(DATETIME_PATTERN);
+    private final DateTimeFormatter dateTimeV2Formatter =
+            DateTimeFormatter.ofPattern(DATETIMEV2_PATTERN);
+    private final DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern(DATE_PATTERN);
+    private static final ZoneId DEFAULT_ZONE_ID = ZoneId.systemDefault();
+
+    public List<Row> getRowBatch() {
+        return rowBatch;
+    }
+
+    public RowBatch(TScanBatchResult nextResult, Schema schema) {
+        this(nextResult, schema, false);
+    }
+
+    private RowBatch(TScanBatchResult nextResult, Schema schema, boolean incremental) {
+        this.schema = schema;
+        this.incremental = incremental;
+        this.rootAllocator = new RootAllocator(Integer.MAX_VALUE);
+        this.arrowStreamReader =
+                new ArrowStreamReader(
+                        new ByteArrayInputStream(nextResult.getRows()), rootAllocator);
+        this.ownsArrowReader = true;
+        this.offsetInRowBatch = 0;
+    }
+
+    public RowBatch(ArrowReader nextResult, Schema schema) {
+        this(nextResult, schema, false);
+    }
+
+    public RowBatch(ArrowReader nextResult, Schema schema, boolean incremental) {
+        this.schema = schema;
+        this.incremental = incremental;
+        this.arrowStreamReader = nextResult;
+        this.ownsArrowReader = false;
+        this.offsetInRowBatch = 0;
+    }
+
+    public RowBatch readFlightArrow() {
+        try {
+            this.root = arrowStreamReader.getVectorSchemaRoot();
+            fieldVectors = root.getFieldVectors();
+            // snapshot phase
+            if (!incremental && fieldVectors.size() > schema.size()) {
+                String errorMessage =
+                        String.format(
+                                "Invalid Arrow schema for snapshot read: Doris schema field count=%d, "
+                                        + "Arrow field count=%d, expected Arrow field count <= Doris schema field count.",
+                                schema.size(), fieldVectors.size());
+                logger.error(errorMessage);
+                throw new DorisException(errorMessage);
+            }
+            // stream phase
+            if (incremental && fieldVectors.size() != schema.size() + 3) {
+                String errorMessage =
+                        String.format(
+                                "Invalid Arrow schema for incremental read: business schema field count=%d, "
+                                        + "Arrow field count=%d, expected Arrow field count=%d "
+                                        + "(business fields + 3 metadata fields).",
+                                schema.size(), fieldVectors.size(), schema.size() + 3);
+                logger.error(errorMessage);
+                throw new DorisException(errorMessage);
+            }
+            if (incremental) {
+                validateIncrementalFields();
+            }
+            if (fieldVectors.isEmpty() || root.getRowCount() == 0) {
+                logger.debug("One batch in arrow has no data.");
+                return null;
+            }
+            rowCountInOneBatch = root.getRowCount();
+            for (int i = 0; i < rowCountInOneBatch; ++i) {
+                rowBatch.add(new RowBatch.Row(fieldVectors.size()));
+            }
+            convertArrowToRowBatch();
+            readRowCount += root.getRowCount();
+            return this;
+        } catch (DorisException e) {
+            logger.error("Read Doris Data failed because: ", e);
+            throw new DorisRuntimeException(e.getMessage(), e);
+        } catch (IOException e) {
+            throw new DorisRuntimeException("Failed to read Doris Flight Arrow batch", e);
+        }
+    }
+
+    public RowBatch readArrow() {
+        try {
+            this.root = arrowStreamReader.getVectorSchemaRoot();
+            // Align the Thrift schema when all Arrow fields can be resolved by name.
+            Schema projectedSchema = SchemaUtils.convertToSchema(schema, root.getSchema());
+            if (projectedSchema.size() == root.getSchema().getFields().size()) {
+                schema = projectedSchema;
+            }
+            while (arrowStreamReader.loadNextBatch()) {
+                fieldVectors = root.getFieldVectors();
+                if (fieldVectors.size() > schema.size()) {
+                    logger.error(
+                            "Data schema size '{}' should not be bigger than arrow field size '{}'",
+                            schema.size(),
+                            fieldVectors.size());
+                    throw new DorisException(
+                            "Load Doris data failed, schema size of fetch data is wrong.");
+                }
+                if (fieldVectors.isEmpty() || root.getRowCount() == 0) {
+                    logger.debug("One batch in arrow has no data.");
+                    continue;
+                }
+                rowCountInOneBatch = root.getRowCount();
+                // init the rowBatch
+                for (int i = 0; i < rowCountInOneBatch; ++i) {
+                    rowBatch.add(new Row(fieldVectors.size()));
+                }
+                convertArrowToRowBatch();
+                readRowCount += root.getRowCount();
+            }
+            return this;
+        } catch (Exception e) {
+            logger.error("Read Doris Data failed because: ", e);
+            throw new DorisRuntimeException(e.getMessage());
+        } finally {
+            close();
+        }
+    }
+
+    public boolean hasNext() {
+        return offsetInRowBatch < readRowCount;
+    }
+
+    @VisibleForTesting
+    public void addValueToRow(int rowIndex, Object obj) {
+        if (rowIndex > rowCountInOneBatch) {
+            String errMsg =
+                    "Get row offset: " + rowIndex + " larger than row size: " + rowCountInOneBatch;
+            logger.error(errMsg);
+            throw new NoSuchElementException(errMsg);
+        }
+        rowBatch.get(readRowCount + rowIndex).put(obj);
+    }
+
+    public void convertArrowToRowBatch() throws DorisException {
+        try {
+            int businessColumn = 0;
+            for (int col = 0; col < fieldVectors.size(); col++) {
+                FieldVector fieldVector = fieldVectors.get(col);
+                String vectorName = fieldVector.getName();
+                if (incremental && isChangelogField(vectorName)) {
+                    for (int rowIndex = 0; rowIndex < rowCountInOneBatch; rowIndex++) {
+                        setChangelogValue(rowIndex, vectorName, fieldVector.getObject(rowIndex));
+                    }
+                    continue;
+                }
+                MinorType minorType = fieldVector.getMinorType();
+                final String currentType = schema.get(businessColumn).getType();
+                final String colName = schema.get(businessColumn).getName();
+                for (int rowIndex = 0; rowIndex < rowCountInOneBatch; rowIndex++) {
+                    boolean passed =
+                            doConvert(
+                                    businessColumn, rowIndex, minorType, currentType, fieldVector);
+                    if (!passed) {
+                        throw new IllegalArgumentException(
+                                "FLINK type is "
+                                        + currentType
+                                        + ", but arrow type is "
+                                        + minorType.name()
+                                        + ", column Name is "
+                                        + colName);
+                    }
+                }
+                businessColumn++;
+            }
+            if (incremental && businessColumn != schema.size()) {
+                throw new DorisRuntimeException("Doris Arrow result is missing business fields");
+            }
+        } catch (Exception e) {
+            close();
+            throw e;
+        }
+    }
+
+    private static boolean isChangelogField(String name) {
+        return CHANGELOG_TSO.equalsIgnoreCase(name)
+                || CHANGELOG_LSN.equalsIgnoreCase(name)
+                || CHANGELOG_OP.equalsIgnoreCase(name);
+    }
+
+    private void validateIncrementalFields() throws DorisException {
+        int tsoFields = 0;
+        int lsnFields = 0;
+        int opFields = 0;
+        for (FieldVector fieldVector : fieldVectors) {
+            String name = fieldVector.getName();
+            tsoFields += CHANGELOG_TSO.equalsIgnoreCase(name) ? 1 : 0;
+            lsnFields += CHANGELOG_LSN.equalsIgnoreCase(name) ? 1 : 0;
+            opFields += CHANGELOG_OP.equalsIgnoreCase(name) ? 1 : 0;
+        }
+        if (tsoFields != 1 || lsnFields != 1 || opFields != 1) {
+            throw new DorisException(
+                    "Doris incremental result must contain exactly one TSO, LSN, and OP field");
+        }
+    }
+
+    private void setChangelogValue(int rowIndex, String name, Object value) {
+        if (value == null) {
+            throw new DorisRuntimeException("Doris changelog field " + name + " cannot be null");
+        }
+        final long parsed;
+        try {
+            parsed =
+                    value instanceof Number
+                            ? ((Number) value).longValue()
+                            : Long.parseLong(value.toString());
+        } catch (NumberFormatException e) {
+            throw new DorisRuntimeException(
+                    "Invalid Doris changelog field " + name + ": " + value, e);
+        }
+        Row row = rowBatch.get(readRowCount + rowIndex);
+        if (CHANGELOG_TSO.equalsIgnoreCase(name)) {
+            row.changelogTso = parsed;
+        } else if (CHANGELOG_LSN.equalsIgnoreCase(name)) {
+            row.changelogLsn = parsed;
+        } else if (CHANGELOG_OP.equalsIgnoreCase(name)) {
+            row.changelogOp = parsed;
+        }
+    }
+
+    @VisibleForTesting
+    public boolean doConvert(
+            int col, int rowIndex, MinorType minorType, String currentType, FieldVector fieldVector)
+            throws DorisException {
+        switch (currentType) {
+            case "NULL_TYPE":
+                break;
+            case "BOOLEAN":
+                if (!minorType.equals(MinorType.BIT)) {
+                    return false;
+                }
+                BitVector bitVector = (BitVector) fieldVector;
+                Object fieldValue =
+                        bitVector.isNull(rowIndex) ? null : bitVector.get(rowIndex) != 0;
+                addValueToRow(rowIndex, fieldValue);
+                break;
+            case "TINYINT":
+                if (!minorType.equals(MinorType.TINYINT)) {
+                    return false;
+                }
+                TinyIntVector tinyIntVector = (TinyIntVector) fieldVector;
+                fieldValue = tinyIntVector.isNull(rowIndex) ? null : tinyIntVector.get(rowIndex);
+                addValueToRow(rowIndex, fieldValue);
+                break;
+            case "SMALLINT":
+                if (!minorType.equals(MinorType.SMALLINT)) {
+                    return false;
+                }
+                SmallIntVector smallIntVector = (SmallIntVector) fieldVector;
+                fieldValue = smallIntVector.isNull(rowIndex) ? null : smallIntVector.get(rowIndex);
+                addValueToRow(rowIndex, fieldValue);
+                break;
+            case "INT":
+                if (!minorType.equals(MinorType.INT)) {
+                    return false;
+                }
+                IntVector intVector = (IntVector) fieldVector;
+                fieldValue = intVector.isNull(rowIndex) ? null : intVector.get(rowIndex);
+                addValueToRow(rowIndex, fieldValue);
+                break;
+            case "IPV4":
+                if (!minorType.equals(MinorType.UINT4)
+                        && !minorType.equals(MinorType.INT)
+                        && !minorType.equals(MinorType.VARCHAR)) {
+                    return false;
+                }
+
+                if (fieldVector.isNull(rowIndex)) {
+                    addValueToRow(rowIndex, null);
+                    break;
+                }
+
+                if (minorType.equals(MinorType.VARCHAR)) {
+                    VarCharVector ipv4VarcharVector = (VarCharVector) fieldVector;
+                    String ipv4Str =
+                            new String(ipv4VarcharVector.get(rowIndex), StandardCharsets.UTF_8);
+                    addValueToRow(rowIndex, ipv4Str);
+                } else {
+                    BaseIntVector ipv4Vector;
+                    if (minorType.equals(MinorType.INT)) {
+                        ipv4Vector = (IntVector) fieldVector;
+
+                    } else {
+                        ipv4Vector = (UInt4Vector) fieldVector;
+                    }
+                    fieldValue =
+                            ipv4Vector.isNull(rowIndex)
+                                    ? null
+                                    : convertLongToIPv4Address(ipv4Vector.getValueAsLong(rowIndex));
+                    addValueToRow(rowIndex, fieldValue);
+                }
+                break;
+            case "BIGINT":
+                if (!minorType.equals(MinorType.BIGINT)) {
+                    return false;
+                }
+                BigIntVector bigIntVector = (BigIntVector) fieldVector;
+                fieldValue = bigIntVector.isNull(rowIndex) ? null : bigIntVector.get(rowIndex);
+                addValueToRow(rowIndex, fieldValue);
+                break;
+            case "FLOAT":
+                if (!minorType.equals(MinorType.FLOAT4)) {
+                    return false;
+                }
+                Float4Vector float4Vector = (Float4Vector) fieldVector;
+                fieldValue = float4Vector.isNull(rowIndex) ? null : float4Vector.get(rowIndex);
+                addValueToRow(rowIndex, fieldValue);
+                break;
+            case "TIME":
+            case "DOUBLE":
+                if (!minorType.equals(MinorType.FLOAT8)) {
+                    return false;
+                }
+                Float8Vector float8Vector = (Float8Vector) fieldVector;
+                fieldValue = float8Vector.isNull(rowIndex) ? null : float8Vector.get(rowIndex);
+                addValueToRow(rowIndex, fieldValue);
+                break;
+            case "BINARY":
+                if (!minorType.equals(MinorType.VARBINARY)) {
+                    return false;
+                }
+                VarBinaryVector varBinaryVector = (VarBinaryVector) fieldVector;
+                fieldValue =
+                        varBinaryVector.isNull(rowIndex) ? null : varBinaryVector.get(rowIndex);
+                addValueToRow(rowIndex, fieldValue);
+                break;
+            case "DECIMAL":
+            case "DECIMALV2":
+            case "DECIMAL32":
+            case "DECIMAL64":
+            case "DECIMAL128I":
+            case "DECIMAL128":
+                if (!minorType.equals(MinorType.DECIMAL)) {
+                    return false;
+                }
+                DecimalVector decimalVector = (DecimalVector) fieldVector;
+                if (decimalVector.isNull(rowIndex)) {
+                    addValueToRow(rowIndex, null);
+                    break;
+                }
+                BigDecimal value = decimalVector.getObject(rowIndex).stripTrailingZeros();
+                addValueToRow(rowIndex, value);
+                break;
+            case "DECIMAL256":
+                if (!minorType.equals(MinorType.DECIMAL256)) {
+                    return false;
+                }
+                Decimal256Vector decimal256Vector = (Decimal256Vector) fieldVector;
+                if (decimal256Vector.isNull(rowIndex)) {
+                    addValueToRow(rowIndex, null);
+                    break;
+                }
+                BigDecimal value256 = decimal256Vector.getObject(rowIndex).stripTrailingZeros();
+                addValueToRow(rowIndex, value256);
+                break;
+            case "DATE":
+            case "DATEV2":
+                if (!minorType.equals(MinorType.DATEDAY) && !minorType.equals(MinorType.VARCHAR)) {
+                    return false;
+                }
+                if (minorType.equals(MinorType.VARCHAR)) {
+                    VarCharVector date = (VarCharVector) fieldVector;
+                    if (date.isNull(rowIndex)) {
+                        addValueToRow(rowIndex, null);
+                        break;
+                    }
+                    String stringValue = new String(date.get(rowIndex), StandardCharsets.UTF_8);
+                    LocalDate localDate = FastDateUtil.fastParseDate(stringValue, DATE_PATTERN);
+                    addValueToRow(rowIndex, localDate);
+                } else {
+                    DateDayVector date = (DateDayVector) fieldVector;
+                    if (date.isNull(rowIndex)) {
+                        addValueToRow(rowIndex, null);
+                        break;
+                    }
+                    LocalDate localDate = LocalDate.ofEpochDay(date.get(rowIndex));
+                    addValueToRow(rowIndex, localDate);
+                }
+                break;
+            case "DATETIME":
+                if (minorType.equals(MinorType.VARCHAR)) {
+                    VarCharVector varCharVector = (VarCharVector) fieldVector;
+                    if (varCharVector.isNull(rowIndex)) {
+                        addValueToRow(rowIndex, null);
+                        break;
+                    }
+                    String stringValue =
+                            new String(varCharVector.get(rowIndex), StandardCharsets.UTF_8);
+                    stringValue = completeMilliseconds(stringValue);
+                    LocalDateTime parse =
+                            FastDateUtil.fastParseDateTime(stringValue, DATETIME_PATTERN);
+                    addValueToRow(rowIndex, parse);
+                } else if (fieldVector instanceof TimeStampVector) {
+                    LocalDateTime dateTime = getDateTime(rowIndex, fieldVector);
+                    addValueToRow(rowIndex, dateTime);
+                } else {
+                    logger.error(
+                            "Unsupported type for DATETIME, minorType {}, class is {}",
+                            minorType.name(),
+                            fieldVector == null ? null : fieldVector.getClass());
+                    return false;
+                }
+                break;
+            case "DATETIMEV2":
+            case "TIMESTAMPTZ":
+                if (minorType.equals(MinorType.VARCHAR)) {
+                    VarCharVector varCharVector = (VarCharVector) fieldVector;
+                    if (varCharVector.isNull(rowIndex)) {
+                        addValueToRow(rowIndex, null);
+                        break;
+                    }
+                    String stringValue =
+                            new String(varCharVector.get(rowIndex), StandardCharsets.UTF_8);
+                    stringValue = completeMilliseconds(stringValue);
+                    LocalDateTime parse =
+                            FastDateUtil.fastParseDateTimeV2(stringValue, DATETIMEV2_PATTERN);
+                    addValueToRow(rowIndex, parse);
+                } else if (fieldVector instanceof TimeStampVector) {
+                    LocalDateTime dateTime = getDateTime(rowIndex, fieldVector);
+                    addValueToRow(rowIndex, dateTime);
+                } else {
+                    logger.error(
+                            "Unsupported type for {}, minorType {}, class is {}",
+                            currentType,
+                            minorType.name(),
+                            fieldVector == null ? null : fieldVector.getClass());
+                    return false;
+                }
+                break;
+            case "LARGEINT":
+                if (!minorType.equals(MinorType.FIXEDSIZEBINARY)
+                        && !minorType.equals(MinorType.VARCHAR)) {
+                    return false;
+                }
+                if (minorType.equals(MinorType.FIXEDSIZEBINARY)) {
+                    FixedSizeBinaryVector largeIntVector = (FixedSizeBinaryVector) fieldVector;
+                    if (largeIntVector.isNull(rowIndex)) {
+                        addValueToRow(rowIndex, null);
+                        break;
+                    }
+                    byte[] bytes = largeIntVector.get(rowIndex);
+                    int left = 0, right = bytes.length - 1;
+                    while (left < right) {
+                        byte temp = bytes[left];
+                        bytes[left] = bytes[right];
+                        bytes[right] = temp;
+                        left++;
+                        right--;
+                    }
+                    BigInteger largeInt = new BigInteger(bytes);
+                    addValueToRow(rowIndex, largeInt);
+                    break;
+                } else {
+                    VarCharVector largeIntVector = (VarCharVector) fieldVector;
+                    if (largeIntVector.isNull(rowIndex)) {
+                        addValueToRow(rowIndex, null);
+                        break;
+                    }
+                    String stringValue =
+                            new String(largeIntVector.get(rowIndex), StandardCharsets.UTF_8);
+                    BigInteger largeInt = new BigInteger(stringValue);
+                    addValueToRow(rowIndex, largeInt);
+                    break;
+                }
+            case "CHAR":
+            case "VARCHAR":
+            case "STRING":
+            case "JSONB":
+            case "JSON":
+            case "VARIANT":
+                if (!minorType.equals(MinorType.VARCHAR)) {
+                    return false;
+                }
+                VarCharVector varCharVector = (VarCharVector) fieldVector;
+                if (varCharVector.isNull(rowIndex)) {
+                    addValueToRow(rowIndex, null);
+                    break;
+                }
+                String stringValue =
+                        new String(varCharVector.get(rowIndex), StandardCharsets.UTF_8);
+                addValueToRow(rowIndex, stringValue);
+                break;
+            case "IPV6":
+                if (!minorType.equals(MinorType.VARCHAR)) {
+                    return false;
+                }
+
+                if (fieldVector.isNull(rowIndex)) {
+                    addValueToRow(rowIndex, null);
+                    break;
+                }
+
+                VarCharVector ipv6VarcharVector = (VarCharVector) fieldVector;
+                String ipv6Str =
+                        new String(ipv6VarcharVector.get(rowIndex), StandardCharsets.UTF_8);
+                if (ipv6Str.contains(":")) {
+                    addValueToRow(rowIndex, ipv6Str);
+                } else {
+                    String ipv6Address = IPUtils.fromBigInteger(new BigInteger(ipv6Str));
+                    addValueToRow(rowIndex, ipv6Address);
+                }
+                break;
+            case "ARRAY":
+                if (!minorType.equals(MinorType.LIST)) {
+                    return false;
+                }
+                ListVector listVector = (ListVector) fieldVector;
+                Object listValue =
+                        listVector.isNull(rowIndex) ? null : listVector.getObject(rowIndex);
+                // todo: when the subtype of array is date, conversion is required
+                addValueToRow(rowIndex, listValue);
+                break;
+            case "MAP":
+                if (!minorType.equals(MinorType.MAP)) {
+                    return false;
+                }
+                MapVector mapVector = (MapVector) fieldVector;
+                UnionMapReader reader = mapVector.getReader();
+                if (mapVector.isNull(rowIndex)) {
+                    addValueToRow(rowIndex, null);
+                    break;
+                }
+                reader.setPosition(rowIndex);
+                Map<String, Object> mapValue = new HashMap<>();
+                while (reader.next()) {
+                    FieldReader keyReader = reader.key();
+                    FieldReader valueReader = reader.value();
+                    Object mapKeyObj = handleMapFieldReader(keyReader);
+                    Object mapValueObj = handleMapFieldReader(valueReader);
+                    mapValue.put(mapKeyObj.toString(), mapValueObj);
+                }
+                addValueToRow(rowIndex, mapValue);
+                break;
+            case "STRUCT":
+                if (!minorType.equals(MinorType.STRUCT)) {
+                    return false;
+                }
+                StructVector structVector = (StructVector) fieldVector;
+                if (structVector.isNull(rowIndex)) {
+                    addValueToRow(rowIndex, null);
+                    break;
+                }
+                Map<String, ?> structValue = structVector.getObject(rowIndex);
+                addValueToRow(rowIndex, structValue);
+                break;
+            default:
+                String errMsg = "Unsupported type " + currentType;
+                logger.error(errMsg);
+                throw new DorisException(errMsg);
+        }
+        return true;
+    }
+
+    private Object handleMapFieldReader(FieldReader reader) {
+        ArrowType fieldType = reader.getField().getType();
+        if (fieldType instanceof ArrowType.Timestamp) {
+            ArrowType.Timestamp timestampType = (ArrowType.Timestamp) fieldType;
+            if (timestampType.getTimezone() == null) {
+                return reader.readObject();
+            }
+            return longToLocalDateTime(reader.readLong(), timestampType.getUnit(), DEFAULT_ZONE_ID);
+        }
+        if (reader instanceof DateDayReaderImpl) {
+            return LocalDate.ofEpochDay(((Integer) reader.readObject()).longValue());
+        }
+        return reader.readObject();
+    }
+
+    @VisibleForTesting
+    public LocalDateTime getDateTime(int rowIndex, FieldVector fieldVector) {
+        TimeStampVector vector = (TimeStampVector) fieldVector;
+        if (vector.isNull(rowIndex)) {
+            return null;
+        }
+        ArrowType.Timestamp timestampType = (ArrowType.Timestamp) vector.getField().getType();
+        String timezone = timestampType.getTimezone();
+        if (timezone == null) {
+            // datetime type does not carry timezone, it represents UTC time.
+            return (LocalDateTime) vector.getObject(rowIndex);
+        }
+        return longToLocalDateTime(vector.get(rowIndex), timestampType.getUnit(), DEFAULT_ZONE_ID);
+    }
+
+    @VisibleForTesting
+    public static LocalDateTime longToLocalDateTime(long time, TimeUnit timeUnit, ZoneId zoneId) {
+        Instant instant;
+        switch (timeUnit) {
+            case SECOND:
+                instant = Instant.ofEpochSecond(time);
+                break;
+            case MILLISECOND:
+                instant = Instant.ofEpochMilli(time);
+                break;
+            case MICROSECOND:
+                instant =
+                        Instant.ofEpochSecond(
+                                Math.floorDiv(time, 1_000_000L),
+                                Math.floorMod(time, 1_000_000L) * 1_000L);
+                break;
+            case NANOSECOND:
+                instant =
+                        Instant.ofEpochSecond(
+                                Math.floorDiv(time, 1_000_000_000L),
+                                Math.floorMod(time, 1_000_000_000L));
+                break;
+            default:
+                throw new IllegalArgumentException("Unsupported timestamp unit: " + timeUnit);
+        }
+        return LocalDateTime.ofInstant(instant, zoneId);
+    }
+
+    /**
+     * use case when to replace while "Benchmark","Mode","Threads","Samples","Score","Score Error.
+     * (99.9%)","Unit" "CaseWhenTest", "thrpt", 1, 5, 40657433.897696, 2515802.067503,"ops/s"
+     * "WhileTest", "thrpt", 1, 5, 9708130.819491, 1207453.635429,"ops/s"
+     *
+     * @param stringValue
+     * @return
+     */
+    @VisibleForTesting
+    public static String completeMilliseconds(String stringValue) {
+        if (stringValue.length() == DATETIMEV2_PATTERN.length()) {
+            return stringValue;
+        }
+
+        if (stringValue.length() < DATETIME_PATTERN.length()) {
+            return stringValue;
+        }
+
+        if (stringValue.length() == DATETIME_PATTERN.length()) {
+            stringValue += ".";
+        }
+        int s = DATETIMEV2_PATTERN.length() - stringValue.length();
+        switch (s) {
+            case 1:
+                return stringValue + "0";
+            case 2:
+                return stringValue + "00";
+            case 3:
+                return stringValue + "000";
+            case 4:
+                return stringValue + "0000";
+            case 5:
+                return stringValue + "00000";
+            case 6:
+                return stringValue + "000000";
+            default:
+                return stringValue;
+        }
+    }
+
+    public List<Object> next() {
+        if (!hasNext()) {
+            String errMsg =
+                    "Get row offset:" + offsetInRowBatch + " larger than row size: " + readRowCount;
+            logger.error(errMsg);
+            throw new NoSuchElementException(errMsg);
+        }
+        return rowBatch.get(offsetInRowBatch++).getCols();
+    }
+
+    public DorisSourceRecord nextSourceRecord() {
+        if (!hasNext()) {
+            throw new NoSuchElementException("No row remains in Doris Arrow batch");
+        }
+        return rowBatch.get(offsetInRowBatch++).toSourceRecord(incremental);
+    }
+
+    private String typeMismatchMessage(final String flinkType, final MinorType arrowType) {
+        final String messageTemplate = "FLINK type is %1$s, but arrow type is %2$s.";
+        return String.format(messageTemplate, flinkType, arrowType.name());
+    }
+
+    public int getReadRowCount() {
+        return readRowCount;
+    }
+
+    public void close() {
+        try {
+            if (ownsArrowReader && arrowStreamReader != null) {
+                arrowStreamReader.close();
+            }
+            if (rootAllocator != null) {
+                rootAllocator.close();
+            }
+        } catch (IOException ioe) {
+            // do nothing
+        }
+    }
+}
