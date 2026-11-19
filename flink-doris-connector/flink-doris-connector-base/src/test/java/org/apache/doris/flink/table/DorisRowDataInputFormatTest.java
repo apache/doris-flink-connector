@@ -16,17 +16,25 @@
 
 package org.apache.doris.flink.table;
 
+import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
 
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.cfg.DorisTlsOptions;
+import org.apache.doris.flink.rest.PartitionDefinition;
+import org.apache.doris.flink.source.reader.ValueReader;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.junit.Assert.assertEquals;
+
+/** Unit tests for {@link DorisRowDataInputFormat}. */
 public class DorisRowDataInputFormatTest {
 
     @Test
@@ -52,5 +60,155 @@ public class DorisRowDataInputFormatTest {
         Assert.assertFalse(tlsOptions.isEnabledFor(DorisTlsOptions.Protocol.ARROW_FLIGHT));
         Assert.assertEquals("/etc/doris/ca.pem", tlsOptions.getCaCertificatePath());
         Assert.assertTrue(tlsOptions.isSkipHostnameVerification());
+    }
+
+    // --- Reader lifecycle (close() resource-leak) tests ---
+
+    /** A ValueReader that records how many times close() is invoked. */
+    private static final class RecordingValueReader extends ValueReader {
+        final AtomicInteger closeCount = new AtomicInteger(0);
+
+        @Override
+        public boolean hasNext() {
+            return false;
+        }
+
+        @Override
+        public List<Object> next() {
+            return Collections.emptyList();
+        }
+
+        @Override
+        public void close() throws Exception {
+            closeCount.incrementAndGet();
+        }
+    }
+
+    /** A subclass that injects the recording reader instead of opening a real BE connection. */
+    private static final class TestInputFormat extends DorisRowDataInputFormat {
+        final RecordingValueReader injectedReader = new RecordingValueReader();
+
+        TestInputFormat() {
+            // partitions are unused for close() testing; rowType is a single INT column.
+            super(
+                    new org.apache.doris.flink.cfg.DorisOptions.Builder()
+                            .setFenodes("127.0.0.1:8030")
+                            .setTableIdentifier("db.table")
+                            .build(),
+                    Collections.emptyList(),
+                    DorisReadOptions.defaults(),
+                    RowType.of(new IntType()));
+        }
+
+        @Override
+        protected ValueReader createValueReader(PartitionDefinition partition) {
+            return injectedReader;
+        }
+    }
+
+    @Test
+    public void closeReleasesValueReader() throws Exception {
+        TestInputFormat format = new TestInputFormat();
+        DorisTableInputSplit split =
+                new DorisTableInputSplit(0, PartitionDefinition.emptyPartition("table"));
+
+        format.open(split);
+        format.close();
+
+        assertEquals(
+                "close() must release the value reader exactly once",
+                1,
+                format.injectedReader.closeCount.get());
+    }
+
+    @Test
+    public void closeWithoutOpenIsNoop() throws Exception {
+        TestInputFormat format = new TestInputFormat();
+        // Never call open(); valueReader is null. close() must not throw.
+        format.close();
+
+        assertEquals(
+                "close() without open() must not invoke any reader",
+                0,
+                format.injectedReader.closeCount.get());
+    }
+
+    /**
+     * A ValueReader whose close() always throws, to verify best-effort swallowing + field nulling.
+     */
+    private static final class ThrowingValueReader extends ValueReader {
+        final AtomicInteger closeCount = new AtomicInteger(0);
+
+        @Override
+        public boolean hasNext() {
+            return false;
+        }
+
+        @Override
+        public List<Object> next() {
+            return Collections.emptyList();
+        }
+
+        @Override
+        public void close() throws Exception {
+            closeCount.incrementAndGet();
+            throw new RuntimeException("simulated thrift close failure");
+        }
+    }
+
+    /** A subclass that injects the throwing reader. */
+    private static final class ThrowingInputFormat extends DorisRowDataInputFormat {
+        final ThrowingValueReader injectedReader = new ThrowingValueReader();
+
+        ThrowingInputFormat() {
+            super(
+                    new org.apache.doris.flink.cfg.DorisOptions.Builder()
+                            .setFenodes("127.0.0.1:8030")
+                            .setTableIdentifier("db.table")
+                            .build(),
+                    Collections.emptyList(),
+                    DorisReadOptions.defaults(),
+                    RowType.of(new IntType()));
+        }
+
+        @Override
+        protected ValueReader createValueReader(PartitionDefinition partition) {
+            return injectedReader;
+        }
+    }
+
+    @Test
+    public void closeSwallowsExceptionAndNullsField() throws Exception {
+        ThrowingInputFormat format = new ThrowingInputFormat();
+        format.open(new DorisTableInputSplit(0, PartitionDefinition.emptyPartition("table")));
+
+        // close() must NOT propagate the reader's exception (best-effort teardown).
+        format.close();
+        // The reader's close() was invoked exactly once.
+        assertEquals(
+                "close() must invoke the reader's close() once even when it throws",
+                1,
+                format.injectedReader.closeCount.get());
+        // Field was nulled in finally: a second close() must be a no-op (no second invocation).
+        format.close();
+        assertEquals(
+                "close() must null the reader in finally so a second close() is a no-op",
+                1,
+                format.injectedReader.closeCount.get());
+    }
+
+    @Test
+    public void closeIsIdempotent() throws Exception {
+        TestInputFormat format = new TestInputFormat();
+        format.open(new DorisTableInputSplit(0, PartitionDefinition.emptyPartition("table")));
+
+        format.close();
+        format.close();
+        format.close();
+
+        assertEquals(
+                "repeated close() must invoke the reader's close() exactly once",
+                1,
+                format.injectedReader.closeCount.get());
     }
 }
