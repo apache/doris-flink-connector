@@ -43,6 +43,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.time.Instant;
+import java.time.format.DateTimeParseException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -174,7 +176,8 @@ public class MongoJsonDebeziumSchemaChange extends CdcSchemaChange {
                                                             : jsonNode.asLong();
                                             String formattedDate =
                                                     MongoDateConverter.convertTimestampToString(
-                                                            timestamp);
+                                                            timestamp,
+                                                            changeContext.getTimeZone());
                                             ((ObjectNode) logData).put(fieldName, formattedDate);
                                             break;
                                         case DECIMAL_FIELD:
@@ -188,6 +191,18 @@ public class MongoJsonDebeziumSchemaChange extends CdcSchemaChange {
                                             ((ObjectNode) logData).put(fieldName, longFiled);
                                             break;
                                     }
+                                }
+                            } else if (fieldNode.isTextual()) {
+                                String text = fieldNode.asText();
+                                try {
+                                    Instant instant = Instant.parse(text);
+                                    String formattedDate =
+                                            MongoDateConverter.convertTimestampToString(
+                                                    instant.toEpochMilli(),
+                                                    changeContext.getTimeZone());
+                                    ((ObjectNode) logData).put(fieldName, formattedDate);
+                                } catch (DateTimeParseException e) {
+                                    // not an ISO date string, ignore
                                 }
                             }
                         });
