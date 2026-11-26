@@ -15,4 +15,4 @@ header:
     - 'flink-doris-connector/flink-doris-connector-base/src/test/resources/container/'
     - 'flink-doris-connector/flink-doris-connector-base/src/test/resources/tls/'
 
-  comment: on-failure
+  comment: never

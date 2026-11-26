@@ -33,12 +33,15 @@ jobs:
         shell: bash
     steps:
     - name: Checkout
-      uses: actions/checkout@master
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
 
     - name: Setup java
-      uses: actions/setup-java@v2
+      uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
       with:
-        distribution: adopt
+        problem-matcher: true
+        distribution: temurin
         java-version: '17'
 
     - name: Configure Doris prerequisites
@@ -81,11 +84,14 @@ jobs:
         shell: bash
     steps:
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
 
     - name: Setup Java 21
-      uses: actions/setup-java@v4
+      uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
       with:
+        problem-matcher: true
         distribution: temurin
         java-version: '21'
         cache: maven
