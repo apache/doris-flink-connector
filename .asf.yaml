@@ -48,7 +48,6 @@ github:
           - branch-for-flinkcdc-2.x
       restrict_deletion: true
       restrict_force_push: true
-      required_conversation_resolution: true
       required_pull_request_reviews:
         dismiss_stale_reviews: true
         required_approving_review_count: 1
