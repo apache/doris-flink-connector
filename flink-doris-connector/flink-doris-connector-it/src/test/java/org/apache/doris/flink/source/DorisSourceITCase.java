@@ -432,10 +432,8 @@ public class DorisSourceITCase extends AbstractITCaseService {
                         tEnv,
                         "SELECT id,brilliant_time FROM doris_source_datetime_filter_and_projection_push_down where brilliant_time >= '2023-01-01 00:00:00.999999999' order by id");
 
-        // TODO: Remove the legacy Scanner expectation after Doris returns DATETIME as a
-        // timezone-naive Arrow timestamp.
-        String expectedMinute = useFlightSql ? "2023-01-01T00:00" : "2022-12-31T16:00";
-        String expectedTimestampPrefix = useFlightSql ? "2023-01-01T00:00:" : "2022-12-31T16:00:";
+        String expectedMinute = "2023-01-01T00:00";
+        String expectedTimestampPrefix = expectedMinute + ":";
         String[] expectedProjectionResult =
                 new String[] {
                     "+I[1, " + expectedMinute + ", " + expectedTimestampPrefix + "00.000001]",
