@@ -36,4 +36,4 @@ jobs:
         with:
           persist-credentials: false
       - name: Check License
-        uses: apache/skywalking-eyes@49d536241d6fe8f92400702b08710514dc298cd4 # v0.2.0
+        uses: apache/skywalking-eyes@a196742f472feaffafea537ce5a2a4c3c53a8de4 # v0.9.0
