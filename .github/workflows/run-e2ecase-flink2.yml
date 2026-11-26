@@ -63,7 +63,7 @@ jobs:
           -Dtest="*E2ECase" \
           -Dflink.version=2.3.0 \
           -Dflink.major.version=2.3 \
-          -Dimage="jnsimba/doris-all-in-one:4.1.3"
+          -Dimage="apache/doris:all-in-one-4.1.5-full"
 
     - name: Verify Doris-to-Doris E2E report
       run: |
