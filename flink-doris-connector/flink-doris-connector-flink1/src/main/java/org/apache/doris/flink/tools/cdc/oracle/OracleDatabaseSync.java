@@ -179,6 +179,10 @@ public class OracleDatabaseSync extends DatabaseSync {
 
         StartupOptions startupOptions = StartupOptions.initial();
         String startupMode = config.get(OracleSourceOptions.SCAN_STARTUP_MODE);
+        validateStartupMode(
+                startupMode,
+                DatabaseSyncConfig.SCAN_STARTUP_MODE_VALUE_INITIAL,
+                DatabaseSyncConfig.SCAN_STARTUP_MODE_VALUE_LATEST_OFFSET);
         if (DatabaseSyncConfig.SCAN_STARTUP_MODE_VALUE_INITIAL.equalsIgnoreCase(startupMode)) {
             startupOptions = StartupOptions.initial();
         } else if (DatabaseSyncConfig.SCAN_STARTUP_MODE_VALUE_LATEST_OFFSET.equalsIgnoreCase(
