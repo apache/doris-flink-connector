@@ -128,11 +128,14 @@ public class DorisSchemaFactory {
                 throw new CreateTableException("key " + key + " not found in column list");
             }
             FieldSchema field = fields.get(key);
-            buildColumn(sb, field, true, false);
+            // the auto partition column is declared here, in its key position, and needs NOT NULL
+            boolean autoPartitionCol =
+                    schema.getPartitionInfo() != null && key.equals(schema.getPartitionInfo().f0);
+            buildColumn(sb, field, true, autoPartitionCol);
         }
 
-        // append partition column, auto partition column must be in keys
-        if (schema.getPartitionInfo() != null) {
+        // Append the auto partition column when it was not already declared as a key.
+        if (schema.getPartitionInfo() != null && !keys.contains(schema.getPartitionInfo().f0)) {
             String partitionCol = schema.getPartitionInfo().f0;
             FieldSchema field = fields.get(partitionCol);
             buildColumn(sb, field, true, true);
@@ -160,7 +163,8 @@ public class DorisSchemaFactory {
                     .append(" KEY(")
                     .append(String.join(",", identifier(schema.getKeys())));
 
-            if (schema.getPartitionInfo() != null) {
+            if (schema.getPartitionInfo() != null
+                    && !schema.getKeys().contains(schema.getPartitionInfo().f0)) {
                 sb.append(",").append(identifier(schema.getPartitionInfo().f0));
             }
 
